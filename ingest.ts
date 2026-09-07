@@ -15,7 +15,7 @@
  * behaviour, not a broken run.
  */
 
-import { CATALOG, fetchLive, seriesRegion } from "./data.ts";
+import { CATALOG, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
 import { db, writeSeries, logFetch, dbStatus, listStoredSeries } from "./db.ts";
 import { getNbsCatalogEntry, refreshNbsCatalogSeries } from "./nbs-catalog.ts";
 
@@ -27,6 +27,30 @@ const HISTORY_LIMIT = Number(process.env.INGEST_LIMIT ?? 240);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** One region of a multi-region curated series, keyed by its NBS code. */
+async function ingestRegion(key: string, region: { text: string; value: string }): Promise<"ok" | "error" | "empty"> {
+  const startedAt = new Date().toISOString();
+  const label = `${key}@${region.value}`;
+  try {
+    const result = await fetchLiveRegion(key, region, HISTORY_LIMIT);
+    const finishedAt = new Date().toISOString();
+    if (!result || result.series.every((s) => s.points.length === 0)) {
+      logFetch({ key, region: region.value, startedAt, finishedAt, status: "empty", points: 0, changed: 0, message: "source returned no points" });
+      console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} empty`);
+      return "empty";
+    }
+    const summary = writeSeries(result, region.value, finishedAt);
+    logFetch({ key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed });
+    console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} ${String(summary.points).padStart(4)} points, ${summary.changed} new or revised`);
+    return "ok";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logFetch({ key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+    console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} FAILED  ${message}`);
+    return "error";
+  }
 }
 
 async function ingestOne(key: string): Promise<"ok" | "error" | "empty"> {
@@ -111,7 +135,17 @@ async function main(): Promise<void> {
   if (curatedKeys.length > 0) {
     console.log(`Ingesting ${curatedKeys.length} curated series\n`);
     for (const [index, key] of curatedKeys.entries()) {
-      tally[await ingestOne(key)] += 1;
+      const regions = seriesRegions(key);
+      if (regions.length > 0) {
+        // One request per region, paced like everything else. A failure in
+        // one province does not discard the others.
+        for (const [regionIndex, region] of regions.entries()) {
+          tally[await ingestRegion(key, region)] += 1;
+          if (regionIndex < regions.length - 1) await sleep(PAUSE_MS);
+        }
+      } else {
+        tally[await ingestOne(key)] += 1;
+      }
       if (index < curatedKeys.length - 1) await sleep(PAUSE_MS);
     }
   }

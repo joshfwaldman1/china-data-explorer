@@ -21,6 +21,17 @@ copy, and visual assets are not.
   series on a schedule, catalog series on first view and then refreshed daily.
   Page views never call the portal for a series the store already holds.
 - Responsive desktop and compact layouts.
+- Bilingual search: English glosses for every NBS title, pinyin, an alias
+  dictionary, a full-text index, and Claude query expansion on misses.
+- A home page, browse by category, facets that only offer what exists, and
+  empty states that say why.
+- Series breaks drawn and captioned; Updated / Next release on every series;
+  a Revisions tab; formatted values with unit glosses; one axis with a unit
+  guard on compares.
+- A token system with a chosen dark theme, CJK typography, and an
+  accessibility pass (skip link, tablist, pressed states, 44px targets).
+- Provincial GDP for all 31 units in the store, and a Regions page with a tile
+  cartogram, ranked list and period selector.
 
 ## P0: data completeness and reliability
 
@@ -50,7 +61,8 @@ copy, and visual assets are not.
 
 - Dedicated category, release, source, tag, and geographic landing pages with
   breadcrumbs and related-series recommendations.
-- Province and city choropleth maps with time controls and regional comparison.
+- More provincial and city series behind the Regions page (CPI, FAI, house
+  prices), and regional comparison across series.
 - Curated dashboards for growth, inflation, property, labor, credit, trade, and
   provincial conditions.
 - Chinese/English aliases, pinyin search, synonyms, acronym matching, and

@@ -1,7 +1,10 @@
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
+import { Database } from "bun:sqlite";
+import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
-import { logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
+import { db, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
+import { glossTitle, toPinyin, warmGloss } from "./gloss";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const CATALOG_PATH = resolve(import.meta.dir, "catalog/nbs-catalog.json");
@@ -82,6 +85,17 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   "trade balance": ["进出口差额", "贸易差额"],
   "provincial gdp": ["地区生产总值"],
 };
+Object.assign(SEARCH_ALIASES, {
+  youth: ["16—24岁", "16-24岁", "青年"], "youth unemployment": ["16—24岁", "16-24岁"], jobless: ["失业"], population: ["人口"],
+  profits: ["利润"], profit: ["利润"], "home prices": ["住宅销售价格", "房价"], "car sales": ["汽车"], cars: ["汽车", "轿车"],
+  m2: ["广义货币", "M2"], m1: ["狭义货币", "M1"], loans: ["贷款"], deposits: ["存款"], fiscal: ["财政"], tax: ["税收"], taxes: ["税收"],
+  "crude steel": ["粗钢"], aluminium: ["电解铝", "铝"], aluminum: ["电解铝", "铝"], copper: ["铜"], pork: ["猪肉"], vegetables: ["鲜菜"],
+  rail: ["铁路"], railway: ["铁路"], aviation: ["民航"], airlines: ["民航"], tourism: ["旅游"], shipping: ["港口", "水运"], ports: ["港口"],
+  ev: ["新能源汽车"], evs: ["新能源汽车"], "electric vehicles": ["新能源汽车"], robots: ["工业机器人"], chips: ["集成电路"], semiconductors: ["集成电路"],
+  solar: ["太阳能", "光伏"], wind: ["风电"], nuclear: ["核电"], hydro: ["水电"], "power generation": ["发电量"], smartphones: ["手机"], phones: ["手机"],
+  income: ["收入"], "disposable income": ["可支配收入"], spending: ["支出", "消费"], "industrial profits": ["工业企业利润"], inventories: ["库存", "产成品"],
+  "floor space": ["面积"], "housing starts": ["新开工面积"], completions: ["竣工面积"], "home sales": ["商品房销售"],
+});
 const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series"]);
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
@@ -102,6 +116,10 @@ export interface NbsCatalogEntry {
   frequency: "Monthly" | "Quarterly" | "Annual";
   geography: "National" | "Province" | "City" | "Hong Kong, Macao & Taiwan";
   categories: string[];
+  /** English gloss of the title (see gloss.ts); the Chinese stays authoritative. */
+  nameEn?: string;
+  /** Toneless pinyin of the short name, for search. */
+  pinyin?: string;
 }
 
 export interface NbsRegionOption {
@@ -196,11 +214,15 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
       const raw: unknown = await Bun.file(CATALOG_PATH).json();
       const entriesRaw = objectValue(raw, "entries");
       if (!Array.isArray(entriesRaw)) throw new Error("NBS catalog is missing; run the catalog sync script");
+      await warmGloss();
+      const entries = entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null)
+        .map((entry) => { const spaced = toPinyin(entry.shortName); return { ...entry, nameEn: glossTitle(entry.name), pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` }; });
       const snapshot = {
         generatedAt: stringValue(raw, "generatedAt"),
         source: stringValue(raw, "source"),
-        entries: entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null),
+        entries,
       };
+      buildSearchIndex(entries);
       snapshotCache = { modifiedAt, snapshot };
       return snapshot;
     })();
@@ -242,12 +264,90 @@ export async function nbsCatalogStats() {
   };
 }
 
+// ── Full-text index ───────────────────────────────────────────────────────────
+//
+// An in-memory FTS5 table over the Chinese title, the English gloss, the
+// category path and the pinyin, with a trigram tokenizer so Chinese
+// substrings and English words share one index. Trigrams need three
+// characters, so two-character Chinese terms fall through to the substring
+// scorer below — which is why both exist.
+
+let searchIndex: Database | null = null;
+
+function buildSearchIndex(entries: NbsCatalogEntry[]): void {
+  const index = new Database(":memory:");
+  index.exec("CREATE VIRTUAL TABLE catalog USING fts5(key UNINDEXED, name, name_en, short, path, py, tokenize = 'trigram')");
+  const insert = index.prepare("INSERT INTO catalog (key, name, name_en, short, path, py) VALUES (?, ?, ?, ?, ?, ?)");
+  index.transaction((rows: NbsCatalogEntry[]) => {
+    for (const entry of rows) insert.run(entry.key, entry.name, entry.nameEn ?? "", entry.shortName, entry.categories.join(" "), entry.pinyin ?? "");
+  })(entries);
+  searchIndex = index;
+}
+
+/** Keys matching any of the terms, with a 0–10 relevance from bm25. */
+function fullTextCandidates(terms: string[]): Map<string, number> {
+  const usable = terms.map((term) => term.trim()).filter((term) => term.length >= 3 && !term.includes('"'));
+  const out = new Map<string, number>();
+  if (!searchIndex || usable.length === 0) return out;
+  const match = usable.map((term) => `"${term}"`).join(" OR ");
+  try {
+    const rows = searchIndex.query<{ key: string; rank: number }>("SELECT key, bm25(catalog, 0, 3, 2, 2, 1, 2) AS rank FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT 2000").all(match);
+    for (const row of rows) out.set(row.key, Math.min(10, Math.max(0, -row.rank)));
+  } catch {
+    // A malformed MATCH expression is not worth failing a search over.
+  }
+  return out;
+}
+
+// ── Query expansion ───────────────────────────────────────────────────────────
+//
+// When an English query finds almost nothing, ask Claude which Chinese terms
+// would appear in matching NBS titles and search again. Cached in the store
+// so each phrasing costs one call, ever.
+
+let anthropic: Anthropic | null = null;
+const EXPANSION_SYSTEM = "You map English search queries about Chinese official statistics to the Chinese terms that appear in National Bureau of Statistics indicator titles. Reply with a JSON array of 2 to 6 short Chinese terms (2-8 characters each), most specific first — for example [\"16—24岁\", \"失业率\", \"青年\"] for \"youth jobless rate\". No commentary.";
+
+async function expandQuery(query: string): Promise<string[]> {
+  const store = db();
+  store.exec("CREATE TABLE IF NOT EXISTS query_expansions (query TEXT PRIMARY KEY, terms TEXT NOT NULL, created_at TEXT NOT NULL)");
+  const cached = store.query<{ terms: string }>("SELECT terms FROM query_expansions WHERE query = ?").get(query.toLocaleLowerCase());
+  if (cached) {
+    try { const parsed: unknown = JSON.parse(cached.terms); if (Array.isArray(parsed)) return parsed.filter((term): term is string => typeof term === "string"); } catch { /* fall through */ }
+  }
+  try {
+    anthropic ??= new Anthropic({ timeout: 8000, maxRetries: 0 });
+    const response = await anthropic.messages.create({
+      model: "claude-opus-5",
+      max_tokens: 300,
+      output_config: { effort: "low" },
+      system: EXPANSION_SYSTEM,
+      messages: [{ role: "user", content: query }],
+    });
+    const text = response.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+    const start = text.indexOf("["), end = text.lastIndexOf("]");
+    const parsed: unknown = start >= 0 && end > start ? JSON.parse(text.slice(start, end + 1)) : [];
+    const terms = Array.isArray(parsed) ? parsed.filter((term): term is string => typeof term === "string" && term.length >= 2).slice(0, 6) : [];
+    store.query("INSERT OR REPLACE INTO query_expansions (query, terms, created_at) VALUES (?, ?, ?)").run(query.toLocaleLowerCase(), JSON.stringify(terms), new Date().toISOString());
+    return terms;
+  } catch {
+    return [];
+  }
+}
+
+/** Latin terms match on a word boundary — "house" must not hit "household". */
+function hasTerm(text: string, term: string): boolean {
+  if (!/^[a-z0-9][a-z0-9 .'-]*$/i.test(term)) return text.includes(term);
+  return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9])`, "i").test(text);
+}
+
 function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (!query) return 1;
   const name = entry.name.toLocaleLowerCase();
   const shortName = entry.shortName.toLocaleLowerCase();
   const path = entry.categories.join(" ").toLocaleLowerCase();
-  const haystack = `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()}`;
+  const nameEn = (entry.nameEn ?? "").toLocaleLowerCase();
+  const haystack = `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()} ${nameEn} ${entry.pinyin ?? ""}`;
   const lowerQuery = query.toLocaleLowerCase().replace(/^nbs_/, "");
   // An ID is only a match when enough of it is typed to be one — otherwise
   // any two-character query lights up random hashes.
@@ -257,38 +357,72 @@ function searchScore(entry: NbsCatalogEntry, query: string): number {
   let bestScore = 0;
   for (const variant of variants) {
     const terms = variant.split(/\s+/).filter(Boolean);
-    if (!terms.every((term) => haystack.includes(term))) continue;
+    if (!terms.every((term) => hasTerm(haystack, term))) continue;
     let score = 10;
-    if (name === variant) score += 100;
-    if (name.startsWith(variant)) score += 40;
-    if (name.includes(variant)) score += 30;
+    if (name === variant || nameEn === variant) score += 100;
+    if (name.startsWith(variant) || nameEn.startsWith(variant)) score += 40;
+    if (name.includes(variant) || nameEn.includes(variant)) score += 30;
     if (shortName.includes(variant)) score += 20;
     if (path.includes(variant)) score += 5;
     bestScore = Math.max(bestScore, score);
   }
-  if (bestScore > 0 || exactAliases) return bestScore;
 
+  // Word by word through the dictionary; a title hit per word counts more
+  // than a hit anywhere.
   const tokenGroups = lowerQuery.split(/\s+/)
     .filter((word) => word && !SEARCH_STOP_WORDS.has(word))
     .map((word) => SEARCH_ALIASES[word] ?? [word]);
-  if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => haystack.includes(term)))) {
-    const titleMatches = tokenGroups.filter((group) => group.some((term) => name.includes(term))).length;
-    return 10 + titleMatches * 20;
+  if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => hasTerm(haystack, term)))) {
+    const titleMatches = tokenGroups.filter((group) => group.some((term) => hasTerm(name, term) || hasTerm(nameEn, term))).length;
+    bestScore = Math.max(bestScore, 10 + titleMatches * 20);
   }
   return bestScore;
+}
+
+/** 1 for a whole-term hit, 0.7 for a prefix of at least two characters, 0 otherwise. */
+function termHit(name: string, term: string): number {
+  if (name.includes(term)) return 1;
+  for (let length = term.length - 1; length >= 2; length -= 1) if (name.includes(term.slice(0, length))) return 0.7;
+  return 0;
+}
+
+/** Every phrasing the dictionary offers for a query, plus the query itself. */
+function queryVariants(query: string): string[] {
+  const lower = query.toLocaleLowerCase();
+  const direct = SEARCH_ALIASES[lower] ?? [];
+  const perWord = lower.split(/\s+/).filter((word) => word && !SEARCH_STOP_WORDS.has(word)).flatMap((word) => SEARCH_ALIASES[word] ?? []);
+  return [...new Set([lower, ...direct, ...perWord])];
 }
 
 export async function searchNbsCatalog(filters: NbsSearchFilters) {
   const snapshot = await loadSnapshot();
   const query = (filters.query ?? "").trim();
-  const scored = snapshot.entries
-    .filter((entry) => !filters.frequency || entry.frequency === filters.frequency)
-    .filter((entry) => !filters.geography || entry.geography === filters.geography)
-    .filter((entry) => filters.datasetCode === undefined || entry.datasetCode === filters.datasetCode)
-    .filter((entry) => !filters.category || entry.categories.includes(filters.category))
-    .map((entry) => ({ entry, score: searchScore(entry, query) }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+  const passes = (entry: NbsCatalogEntry) =>
+    (!filters.frequency || entry.frequency === filters.frequency) &&
+    (!filters.geography || entry.geography === filters.geography) &&
+    (filters.datasetCode === undefined || entry.datasetCode === filters.datasetCode) &&
+    (!filters.category || entry.categories.includes(filters.category));
+
+  const rank = (extraTerms: string[]) => {
+    const fullText = query ? fullTextCandidates([...queryVariants(query), ...extraTerms]) : new Map<string, number>();
+    return snapshot.entries.filter(passes).map((entry) => {
+      const base = query ? searchScore(entry, query) : 1;
+      const extra = extraTerms.reduce((sum, term, index) => sum + termHit(entry.name, term) * 8 / (index + 1), 0);
+      // Full text is a tiebreak, never the ranking: two-character Chinese
+      // terms cannot hit a trigram index, so letting bm25 dominate would rank
+      // long generic titles above the specific ones the query meant.
+      const text = fullText.has(entry.key) ? Math.min(2, (fullText.get(entry.key) ?? 0) / 5) : undefined;
+      const score = base > 0 ? base + (text ?? 0) : text !== undefined ? 5 + text + extra : extra;
+      return { entry, score };
+    }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score || a.entry.name.length - b.entry.name.length || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+  };
+
+  let scored = rank([]);
+  // English that found (almost) nothing: let the model suggest Chinese terms.
+  if (scored.length < 3 && /[a-z]{3,}/i.test(query) && !/^(nbs_)?[0-9a-f]{6,}$/i.test(query) && (filters.offset ?? 0) === 0) {
+    const expanded = (await expandQuery(query)).filter((term) => /[㐀-鿿]/.test(term));
+    if (expanded.length > 0) scored = rank(expanded);
+  }
   const offset = Math.max(0, filters.offset ?? 0);
   const limit = Math.min(100, Math.max(1, filters.limit ?? 50));
   return {

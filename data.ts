@@ -97,6 +97,8 @@ interface NbsIndicator {
   rootId: string;
   ids: NbsSeriesId[];
   region?: NbsRegion;
+  /** Every region this series exists for. One request each — esData answers only the first `das`. */
+  regions?: NbsRegion[];
 }
 // AkShare (via a local AKTools HTTP server) — huge breadth of fresh Chinese
 // series maintained by the AkShare community. Optional: only these indicators
@@ -177,14 +179,17 @@ export const CATALOG: Record<string, Indicator> = {
   },
   provincial_gdp: {
     kind: "nbs", group: "Regional",
-    title: "Guangdong Real GDP Growth", agency: "National Bureau of Statistics",
-    frequency: "Quarterly", unit: "Percent change from year ago",
+    title: "Provincial Real GDP Growth", agency: "National Bureau of Statistics",
+    // NBS publishes this as 本期累计 — cumulative year to date — so Q2 is
+    // first-half growth and Q4 is the full year. Not a single-quarter rate.
+    frequency: "Quarterly", unit: "Percent change from year ago, cumulative year to date",
     cid: "44ecf9ea21884caea5451c35e9c08fff",
     rootId: "854f819b04104191a5ae2f2cba270e6c",
     region: GUANGDONG,
+    regions: NBS_PROVINCES,
     ids: [{
       id: "23c7f329424d4e90b22abc092a5b676f",
-      label: "Guangdong real GDP (YoY %)",
+      label: "Real GDP, cumulative YTD (YoY %)",
       // NBS reports this as an index where the same period a year ago = 100.
       valueOffset: -100,
     }],
@@ -528,8 +533,24 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
  */
 export function seriesRegion(key: string): string {
   const cfg = CATALOG[key];
-  if (cfg && cfg.kind === "nbs" && cfg.region) return cfg.region.text;
+  if (cfg && cfg.kind === "nbs" && cfg.region) return cfg.regions ? cfg.region.value : cfg.region.text;
   return "";
+}
+
+/** The regions a curated series is published for, or an empty list. */
+export function seriesRegions(key: string): NbsRegion[] {
+  const cfg = CATALOG[key];
+  return cfg && cfg.kind === "nbs" && cfg.regions ? cfg.regions : [];
+}
+
+/**
+ * Fetch one region of a multi-region curated series. The store keys these
+ * by the NBS `das` code, the same convention as catalog series.
+ */
+export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 120): Promise<SeriesResult | null> {
+  const cfg = CATALOG[key];
+  if (!cfg || cfg.kind !== "nbs") return null;
+  return fetchNbs(key, { ...cfg, region }, limit);
 }
 
 /**

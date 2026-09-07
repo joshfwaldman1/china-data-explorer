@@ -987,15 +987,165 @@ function SeriesPage(props: {
   );
 }
 
-// ── Regions (placeholder until the provincial store lands) ────────────────────
+// ── Regions ───────────────────────────────────────────────────────────────────
+//
+// A tile cartogram: equal-area tiles arranged roughly by geography, so the
+// municipalities stay readable beside the large provinces and the map does not
+// imply a precision the data does not have. Positions follow the design mock
+// on an eight-column grid.
 
-function RegionsPage() {
+interface Province { code: string; abbr: string; en: string; zh: string; col: number; row: number; }
+const PROVINCES: Province[] = [
+  { code: "230000000000", abbr: "HLJ", en: "Heilongjiang", zh: "黑龙江", col: 8, row: 1 },
+  { code: "650000000000", abbr: "XJ", en: "Xinjiang", zh: "新疆", col: 1, row: 2 },
+  { code: "150000000000", abbr: "NMG", en: "Inner Mongolia", zh: "内蒙古", col: 5, row: 2 },
+  { code: "220000000000", abbr: "JL", en: "Jilin", zh: "吉林", col: 8, row: 2 },
+  { code: "620000000000", abbr: "GS", en: "Gansu", zh: "甘肃", col: 3, row: 3 },
+  { code: "640000000000", abbr: "NX", en: "Ningxia", zh: "宁夏", col: 4, row: 3 },
+  { code: "110000000000", abbr: "BJ", en: "Beijing", zh: "北京", col: 6, row: 3 },
+  { code: "120000000000", abbr: "TJ", en: "Tianjin", zh: "天津", col: 7, row: 3 },
+  { code: "210000000000", abbr: "LN", en: "Liaoning", zh: "辽宁", col: 8, row: 3 },
+  { code: "630000000000", abbr: "QH", en: "Qinghai", zh: "青海", col: 2, row: 4 },
+  { code: "610000000000", abbr: "SAX", en: "Shaanxi", zh: "陕西", col: 4, row: 4 },
+  { code: "140000000000", abbr: "SX", en: "Shanxi", zh: "山西", col: 5, row: 4 },
+  { code: "130000000000", abbr: "HEB", en: "Hebei", zh: "河北", col: 6, row: 4 },
+  { code: "370000000000", abbr: "SD", en: "Shandong", zh: "山东", col: 7, row: 4 },
+  { code: "540000000000", abbr: "XZ", en: "Tibet", zh: "西藏", col: 1, row: 5 },
+  { code: "510000000000", abbr: "SC", en: "Sichuan", zh: "四川", col: 3, row: 5 },
+  { code: "410000000000", abbr: "HEN", en: "Henan", zh: "河南", col: 5, row: 5 },
+  { code: "320000000000", abbr: "JS", en: "Jiangsu", zh: "江苏", col: 7, row: 5 },
+  { code: "310000000000", abbr: "SH", en: "Shanghai", zh: "上海", col: 8, row: 5 },
+  { code: "500000000000", abbr: "CQ", en: "Chongqing", zh: "重庆", col: 3, row: 6 },
+  { code: "420000000000", abbr: "HUB", en: "Hubei", zh: "湖北", col: 5, row: 6 },
+  { code: "340000000000", abbr: "AH", en: "Anhui", zh: "安徽", col: 6, row: 6 },
+  { code: "330000000000", abbr: "ZJ", en: "Zhejiang", zh: "浙江", col: 8, row: 6 },
+  { code: "530000000000", abbr: "YN", en: "Yunnan", zh: "云南", col: 2, row: 7 },
+  { code: "520000000000", abbr: "GZ", en: "Guizhou", zh: "贵州", col: 3, row: 7 },
+  { code: "430000000000", abbr: "HUN", en: "Hunan", zh: "湖南", col: 5, row: 7 },
+  { code: "360000000000", abbr: "JX", en: "Jiangxi", zh: "江西", col: 6, row: 7 },
+  { code: "350000000000", abbr: "FJ", en: "Fujian", zh: "福建", col: 7, row: 7 },
+  { code: "450000000000", abbr: "GX", en: "Guangxi", zh: "广西", col: 4, row: 8 },
+  { code: "440000000000", abbr: "GD", en: "Guangdong", zh: "广东", col: 5, row: 8 },
+  { code: "460000000000", abbr: "HI", en: "Hainan", zh: "海南", col: 4, row: 9 },
+];
+const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
+
+interface RegionalValue { region: Region; value: number | null; period: string | null; points: SeriesPoint[]; }
+interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
+
+function isRegionalResponse(value: unknown): value is RegionalResponse {
+  return typeof obj(value, "key") === "string" && Array.isArray(obj(value, "values")) && Array.isArray(obj(value, "periods"));
+}
+
+/** Six class breaks from the quantiles of the values shown, so every step is used. */
+function breaksFor(values: number[]): number[] {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 0) return [0, 0, 0, 0, 0];
+  return [1, 2, 3, 4, 5].map((step) => { const at = (step / 6) * (sorted.length - 1); const low = sorted[Math.floor(at)] ?? 0; const high = sorted[Math.ceil(at)] ?? low; return Math.round((low + (high - low) * (at - Math.floor(at))) * 10) / 10; });
+}
+function stepFor(value: number, breaks: number[]): number { let step = 0; for (const edge of breaks) if (value >= edge) step += 1; return Math.min(step, RAMP.length - 1); }
+
+function RegionsPage(props: { toast: (text: string) => void }) {
+  const [data, setData] = useState<RegionalResponse | null>(null);
+  const [period, setPeriod] = useState("");
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [selected, setSelected] = useState<string>("");
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    json(`/api/regional/provincial_gdp${period ? `?period=${encodeURIComponent(period)}` : ""}`).then((body) => {
+      if (cancelled) return;
+      if (isRegionalResponse(body)) { setData(body); setStatus("ok"); } else setStatus("error");
+    }).catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, [period]);
+
+  const rows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.province && item.value !== null);
+  const values = rows.map((item) => item.value ?? 0);
+  const breaks = breaksFor(values);
+  const max = Math.max(0, ...values);
+  const ranked = [...rows].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  const shownPeriod = rows[0]?.period ?? period;
+  const current = rows.find((item) => item.province?.code === selected);
+
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Regions</span></div>
-      <h1>Regional data</h1>
-      <p className="lede">Provincial series are being brought into the store. Guangdong's quarterly GDP is available now; the 31-province map arrives with the rest.</p>
-      <div className="tiles" style={{ marginTop: 20 }}><a className="tile" href={seriesHash(["provincial_gdp"])}><span className="label">Guangdong real GDP growth</span><small>Quarterly · cumulative year-to-date · NBS</small></a></div>
+      <div className="series-head">
+        <div>
+          <h1>Regional GDP growth by province</h1>
+          <p className="lede">Real GDP, cumulative year to date, % change from the same period a year earlier. From the provincial statistical bureaus via NBS; every province's full history is stored.</p>
+        </div>
+        <div className="actions">
+          <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).slice(0, 24).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
+        </div>
+      </div>
+      <div className="notice info"><div><b>Cumulative, not quarterly.</b>NBS publishes provincial GDP growth as 本期累计 — the year to date. Q2 is first-half growth, Q4 is the full year. Provincial figures have historically summed to more than the national total, so treat rankings as indicative.</div></div>
+
+      {status === "loading" && <div className="state" role="status"><span className="loader" aria-hidden="true" />Loading provinces…</div>}
+      {status === "error" && <div className="state" role="alert"><b>Couldn't load the provincial data</b><p>The store has no provincial rows yet. Run the ingest and try again.</p></div>}
+      {status === "ok" && data && (
+        <div className="regional-grid">
+          <section className="card" aria-label="Map of provinces">
+            <div className="card-head"><h2>31 province-level units</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""} · schematic tile grid, arranged roughly by geography</span></div>
+            <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
+              {rows.map((item) => {
+                const province = item.province;
+                if (!province) return null;
+                const step = stepFor(item.value ?? 0, breaks);
+                return (
+                  <button key={province.code} className={`ptile ${step >= 3 ? "dark" : "light"}`} style={{ gridColumn: province.col, gridRow: province.row, background: RAMP[step] }} aria-pressed={selected === province.code} aria-label={`${province.en}, ${fmt(item.value ?? 0, "%")}%`} onClick={() => setSelected(selected === province.code ? "" : province.code)} onMouseEnter={() => undefined}>
+                    <span>{province.abbr}</span><b>{fmt(item.value ?? 0, "%")}</b>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ramp" aria-hidden="true">
+              <span>{data.unit.split(",")[0]}</span>
+              <div>
+                <div className="steps">{RAMP.map((color) => <i key={color} style={{ background: color }} />)}</div>
+                <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge}</span>)}</div>
+              </div>
+            </div>
+          </section>
+          <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
+            {current && current.province && (
+              <section className="card" style={{ padding: 16 }} aria-live="polite">
+                <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{current.province.en} <Zh className="gloss">{current.province.zh}</Zh></h2></div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, "%")}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>% · {shownPeriod ? periodPretty(shownPeriod) : ""}, year to date</span></div>
+                <Sparkline points={current.points} />
+                <div style={{ marginTop: 10 }}><a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open the full series</a></div>
+              </section>
+            )}
+            <section className="card">
+              <div className="card-head"><h2>Ranked</h2><span>31 units · {shownPeriod ? periodPretty(shownPeriod) : ""}</span></div>
+              <div className="ranked">
+                {ranked.map((item, index) => {
+                  const province = item.province;
+                  if (!province) return null;
+                  const step = stepFor(item.value ?? 0, breaks);
+                  return (
+                    <button key={province.code} className={`r${selected === province.code ? " selected" : ""}`} style={{ border: 0, background: selected === province.code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === province.code ? "" : province.code)} aria-pressed={selected === province.code}>
+                      <span className="rank">{index + 1}</span>
+                      <span>{province.en}</span>
+                      <span className="bar"><i style={{ width: `${max > 0 ? Math.max(0, (item.value ?? 0) / max) * 100 : 0}%`, background: RAMP[step] }} /></span>
+                      <span className="val">{fmt(item.value ?? 0, "%")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+            <section className="card" style={{ padding: 16 }}>
+              <h2>Reading provincial data</h2>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                <li>Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total; treat cross-province ranking as indicative.</li>
+                <li>Growth in small western provinces moves on a low base — a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>
+                <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are not in this series.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -1112,7 +1262,7 @@ function App() {
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
         {route.view === "browse" && <BrowsePage stats={stats} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
-        {route.view === "regions" && <RegionsPage />}
+        {route.view === "regions" && <RegionsPage toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved series" keys={saved} empty="Nothing saved yet" />}
         {route.view === "recent" && <KeyListPage title="Recently viewed" keys={recent} empty="Nothing viewed yet" />}
       </div>

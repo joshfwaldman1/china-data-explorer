@@ -10,7 +10,7 @@
  */
 
 import index from "./index.html";
-import { catalogList, getSeries, CURATED_SYNONYMS, type SeriesResult } from "./data";
+import { catalogList, getSeries, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
 import { readSeries, readRevisions, readRevisionHistory, dbStatus } from "./db";
 import {
   getNbsCatalogSeries,
@@ -108,6 +108,25 @@ const routes = {
       }
     },
     "/api/release-map": () => Response.json(RELEASE_MAP),
+    // Every region of a multi-region series at once, for the map: the latest
+    // value per region plus the periods available, all from the store.
+    "/api/regional/:key": (req: RouteRequest) => {
+      const key = req.params.key;
+      const regions = key ? seriesRegions(key) : [];
+      if (!key || regions.length === 0) return Response.json({ error: "Not a regional series" }, { status: 404 });
+      const period = new URL(req.url).searchParams.get("period") ?? "";
+      const periods = new Set<string>();
+      const values = regions.map((region) => {
+        const stored = readSeries(key, 40, region.value);
+        const points = stored?.series[0]?.points ?? [];
+        for (const point of points) periods.add(point.date);
+        const chosen = period ? points.find((point) => point.date === period) : points[points.length - 1];
+        return { region, value: chosen?.value ?? null, period: chosen?.date ?? null, points: points.slice(-8) };
+      });
+      const meta = readSeries(key, 1, regions[0]?.value);
+      return Response.json({ key, title: meta?.title ?? key, unit: meta?.unit ?? "", frequency: meta?.frequency ?? "", agency: meta?.agency ?? "",
+        updatedAt: meta?.updatedAt ?? null, periods: [...periods].sort().reverse(), values });
+    },
     // One entry by key — curated or catalog — for pages that hold only keys
     // (saved, recent) and need titles.
     "/api/entry/:key": async (req: RouteRequest) => {
@@ -143,6 +162,7 @@ const routes = {
           key: entry.key,
           id: entry.key,
           name: entry.title,
+          nameEn: entry.title,
           shortName: entry.title,
           unit: entry.unit,
           note: "",
@@ -176,6 +196,8 @@ const routes = {
     "/api/dimensions/:key": async (req: RouteRequest) => {
       const key = req.params.key;
       if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
+      const curatedRegions = seriesRegions(key);
+      if (curatedRegions.length > 0) return Response.json({ key, geography: "Province", regions: curatedRegions });
       const entry = await getNbsCatalogEntry(key);
       if (!entry) return Response.json({ error: "Unknown NBS series" }, { status: 404 });
       return Response.json({
@@ -221,9 +243,11 @@ const routes = {
         }
         const transformParam = params.get("transform");
         const transform = isTransform(transformParam) ? transformParam : null;
-        const stored = readSeries(key, Number.isFinite(limit) ? limit : 120);
+        const regions = seriesRegions(key);
+        const region = regions.length > 0 ? (regions.find((item) => item.value === params.get("region")) ?? regions[0]) : undefined;
+        const stored = readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value);
         if (stored && stored.series.some((s) => s.points.length > 0)) {
-          return Response.json({ ...applyTransform(stored, transform), source: "store", transform: transform ?? "raw" });
+          return Response.json({ ...applyTransform(stored, transform), region, source: "store", transform: transform ?? "raw" });
         }
         if (!SERVE_LIVE_FALLBACK) {
           return Response.json({ error: "Not yet ingested" }, { status: 503 });
@@ -262,3 +286,5 @@ try {
 }
 
 console.log(`\n  China Data Explorer running at ${server.url}\n`);
+// Warm the catalog, gloss and search index now rather than on the first visitor.
+nbsCatalogStats().catch(() => undefined);
