@@ -30,7 +30,36 @@ export interface SeriesResult {
   frequency: string;
   unit: string;
   series: Series[];
+  /** When the served copy was last written to the store, ISO. */
+  updatedAt?: string;
+  /** Which path answered: the store, a live fetch, or a stale copy after a failed refresh. */
+  source?: "store" | "live" | "stale";
 }
+
+/**
+ * Search terms for the headline series, so "inflation" finds CPI and
+ * "jobless" finds unemployment. Chinese terms let a Chinese-reading analyst
+ * reach the English-titled series too.
+ */
+export const CURATED_SYNONYMS: Record<string, string[]> = {
+  gdp: ["gdp", "growth", "output", "national accounts", "国内生产总值", "经济增长"],
+  provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
+  industrial_production: ["industrial production", "industry", "value added", "factory output", "工业增加值", "工业生产"],
+  cpi: ["cpi", "inflation", "consumer prices", "prices", "cost of living", "居民消费价格", "通胀", "物价"],
+  ppi: ["ppi", "producer prices", "factory gate prices", "deflation", "工业生产者价格", "出厂价格"],
+  unemployment: ["unemployment", "jobless", "joblessness", "youth unemployment", "labor market", "labour market", "employment", "失业率", "青年失业", "就业"],
+  retail_sales: ["retail sales", "consumption", "consumer spending", "shopping", "社会消费品零售", "消费"],
+  money_supply: ["money supply", "m1", "m2", "liquidity", "broad money", "货币供应量", "广义货币"],
+  new_loans: ["new loans", "credit", "bank lending", "yuan loans", "新增贷款", "人民币贷款", "信贷"],
+  trade: ["trade", "exports", "imports", "trade balance", "customs", "进出口", "出口", "进口", "贸易"],
+  forex_reserves: ["forex reserves", "foreign exchange reserves", "fx reserves", "gold reserves", "外汇储备", "黄金储备"],
+  real_estate: ["real estate", "property", "housing", "real estate climate", "房地产", "国房景气指数", "楼市"],
+  pmi: ["pmi", "manufacturing pmi", "purchasing managers", "factory activity", "采购经理指数", "制造业"],
+  caixin_pmi: ["caixin", "caixin pmi", "private pmi", "财新", "财新制造业"],
+  caixin_services_pmi: ["caixin services", "services pmi", "财新服务业"],
+  electricity: ["electricity", "power consumption", "electricity consumption", "energy", "用电量", "电力"],
+  lpr: ["lpr", "loan prime rate", "interest rate", "policy rate", "benchmark rate", "贷款市场报价利率", "利率"],
+};
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
 

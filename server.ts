@@ -10,16 +10,20 @@
  */
 
 import index from "./index.html";
-import { catalogList, getSeries } from "./data";
+import { catalogList, getSeries, CURATED_SYNONYMS, type SeriesResult } from "./data";
 import { readSeries, readRevisions, dbStatus } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
   getNbsDimensions,
+  isFrequency,
   nbsCatalogStats,
   searchNbsCatalog,
+  transformLabel,
+  transformPoints,
   type NbsTransform,
 } from "./nbs-catalog";
+import { RELEASE_MAP, describeRelease } from "./releases";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -36,6 +40,20 @@ interface RouteRequest extends Request {
 function isTransform(value: string | null): value is NbsTransform {
   return value === "raw" || value === "change" || value === "percent_change" ||
     value === "yoy" || value === "index_growth";
+}
+
+/**
+ * Curated series are stored raw; the same transforms the catalog series get
+ * apply here on the way out, so the "Show as" control works for every series.
+ */
+function applyTransform(result: SeriesResult, transform: NbsTransform | null): SeriesResult {
+  if (!transform || transform === "raw") return result;
+  const frequency = isFrequency(result.frequency) ? result.frequency : "Monthly";
+  return {
+    ...result,
+    unit: transformLabel(transform),
+    series: result.series.map((one) => ({ ...one, points: transformPoints(one.points, transform, frequency) })),
+  };
 }
 
 function nbsDate(date: Date, endOfDay = false): string {
@@ -71,12 +89,25 @@ const routes = {
         if (!response.ok) return Response.json({ error: `NBS releases -> HTTP ${response.status}` }, { status: 502 });
         if (!text.trimStart().startsWith("{")) return Response.json({ error: "NBS release calendar is temporarily rate-limited" }, { status: 502 });
         const body: unknown = JSON.parse(text);
+        // Attach the English name and linked series to each release so the
+        // calendar can point at what it updates.
+        const data = typeof body === "object" && body !== null ? Reflect.get(body, "data") : undefined;
+        if (Array.isArray(data)) {
+          const enriched = data.map((item) => {
+            const content = typeof item === "object" && item !== null && typeof Reflect.get(item, "content") === "string"
+              ? Reflect.get(item, "content") : "";
+            const described = describeRelease(content);
+            return { ...(typeof item === "object" && item !== null ? item : {}), en: described?.en ?? "", keys: described?.keys ?? [] };
+          });
+          return Response.json({ ...(typeof body === "object" && body !== null ? body : {}), data: enriched });
+        }
         return Response.json(body);
       } catch (error) {
         const message = error instanceof Error ? error.message : "NBS release calendar failed";
         return Response.json({ error: message }, { status: 502 });
       }
     },
+    "/api/release-map": () => Response.json(RELEASE_MAP),
     "/api/search": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
       const queryText = (params.get("q") ?? "").trim();
@@ -94,7 +125,7 @@ const routes = {
         ? catalogList().filter((entry) => {
           if (frequency && entry.frequency !== frequency) return false;
           if (category && entry.group !== category) return false;
-          const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key}`.toLocaleLowerCase();
+          const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key} ${(CURATED_SYNONYMS[entry.key] ?? []).join(" ")}`.toLocaleLowerCase();
           return queryTerms.every((term) => haystack.includes(term));
         }).map((entry) => ({
           key: entry.key,
@@ -174,16 +205,18 @@ const routes = {
             transform: isTransform(transform) ? transform : undefined,
           }));
         }
+        const transformParam = params.get("transform");
+        const transform = isTransform(transformParam) ? transformParam : null;
         const stored = readSeries(key, Number.isFinite(limit) ? limit : 120);
         if (stored && stored.series.some((s) => s.points.length > 0)) {
-          return Response.json({ ...stored, source: "store" });
+          return Response.json({ ...applyTransform(stored, transform), source: "store", transform: transform ?? "raw" });
         }
         if (!SERVE_LIVE_FALLBACK) {
           return Response.json({ error: "Not yet ingested" }, { status: 503 });
         }
         const data = await getSeries(key, Number.isFinite(limit) ? limit : 120);
         if (!data) return Response.json({ error: "Unknown series" }, { status: 404 });
-        return Response.json({ ...data, source: "live" });
+        return Response.json({ ...applyTransform(data, transform), source: "live", transform: transform ?? "raw" });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Upstream fetch failed";
         return Response.json({ error: message }, { status: 502 });
@@ -191,7 +224,9 @@ const routes = {
     },
 } as const;
 
-const dev = { hmr: true, console: true } as const;
+// Production serves the minified bundle; development keeps HMR. Without this
+// the deploy ships a 2.5 MB dev bundle where 241 KB gzipped would do.
+const dev = process.env.NODE_ENV === "production" ? false : { hmr: true, console: true };
 
 // AkShare calls (via AKTools) can take 15-25s; Bun's default 10s idle timeout
 // would kill those connections mid-fetch. Give slow upstreams room.

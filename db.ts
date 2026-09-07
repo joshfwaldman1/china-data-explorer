@@ -92,6 +92,14 @@ export function db(): Database {
     database.exec("ALTER TABLE fetch_log ADD COLUMN region TEXT NOT NULL DEFAULT ''");
   }
 
+  // Series order is meaningful — the first series of a curated key is its
+  // headline. Stored as a position so reads return the declared order rather
+  // than alphabetical.
+  const seriesColumns = database.query<{ name: string }>("PRAGMA table_info(series)").all();
+  if (!seriesColumns.some((column) => column.name === "position")) {
+    database.exec("ALTER TABLE series ADD COLUMN position INTEGER NOT NULL DEFAULT 0");
+  }
+
   handle = database;
   return handle;
 }
@@ -113,11 +121,11 @@ export function writeSeries(
   const database = db();
 
   const upsertSeries = database.prepare(`
-    INSERT INTO series (key, region, label, title, agency, frequency, unit, source_url, updated_at)
-    VALUES ($key, $region, $label, $title, $agency, $frequency, $unit, $sourceUrl, $updatedAt)
+    INSERT INTO series (key, region, label, title, agency, frequency, unit, source_url, updated_at, position)
+    VALUES ($key, $region, $label, $title, $agency, $frequency, $unit, $sourceUrl, $updatedAt, $position)
     ON CONFLICT (key, region, label) DO UPDATE SET
       title = $title, agency = $agency, frequency = $frequency,
-      unit = $unit, source_url = $sourceUrl, updated_at = $updatedAt
+      unit = $unit, source_url = $sourceUrl, updated_at = $updatedAt, position = $position
   `);
 
   // The most recent stored value for one period, so we can tell a revision
@@ -138,12 +146,12 @@ export function writeSeries(
   let changed = 0;
 
   const write = database.transaction((series: Series[]) => {
-    for (const one of series) {
+    for (const [position, one] of series.entries()) {
       upsertSeries.run({
         $key: result.key, $region: region, $label: one.label,
         $title: result.title, $agency: result.agency,
         $frequency: result.frequency, $unit: result.unit,
-        $sourceUrl: result.sourceUrl, $updatedAt: fetchedAt,
+        $sourceUrl: result.sourceUrl, $updatedAt: fetchedAt, $position: position,
       });
 
       for (const point of one.points) {
@@ -197,13 +205,14 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
   const database = db();
 
   const meta = database.prepare(`
-    SELECT key, region, label, title, agency, frequency, unit, source_url AS sourceUrl
+    SELECT key, region, label, title, agency, frequency, unit, source_url AS sourceUrl,
+           updated_at AS updatedAt
     FROM series
     WHERE key = $key AND ($region IS NULL OR region = $region)
-    ORDER BY region, label
+    ORDER BY region, position, label
   `).all({ $key: key, $region: region ?? null }) as {
     key: string; region: string; label: string; title: string;
-    agency: string; frequency: string; unit: string; sourceUrl: string;
+    agency: string; frequency: string; unit: string; sourceUrl: string; updatedAt: string;
   }[];
 
   if (meta.length === 0) return null;
@@ -229,9 +238,10 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
   });
 
   const first = meta[0];
+  const updatedAt = meta.map((row) => row.updatedAt).sort().at(-1);
   return {
     key, title: first.title, agency: first.agency, sourceUrl: first.sourceUrl,
-    frequency: first.frequency, unit: first.unit, series,
+    frequency: first.frequency, unit: first.unit, series, updatedAt,
   };
 }
 

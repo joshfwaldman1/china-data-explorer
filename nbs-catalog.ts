@@ -145,7 +145,7 @@ function stringValue(value: unknown, key: string): string {
   return typeof found === "string" ? found : "";
 }
 
-function isFrequency(value: unknown): value is NbsCatalogEntry["frequency"] {
+export function isFrequency(value: unknown): value is NbsCatalogEntry["frequency"] {
   return value === "Monthly" || value === "Quarterly" || value === "Annual";
 }
 
@@ -247,8 +247,11 @@ function searchScore(entry: NbsCatalogEntry, query: string): number {
   const name = entry.name.toLocaleLowerCase();
   const shortName = entry.shortName.toLocaleLowerCase();
   const path = entry.categories.join(" ").toLocaleLowerCase();
-  const haystack = `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()} ${entry.id}`;
-  const lowerQuery = query.toLocaleLowerCase();
+  const haystack = `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()}`;
+  const lowerQuery = query.toLocaleLowerCase().replace(/^nbs_/, "");
+  // An ID is only a match when enough of it is typed to be one — otherwise
+  // any two-character query lights up random hashes.
+  if (lowerQuery.length >= 8 && /^[0-9a-f]+$/.test(lowerQuery) && entry.id.startsWith(lowerQuery)) return 500;
   const exactAliases = SEARCH_ALIASES[lowerQuery];
   const variants = exactAliases ?? [lowerQuery];
   let bestScore = 0;
@@ -385,7 +388,7 @@ function periodsPerYear(frequency: NbsCatalogEntry["frequency"]): number {
   return 1;
 }
 
-function transformPoints(points: SeriesPoint[], transform: NbsTransform, frequency: NbsCatalogEntry["frequency"]): SeriesPoint[] {
+export function transformPoints(points: SeriesPoint[], transform: NbsTransform, frequency: NbsCatalogEntry["frequency"]): SeriesPoint[] {
   if (transform === "raw") return points;
   if (transform === "index_growth") {
     return points.map((point) => ({ date: point.date, value: Math.round((point.value - 100) * 1000) / 1000 }));
@@ -406,7 +409,7 @@ function transformPoints(points: SeriesPoint[], transform: NbsTransform, frequen
   return output;
 }
 
-function transformLabel(transform: NbsTransform): string {
+export function transformLabel(transform: NbsTransform): string {
   if (transform === "change") return "Change";
   if (transform === "percent_change") return "Percent change";
   if (transform === "yoy") return "Percent change from year ago";
@@ -593,5 +596,6 @@ export async function getNbsCatalogSeries(options: {
     region,
     transform,
     source,
+    updatedAt: seriesFreshness(options.entry.key, region.value) ?? new Date().toISOString(),
   };
 }
