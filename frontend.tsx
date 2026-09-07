@@ -1,310 +1,363 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  CartesianGrid, Legend, Line, LineChart, ReferenceLine,
+  CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
 
-interface CatalogEntry {
-  key: string;
-  title: string;
-  group: string;
-  agency: string;
-  frequency: string;
-  unit: string;
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; }
 interface NbsCatalogEntry {
-  key: string;
-  id: string;
-  name: string;
-  shortName: string;
-  unit: string;
-  note: string;
-  annotation: string;
-  datasetCode: number;
-  dataset: string;
-  frequency: string;
-  geography: string;
-  categories: string[];
+  key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
+  annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
 }
-
 interface SeriesPoint { date: string; value: number; }
 interface Series { label: string; points: SeriesPoint[]; }
 interface Region { text: string; value: string; }
 interface SeriesResult {
-  key: string;
-  title: string;
-  agency: string;
-  sourceUrl: string;
-  frequency: string;
-  unit: string;
-  series: Series[];
-  metadata?: NbsCatalogEntry;
-  region?: Region;
-  transform?: string;
-  source?: string;
+  key: string; title: string; agency: string; sourceUrl: string; frequency: string; unit: string;
+  series: Series[]; metadata?: NbsCatalogEntry; region?: Region; transform?: string;
+  source?: string; updatedAt?: string;
 }
+interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
+interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
+interface CatalogStats { generatedAt: string; seriesCount: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
+interface Release { id: string; date: string; title: string; en: string; keys: string[]; }
+interface Vintage { value: number | null; fetchedAt: string; }
+interface Revised { label: string; period: string; vintages: Vintage[]; }
 
-interface SearchResponse {
-  total: number;
-  offset: number;
-  limit: number;
-  results: NbsCatalogEntry[];
+type Route =
+  | { view: "home" }
+  | { view: "series"; keys: string[]; show: string; range: string; region: string }
+  | { view: "search"; q: string; freq: string; cat: string; dataset: string }
+  | { view: "browse"; cat: string }
+  | { view: "releases"; month: string }
+  | { view: "regions" }
+  | { view: "saved" }
+  | { view: "recent" };
+
+type Tab = "chart" | "table" | "metadata" | "revisions";
+type Show = "default" | "raw" | "change" | "percent_change" | "yoy" | "index_growth";
+
+// ── Guards ────────────────────────────────────────────────────────────────────
+
+function obj(value: unknown, key: string): unknown { return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined; }
+function str(value: unknown, key: string): string { const found = obj(value, key); return typeof found === "string" ? found : ""; }
+function num(value: unknown, key: string): number | null { const found = obj(value, key); return typeof found === "number" ? found : null; }
+function isCurated(value: unknown): value is CuratedEntry {
+  return typeof value === "object" && value !== null && typeof obj(value, "key") === "string" && typeof obj(value, "title") === "string" && typeof obj(value, "group") === "string";
 }
-
-interface DatasetStat {
-  code: number;
-  name: string;
-  frequency: string;
-  geography: string;
-  count: number;
+function isNbsEntry(value: unknown): value is NbsCatalogEntry {
+  const categories = obj(value, "categories");
+  return typeof value === "object" && value !== null && typeof obj(value, "key") === "string" && typeof obj(value, "id") === "string"
+    && typeof obj(value, "name") === "string" && typeof obj(value, "datasetCode") === "number" && Array.isArray(categories);
 }
-
-interface CatalogStats {
-  generatedAt: string;
-  seriesCount: number;
-  categoryCount: number;
-  categories: { name: string; count: number }[];
-  datasets: DatasetStat[];
-}
-
-function isNbsCatalogEntry(value: unknown): value is NbsCatalogEntry {
-  if (typeof value !== "object" || value === null) return false;
-  const categories = Reflect.get(value, "categories");
-  return typeof Reflect.get(value, "key") === "string"
-    && typeof Reflect.get(value, "id") === "string"
-    && typeof Reflect.get(value, "name") === "string"
-    && typeof Reflect.get(value, "shortName") === "string"
-    && typeof Reflect.get(value, "unit") === "string"
-    && typeof Reflect.get(value, "note") === "string"
-    && typeof Reflect.get(value, "annotation") === "string"
-    && typeof Reflect.get(value, "datasetCode") === "number"
-    && typeof Reflect.get(value, "dataset") === "string"
-    && typeof Reflect.get(value, "frequency") === "string"
-    && typeof Reflect.get(value, "geography") === "string"
-    && Array.isArray(categories)
-    && categories.every((item) => typeof item === "string");
-}
-
-function isDatasetStat(value: unknown): value is DatasetStat {
-  return typeof value === "object" && value !== null
-    && typeof Reflect.get(value, "code") === "number"
-    && typeof Reflect.get(value, "name") === "string"
-    && typeof Reflect.get(value, "frequency") === "string"
-    && typeof Reflect.get(value, "geography") === "string"
-    && typeof Reflect.get(value, "count") === "number";
-}
-
-function isCatalogStats(value: unknown): value is CatalogStats {
-  if (typeof value !== "object" || value === null) return false;
-  const datasets = Reflect.get(value, "datasets");
-  const categories = Reflect.get(value, "categories");
-  return typeof Reflect.get(value, "generatedAt") === "string"
-    && typeof Reflect.get(value, "seriesCount") === "number"
-    && typeof Reflect.get(value, "categoryCount") === "number"
-    && Array.isArray(datasets)
-    && datasets.every(isDatasetStat)
-    && Array.isArray(categories)
-    && categories.every((item) => typeof item === "object" && item !== null
-      && typeof Reflect.get(item, "name") === "string"
-      && typeof Reflect.get(item, "count") === "number");
-}
-
 function isSearchResponse(value: unknown): value is SearchResponse {
-  if (typeof value !== "object" || value === null) return false;
-  const results = Reflect.get(value, "results");
-  return typeof Reflect.get(value, "total") === "number"
-    && typeof Reflect.get(value, "offset") === "number"
-    && typeof Reflect.get(value, "limit") === "number"
-    && Array.isArray(results)
-    && results.every(isNbsCatalogEntry);
+  const results = obj(value, "results");
+  return typeof obj(value, "total") === "number" && Array.isArray(results) && results.every(isNbsEntry);
+}
+function isStats(value: unknown): value is CatalogStats {
+  return typeof obj(value, "seriesCount") === "number" && Array.isArray(obj(value, "categories")) && Array.isArray(obj(value, "datasets"));
+}
+function isSeriesResult(value: unknown): value is SeriesResult {
+  return typeof obj(value, "key") === "string" && Array.isArray(obj(value, "series"));
+}
+function isShow(value: string): value is Show {
+  return value === "default" || value === "raw" || value === "change" || value === "percent_change" || value === "yoy" || value === "index_growth";
 }
 
-type View = "chart" | "table" | "metadata";
-type Transform = "default" | "raw" | "change" | "percent_change" | "yoy" | "index_growth";
+// ── Vocabulary ────────────────────────────────────────────────────────────────
 
-const COLORS = ["#2563a6", "#c74343", "#16826c", "#a56b13"];
-const RANGES: { label: string; years: number | null }[] = [
-  { label: "1Y", years: 1 }, { label: "5Y", years: 5 },
-  { label: "10Y", years: 10 }, { label: "20Y", years: 20 },
-  { label: "Max", years: null },
-];
-const TRANSFORMS: { value: Transform; label: string }[] = [
-  { value: "default", label: "Recommended" },
+const SHOW_OPTIONS: { value: Show; label: string }[] = [
+  { value: "default", label: "Default for this series" },
   { value: "raw", label: "Level" },
-  { value: "change", label: "Change" },
-  { value: "percent_change", label: "% change" },
-  { value: "yoy", label: "% from year ago" },
-  { value: "index_growth", label: "Index minus 100" },
+  { value: "change", label: "Change from previous period" },
+  { value: "percent_change", label: "% change from previous period" },
+  { value: "yoy", label: "% change from a year ago" },
+  { value: "index_growth", label: "Index minus 100 (= % change)" },
+];
+const RANGES: { label: string; years: number | null }[] = [
+  { label: "1Y", years: 1 }, { label: "5Y", years: 5 }, { label: "10Y", years: 10 }, { label: "20Y", years: 20 }, { label: "Max", years: null },
+];
+const CHART_TOKENS = ["--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5", "--chart-6", "--chart-7", "--chart-8"];
+const DASHES = ["", "6 3", "2 3", "8 3 2 3", "", "6 3", "2 3", "8 3 2 3"];
+
+/** English for the NBS top-level categories. The Chinese stays authoritative. */
+const CATEGORY_EN: Record<string, string> = {
+  "工业": "Industry", "价格指数": "Price indices", "固定资产投资 (不含农户)": "Fixed-asset investment (excl. rural households)",
+  "固定资产投资（不含农户）": "Fixed-asset investment (excl. rural households)", "国内贸易": "Domestic trade", "邮电通信": "Post and telecommunications",
+  "交通运输": "Transport", "人民生活": "Household living standards", "能源": "Energy", "国民经济核算": "National accounts",
+  "财政": "Public finance", "金融": "Finance", "对外经济贸易": "Foreign trade and investment", "农业": "Agriculture", "房地产": "Real estate",
+  "建筑业": "Construction", "就业和工资": "Employment and wages", "人口": "Population", "旅游": "Tourism", "综合": "Overview",
+  "科学技术": "Science and technology", "教育": "Education", "卫生": "Health", "环境": "Environment", "文化": "Culture",
+  "社会保障": "Social security", "劳动": "Labour", "就业": "Employment", "工资": "Wages", "价格": "Prices",
+};
+/** English for the units NBS writes. */
+const UNIT_EN: Record<string, string> = {
+  "亿元": "100 million yuan", "万元": "10,000 yuan", "亿美元": "100 million US dollars", "万美元": "10,000 US dollars",
+  "万吨": "10,000 tonnes", "吨": "tonnes", "万吨标准煤": "10,000 t of standard coal", "亿千瓦时": "100 million kWh", "万千瓦时": "10,000 kWh",
+  "万人": "10,000 persons", "人": "persons", "万辆": "10,000 vehicles", "辆": "vehicles", "万平方米": "10,000 m²", "万台": "10,000 units",
+  "亿件": "100 million pieces", "万件": "10,000 pieces", "万户": "10,000 households", "个": "count", "%": "%", "无": "ratio (no unit)",
+  "上年同期=100": "index, prior-year period = 100", "上年同月=100": "index, prior-year month = 100", "上月=100": "index, prior month = 100",
+  "上年=100": "index, prior year = 100", "元": "yuan", "亿": "100 million", "万": "10,000", "百分点": "percentage points", "天": "days", "小时": "hours",
+};
+/** Two sentences each, written for a reader rather than a catalog. */
+const ABOUT: Record<string, string> = {
+  gdp: "Real GDP growth, year over year, from the NBS quarterly national accounts. Constant-price series are chain-linked by base period, and quarterly values are not seasonally adjusted.",
+  provincial_gdp: "Guangdong's real GDP growth as reported by the provincial bureau. NBS publishes it as a cumulative year-to-date index against the same period a year earlier, so the Q2 figure is first-half growth.",
+  industrial_production: "Value added of industrial enterprises above designated size (annual revenue over 20 million yuan), year over year. January and February are published together to avoid Lunar New Year distortion.",
+  cpi: "Consumer price index, year over year, from the NBS monthly price survey. Food carries a large weight, so pork and vegetable prices move the headline more than in most economies.",
+  ppi: "Producer price index for industrial products at the factory gate, year over year. It tracks commodity prices closely and turns negative in deflationary stretches.",
+  unemployment: "Surveyed urban unemployment from the monthly labour force survey, with age breakdowns. The 16–24 series was suspended after June 2023 and resumed in December 2023 excluding students; the two segments are not comparable.",
+  retail_sales: "Retail sales of consumer goods, nominal, year over year. Includes goods sold to households and to institutions; catering is included, most services are not.",
+  money_supply: "M1 (cash plus demand deposits) and M2 (M1 plus savings and time deposits), year over year, from the People's Bank of China. M1 was redefined in January 2025 to include personal demand deposits.",
+  new_loans: "New yuan-denominated loans extended by financial institutions in the month, from the PBOC. Strongly seasonal: January is always the largest month.",
+  trade: "Merchandise exports and imports in US dollar terms, year over year, from the General Administration of Customs. Lunar New Year timing shifts January and February.",
+  forex_reserves: "Official foreign exchange reserves held by the PBOC, in US dollars. Valuation effects from currency and bond prices move the total even with no intervention.",
+  real_estate: "The national real estate climate index compiled by NBS from investment, sales, construction and financing indicators. 100 is neutral; below 95 is weak.",
+  pmi: "The official NBS manufacturing purchasing managers' index, a diffusion index where 50 separates expansion from contraction. Weighted toward large state-owned firms.",
+  caixin_pmi: "The Caixin/S&P Global manufacturing PMI, a private survey weighted toward smaller, export-oriented private firms. Often diverges from the official PMI.",
+  caixin_services_pmi: "The Caixin/S&P Global services PMI, covering private service-sector firms. 50 separates expansion from contraction.",
+  electricity: "Total electricity consumption, year over year, from the National Energy Administration. Used as a proxy for industrial activity because it is hard to smooth.",
+  lpr: "The loan prime rate, the benchmark for new bank lending, set monthly by the PBOC from quotes by 18 banks. The 1-year rate anchors corporate loans; the 5-year rate anchors mortgages.",
+};
+const READING: Record<string, string[]> = {
+  unemployment: [
+    "The youth rate rises every summer as graduates enter the labour market — compare July with July, not with June.",
+    "The urban survey excludes most rural migrant workers who return home when work ends, so it understates slack relative to a total-labour-force measure.",
+    "Figures are not seasonally adjusted; Lunar New Year shifts between January and February and distorts both months.",
+  ],
+  cpi: ["Food is roughly a fifth of the basket; pork alone can swing the headline by a few tenths.", "Core CPI (excluding food and energy) is published alongside and is usually the steadier read."],
+  gdp: ["The 不变价 (constant-price) level series is at prior-year prices, so arithmetic year-over-year on it is not the headline growth rate; use the growth series NBS publishes.", "Quarterly GDP is revised after the annual figure and again after economic censuses; the store keeps every vintage."],
+  provincial_gdp: ["Provincial GDP figures have historically summed to more than the national total; treat cross-province ranking as indicative.", "The series is cumulative year-to-date: Q4 equals the full year."],
+  trade: ["Customs reports in US dollars and in yuan; the two growth rates diverge when the exchange rate moves.", "Front-loading ahead of tariff changes shows up as spikes that reverse within a quarter."],
+  pmi: ["Diffusion indices measure breadth, not magnitude: 49 with a large firm base can coincide with rising output.", "The official PMI leans to large state firms; the Caixin PMI to smaller private exporters."],
+};
+const BREAKS: { key: string; match: RegExp; from: string; to: string; before: string; after: string; note: string }[] = [
+  {
+    key: "unemployment", match: /16-24/, from: "2023-07", to: "2023-11",
+    before: "Youth 16-24, incl. students (%)", after: "Youth 16-24, ex-students (%)",
+    note: "NBS suspended the 16–24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labour-market conditions.",
+  },
 ];
 
-function SearchIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>;
-}
+// ── Small helpers ─────────────────────────────────────────────────────────────
 
-function StarIcon(props: { filled: boolean }) {
-  return <svg viewBox="0 0 24 24" aria-hidden="true" className={props.filled ? "filled" : ""}><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>;
+const CJK = /[㐀-鿿]/;
+function Zh(props: { children: string; className?: string }) {
+  return CJK.test(props.children) ? <span lang="zh-Hans" className={props.className}>{props.children}</span> : <span className={props.className}>{props.children}</span>;
 }
+function unitEn(unit: string): string { return UNIT_EN[unit] ?? ""; }
+function unitLabel(unit: string): string {
+  if (!unit) return "Unit not stated";
+  const en = unitEn(unit);
+  return en && en !== unit ? `${unit} · ${en}` : unit;
+}
+function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 
-function ChevronIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>;
+function isRate(unit: string): boolean { return /%|percent|index|=100/i.test(unit); }
+function fmt(value: number, unit: string): string {
+  const decimals = isRate(unit) ? 1 : Math.abs(value) >= 1000 ? 0 : 2;
+  return value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+function fmtTick(value: number): string {
+  if (Math.abs(value) >= 100000) return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+  return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+function fmtDate(iso: string | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+}
+/** A period label to a timestamp: months to the first of the month, quarters to their last month. */
+function periodTime(period: string): number {
+  const quarter = period.match(/^(\d{4})-Q([1-4])$/);
+  if (quarter) return Date.UTC(Number(quarter[1]), Number(quarter[2]) * 3 - 1, 1);
+  const month = period.match(/^(\d{4})-(\d{2})/);
+  if (month) return Date.UTC(Number(month[1]), Number(month[2]) - 1, 1);
+  const year = period.match(/^(\d{4})$/);
+  if (year) return Date.UTC(Number(year[1]), 11, 1);
+  return Number.NaN;
+}
+function periodPretty(period: string): string {
+  const quarter = period.match(/^(\d{4})-Q([1-4])$/);
+  if (quarter) return `Q${quarter[2]} ${quarter[1]}`;
+  const month = period.match(/^(\d{4})-(\d{2})/);
+  if (month) return new Date(Date.UTC(Number(month[1]), Number(month[2]) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  return period;
+}
+function chartColor(index: number): string { return `var(${CHART_TOKENS[index % CHART_TOKENS.length]})`; }
+function resolvedColor(index: number): string {
+  const token = CHART_TOKENS[index % CHART_TOKENS.length] ?? "--chart-1";
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || "#2e6da4";
 }
 
 async function json(url: string): Promise<unknown> {
   const response = await fetch(url);
-  const body = await response.json();
-  if (!response.ok) {
-    const message = typeof body === "object" && body !== null && typeof Reflect.get(body, "error") === "string"
-      ? Reflect.get(body, "error")
-      : `Request failed (${response.status})`;
-    throw new Error(message);
-  }
+  const body: unknown = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(str(body, "error") || `Request failed (${response.status})`);
   return body;
 }
-
-function readStoredList(key: string): string[] {
+function readList(key: string): string[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-  } catch {
-    return [];
+  } catch { return []; }
+}
+function writeList(key: string, values: string[]): void { try { localStorage.setItem(key, JSON.stringify(values)); } catch { /* private mode */ } }
+function readPref(key: string): string { try { return localStorage.getItem(key) ?? ""; } catch { return ""; } }
+function writePref(key: string, value: string): void { try { localStorage.setItem(key, value); } catch { /* private mode */ } }
+
+// ── Routing ───────────────────────────────────────────────────────────────────
+
+function parseRoute(hash: string): Route {
+  const [path = "", queryText = ""] = hash.replace(/^#/, "").split("?");
+  const query = new URLSearchParams(queryText);
+  const parts = path.split("/").filter(Boolean);
+  const head = parts[0] ?? "";
+  if (head === "series" && parts[1]) {
+    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "" };
+  }
+  if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "" };
+  if (head === "browse") return { view: "browse", cat: "" };
+  if (head === "category" && parts[1]) return { view: "search", q: "", freq: "", cat: decodeURIComponent(parts[1]), dataset: "" };
+  if (head === "releases") return { view: "releases", month: query.get("month") ?? "" };
+  if (head === "regions") return { view: "regions" };
+  if (head === "saved") return { view: "saved" };
+  if (head === "recent") return { view: "recent" };
+  return { view: "home" };
+}
+function routeHash(route: Route): string {
+  const qs = (pairs: [string, string][]) => { const query = new URLSearchParams(pairs.filter(([, value]) => value)); const text = query.toString(); return text ? `?${text}` : ""; };
+  switch (route.view) {
+    case "home": return "#/";
+    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region]])}`;
+    case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset]])}`;
+    case "browse": return "#/browse";
+    case "releases": return `#/releases${qs([["month", route.month]])}`;
+    case "regions": return "#/regions";
+    case "saved": return "#/saved";
+    case "recent": return "#/recent";
   }
 }
-
-function writeStoredList(key: string, values: string[]): void {
-  localStorage.setItem(key, JSON.stringify(values));
+function seriesHash(keys: string[], extra: Partial<{ show: string; range: string; region: string }> = {}): string {
+  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "" });
 }
 
-function keysFromHash(): string[] {
-  const match = window.location.hash.match(/^#\/series\/([a-z0-9_,]+)/i);
-  const encodedKeys = match?.[1];
-  return encodedKeys ? encodedKeys.split(",").filter(Boolean).slice(0, 4) : ["gdp"];
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function SearchIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16 16 5 5" /></svg>; }
+function StarIcon(props: { filled: boolean }) { return <svg viewBox="0 0 24 24" aria-hidden="true" className={props.filled ? "filled" : ""}><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z" /></svg>; }
+function ThemeIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 4v16a8 8 0 0 0 0-16z" fill="currentColor" stroke="none" /></svg>; }
+
+// ── Data shaping for charts ───────────────────────────────────────────────────
+
+interface Track { id: string; name: string; unit: string; frequency: string; color: string; dash: string; points: { t: number; v: number; p: string }[]; }
+
+function applyBreaks(result: SeriesResult): { series: Series[]; notes: string[]; gaps: { from: string; to: string }[] } {
+  const notes: string[] = [];
+  const gaps: { from: string; to: string }[] = [];
+  const series: Series[] = [];
+  for (const one of result.series) {
+    const rule = BREAKS.find((item) => item.key === result.key && item.match.test(one.label));
+    if (!rule) { series.push(one); continue; }
+    series.push({ label: rule.before, points: one.points.filter((point) => point.date < rule.from) });
+    series.push({ label: rule.after, points: one.points.filter((point) => point.date > rule.to) });
+    notes.push(rule.note);
+    gaps.push({ from: rule.from, to: rule.to });
+  }
+  if (result.metadata?.annotation) notes.push(result.metadata.annotation);
+  return { series, notes, gaps };
 }
 
-function formatNumber(value: number, unit: string): string {
-  const decimals = unit.includes("Percent") || unit === "%" || Math.abs(value) < 1000 ? 2 : 0;
-  return value.toLocaleString("en-US", { maximumFractionDigits: decimals });
-}
-
-function mergeResults(results: SeriesResult[]): Record<string, number | string>[] {
-  const rows = new Map<string, Record<string, number | string>>();
+function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tracks: Track[]; notes: string[]; gaps: { from: string; to: string }[] } {
+  const tracks: Track[] = [];
+  const notes: string[] = [];
+  const gaps: { from: string; to: string }[] = [];
   for (const result of results) {
-    for (const series of result.series) {
-      const label = results.length > 1 ? `${result.title} · ${series.label}` : series.label;
-      for (const point of series.points) {
-        const row = rows.get(point.date) ?? { date: point.date };
-        row[label] = point.value;
-        rows.set(point.date, row);
+    const shaped = applyBreaks(result);
+    notes.push(...shaped.notes.filter((note) => !notes.includes(note)));
+    gaps.push(...shaped.gaps);
+    for (const one of shaped.series) {
+      const id = `${result.key} ${one.label}`;
+      if (!colors.has(id)) {
+        const used = new Set(colors.values());
+        let slot = 0;
+        while (used.has(slot)) slot += 1;
+        colors.set(id, slot);
       }
+      const slot = colors.get(id) ?? 0;
+      tracks.push({
+        id, name: results.length > 1 ? `${result.title} · ${one.label}` : one.label, unit: result.unit, frequency: result.frequency,
+        color: chartColor(slot), dash: DASHES[slot % DASHES.length] ?? "",
+        points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
+      });
     }
   }
-  return [...rows.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return { tracks, notes, gaps };
 }
 
-function cutoff(rows: Record<string, number | string>[], years: number | null): string {
-  if (years === null || rows.length === 0) return "0000";
-  const last = String(rows[rows.length - 1]?.date ?? "");
-  return `${Number(last.slice(0, 4)) - years}${last.slice(4)}`;
+function rebase(tracks: Track[], start: number): Track[] {
+  return tracks.map((track) => {
+    const first = track.points.find((point) => point.t >= start && point.v !== 0);
+    if (!first) return { ...track, unit: "Index, first shown period = 100" };
+    return { ...track, unit: "Index, first shown period = 100", points: track.points.map((point) => ({ ...point, v: (point.v / first.v) * 100 })) };
+  });
 }
 
-function downloadCsv(results: SeriesResult[]): void {
-  const rows = mergeResults(results);
-  const labels = Object.keys(rows[0] ?? {}).filter((key) => key !== "date");
-  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
-  const lines = [["date", ...labels].map(quote).join(",")];
-  for (const row of rows) {
-    lines.push([String(row.date), ...labels.map((label) => String(row[label] ?? ""))].map(quote).join(","));
-  }
-  const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `econstats-china-${results.map((result) => result.key).join("-")}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+// ── Chart ─────────────────────────────────────────────────────────────────────
 
-function downloadJson(results: SeriesResult[]): void {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(results, null, 2)], { type: "application/json" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `econstats-china-${results.map((result) => result.key).join("-")}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function downloadPng(results: SeriesResult[]): void {
-  const nodes = document.querySelectorAll(".chart-wrap svg.recharts-surface");
-  let chart: SVGSVGElement | null = null;
-  let area = 0;
-  for (const node of Array.from(nodes)) {
-    if (!(node instanceof SVGSVGElement)) continue;
-    const rect = node.getBoundingClientRect();
-    if (rect.width * rect.height > area) {
-      chart = node;
-      area = rect.width * rect.height;
-    }
-  }
-  if (!chart) return;
-  const rect = chart.getBoundingClientRect();
-  const width = Math.max(800, Math.round(rect.width));
-  const chartHeight = Math.max(400, Math.round(rect.height));
-  const image = new Image();
-  const serialized = new XMLSerializer().serializeToString(chart.cloneNode(true));
-  const source = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml" }));
-  image.onload = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = width * 2;
-    canvas.height = (chartHeight + 90) * 2;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.scale(2, 2);
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, width, chartHeight + 90);
-    context.fillStyle = "#17212b";
-    context.font = "600 17px -apple-system, sans-serif";
-    context.fillText(results.map((result) => result.title).join(" vs. "), 18, 27);
-    context.fillStyle = "#5d6b78";
-    context.font = "12px -apple-system, sans-serif";
-    context.fillText(`${results[0]?.frequency ?? ""} · ${results[0]?.unit ?? ""}`, 18, 47);
-    context.drawImage(image, 0, 58, width, chartHeight);
-    context.fillStyle = "#84909c";
-    context.font = "10px -apple-system, sans-serif";
-    context.fillText("Source: originating statistical agency · EconStats China Data", 18, chartHeight + 80);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "econstats-china-chart.png";
-      link.click();
-      URL.revokeObjectURL(url);
-    }, "image/png");
-    URL.revokeObjectURL(source);
-  };
-  image.src = source;
-}
-
-function SeriesChart(props: { results: SeriesResult[]; years: number | null; logScale: boolean }) {
-  const rows = useMemo(() => mergeResults(props.results), [props.results]);
-  const start = cutoff(rows, props.years);
-  const shown = rows.filter((row) => String(row.date) >= start);
-  const labels = Object.keys(shown[0] ?? {}).filter((key) => key !== "date");
-  const hasZeroLine = props.results.some((result) => result.unit.toLowerCase().includes("percent"));
-
+function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }) {
+  if (!props.active || !props.payload || props.payload.length === 0) return null;
+  const first = props.payload[0];
+  const period = str(obj(first, "payload"), "p");
   return (
-    <div className="chart-wrap" style={{ width: "100%", height: 430 }}>
+    <div className="chart-tip" role="presentation">
+      <b>{periodPretty(period)}</b>
+      {props.payload.map((item, index) => {
+        const value = num(obj(item, "payload"), "v");
+        const color = str(item, "color") || str(item, "stroke");
+        const name = str(item, "name");
+        return <div key={index}><i style={{ color }} /><span className="n">{name}</span><span className="v">{value === null ? "—" : fmt(value, props.unit)}</span></div>;
+      })}
+    </div>
+  );
+}
+
+function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; unit: string; title: string }) {
+  const last = Math.max(...props.tracks.flatMap((track) => track.points.map((point) => point.t)), 0);
+  const start = props.years === null ? -Infinity : last - props.years * 365.25 * 86400000;
+  const shown = props.tracks.map((track) => ({ ...track, points: track.points.filter((point) => point.t >= start) }));
+  const times = shown.flatMap((track) => track.points.map((point) => point.t));
+  const min = Math.min(...times), max = Math.max(...times);
+  const spanYears = (max - min) / (365.25 * 86400000);
+  const tick = (value: number) => {
+    const date = new Date(value);
+    return spanYears > 6 ? String(date.getUTCFullYear()) : date.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+  };
+  const ticks = spanYears > 6
+    ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => Date.UTC(new Date(min).getUTCFullYear() + index, 0, 1)).filter((value) => value >= min && value <= max)
+    : undefined;
+  const hasZero = isRate(props.unit) && !props.logScale;
+  const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
+  const description = `${props.title}. ${shown.length} series, ${props.unit}. Use the Table tab for the values.`;
+  return (
+    <div className="chart-wrap" style={{ width: "100%", height: 420 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
-        <LineChart data={shown} margin={{ top: 10, right: 20, bottom: 4, left: 4 }}>
+        <LineChart margin={{ top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
-          <XAxis dataKey="date" minTickGap={46} tickMargin={10} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
-          <YAxis width={62} scale={props.logScale ? "log" : "auto"} domain={["auto", "auto"]} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
-          {hasZeroLine && !props.logScale && <ReferenceLine y={0} stroke="var(--line-strong)" strokeDasharray="4 4" />}
-          <Tooltip contentStyle={{ borderRadius: 6, border: "1px solid var(--line)", fontSize: 12 }} />
-          {labels.length > 1 && <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />}
-          {labels.map((label, index) => (
-            <Line key={label} type="monotone" dataKey={label} stroke={COLORS[index % COLORS.length]} strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} connectNulls />
+          <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={48} tickMargin={10} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
+          <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={["auto", "auto"]} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)", fontVariantNumeric: "tabular-nums" }} stroke="var(--line-strong)" />
+          {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
+          {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
+          {props.gaps.map((gap) => (
+            <ReferenceArea key={gap.from} x1={periodTime(gap.from)} x2={periodTime(gap.to)} fill="var(--amber)" fillOpacity={0.09} stroke="var(--amber)" strokeOpacity={0.5} strokeDasharray="4 4" label={{ value: "series suspended", position: "insideTop", fontSize: 10, fill: "var(--amber)" }} />
+          ))}
+          <Tooltip content={<ChartTip unit={props.unit} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
+          {shown.map((track) => (
+            <Line key={track.id} data={track.points} dataKey="v" name={track.name} type="linear" stroke={track.color} strokeWidth={2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls={false} />
           ))}
         </LineChart>
       </ResponsiveContainer>
@@ -312,341 +365,762 @@ function SeriesChart(props: { results: SeriesResult[]; years: number | null; log
   );
 }
 
-function Sidebar(props: {
-  stats: CatalogStats | null;
-  featured: CatalogEntry[];
-  favorites: string[];
-  activeDataset: number | null;
-  activeCategory: string;
-  onBrowse: (dataset: number | null) => void;
-  onCategory: (category: string) => void;
-  onOpen: (key: string) => void;
-}) {
+// ── Exports ───────────────────────────────────────────────────────────────────
+
+function download(name: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = name; link.click();
+  URL.revokeObjectURL(url);
+}
+function csvOf(results: SeriesResult[], tracks: Track[], notes: string[]): string {
+  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const head = [
+    `# Series: ${results.map((result) => result.title).join(" | ")}`,
+    `# Unit: ${[...new Set(results.map((result) => result.unit))].join(" | ")}`,
+    `# Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}`,
+    ...notes.map((note) => `# Note: ${note}`),
+    `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
+  ];
+  const periods = [...new Set(tracks.flatMap((track) => track.points.map((point) => point.p)))].sort();
+  const lines = [["period", ...tracks.map((track) => track.name)].map(quote).join(",")];
+  for (const period of periods) {
+    lines.push([period, ...tracks.map((track) => { const found = track.points.find((point) => point.p === period); return found ? String(found.v) : ""; })].map(quote).join(","));
+  }
+  return [...head, ...lines].join("\n");
+}
+function exportPng(results: SeriesResult[], tracks: Track[], notes: string[], target: SVGSVGElement | null, unit: string): void {
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const width = Math.max(900, Math.round(rect.width));
+  const height = Math.max(400, Math.round(rect.height));
+  const clone = target.cloneNode(true);
+  if (!(clone instanceof SVGSVGElement)) return;
+  const computed = getComputedStyle(document.documentElement);
+  let markup = new XMLSerializer().serializeToString(clone);
+  for (const token of ["--line", "--line-strong", "--muted", "--faint", "--amber", "--panel", "--ink", ...CHART_TOKENS]) {
+    markup = markup.replaceAll(`var(${token})`, computed.getPropertyValue(token).trim() || "#888");
+  }
+  const image = new Image();
+  const source = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+  image.onload = () => {
+    const legendLines = Math.ceil(tracks.length / 3);
+    const noteLines = notes.length;
+    const total = 70 + height + 24 + legendLines * 18 + noteLines * 16 + 34;
+    const canvas = document.createElement("canvas");
+    canvas.width = width * 2; canvas.height = total * 2;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.scale(2, 2);
+    context.fillStyle = computed.getPropertyValue("--panel").trim() || "#fff";
+    context.fillRect(0, 0, width, total);
+    const ink = computed.getPropertyValue("--ink").trim() || "#1f2933";
+    const muted = computed.getPropertyValue("--muted").trim() || "#5b6b7a";
+    context.fillStyle = ink; context.font = "600 17px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
+    context.fillText(results.map((result) => result.title).join(" · "), 20, 28);
+    context.fillStyle = muted; context.font = "12px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
+    context.fillText(`${[...new Set(results.map((result) => result.frequency))].join(", ")} · ${unit}`, 20, 48);
+    context.drawImage(image, 0, 62, width, height);
+    let y = 62 + height + 18;
+    tracks.forEach((track, index) => {
+      const x = 20 + (index % 3) * (width / 3);
+      if (index > 0 && index % 3 === 0) y += 18;
+      context.strokeStyle = resolvedColor(CHART_TOKENS.indexOf(track.color.replace(/^var\(|\)$/g, "")));
+      context.lineWidth = 3; context.beginPath(); context.moveTo(x, y - 4); context.lineTo(x + 18, y - 4); context.stroke();
+      context.fillStyle = ink; context.font = "12px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
+      context.fillText(track.name.slice(0, 48), x + 26, y);
+    });
+    y += 22;
+    context.fillStyle = muted; context.font = "11px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
+    for (const note of notes) { context.fillText(note.slice(0, 150), 20, y); y += 16; }
+    const via = results.some((result) => result.sourceUrl.includes("eastmoney")) ? " (via Eastmoney datacenter)" : "";
+    context.fillText(`Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}${via} · EconStats China Data · ${new Date().toISOString().slice(0, 10)}`, 20, total - 12);
+    canvas.toBlob((blob) => { if (blob) download(`econstats-china-${results.map((result) => result.key).join("-")}.png`, blob); }, "image/png");
+    URL.revokeObjectURL(source);
+  };
+  image.src = source;
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
+function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; route: Route; saved: string[]; recent: string[] }) {
+  const wide = typeof window !== "undefined" && window.innerWidth > 820;
+  const groups = new Map<string, CuratedEntry[]>();
+  for (const entry of props.curated) groups.set(entry.group, [...(groups.get(entry.group) ?? []), entry]);
+  const activeKey = props.route.view === "series" ? props.route.keys[0] : "";
+  const activeCat = props.route.view === "search" ? props.route.cat : "";
+  const activeDataset = props.route.view === "search" ? props.route.dataset : "";
   return (
-    <aside className="sidebar">
-      <div className="side-section">
-        <button className={`nav-row${props.activeDataset === null ? " active" : ""}`} onClick={() => props.onBrowse(null)}>
-          <span>All series</span><span className="count">{props.stats?.seriesCount.toLocaleString() ?? "—"}</span>
-        </button>
-        {props.stats?.datasets.map((dataset) => (
-          <button key={dataset.code} className={`nav-row${props.activeDataset === dataset.code ? " active" : ""}`} onClick={() => props.onBrowse(dataset.code)}>
-            <span><strong>{dataset.geography}</strong><small>{dataset.frequency}</small></span>
-            <span className="count">{dataset.count.toLocaleString()}</span>
-          </button>
-        ))}
-      </div>
-      <div className="side-heading">Popular categories</div>
-      <div className="category-list">
-        {props.stats?.categories.slice(0, 8).map((category) => (
-          <button key={category.name} className={props.activeCategory === category.name ? "active" : ""} onClick={() => props.onCategory(category.name)}><span>{category.name}</span><small>{category.count.toLocaleString()}</small></button>
-        ))}
-      </div>
-      <div className="side-heading">Featured indicators</div>
-      <div className="featured-list">
-        {props.featured.slice(0, 8).map((entry) => (
-          <button key={entry.key} onClick={() => props.onOpen(entry.key)}>{entry.title}<small>{entry.frequency} · {entry.agency}</small></button>
-        ))}
-      </div>
-      <div className="side-heading">My data</div>
-      <div className="saved-summary"><StarIcon filled={false}/>{props.favorites.length} saved series</div>
+    <aside className="sidebar" aria-label="Catalog">
+      <details open={wide}>
+        <summary>Headline indicators</summary>
+        <div className="side-list">
+          {[...groups.entries()].map(([group, entries]) => (
+            <React.Fragment key={group}>
+              <div className="group-label">{group}</div>
+              {entries.map((entry) => (
+                <a key={entry.key} className="nav-row" href={seriesHash([entry.key])} aria-current={activeKey === entry.key ? "page" : undefined}>
+                  <span className="label">{entry.title}<small>{entry.frequency}{entry.agency !== "National Bureau of Statistics" ? ` · ${entry.agency}` : ""}</small></span>
+                </a>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      </details>
+      <details>
+        <summary>Browse</summary>
+        <div className="side-list">
+          <div className="group-label">Datasets</div>
+          {props.stats?.datasets.map((dataset) => (
+            <a key={dataset.code} className="nav-row" href={routeHash({ view: "search", q: "", freq: "", cat: "", dataset: String(dataset.code) })} aria-current={activeDataset === String(dataset.code) ? "page" : undefined} aria-label={`${dataset.geography} ${dataset.frequency.toLowerCase()} dataset, ${dataset.count.toLocaleString("en-US")} series`}>
+              <span className="label">{dataset.geography} {dataset.frequency.toLowerCase()}<small>{dataset.count.toLocaleString("en-US")} series</small></span>
+            </a>
+          ))}
+          <div className="group-label">Categories</div>
+          {props.stats?.categories.map((category) => (
+            <a key={category.name} className="nav-row" href={`#/category/${encodeURIComponent(category.name)}`} aria-current={activeCat === category.name ? "page" : undefined}>
+              <span className="label"><Zh>{category.name}</Zh>{categoryEn(category.name) && <small>{categoryEn(category.name)}</small>}</span>
+              <span className="count">{category.count.toLocaleString("en-US")}</span>
+            </a>
+          ))}
+        </div>
+      </details>
+      <details>
+        <summary>My data</summary>
+        <div className="side-list">
+          <a className="nav-row" href="#/saved" aria-current={props.route.view === "saved" ? "page" : undefined}><span className="label">Saved series</span><span className="count">{props.saved.length}</span></a>
+          <a className="nav-row" href="#/recent" aria-current={props.route.view === "recent" ? "page" : undefined}><span className="label">Recently viewed</span><span className="count">{props.recent.length}</span></a>
+        </div>
+      </details>
     </aside>
   );
 }
 
-function SearchResults(props: {
-  response: SearchResponse | null;
-  loading: boolean;
-  loadingMore: boolean;
-  query: string;
-  onOpen: (key: string) => void;
-  onCompare: (key: string) => void;
-  onMore: () => void;
-}) {
+// ── Home ──────────────────────────────────────────────────────────────────────
+
+function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
+  const values = props.points.map((point) => point.value);
+  if (values.length < 2) return <svg viewBox="0 0 160 28" aria-hidden="true" />;
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const path = values.map((value, index) => `${(index / (values.length - 1)) * 160},${26 - ((value - min) / span) * 24}`).join(" ");
+  return <svg viewBox="0 0 160 28" preserveAspectRatio="none" aria-hidden="true"><polyline points={path} fill="none" stroke={props.alarm ? "var(--red)" : "var(--chart-1)"} strokeWidth="1.8" strokeLinejoin="round" /><circle cx="160" cy={26 - ((values[values.length - 1] ?? 0) - min) / span * 24} r="2.5" fill={props.alarm ? "var(--red)" : "var(--chart-1)"} /></svg>;
+}
+
+function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
+  const [headline, setHeadline] = useState<Map<string, SeriesResult>>(new Map());
+  const [draft, setDraft] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(props.curated.map((entry) => json(`/api/series/${entry.key}?limit=24`).then((body) => isSeriesResult(body) ? [entry.key, body] as const : null).catch(() => null)))
+      .then((pairs) => { if (!cancelled) setHeadline(new Map(pairs.filter((pair): pair is readonly [string, SeriesResult] => pair !== null))); });
+    return () => { cancelled = true; };
+  }, [props.curated.map((entry) => entry.key).join(",")]);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = props.releases.filter((release) => release.date.slice(0, 10) >= today).slice(0, 6);
+  const monthly = props.stats?.datasets.find((dataset) => dataset.frequency === "Monthly")?.count ?? 0;
+  const quarterly = props.stats?.datasets.find((dataset) => dataset.frequency === "Quarterly")?.count ?? 0;
   return (
-    <main className="results-page">
-      <div className="page-kicker">Explore NBS data</div>
-      <h1>{props.query ? `Search results for “${props.query}”` : "Browse all series"}</h1>
-      <p className="result-count">{props.loading ? "Searching…" : `${(props.response?.total ?? 0).toLocaleString()} matching series`}</p>
-      <div className="result-list">
-        {props.response?.results.map((entry) => (
-          <article className="result-row" key={entry.key}>
-            <button className="result-main" onClick={() => props.onOpen(entry.key)}>
-              <span className="result-title">{entry.name}</span>
-              <span className="result-path">{entry.dataset} / {entry.categories.join(" / ")}</span>
-              <span className="result-meta">{entry.frequency} · {entry.geography} · {entry.unit || "Unit not stated"}</span>
-            </button>
-            <button className="compare-button" onClick={() => props.onCompare(entry.key)} title="Add to current chart">Compare</button>
-            <ChevronIcon />
-          </article>
-        ))}
-      </div>
-      {(props.response?.results.length ?? 0) < (props.response?.total ?? 0) && <button className="load-more" disabled={props.loadingMore} onClick={props.onMore}>{props.loadingMore ? "Loading…" : "Load more series"}</button>}
-      {!props.loading && props.response?.results.length === 0 && <div className="empty-state"><strong>No series found</strong><span>Try the Chinese indicator name, a category, or an NBS series ID.</span></div>}
+    <main id="main" tabIndex={-1} className="page">
+      <section className="hero">
+        <h1>China's economy, in official numbers</h1>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.length} headline indicators from NBS, the People's Bank of China, Customs and Caixin. Charted, documented, downloadable, with every revision kept.</p>
+        <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
+          <div className="global-search"><SearchIcon /><input aria-label="Search series" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
+        </form>
+        <div className="chips">Popular:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "" })}>{term}</a>)}</div>
+      </section>
+
+      <section className="section" aria-labelledby="h-headline">
+        <div className="section-head"><h2 id="h-headline">Headline indicators</h2><span>latest print for each, year over year unless noted</span></div>
+        <div className="tiles">
+          {props.curated.map((entry) => {
+            const result = headline.get(entry.key);
+            const first = result?.series[0];
+            const latest = first?.points[first.points.length - 1];
+            return (
+              <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
+                <span className="label">{entry.title}</span>
+                <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>{isRate(entry.unit) && entry.unit !== "%" && !/index/i.test(entry.unit) ? "%" : ""}</span></span>
+                {first && <Sparkline points={first.points} />}
+                <small>{entry.agency === "National Bureau of Statistics" ? "NBS" : entry.agency === "People's Bank of China" ? "PBOC" : entry.agency} · {latest ? periodPretty(latest.date) : entry.frequency}{first && first.label !== entry.title ? ` · ${first.label}` : ""}</small>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="section two-col">
+        <div className="card">
+          <div className="card-head"><h2>Coming up</h2><span>official NBS schedule, China Standard Time</span></div>
+          {props.releaseError ? <div className="state"><p>The NBS release calendar didn't respond. The schedule is also published at stats.gov.cn.</p></div>
+            : upcoming.length === 0 ? <div className="state"><p>No further releases scheduled this month. <a href="#/releases">See the calendar</a>.</p></div>
+            : <div className="cal">{upcoming.map((release) => {
+              const date = new Date(`${release.date.slice(0, 10)}T00:00:00`);
+              return (
+                <div className="cal-row" key={release.id}>
+                  <div className="cal-date"><span>{date.toLocaleDateString("en-US", { month: "short" })}</span><b>{date.getDate()}</b></div>
+                  <div>
+                    <div className="what">{release.en || <Zh>{release.title}</Zh>}</div>
+                    {release.en && <small><Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh> · {release.date.slice(11, 16)} CST</small>}
+                    {release.keys.length > 0 && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}</div>}
+                  </div>
+                </div>
+              );
+            })}</div>}
+        </div>
+        <div className="card">
+          <div className="card-head"><h2>What's in here</h2><span>and what isn't yet</span></div>
+          <div className="coverage">
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Guangdong quarterly GDP</li><li>Every revision, from the day a series was first viewed</li></ul></div>
+            <div><h3>Not yet</h3><ul><li>70-city house prices</li><li>Provincial and city series beyond Guangdong GDP</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li><li>English titles for most NBS series are machine glosses</li></ul></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="h-cats">
+        <div className="section-head"><h2 id="h-cats">Browse by category</h2><span>the NBS top-level groups, by size</span></div>
+        <div className="cats">
+          {props.stats?.categories.slice(0, 12).map((category) => (
+            <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
+              <b><Zh>{category.name}</Zh></b>
+              {categoryEn(category.name) && <span className="gloss">{categoryEn(category.name)}</span>}
+              <small>{category.count.toLocaleString("en-US")} series</small>
+            </a>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
 
-function SeriesWorkspace(props: {
-  keys: string[];
-  favorites: string[];
-  onToggleFavorite: (key: string) => void;
-  onRemove: (key: string) => void;
+// ── Search & browse ───────────────────────────────────────────────────────────
+
+function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: CatalogStats | null; chartKeys: string[]; lang: string; navigate: (route: Route) => void }) {
+  const [response, setResponse] = useState<SearchResponse | null>(null);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [more, setMore] = useState(false);
+  const params = (offset: number) => {
+    const query = new URLSearchParams({ q: props.route.q, limit: "60", offset: String(offset) });
+    if (props.route.freq) query.set("frequency", props.route.freq);
+    if (props.route.cat) query.set("category", props.route.cat);
+    if (props.route.dataset) query.set("dataset", props.route.dataset);
+    return query;
+  };
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    const timer = window.setTimeout(() => {
+      json(`/api/search?${params(0)}`).then((body) => { if (cancelled) return; if (isSearchResponse(body)) { setResponse(body); setStatus("ok"); } else setStatus("error"); }).catch(() => { if (!cancelled) setStatus("error"); });
+    }, 160);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [props.route.q, props.route.freq, props.route.cat, props.route.dataset]);
+  const loadMore = () => {
+    if (!response) return;
+    setMore(true);
+    json(`/api/search?${params(response.results.length)}`).then((body) => { if (isSearchResponse(body)) setResponse({ ...body, results: [...response.results, ...body.results] }); }).catch(() => undefined).finally(() => setMore(false));
+  };
+  const title = props.route.q ? `Results for “${props.route.q}”` : props.route.cat ? props.route.cat : props.route.dataset ? (props.stats?.datasets.find((dataset) => String(dataset.code) === props.route.dataset)?.name ?? "Dataset") : "All series";
+  const freqs = (props.stats?.datasets ?? []).map((dataset) => dataset.frequency).filter((value, index, list) => list.indexOf(value) === index);
+  const geos = (props.stats?.datasets ?? []).map((dataset) => dataset.geography).filter((value, index, list) => list.indexOf(value) === index);
+  const set = (patch: Partial<Extract<Route, { view: "search" }>>) => props.navigate({ ...props.route, ...patch });
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span>{props.route.cat ? <><a href="#/browse">Categories</a><span aria-hidden="true">›</span><span><Zh>{props.route.cat}</Zh></span></> : <span>Search</span>}</div>
+      <h1>{CJK.test(title) ? <Zh>{title}</Zh> : title}{props.route.cat && categoryEn(props.route.cat) && <span className="gloss">{categoryEn(props.route.cat)}</span>}</h1>
+      <div className="facets">
+        <select aria-label="Frequency" value={props.route.freq} onChange={(event) => set({ freq: event.target.value })}><option value="">All frequencies</option>{freqs.map((freq) => <option key={freq} value={freq}>{freq} ({(props.stats?.datasets.filter((dataset) => dataset.frequency === freq).reduce((sum, dataset) => sum + dataset.count, 0) ?? 0).toLocaleString("en-US")})</option>)}</select>
+        {geos.length > 1 && <select aria-label="Region" value="" onChange={() => undefined}>{geos.map((geo) => <option key={geo}>{geo}</option>)}</select>}
+        {props.stats && props.stats.datasets.length > 1 && <select aria-label="Dataset" value={props.route.dataset} onChange={(event) => set({ dataset: event.target.value })}><option value="">All datasets</option>{props.stats.datasets.map((dataset) => <option key={dataset.code} value={String(dataset.code)}>{dataset.geography} {dataset.frequency.toLowerCase()} ({dataset.count.toLocaleString("en-US")})</option>)}</select>}
+        {(props.route.freq || props.route.cat || props.route.dataset) && <button className="button" onClick={() => props.navigate({ view: "search", q: props.route.q, freq: "", cat: "", dataset: "" })}>Clear filters</button>}
+      </div>
+      <p className="result-count" role="status" aria-live="polite">{status === "loading" ? "Searching…" : status === "error" ? "" : response ? `Showing ${response.results.length.toLocaleString("en-US")} of ${response.total.toLocaleString("en-US")} series` : ""}</p>
+      {status === "error" && <div className="state"><b>Search isn't available right now</b><p>The catalog didn't respond. Nothing is wrong with your query.</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button></div></div>}
+      {status === "ok" && response && response.results.length === 0 && (
+        <div className="state">
+          <b>No series match {props.route.q ? `“${props.route.q}”` : "these filters"}</b>
+          <p>This catalog holds national monthly and quarterly NBS series ({(props.stats?.seriesCount ?? 0).toLocaleString("en-US")}). It does not yet include 70-city house prices, annual, provincial or city data.</p>
+          <p>Try a Chinese term — <a href={routeHash({ view: "search", q: "失业率", freq: "", cat: "", dataset: "" })}>失业率</a>, <a href={routeHash({ view: "search", q: "居民消费价格", freq: "", cat: "", dataset: "" })}>居民消费价格</a> — or <a href="#/browse">browse the categories</a>. English matches common terms (GDP, CPI, PPI, exports, steel) and the headline indicators.</p>
+        </div>
+      )}
+      {status !== "error" && response && response.results.length > 0 && (
+        <div className="result-list">
+          {response.results.map((entry) => {
+            const curated = entry.datasetCode === 0;
+            const zhFirst = props.lang === "zh" || !entry.nameEn;
+            return (
+              <article className="result" key={entry.key}>
+                <a className="main" href={seriesHash([entry.key])}>
+                  <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
+                  {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">auto-translated</span></span>}
+                  {!curated && <span className="path"><Zh>{entry.categories.join(" › ")}</Zh></span>}
+                  <span className="meta">{entry.frequency} · {curated ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
+                </a>
+                {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
+                  ? <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>
+                  : <a className="button" href={seriesHash([entry.key])} aria-label={`Open ${entry.name}`}>Open</a>}
+              </article>
+            );
+          })}
+        </div>
+      )}
+      {response && response.results.length < response.total && status === "ok" && <button className="load-more" disabled={more} onClick={loadMore}>{more ? "Loading…" : `Load ${Math.min(60, response.total - response.results.length)} more`}</button>}
+    </main>
+  );
+}
+
+function BrowsePage(props: { stats: CatalogStats | null }) {
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Categories</span></div>
+      <h1>Browse by category</h1>
+      <p className="lede">The {props.stats?.categoryCount ?? 0} NBS categories, grouped by their top-level heading. Chinese names are the official ones; the English is a gloss.</p>
+      <div className="cats" style={{ marginTop: 20 }}>
+        {props.stats?.categories.map((category) => (
+          <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
+            <b><Zh>{category.name}</Zh></b>
+            {categoryEn(category.name) && <span className="gloss">{categoryEn(category.name)}</span>}
+            <small>{category.count.toLocaleString("en-US")} series</small>
+          </a>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
+  const [entries, setEntries] = useState<Map<string, { title: string; sub: string }>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(props.keys.map((key) => json(`/api/entry/${key}`).then((body) => {
+      if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency} · ${body.agency}` }] as const;
+      if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency} · ${body.categories.join(" › ")}` }] as const;
+      return null;
+    }).catch(() => null))).then((pairs) => { if (!cancelled) setEntries(new Map(pairs.filter((pair): pair is readonly [string, { title: string; sub: string }] => pair !== null))); });
+    return () => { cancelled = true; };
+  }, [props.keys.join(",")]);
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>My data</span></div>
+      <h1>{props.title}</h1>
+      {props.keys.length === 0 ? <div className="state"><b>{props.empty}</b><p>Saved series and recently viewed series live in this browser only.</p></div> : (
+        <div className="result-list" style={{ marginTop: 20 }}>
+          {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a><a className="button" href={seriesHash([key])}>Open</a></article>; })}
+        </div>
+      )}
+    </main>
+  );
+}
+
+// ── Releases ──────────────────────────────────────────────────────────────────
+
+function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; curated: CuratedEntry[]; navigate: (route: Route) => void }) {
+  const [items, setItems] = useState<Release[]>([]);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const now = new Date();
+  const month = props.route.month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [year, monthIndex] = month.split("-").map(Number);
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    const start = new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1, 1);
+    const end = new Date(year ?? now.getFullYear(), monthIndex ?? 1, 0);
+    const day = (date: Date) => `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+    json(`/api/releases?start=${encodeURIComponent(`${day(start)} 00:00:00`)}&end=${encodeURIComponent(`${day(end)} 23:59:59`)}`).then((body) => {
+      if (cancelled) return;
+      const data = obj(body, "data");
+      if (!Array.isArray(data)) { setStatus("error"); return; }
+      setItems(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: (Array.isArray(obj(item, "keys")) ? obj(item, "keys") : []).filter((key): key is string => typeof key === "string") })).filter((item) => item.id && item.title));
+      setStatus("ok");
+    }).catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, [month]);
+  const grouped = new Map<string, Release[]>();
+  for (const item of [...items].sort((a, b) => a.date.localeCompare(b.date))) grouped.set(item.date.slice(0, 10), [...(grouped.get(item.date.slice(0, 10)) ?? []), item]);
+  const shift = (delta: number) => { const date = new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1 + delta, 1); props.navigate({ view: "releases", month: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` }); };
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Releases</span></div>
+      <h1>NBS release calendar</h1>
+      <p className="lede">The official publication schedule, in China Standard Time. Each release links to the series it updates.</p>
+      <div className="month-nav"><button className="button" onClick={() => shift(-1)} aria-label="Previous month">‹</button><b>{new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button className="button" onClick={() => shift(1)} aria-label="Next month">›</button></div>
+      {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading the calendar…</div>}
+      {status === "error" && <div className="state"><b>Release calendar unavailable</b><p>NBS didn't respond. The schedule is also published at <a href="https://www.stats.gov.cn/sj/fbrc/" target="_blank" rel="noreferrer">stats.gov.cn</a>.</p><div className="actions"><button className="button" onClick={() => shift(0)}>Try again</button></div></div>}
+      {status === "ok" && grouped.size === 0 && <div className="state"><b>Nothing scheduled</b><p>NBS lists no releases for this month.</p></div>}
+      {status === "ok" && grouped.size > 0 && (
+        <div className="release-list">
+          {[...grouped.entries()].map(([date, releases]) => {
+            const day = new Date(`${date}T00:00:00`);
+            return (
+              <section className="release-day" key={date}>
+                <div className="release-date"><b>{day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</b><span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span></div>
+                <div>{releases.map((release) => (
+                  <article className="release" key={release.id}>
+                    <time dateTime={release.date}>{release.date.slice(11, 16)}</time>
+                    <div>
+                      <div className="en">{release.en || <Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh>}</div>
+                      {release.en && <div className="zh"><Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh></div>}
+                      {release.keys.length > 0 && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}</div>}
+                    </div>
+                  </article>
+                ))}</div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  );
+}
+
+// ── Series page ───────────────────────────────────────────────────────────────
+
+function SeriesPage(props: {
+  route: Extract<Route, { view: "series" }>; curated: CuratedEntry[]; saved: string[]; releases: Release[]; lang: string;
+  onToggleSaved: (key: string) => void; navigate: (route: Route) => void; toast: (text: string) => void;
 }) {
   const [results, setResults] = useState<SeriesResult[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [region, setRegion] = useState("");
-  const [transform, setTransform] = useState<Transform>("default");
-  const [years, setYears] = useState<number | null>(10);
-  const [view, setView] = useState<View>("chart");
-  const [logScale, setLogScale] = useState(false);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<Tab>("chart");
+  const [logScale, setLogScale] = useState(false);
+  const [revised, setRevised] = useState<Revised[] | null>(null);
+  const [firstView, setFirstView] = useState(false);
+  const colors = useRef(new Map<string, number>());
+  const chartRef = useRef<HTMLDivElement>(null);
+  const show: Show = isShow(props.route.show || "default") ? (isShow(props.route.show) ? props.route.show : "default") : "default";
+  const years = props.route.range === "max" ? null : Number(props.route.range.replace("y", "")) || 10;
+  const keysText = props.route.keys.join(",");
 
   useEffect(() => {
-    const dynamic = props.keys.find((key) => key.startsWith("nbs_"));
+    const dynamic = props.route.keys.find((key) => key.startsWith("nbs_"));
     setRegions([]);
-    setRegion("");
     if (!dynamic) return;
     json(`/api/dimensions/${dynamic}`).then((body) => {
-      const list = typeof body === "object" && body !== null ? Reflect.get(body, "regions") : undefined;
-      if (Array.isArray(list)) {
-        const parsed = list.filter((item): item is Region =>
-          typeof item === "object" && item !== null &&
-          typeof Reflect.get(item, "text") === "string" && typeof Reflect.get(item, "value") === "string"
-        );
-        setRegions(parsed);
-        setRegion(parsed[0]?.value ?? "");
-      }
+      const list = obj(body, "regions");
+      if (Array.isArray(list)) setRegions(list.filter((item): item is Region => typeof str(item, "text") === "string" && str(item, "value") !== ""));
     }).catch(() => setRegions([]));
-  }, [props.keys.join(",")]);
+  }, [keysText]);
 
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
-    const query = new URLSearchParams({ limit: "360" });
-    if (region) query.set("region", region);
-    if (transform !== "default") query.set("transform", transform);
-    Promise.all(props.keys.map((key) => json(`/api/series/${key}?${query}`)))
-      .then((bodies) => {
+    setFirstView(props.route.keys.some((key) => key.startsWith("nbs_")));
+    const query = new URLSearchParams({ limit: "600" });
+    if (props.route.region) query.set("region", props.route.region);
+    if (show !== "default") query.set("transform", show);
+    Promise.all(props.route.keys.map((key) => json(`/api/series/${key}?${query}`)))
+      .then(async (bodies) => {
+        let parsed = bodies.filter(isSeriesResult);
+        // Comparing a rate with a level puts a line at zero next to one in
+        // the hundreds of thousands. When no transform was chosen and units
+        // disagree, bring the level series to year-over-year so all share %.
+        if (show === "default" && new Set(parsed.map((result) => result.unit)).size > 1 && parsed.some((result) => isRate(result.unit))) {
+          parsed = await Promise.all(parsed.map(async (result) => {
+            if (isRate(result.unit)) return result;
+            const alt = new URLSearchParams(query); alt.set("transform", /=100/.test(result.unit) ? "index_growth" : "yoy");
+            const body = await json(`/api/series/${result.key}?${alt}`).catch(() => null);
+            return isSeriesResult(body) ? body : result;
+          }));
+        }
         if (cancelled) return;
-        const parsed = bodies.filter((body): body is SeriesResult =>
-          typeof body === "object" && body !== null && typeof Reflect.get(body, "key") === "string" && Array.isArray(Reflect.get(body, "series"))
-        );
-        setResults(parsed);
-        setStatus("ok");
+        setResults(parsed); setStatus("ok");
       })
-      .catch((reason) => {
-        if (cancelled) return;
-        setError(reason instanceof Error ? reason.message : String(reason));
-        setStatus("error");
-      });
+      .catch((reason) => { if (cancelled) return; setError(reason instanceof Error ? reason.message : String(reason)); setStatus("error"); });
     return () => { cancelled = true; };
-  }, [props.keys.join(","), region, transform]);
+  }, [keysText, props.route.region, show]);
 
-  if (status === "loading") return <main className="workspace"><div className="loading-state"><span className="loader"/>Loading observations…</div></main>;
-  if (status === "error") return <main className="workspace"><div className="error-state"><strong>Series unavailable</strong><span>{error}</span><button onClick={() => window.location.reload()}>Retry</button></div></main>;
-  if (results.length === 0) return <main className="workspace"><div className="empty-state">No observations returned.</div></main>;
+  useEffect(() => {
+    if (tab !== "revisions" || results.length === 0) return;
+    const primary = results[0];
+    if (!primary) return;
+    const query = new URLSearchParams();
+    if (primary.region?.value) query.set("region", primary.region.value);
+    json(`/api/revisions/${primary.key}?${query}`).then((body) => {
+      const list = obj(body, "revised");
+      if (!Array.isArray(list)) { setRevised([]); return; }
+      setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: (Array.isArray(obj(item, "vintages")) ? obj(item, "vintages") : []).map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
+    }).catch(() => setRevised([]));
+  }, [tab, results.map((result) => result.key).join(",")]);
 
   const primary = results[0];
-  if (!primary) return <main className="workspace"><div className="empty-state">No observations returned.</div></main>;
-  const firstSeries = primary.series[0];
-  const latest = firstSeries?.points[firstSeries.points.length - 1];
-  const rows = mergeResults(results);
-  const labels = Object.keys(rows[0] ?? {}).filter((key) => key !== "date");
-  const favorite = props.favorites.includes(primary.key);
-  const metadata = primary.metadata;
+  const built = useMemo(() => buildTracks(results, colors.current), [results]);
+  const units = [...new Set(results.map((result) => result.unit))];
+  const mixed = units.length > 1;
+  const lastT = Math.max(0, ...built.tracks.flatMap((track) => track.points.map((point) => point.t)));
+  const rangeStart = years === null ? -Infinity : lastT - years * 365.25 * 86400000;
+  const tracks = mixed ? rebase(built.tracks, rangeStart) : built.tracks;
+  const unit = mixed ? "Index, first shown period = 100" : (primary?.unit ?? "");
+  const canLog = tracks.every((track) => track.points.every((point) => point.v > 0));
+  const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
+
+  if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time — this takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
+  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Couldn't load this series</b><p>{/HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
+
+  const firstSeries = built.tracks[0];
+  const headline = primary.series[0];
+  const latest = headline?.points[headline.points.length - 1];
+  const previous = headline?.points[headline.points.length - 2];
+  const saved = props.saved.includes(primary.key);
+  const meta = primary.metadata;
+  const curated = props.curated.find((entry) => entry.key === primary.key);
+  const today = new Date().toISOString().slice(0, 10);
+  const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const stale = primary.source === "stale";
+  const zhFirst = props.lang === "zh" || !meta?.nameEn;
+  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : "the NBS data portal";
+  const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
+  const citation = `${primary.agency}, "${primary.title}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key])}`;
+  const tableRows = (() => {
+    const periods = [...new Set(tracks.flatMap((track) => track.points.map((point) => point.p)))].sort().reverse();
+    return periods.map((period) => ({ period, cells: tracks.map((track) => track.points.find((point) => point.p === period)?.v ?? null) }));
+  })();
+  const shownRows = tableRows.slice(0, 500);
 
   return (
-    <main className="workspace">
-      <div className="breadcrumbs">Data / {metadata?.geography ?? "Featured"} / {primary.frequency}</div>
-      <div className="series-heading">
-        <div>
-          <h1>{primary.title}</h1>
-          {results.length > 1 && <p className="comparison-note">Compared with {results.slice(1).map((result) => result.title).join(", ")}</p>}
-        </div>
-        <button className={`favorite-button${favorite ? " active" : ""}`} onClick={() => props.onToggleFavorite(primary.key)}><StarIcon filled={favorite}/>{favorite ? "Saved" : "Save"}</button>
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs">
+        <a href="#/">Home</a><span aria-hidden="true">›</span>
+        {meta ? <><a href="#/browse">Categories</a>{meta.categories.slice(0, 2).map((category) => <React.Fragment key={category}><span aria-hidden="true">›</span><a href={`#/category/${encodeURIComponent(category)}`}><Zh>{category}</Zh></a></React.Fragment>)}</>
+          : <><span>Headline indicators</span><span aria-hidden="true">›</span><span>{curated?.group ?? primary.agency}</span></>}
       </div>
-      <div className="series-meta-line"><span className="series-id">{primary.key}</span><span>{primary.frequency}</span><span>{primary.unit || "Unit not stated"}</span><span>{primary.agency}</span></div>
-
-      {latest && <section className="latest-strip"><div><span className="latest-value">{formatNumber(latest.value, primary.unit)}</span><span className="latest-unit">{primary.unit}</span></div><div className="latest-period">Latest observation<br/><strong>{latest.date}</strong></div><div className="latest-source">Delivery<br/><strong>{primary.source === "store" ? "Stored snapshot" : "Live source"}</strong></div></section>}
-
-      {results.length > 1 && <div className="comparison-chips">{results.map((result, index) => <span key={result.key} style={{ borderColor: COLORS[index % COLORS.length] ?? COLORS[0] }}>{result.title}<button onClick={() => props.onRemove(result.key)} aria-label={`Remove ${result.title}`}>×</button></span>)}</div>}
-
-      <section className="data-card">
-        <div className="toolbar">
-          <div className="segmented">{(["chart", "table", "metadata"] satisfies View[]).map((item) => <button key={item} className={view === item ? "active" : ""} onClick={() => setView(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}</div>
-          {regions.length > 1 && <label>Region<select value={region} onChange={(event) => setRegion(event.target.value)}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
-          <label>Units<select value={transform} onChange={(event) => {
-            const value = event.target.value;
-            if (value === "default" || value === "raw" || value === "change" || value === "percent_change" || value === "yoy" || value === "index_growth") setTransform(value);
-          }}>{TRANSFORMS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-          <label className="check-label"><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)}/> Log scale</label>
-          <div className="toolbar-spacer"/>
-          <button className="export-button" onClick={() => downloadCsv(results)}>CSV</button>
-          <button className="export-button" onClick={() => downloadJson(results)}>JSON</button>
-          <button className="export-button" onClick={() => downloadPng(results)}>PNG</button>
-          <button className="export-button" onClick={() => navigator.clipboard?.writeText(window.location.href)}>Share</button>
+      <div className="series-head">
+        <div>
+          <h1>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">auto-translated</span></span>}</h1>
+          {results.length > 1 && <p className="lede">Compared with {results.slice(1).map((result) => result.title).join(", ")}</p>}
         </div>
-        {view === "chart" && <><div className="range-row">{RANGES.map((item) => <button key={item.label} className={years === item.years ? "active" : ""} onClick={() => setYears(item.years)}>{item.label}</button>)}</div><SeriesChart results={results} years={years} logScale={logScale}/></>}
-        {view === "table" && <div className="table-scroll"><table><thead><tr><th>Period</th>{labels.map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{rows.slice().reverse().slice(0, 100).map((row) => <tr key={String(row.date)}><td>{row.date}</td>{labels.map((label) => <td key={label}>{row[label] ?? "—"}</td>)}</tr>)}</tbody></table></div>}
-        {view === "metadata" && <div className="metadata-grid"><div><span>Dataset</span><strong>{metadata?.dataset ?? "Curated macro series"}</strong></div><div><span>Category</span><strong>{metadata?.categories.join(" / ") || "Macroeconomic indicators"}</strong></div><div><span>Geography</span><strong>{metadata?.geography ?? "National"}</strong></div><div><span>Frequency</span><strong>{primary.frequency}</strong></div><div className="metadata-wide"><span>Series notes</span><p>{metadata?.note || metadata?.annotation || "No additional methodological note is available for this series."}</p></div></div>}
+        <div className="actions">
+          <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
+          <button className="button" onClick={() => download(`econstats-china-${results.map((result) => result.key).join("-")}.csv`, new Blob([csvOf(results, tracks, built.notes)], { type: "text/csv;charset=utf-8" }))}>CSV</button>
+          <button className="button" onClick={() => download(`econstats-china-${results.map((result) => result.key).join("-")}.json`, new Blob([JSON.stringify(results, null, 2)], { type: "application/json" }))}>JSON</button>
+          <button className="button" onClick={() => { const svg = chartRef.current?.querySelector("svg.recharts-surface"); exportPng(results, tracks, built.notes, svg instanceof SVGSVGElement ? svg : null, unit); }} disabled={tab !== "chart"}>PNG</button>
+          <button className="button" onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => props.toast("Link copied")).catch(() => props.toast("Couldn't copy the link")); }}>Share</button>
+        </div>
+      </div>
+      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{primary.region && primary.region.value !== "000000000000" && <span>Region: <Zh>{primary.region.text}</Zh></span>}</div>
+
+      {latest && (
+        <section className="readout" aria-label="Latest observation">
+          <div className="main">
+            <span className="latest-value">{fmt(latest.value, primary.unit)}</span>
+            <span className="unit">{primary.unit}{previous ? ` · ${latest.value - previous.value >= 0 ? "+" : ""}${fmt(latest.value - previous.value, primary.unit)} from ${periodPretty(previous.date)}` : ""}</span>
+            <span className="which">{headline?.label !== primary.title ? headline?.label : ""}{headline?.label !== primary.title ? " · " : ""}{periodPretty(latest.date)}</span>
+          </div>
+          <dl><dt>Updated</dt><dd className={stale ? "stale" : ""}>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}{stale && <small>NBS was unreachable today; showing the stored copy</small>}</dd></dl>
+          <dl><dt>Next release</dt><dd>{nextRelease ? <>{fmtDate(nextRelease.date.slice(0, 10))}<small>{nextRelease.date.slice(11, 16)} CST · {nextRelease.en}</small></> : <span style={{ color: "var(--muted)", fontWeight: 400 }}>Not on this month's calendar</span>}</dd></dl>
+        </section>
+      )}
+
+      {results.length > 1 && <div className="chip-row">{results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}</div>}
+      {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
+      {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div><b>Level series are shown as % change from a year ago</b> so their units match the rates on this chart. Choose “Show as” to change that.</div></div>}
+      {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
+
+      <section className="card data-card">
+        <div className="toolbar">
+          <div className="segmented" role="tablist" aria-label="View">
+            {(["chart", "table", "metadata", "revisions"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
+          </div>
+          {regions.length > 1 && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
+          <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
+          <div className="toolbar-spacer" />
+        </div>
+        <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+          {tab === "chart" && (
+            <>
+              <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={years === item.years} onClick={() => set({ range: item.years === null ? "max" : `${item.years}y` })}>{item.label}</button>)}</div>
+              <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
+              {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
+              {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}</p>}
+            </>
+          )}
+          {tab === "table" && (
+            <>
+              <div className="table-scroll"><table><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{row.period}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
+              <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods · download the CSV for all` : `${tableRows.length} periods`}</span></div>
+            </>
+          )}
+          {tab === "metadata" && (
+            <dl className="meta-grid">
+              <div><dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline indicators"}</dd></div>
+              <div><dt>Category</dt><dd>{meta ? <Zh>{meta.categories.join(" › ")}</Zh> : curated?.group ?? "—"}</dd></div>
+              <div><dt>Region</dt><dd>{primary.region ? <Zh>{primary.region.text}</Zh> : "China, national"}</dd></div>
+              <div><dt>Frequency</dt><dd>{primary.frequency}</dd></div>
+              <div><dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd></div>
+              <div><dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd></div>
+              <div className="meta-wide"><dt>Definition</dt><dd><p>{meta?.note ? <Zh>{meta.note}</Zh> : ABOUT[primary.key] ?? "No definition is published for this series."}</p></dd></div>
+              <div className="meta-wide"><dt>Methodology notes</dt><dd><p>{meta?.annotation ? <Zh>{meta.annotation}</Zh> : built.notes[0] ?? "NBS publishes no methodology note for this series."}</p></dd></div>
+            </dl>
+          )}
+          {tab === "revisions" && (
+            revised === null ? <div className="state"><span className="loader" aria-hidden="true" />Loading revisions…</div>
+              : revised.length === 0 ? <div className="state"><b>No revisions recorded</b><p>Every value stored since {fmtDate(primary.updatedAt) || "this series was first viewed"} has matched the one before it. When the source restates a number, the earlier value stays here.</p></div>
+              : <div className="table-scroll"><table><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{row.period}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "—" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>
+          )}
+        </div>
       </section>
 
-      <section className="details-grid"><div><h2>About this series</h2><p>{metadata?.note || "Official macroeconomic data published by the originating Chinese statistical agency."}</p></div><div><h2>Source</h2><p>{primary.agency}</p><a href={primary.sourceUrl} target="_blank" rel="noreferrer">View source release</a></div><div><h2>Suggested citation</h2><p>{primary.agency}, “{primary.title},” retrieved through EconStats China Data Explorer.</p></div></section>
+      <section className="details">
+        <div className="card">
+          <h2>Series details</h2>
+          <dl>
+            <dt>Source</dt><dd>{primary.agency}</dd>
+            <dt>Retrieved via</dt><dd>{via} · <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"} ↗</a></dd>
+            <dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd>
+            <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${headline.points[0]?.date} → ${headline.points[headline.points.length - 1]?.date}` : "—"}</dd>
+            <dt>Updated</dt><dd>{fmtDate(primary.updatedAt) || "—"}</dd>
+          </dl>
+        </div>
+        <div className="card">
+          <h2>Reading this series</h2>
+          <p>{meta?.note ? <Zh>{meta.note.length > 400 ? `${meta.note.slice(0, 400)}…` : meta.note}</Zh> : ABOUT[primary.key] ?? "Official data published by the originating agency."}</p>
+          {(READING[primary.key] ?? (meta?.annotation ? [meta.annotation] : [])).length > 0 && <ul>{(READING[primary.key] ?? (meta?.annotation ? [meta.annotation] : [])).map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul>}
+        </div>
+      </section>
+      <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
+
+      {curated && <section className="related"><div className="section-head"><h2>Related</h2><span>other headline indicators in {curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency} · {entry.agency}</small></a>)}</div></section>}
     </main>
   );
 }
 
-function ReleaseCalendar() {
-  const [items, setItems] = useState<{ id: string; date: string; title: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    json("/api/releases").then((body) => {
-      const data = typeof body === "object" && body !== null ? Reflect.get(body, "data") : undefined;
-      if (!Array.isArray(data)) return;
-      setItems(data.map((item) => ({
-        id: typeof item === "object" && item !== null && typeof Reflect.get(item, "_id") === "string" ? Reflect.get(item, "_id") : "",
-        date: typeof item === "object" && item !== null && typeof Reflect.get(item, "fb_time") === "string" ? Reflect.get(item, "fb_time") : "",
-        title: typeof item === "object" && item !== null && typeof Reflect.get(item, "content") === "string" ? Reflect.get(item, "content") : "",
-      })).filter((item) => item.id && item.title));
-    }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason))).finally(() => setLoading(false));
-  }, []);
-  const grouped = new Map<string, { id: string; date: string; title: string }[]>();
-  for (const item of items.sort((a, b) => a.date.localeCompare(b.date))) {
-    const date = item.date.slice(0, 10);
-    grouped.set(date, [...(grouped.get(date) ?? []), item]);
-  }
-  return <main className="results-page releases-page"><div className="page-kicker">Official publication schedule</div><h1>NBS releases</h1><p className="result-count">Times shown in China Standard Time</p>{loading ? <div className="loading-state"><span className="loader"/>Loading releases…</div> : error ? <div className="error-state"><strong>Release calendar unavailable</strong><span>{error}</span></div> : <div className="release-list">{[...grouped.entries()].map(([date, releases]) => <section key={date}><div className="release-date"><strong>{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</strong><span>{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</span></div><div>{releases.map((release) => <article key={release.id}><time>{release.date.slice(11, 16)}</time><span>{release.title.replace(/\(\d{2}:\d{2}\)$/, "")}</span><em>National Bureau of Statistics</em></article>)}</div></section>)}</div>}</main>;
+// ── Regions (placeholder until the provincial store lands) ────────────────────
+
+function RegionsPage() {
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Regions</span></div>
+      <h1>Regional data</h1>
+      <p className="lede">Provincial series are being brought into the store. Guangdong's quarterly GDP is available now; the 31-province map arrives with the rest.</p>
+      <div className="tiles" style={{ marginTop: 20 }}><a className="tile" href={seriesHash(["provincial_gdp"])}><span className="label">Guangdong real GDP growth</span><small>Quarterly · cumulative year-to-date · NBS</small></a></div>
+    </main>
+  );
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
+
 function App() {
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
   const [stats, setStats] = useState<CatalogStats | null>(null);
-  const [featured, setFeatured] = useState<CatalogEntry[]>([]);
-  const [keys, setKeys] = useState<string[]>(keysFromHash);
-  const [query, setQuery] = useState("");
-  const [activeDataset, setActiveDataset] = useState<number | null>(null);
-  const [activeCategory, setActiveCategory] = useState("");
-  const [frequency, setFrequency] = useState("");
-  const [geography, setGeography] = useState("");
-  const [browsing, setBrowsing] = useState(false);
-  const [releaseMode, setReleaseMode] = useState(false);
-  const [search, setSearch] = useState<SearchResponse | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>(() => readStoredList("china-favorites"));
+  const [curated, setCurated] = useState<CuratedEntry[]>([]);
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [releaseError, setReleaseError] = useState("");
+  const [saved, setSaved] = useState<string[]>(() => readList("china-favorites"));
+  const [recent, setRecent] = useState<string[]>(() => readList("china-recent"));
+  const [draft, setDraft] = useState(route.view === "search" ? route.q : "");
+  const [theme, setTheme] = useState(() => readPref("china-theme"));
+  const [lang, setLang] = useState(() => readPref("china-lang") || "en");
+  const [toast, setToast] = useState("");
+  const lastSeries = useRef<string[]>(route.view === "series" ? route.keys : []);
 
-  useEffect(() => {
-    json("/api/catalog/stats").then((body) => {
-      if (isCatalogStats(body)) setStats(body);
-    }).catch(() => setStats(null));
-    json("/api/catalog").then((body) => {
-      if (Array.isArray(body)) setFeatured(body);
-    }).catch(() => setFeatured([]));
-  }, []);
-
-  useEffect(() => {
-    const focusSearch = (event: KeyboardEvent) => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
-      const input = document.getElementById("global-series-search");
-      if (!(input instanceof HTMLInputElement)) return;
-      event.preventDefault();
-      input.focus();
-    };
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
-
-  useEffect(() => {
-    if (!browsing && !query.trim()) return;
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      const params = new URLSearchParams({ q: query, limit: "60" });
-      if (activeDataset !== null) params.set("dataset", String(activeDataset));
-      if (activeCategory) params.set("category", activeCategory);
-      if (frequency) params.set("frequency", frequency);
-      if (geography) params.set("geography", geography);
-      json(`/api/search?${params}`).then((body) => {
-        if (isSearchResponse(body)) setSearch(body);
-      }).catch(() => setSearch({ total: 0, offset: 0, limit: 60, results: [] })).finally(() => setSearching(false));
-    }, 180);
-    return () => window.clearTimeout(timer);
-  }, [query, activeDataset, activeCategory, frequency, geography, browsing]);
-
-  useEffect(() => {
-    const hash = `#/series/${keys.join(",")}`;
+  const navigate = (next: Route) => {
+    const hash = routeHash(next);
     if (window.location.hash !== hash) window.history.pushState(null, "", hash);
-  }, [keys.join(",")]);
+    setRoute(next);
+  };
 
   useEffect(() => {
-    const update = () => setKeys(keysFromHash());
+    json("/api/catalog/stats").then((body) => { if (isStats(body)) setStats(body); }).catch(() => setStats(null));
+    json("/api/catalog").then((body) => { if (Array.isArray(body)) setCurated(body.filter(isCurated)); }).catch(() => setCurated([]));
+    json("/api/releases").then((body) => {
+      const data = obj(body, "data");
+      if (!Array.isArray(data)) { setReleaseError("unavailable"); return; }
+      setReleases(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: (Array.isArray(obj(item, "keys")) ? obj(item, "keys") : []).filter((key): key is string => typeof key === "string") })).filter((item) => item.id));
+    }).catch(() => setReleaseError("unavailable"));
+  }, []);
+
+  useEffect(() => {
+    const update = () => setRoute(parseRoute(window.location.hash));
     window.addEventListener("hashchange", update);
     window.addEventListener("popstate", update);
     return () => { window.removeEventListener("hashchange", update); window.removeEventListener("popstate", update); };
   }, []);
 
-  const openSeries = (key: string) => {
-    setKeys([key]);
-    setQuery("");
-    setBrowsing(false);
-    setReleaseMode(false);
-    const recent = [key, ...readStoredList("china-recent").filter((item) => item !== key)].slice(0, 20);
-    writeStoredList("china-recent", recent);
-  };
-  const addComparison = (key: string) => {
-    setKeys((current) => current.includes(key) ? current : [...current, key].slice(0, 4));
-    setQuery("");
-    setBrowsing(false);
-    setReleaseMode(false);
-  };
-  const loadMore = () => {
-    if (!search || search.results.length >= search.total) return;
-    setLoadingMore(true);
-    const params = new URLSearchParams({ q: query, limit: "60", offset: String(search.results.length) });
-    if (activeDataset !== null) params.set("dataset", String(activeDataset));
-    if (activeCategory) params.set("category", activeCategory);
-    if (frequency) params.set("frequency", frequency);
-    if (geography) params.set("geography", geography);
-    json(`/api/search?${params}`).then((body) => {
-      if (!isSearchResponse(body)) return;
-      setSearch((current) => current ? { ...body, results: [...current.results, ...body.results] } : body);
-    }).catch(() => undefined).finally(() => setLoadingMore(false));
-  };
-  const toggleFavorite = (key: string) => setFavorites((current) => {
-    const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current];
-    writeStoredList("china-favorites", next);
-    return next;
-  });
+  useEffect(() => {
+    if (route.view === "series") {
+      lastSeries.current = route.keys;
+      const key = route.keys[0];
+      if (key) { const next = [key, ...recent.filter((item) => item !== key)].slice(0, 20); setRecent(next); writeList("china-recent", next); }
+    }
+    if (route.view !== "search") setDraft("");
+    document.title = route.view === "home" ? "EconStats China Data" : `${route.view === "series" ? route.keys.join(", ") : route.view} · EconStats China Data`;
+    const main = document.getElementById("main");
+    if (main && route.view !== "home") main.focus({ preventScroll: true });
+  }, [routeHash(route)]);
+
+  useEffect(() => {
+    if (theme) document.documentElement.setAttribute("data-theme", theme); else document.documentElement.removeAttribute("data-theme");
+  }, [theme]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+      const input = document.getElementById("global-series-search");
+      if (input instanceof HTMLInputElement) { event.preventDefault(); input.focus(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(""), 2200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  // Typing searches after a pause; focus alone changes nothing.
+  useEffect(() => {
+    if (!draft.trim()) return;
+    const timer = window.setTimeout(() => {
+      const current = route.view === "search" ? route : { view: "search" as const, q: "", freq: "", cat: "", dataset: "" };
+      if (current.q !== draft.trim()) navigate({ ...current, q: draft.trim() });
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [draft]);
+
+  const toggleSaved = (key: string) => setSaved((current) => { const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current]; writeList("china-favorites", next); return next; });
+  const cycleTheme = () => { const next = theme === "" ? "dark" : theme === "dark" ? "light" : ""; setTheme(next); writePref("china-theme", next); setToast(next === "" ? "Theme follows your system" : next === "dark" ? "Dark theme" : "Light theme"); };
+  const toggleLang = () => { const next = lang === "zh" ? "en" : "zh"; setLang(next); writePref("china-lang", next); };
+  const current = (view: Route["view"]) => route.view === view ? "page" : undefined;
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
-        <button className="brand" onClick={() => openSeries("gdp")}><span className="brand-mark">数</span><span><strong>EconStats</strong><small>China Data</small></span></button>
-        <div className="global-search"><SearchIcon/><input id="global-series-search" value={query} onChange={(event) => { setQuery(event.target.value); setBrowsing(true); setReleaseMode(false); }} onFocus={() => { setBrowsing(true); setReleaseMode(false); }} placeholder="Search thousands of economic data series…"/><kbd>/</kbd></div>
-        <div className="header-stat"><strong>{stats?.seriesCount.toLocaleString() ?? "—"}</strong><span>official series</span></div>
+        <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
+        <nav className="tab-nav" aria-label="Primary">
+          <a href="#/" aria-current={current("home")}>Home</a>
+          <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
+          <a href="#/regions" aria-current={current("regions")}>Regions</a>
+          <a href="#/releases" aria-current={current("releases")}>Releases</a>
+        </nav>
+        <div className="topbar-tools">
+          <button className="icon-button" onClick={toggleLang} aria-label={lang === "zh" ? "Show English titles first" : "Show Chinese titles first"} aria-pressed={lang === "zh"}>{lang === "zh" ? "中文" : "EN"}</button>
+          <button className="icon-button" onClick={cycleTheme} aria-label="Switch theme"><ThemeIcon /></button>
+        </div>
       </header>
-      <div className="filterbar">
-        <button className={browsing && activeDataset === null && !activeCategory ? "active" : ""} onClick={() => { setActiveDataset(null); setActiveCategory(""); setBrowsing(true); setReleaseMode(false); }}>Browse</button>
-        <button className={releaseMode ? "active" : ""} onClick={() => { setReleaseMode(true); setBrowsing(false); setQuery(""); }}>Releases</button>
-        <select value={frequency} onChange={(event) => { setFrequency(event.target.value); setBrowsing(true); setReleaseMode(false); }} aria-label="Frequency"><option value="">All frequencies</option><option>Monthly</option><option>Quarterly</option><option>Annual</option></select>
-        <select value={geography} onChange={(event) => { setGeography(event.target.value); setBrowsing(true); setReleaseMode(false); }} aria-label="Geography"><option value="">All geographies</option><option>National</option><option>Province</option><option>City</option><option>Hong Kong, Macao & Taiwan</option></select>
-        <span>Source: National Bureau of Statistics · PBOC · GAC</span>
-      </div>
       <div className="body-grid">
-        <Sidebar stats={stats} featured={featured} favorites={favorites} activeDataset={activeDataset} activeCategory={activeCategory} onBrowse={(dataset) => { setActiveDataset(dataset); setActiveCategory(""); setBrowsing(true); setReleaseMode(false); }} onCategory={(category) => { setActiveCategory(category); setActiveDataset(null); setBrowsing(true); setReleaseMode(false); }} onOpen={openSeries}/>
-        {releaseMode
-          ? <ReleaseCalendar/>
-          : browsing || query.trim()
-            ? <SearchResults response={search} loading={searching} loadingMore={loadingMore} query={query} onOpen={openSeries} onCompare={addComparison} onMore={loadMore}/>
-            : <SeriesWorkspace keys={keys} favorites={favorites} onToggleFavorite={toggleFavorite} onRemove={(key) => setKeys((current) => current.filter((item) => item !== key))}/>
-        }
+        <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />
+        {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "" })} />}
+        {route.view === "series" && <SeriesPage route={route} curated={curated} saved={saved} releases={releases} lang={lang} onToggleSaved={toggleSaved} navigate={navigate} toast={setToast} />}
+        {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
+        {route.view === "browse" && <BrowsePage stats={stats} />}
+        {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
+        {route.view === "regions" && <RegionsPage />}
+        {route.view === "saved" && <KeyListPage title="Saved series" keys={saved} empty="Nothing saved yet" />}
+        {route.view === "recent" && <KeyListPage title="Recently viewed" keys={recent} empty="Nothing viewed yet" />}
       </div>
-      <footer>Official-source data explorer · Revisions retained locally · Demo project, not affiliated with any statistical agency</footer>
+      <footer>Official statistics, charted with their methodology notes · Revisions kept from first view · An independent project, not affiliated with any statistical agency</footer>
+      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }
 
 const rootElement = document.getElementById("root");
-if (rootElement) createRoot(rootElement).render(<App/>);
+if (rootElement) createRoot(rootElement).render(<App />);

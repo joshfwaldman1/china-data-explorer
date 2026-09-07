@@ -256,6 +256,33 @@ export function readRevisions(key: string, label: string, period: string, region
   `).all({ $key: key, $label: label, $period: period, $region: region ?? null });
 }
 
+/**
+ * Every period that has more than one stored value, with all of its
+ * vintages — the "what did they say before" view. Empty until a source
+ * actually revises something.
+ */
+export function readRevisionHistory(key: string, region?: string) {
+  const rows = db().query<{ label: string; period: string; value: number | null; fetchedAt: string }>(`
+    SELECT o.label, o.period, o.value, o.fetched_at AS fetchedAt
+    FROM observations o
+    JOIN (
+      SELECT key, region, label, period FROM observations
+      WHERE key = $key AND ($region IS NULL OR region = $region)
+      GROUP BY key, region, label, period HAVING COUNT(*) > 1
+    ) r ON r.key = o.key AND r.region = o.region AND r.label = o.label AND r.period = o.period
+    WHERE o.key = $key AND ($region IS NULL OR o.region = $region)
+    ORDER BY o.period DESC, o.label, o.fetched_at ASC
+  `).all({ $key: key, $region: region ?? null });
+  const grouped = new Map<string, { label: string; period: string; vintages: { value: number | null; fetchedAt: string }[] }>();
+  for (const row of rows) {
+    const id = `${row.label}\u0000${row.period}`;
+    const entry = grouped.get(id) ?? { label: row.label, period: row.period, vintages: [] };
+    entry.vintages.push({ value: row.value, fetchedAt: row.fetchedAt });
+    grouped.set(id, entry);
+  }
+  return [...grouped.values()];
+}
+
 /** When any series for this key and region was last written, as an ISO stamp. */
 export function seriesFreshness(key: string, region: string): string | null {
   const row = db().query<{ updatedAt: string | null }>(`

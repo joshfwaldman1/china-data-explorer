@@ -11,7 +11,7 @@
 
 import index from "./index.html";
 import { catalogList, getSeries, CURATED_SYNONYMS, type SeriesResult } from "./data";
-import { readSeries, readRevisions, dbStatus } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbStatus } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -108,6 +108,18 @@ const routes = {
       }
     },
     "/api/release-map": () => Response.json(RELEASE_MAP),
+    // One entry by key — curated or catalog — for pages that hold only keys
+    // (saved, recent) and need titles.
+    "/api/entry/:key": async (req: RouteRequest) => {
+      const key = req.params.key;
+      if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
+      if (key.startsWith("nbs_")) {
+        const entry = await getNbsCatalogEntry(key);
+        return entry ? Response.json(entry) : Response.json({ error: "Unknown NBS series" }, { status: 404 });
+      }
+      const curated = catalogList().find((entry) => entry.key === key);
+      return curated ? Response.json(curated) : Response.json({ error: "Unknown series" }, { status: 404 });
+    },
     "/api/search": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
       const queryText = (params.get("q") ?? "").trim();
@@ -183,8 +195,10 @@ const routes = {
       const label = url.searchParams.get("label") ?? "";
       const period = url.searchParams.get("period") ?? "";
       const region = url.searchParams.get("region") ?? undefined;
+      // Without a label and period, the whole revision history: every period
+      // that has been restated, with its vintages.
       if (!label || !period) {
-        return Response.json({ error: "label and period are required" }, { status: 400 });
+        return Response.json({ key, region: region ?? "", revised: readRevisionHistory(key, region) });
       }
       return Response.json(readRevisions(key, label, period, region));
     },
