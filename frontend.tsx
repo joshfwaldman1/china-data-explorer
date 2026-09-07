@@ -529,7 +529,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     return () => { cancelled = true; };
   }, [props.curated.map((entry) => entry.key).join(",")]);
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = props.releases.filter((release) => release.date.slice(0, 10) >= today).slice(0, 6);
+  const upcoming = props.releases.filter((release) => release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
   const monthly = props.stats?.datasets.find((dataset) => dataset.frequency === "Monthly")?.count ?? 0;
   const quarterly = props.stats?.datasets.find((dataset) => dataset.frequency === "Quarterly")?.count ?? 0;
   return (
@@ -584,8 +584,8 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="card">
           <div className="card-head"><h2>What's in here</h2><span>and what isn't yet</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Guangdong quarterly GDP</li><li>Every revision, from the day a series was first viewed</li></ul></div>
-            <div><h3>Not yet</h3><ul><li>70-city house prices</li><li>Provincial and city series beyond Guangdong GDP</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li><li>English titles for most NBS series are machine glosses</li></ul></div>
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>Every revision, from the day a series was first viewed</li></ul></div>
+            <div><h3>Not yet</h3><ul><li>70-city house prices</li><li>Provincial series beyond GDP, and city series</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li><li>English titles for most NBS series are machine glosses</li></ul></div>
           </div>
         </div>
       </section>
@@ -868,7 +868,7 @@ function SeriesPage(props: {
   const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
 
   if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time — this takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
-  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Couldn't load this series</b><p>{/HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
+  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Couldn't load this series</b><p>{/AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
 
   const firstSeries = built.tracks[0];
   const headline = primary.series[0];

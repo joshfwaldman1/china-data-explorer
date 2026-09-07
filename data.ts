@@ -471,9 +471,16 @@ function normalizeAktoolsDate(raw: string, cfg: AktoolsIndicator): string | null
 
 async function fetchAktools(key: string, cfg: AktoolsIndicator, _limit: number): Promise<SeriesResult> {
   // AkShare functions can take 15-25s, so give them a generous timeout.
-  const res = await fetch(`${AKTOOLS_URL}/api/public/${cfg.fn}`, {
-    signal: AbortSignal.timeout(45000),
-  });
+  // AKTools is a local Python service, not a remote portal. Say so when it is
+  // down, or the page blames NBS for a service that was never started.
+  let res: Response;
+  try {
+    res = await fetch(`${AKTOOLS_URL}/api/public/${cfg.fn}`, {
+      signal: AbortSignal.timeout(45000),
+    });
+  } catch {
+    throw new Error(`AKTools is not running at ${AKTOOLS_URL}. This series comes from AkShare through a local AKTools service: start it with 'python -m aktools' and try again.`);
+  }
   if (!res.ok) {
     throw new Error(`AKTools ${cfg.fn} -> HTTP ${res.status} (is 'python -m aktools' running on ${AKTOOLS_URL}?)`);
   }
