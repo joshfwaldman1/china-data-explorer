@@ -66,6 +66,7 @@ interface CatalogStats {
   generatedAt: string;
   seriesCount: number;
   categoryCount: number;
+  categories: { name: string; count: number }[];
   datasets: DatasetStat[];
 }
 
@@ -99,11 +100,16 @@ function isDatasetStat(value: unknown): value is DatasetStat {
 function isCatalogStats(value: unknown): value is CatalogStats {
   if (typeof value !== "object" || value === null) return false;
   const datasets = Reflect.get(value, "datasets");
+  const categories = Reflect.get(value, "categories");
   return typeof Reflect.get(value, "generatedAt") === "string"
     && typeof Reflect.get(value, "seriesCount") === "number"
     && typeof Reflect.get(value, "categoryCount") === "number"
     && Array.isArray(datasets)
-    && datasets.every(isDatasetStat);
+    && datasets.every(isDatasetStat)
+    && Array.isArray(categories)
+    && categories.every((item) => typeof item === "object" && item !== null
+      && typeof Reflect.get(item, "name") === "string"
+      && typeof Reflect.get(item, "count") === "number");
 }
 
 function isSearchResponse(value: unknown): value is SearchResponse {
@@ -311,7 +317,9 @@ function Sidebar(props: {
   featured: CatalogEntry[];
   favorites: string[];
   activeDataset: number | null;
+  activeCategory: string;
   onBrowse: (dataset: number | null) => void;
+  onCategory: (category: string) => void;
   onOpen: (key: string) => void;
 }) {
   return (
@@ -325,6 +333,12 @@ function Sidebar(props: {
             <span><strong>{dataset.geography}</strong><small>{dataset.frequency}</small></span>
             <span className="count">{dataset.count.toLocaleString()}</span>
           </button>
+        ))}
+      </div>
+      <div className="side-heading">Popular categories</div>
+      <div className="category-list">
+        {props.stats?.categories.slice(0, 8).map((category) => (
+          <button key={category.name} className={props.activeCategory === category.name ? "active" : ""} onClick={() => props.onCategory(category.name)}><span>{category.name}</span><small>{category.count.toLocaleString()}</small></button>
         ))}
       </div>
       <div className="side-heading">Featured indicators</div>
@@ -342,9 +356,11 @@ function Sidebar(props: {
 function SearchResults(props: {
   response: SearchResponse | null;
   loading: boolean;
+  loadingMore: boolean;
   query: string;
   onOpen: (key: string) => void;
   onCompare: (key: string) => void;
+  onMore: () => void;
 }) {
   return (
     <main className="results-page">
@@ -364,6 +380,7 @@ function SearchResults(props: {
           </article>
         ))}
       </div>
+      {(props.response?.results.length ?? 0) < (props.response?.total ?? 0) && <button className="load-more" disabled={props.loadingMore} onClick={props.onMore}>{props.loadingMore ? "Loading…" : "Load more series"}</button>}
       {!props.loading && props.response?.results.length === 0 && <div className="empty-state"><strong>No series found</strong><span>Try the Chinese indicator name, a category, or an NBS series ID.</span></div>}
     </main>
   );
@@ -483,6 +500,7 @@ function SeriesWorkspace(props: {
 function ReleaseCalendar() {
   const [items, setItems] = useState<{ id: string; date: string; title: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   useEffect(() => {
     json("/api/releases").then((body) => {
       const data = typeof body === "object" && body !== null ? Reflect.get(body, "data") : undefined;
@@ -492,14 +510,14 @@ function ReleaseCalendar() {
         date: typeof item === "object" && item !== null && typeof Reflect.get(item, "fb_time") === "string" ? Reflect.get(item, "fb_time") : "",
         title: typeof item === "object" && item !== null && typeof Reflect.get(item, "content") === "string" ? Reflect.get(item, "content") : "",
       })).filter((item) => item.id && item.title));
-    }).finally(() => setLoading(false));
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason))).finally(() => setLoading(false));
   }, []);
   const grouped = new Map<string, { id: string; date: string; title: string }[]>();
   for (const item of items.sort((a, b) => a.date.localeCompare(b.date))) {
     const date = item.date.slice(0, 10);
     grouped.set(date, [...(grouped.get(date) ?? []), item]);
   }
-  return <main className="results-page releases-page"><div className="page-kicker">Official publication schedule</div><h1>NBS releases</h1><p className="result-count">Times shown in China Standard Time</p>{loading ? <div className="loading-state"><span className="loader"/>Loading releases…</div> : <div className="release-list">{[...grouped.entries()].map(([date, releases]) => <section key={date}><div className="release-date"><strong>{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</strong><span>{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</span></div><div>{releases.map((release) => <article key={release.id}><time>{release.date.slice(11, 16)}</time><span>{release.title.replace(/\(\d{2}:\d{2}\)$/, "")}</span><em>National Bureau of Statistics</em></article>)}</div></section>)}</div>}</main>;
+  return <main className="results-page releases-page"><div className="page-kicker">Official publication schedule</div><h1>NBS releases</h1><p className="result-count">Times shown in China Standard Time</p>{loading ? <div className="loading-state"><span className="loader"/>Loading releases…</div> : error ? <div className="error-state"><strong>Release calendar unavailable</strong><span>{error}</span></div> : <div className="release-list">{[...grouped.entries()].map(([date, releases]) => <section key={date}><div className="release-date"><strong>{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</strong><span>{new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" })}</span></div><div>{releases.map((release) => <article key={release.id}><time>{release.date.slice(11, 16)}</time><span>{release.title.replace(/\(\d{2}:\d{2}\)$/, "")}</span><em>National Bureau of Statistics</em></article>)}</div></section>)}</div>}</main>;
 }
 
 function App() {
@@ -508,12 +526,14 @@ function App() {
   const [keys, setKeys] = useState<string[]>(keysFromHash);
   const [query, setQuery] = useState("");
   const [activeDataset, setActiveDataset] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState("");
   const [frequency, setFrequency] = useState("");
   const [geography, setGeography] = useState("");
   const [browsing, setBrowsing] = useState(false);
   const [releaseMode, setReleaseMode] = useState(false);
   const [search, setSearch] = useState<SearchResponse | null>(null);
   const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => readStoredList("china-favorites"));
 
   useEffect(() => {
@@ -526,11 +546,26 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+      const input = document.getElementById("global-series-search");
+      if (!(input instanceof HTMLInputElement)) return;
+      event.preventDefault();
+      input.focus();
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
+  useEffect(() => {
     if (!browsing && !query.trim()) return;
     const timer = window.setTimeout(() => {
       setSearching(true);
       const params = new URLSearchParams({ q: query, limit: "60" });
       if (activeDataset !== null) params.set("dataset", String(activeDataset));
+      if (activeCategory) params.set("category", activeCategory);
       if (frequency) params.set("frequency", frequency);
       if (geography) params.set("geography", geography);
       json(`/api/search?${params}`).then((body) => {
@@ -538,7 +573,7 @@ function App() {
       }).catch(() => setSearch({ total: 0, offset: 0, limit: 60, results: [] })).finally(() => setSearching(false));
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [query, activeDataset, frequency, geography, browsing]);
+  }, [query, activeDataset, activeCategory, frequency, geography, browsing]);
 
   useEffect(() => {
     const hash = `#/series/${keys.join(",")}`;
@@ -566,6 +601,19 @@ function App() {
     setBrowsing(false);
     setReleaseMode(false);
   };
+  const loadMore = () => {
+    if (!search || search.results.length >= search.total) return;
+    setLoadingMore(true);
+    const params = new URLSearchParams({ q: query, limit: "60", offset: String(search.results.length) });
+    if (activeDataset !== null) params.set("dataset", String(activeDataset));
+    if (activeCategory) params.set("category", activeCategory);
+    if (frequency) params.set("frequency", frequency);
+    if (geography) params.set("geography", geography);
+    json(`/api/search?${params}`).then((body) => {
+      if (!isSearchResponse(body)) return;
+      setSearch((current) => current ? { ...body, results: [...current.results, ...body.results] } : body);
+    }).catch(() => undefined).finally(() => setLoadingMore(false));
+  };
   const toggleFavorite = (key: string) => setFavorites((current) => {
     const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current];
     writeStoredList("china-favorites", next);
@@ -576,19 +624,24 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <button className="brand" onClick={() => openSeries("gdp")}><span className="brand-mark">数</span><span><strong>EconStats</strong><small>China Data</small></span></button>
-        <div className="global-search"><SearchIcon/><input value={query} onChange={(event) => { setQuery(event.target.value); setBrowsing(true); setReleaseMode(false); }} onFocus={() => { setBrowsing(true); setReleaseMode(false); }} placeholder="Search thousands of economic data series…"/><kbd>/</kbd></div>
+        <div className="global-search"><SearchIcon/><input id="global-series-search" value={query} onChange={(event) => { setQuery(event.target.value); setBrowsing(true); setReleaseMode(false); }} onFocus={() => { setBrowsing(true); setReleaseMode(false); }} placeholder="Search thousands of economic data series…"/><kbd>/</kbd></div>
         <div className="header-stat"><strong>{stats?.seriesCount.toLocaleString() ?? "—"}</strong><span>official series</span></div>
       </header>
       <div className="filterbar">
-        <button className={browsing && activeDataset === null ? "active" : ""} onClick={() => { setActiveDataset(null); setBrowsing(true); setReleaseMode(false); }}>Browse</button>
+        <button className={browsing && activeDataset === null && !activeCategory ? "active" : ""} onClick={() => { setActiveDataset(null); setActiveCategory(""); setBrowsing(true); setReleaseMode(false); }}>Browse</button>
         <button className={releaseMode ? "active" : ""} onClick={() => { setReleaseMode(true); setBrowsing(false); setQuery(""); }}>Releases</button>
-        <select value={frequency} onChange={(event) => { setFrequency(event.target.value); setBrowsing(true); }} aria-label="Frequency"><option value="">All frequencies</option><option>Monthly</option><option>Quarterly</option><option>Annual</option></select>
-        <select value={geography} onChange={(event) => { setGeography(event.target.value); setBrowsing(true); }} aria-label="Geography"><option value="">All geographies</option><option>National</option><option>Province</option><option>City</option><option>Hong Kong, Macao & Taiwan</option></select>
+        <select value={frequency} onChange={(event) => { setFrequency(event.target.value); setBrowsing(true); setReleaseMode(false); }} aria-label="Frequency"><option value="">All frequencies</option><option>Monthly</option><option>Quarterly</option><option>Annual</option></select>
+        <select value={geography} onChange={(event) => { setGeography(event.target.value); setBrowsing(true); setReleaseMode(false); }} aria-label="Geography"><option value="">All geographies</option><option>National</option><option>Province</option><option>City</option><option>Hong Kong, Macao & Taiwan</option></select>
         <span>Source: National Bureau of Statistics · PBOC · GAC</span>
       </div>
       <div className="body-grid">
-        <Sidebar stats={stats} featured={featured} favorites={favorites} activeDataset={activeDataset} onBrowse={(dataset) => { setActiveDataset(dataset); setBrowsing(true); setReleaseMode(false); }} onOpen={openSeries}/>
-        {releaseMode ? <ReleaseCalendar/> : browsing || query.trim() ? <SearchResults response={search} loading={searching} query={query} onOpen={openSeries} onCompare={addComparison}/> : <SeriesWorkspace keys={keys} favorites={favorites} onToggleFavorite={toggleFavorite} onRemove={(key) => setKeys((current) => current.filter((item) => item !== key))}/>} 
+        <Sidebar stats={stats} featured={featured} favorites={favorites} activeDataset={activeDataset} activeCategory={activeCategory} onBrowse={(dataset) => { setActiveDataset(dataset); setActiveCategory(""); setBrowsing(true); setReleaseMode(false); }} onCategory={(category) => { setActiveCategory(category); setActiveDataset(null); setBrowsing(true); setReleaseMode(false); }} onOpen={openSeries}/>
+        {releaseMode
+          ? <ReleaseCalendar/>
+          : browsing || query.trim()
+            ? <SearchResults response={search} loading={searching} loadingMore={loadingMore} query={query} onOpen={openSeries} onCompare={addComparison} onMore={loadMore}/>
+            : <SeriesWorkspace keys={keys} favorites={favorites} onToggleFavorite={toggleFavorite} onRemove={(key) => setKeys((current) => current.filter((item) => item !== key))}/>
+        }
       </div>
       <footer>Official-source data explorer · Revisions retained locally · Demo project, not affiliated with any statistical agency</footer>
     </div>

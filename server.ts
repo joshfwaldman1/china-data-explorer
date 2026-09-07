@@ -55,31 +55,85 @@ const routes = {
       const startDate = params.get("start") ?? nbsDate(monthStart);
       const endDate = params.get("end") ?? nbsDate(monthEnd, true);
       const query = new URLSearchParams({ startDate, endDate });
-      const response = await fetch(
-        `https://data.stats.gov.cn/dg/website/publicrelease/web/external/queryAgendaByDate?${query}`,
-        { signal: AbortSignal.timeout(30_000) },
-      );
-      if (!response.ok) return Response.json({ error: `NBS releases -> HTTP ${response.status}` }, { status: 502 });
-      return Response.json(await response.json());
+      try {
+        const response = await fetch(
+          `https://data.stats.gov.cn/dg/website/publicrelease/web/external/queryAgendaByDate?${query}`,
+          {
+            headers: {
+              Accept: "application/json",
+              Referer: "https://data.stats.gov.cn/dg/website/page.html",
+              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/152 Safari/537.36",
+            },
+            signal: AbortSignal.timeout(30_000),
+          },
+        );
+        const text = await response.text();
+        if (!response.ok) return Response.json({ error: `NBS releases -> HTTP ${response.status}` }, { status: 502 });
+        if (!text.trimStart().startsWith("{")) return Response.json({ error: "NBS release calendar is temporarily rate-limited" }, { status: 502 });
+        const body: unknown = JSON.parse(text);
+        return Response.json(body);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "NBS release calendar failed";
+        return Response.json({ error: message }, { status: 502 });
+      }
     },
     "/api/search": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
+      const queryText = (params.get("q") ?? "").trim();
       const datasetText = params.get("dataset");
       const datasetCode = datasetText === null ? undefined : Number(datasetText);
       const limitText = params.get("limit");
       const offsetText = params.get("offset");
-      return Response.json(await searchNbsCatalog({
-        query: params.get("q") ?? "",
-        frequency: params.get("frequency") ?? undefined,
-        geography: params.get("geography") ?? undefined,
+      const requestedLimit = Math.min(100, Math.max(1, Number(limitText ?? "50")));
+      const requestedOffset = Math.max(0, Number(offsetText ?? "0"));
+      const frequency = params.get("frequency") ?? undefined;
+      const geography = params.get("geography") ?? undefined;
+      const category = params.get("category") ?? undefined;
+      const queryTerms = queryText.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+      const featured = queryText && datasetCode === undefined && (!geography || geography === "National")
+        ? catalogList().filter((entry) => {
+          if (frequency && entry.frequency !== frequency) return false;
+          if (category && entry.group !== category) return false;
+          const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key}`.toLocaleLowerCase();
+          return queryTerms.every((term) => haystack.includes(term));
+        }).map((entry) => ({
+          key: entry.key,
+          id: entry.key,
+          name: entry.title,
+          shortName: entry.title,
+          unit: entry.unit,
+          note: "",
+          annotation: "",
+          datasetCode: 0,
+          dataset: entry.agency,
+          frequency: entry.frequency,
+          geography: "National",
+          categories: [entry.group],
+        }))
+        : [];
+      const featuredResults = featured.slice(requestedOffset, requestedOffset + requestedLimit);
+      const nbsOffset = Math.max(0, requestedOffset - featured.length);
+      const remainingLimit = requestedLimit - featuredResults.length;
+      const nbs = await searchNbsCatalog({
+        query: queryText,
+        frequency,
+        geography,
         datasetCode: datasetCode !== undefined && Number.isFinite(datasetCode) ? datasetCode : undefined,
-        category: params.get("category") ?? undefined,
-        limit: limitText === null ? undefined : Number(limitText),
-        offset: offsetText === null ? undefined : Number(offsetText),
-      }));
+        category,
+        limit: Math.max(1, remainingLimit),
+        offset: nbsOffset,
+      });
+      return Response.json({
+        total: featured.length + nbs.total,
+        offset: requestedOffset,
+        limit: requestedLimit,
+        results: [...featuredResults, ...nbs.results.slice(0, remainingLimit)],
+      });
     },
     "/api/dimensions/:key": async (req: RouteRequest) => {
-      const entry = await getNbsCatalogEntry(req.params.key);
+      const key = req.params.key;
+      if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
+      const entry = await getNbsCatalogEntry(key);
       if (!entry) return Response.json({ error: "Unknown NBS series" }, { status: 404 });
       return Response.json({
         key: entry.key,
@@ -92,16 +146,19 @@ const routes = {
     // The revision trail for one period: every value we have ever stored for
     // it, oldest first.
     "/api/revisions/:key": (req: RouteRequest) => {
+      const key = req.params.key;
+      if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
       const url = new URL(req.url);
       const label = url.searchParams.get("label") ?? "";
       const period = url.searchParams.get("period") ?? "";
       if (!label || !period) {
         return Response.json({ error: "label and period are required" }, { status: 400 });
       }
-      return Response.json(readRevisions(req.params.key, label, period));
+      return Response.json(readRevisions(key, label, period));
     },
     "/api/series/:key": async (req: RouteRequest) => {
       const key = req.params.key;
+      if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
       const params = new URL(req.url).searchParams;
       const limit = Number(params.get("limit") ?? "120");
       try {

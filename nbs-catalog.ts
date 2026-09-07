@@ -1,9 +1,87 @@
 import { resolve } from "node:path";
-import type { SeriesPoint, SeriesResult } from "./data";
+import { stat } from "node:fs/promises";
+import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const CATALOG_PATH = resolve(import.meta.dir, "catalog/nbs-catalog.json");
 const NATIONAL = { text: "全国", value: "000000000000" };
+const HMT_REGIONS = [
+  { text: "香港特别行政区", value: "810000000000" },
+  { text: "澳门特别行政区", value: "820000000000" },
+  { text: "台湾省", value: "710000000000" },
+];
+const SEARCH_ALIASES: Record<string, string[]> = {
+  gdp: ["国内生产总值", "地区生产总值"],
+  cpi: ["居民消费价格"],
+  inflation: ["居民消费价格", "价格指数"],
+  ppi: ["工业生产者价格"],
+  pmi: ["采购经理指数"],
+  fai: ["固定资产投资"],
+  unemployment: ["失业"],
+  employment: ["就业", "从业人员"],
+  population: ["人口"],
+  births: ["出生人口", "出生率"],
+  exports: ["出口"],
+  export: ["出口"],
+  imports: ["进口"],
+  import: ["进口"],
+  trade: ["进出口", "对外贸易"],
+  consumption: ["消费"],
+  sales: ["销售", "零售"],
+  income: ["收入"],
+  wages: ["工资"],
+  wage: ["工资"],
+  savings: ["储蓄"],
+  investment: ["投资"],
+  output: ["产量", "产值", "增加值"],
+  production: ["生产", "产量", "增加值"],
+  growth: ["增长", "增速"],
+  rate: ["率", "增速"],
+  index: ["指数"],
+  price: ["价格"],
+  prices: ["价格"],
+  manufacturing: ["制造业"],
+  services: ["服务业", "第三产业"],
+  service: ["服务业", "第三产业"],
+  construction: ["建筑业"],
+  agriculture: ["农业", "农林牧渔业"],
+  mining: ["采矿业"],
+  electricity: ["电力", "发电量"],
+  energy: ["能源"],
+  coal: ["煤炭", "原煤"],
+  oil: ["石油", "原油"],
+  gas: ["天然气", "燃气"],
+  steel: ["钢铁", "钢材", "粗钢", "黑色金属"],
+  cement: ["水泥"],
+  autos: ["汽车"],
+  vehicles: ["汽车"],
+  freight: ["货运", "货物运输"],
+  passenger: ["客运", "旅客运输"],
+  postal: ["邮政"],
+  telecom: ["电信", "通信"],
+  "industrial production": ["工业增加值"],
+  "coal production": ["原煤产量", "煤炭产量"],
+  "steel production": ["粗钢产量", "钢材产量"],
+  "electricity generation": ["发电量"],
+  "vehicle production": ["汽车产量"],
+  "industrial profits": ["工业企业利润", "工业经济效益"],
+  "retail sales": ["社会消费品零售"],
+  "fixed asset investment": ["固定资产投资"],
+  "private investment": ["民间固定资产投资", "民间投资"],
+  "foreign investment": ["外商投资", "外商直接投资"],
+  fdi: ["外商直接投资", "外商投资"],
+  "real estate": ["房地产"],
+  "real estate investment": ["房地产开发投资", "房地产投资"],
+  property: ["房地产"],
+  housing: ["住宅", "房地产"],
+  "house price": ["住宅销售价格", "房价"],
+  "house prices": ["住宅销售价格", "房价"],
+  "producer prices": ["工业生产者价格"],
+  "food prices": ["食品价格"],
+  "trade balance": ["进出口差额", "贸易差额"],
+  "provincial gdp": ["地区生产总值"],
+};
+const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series"]);
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
 
@@ -46,8 +124,16 @@ interface CatalogSnapshot {
   entries: NbsCatalogEntry[];
 }
 
+type NbsSeriesResult = SeriesResult & {
+  metadata: NbsCatalogEntry;
+  region: NbsRegionOption;
+  transform: NbsTransform;
+};
+
+let snapshotCache: { modifiedAt: number; snapshot: CatalogSnapshot } | undefined;
 let snapshotPromise: Promise<CatalogSnapshot> | undefined;
 const dimensionsCache = new Map<string, { at: number; data: NbsRegionOption[] }>();
+const seriesCache = new Map<string, { at: number; data: NbsSeriesResult }>();
 
 function objectValue(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
@@ -102,19 +188,27 @@ function parseEntry(value: unknown): NbsCatalogEntry | null {
 }
 
 async function loadSnapshot(): Promise<CatalogSnapshot> {
+  const modifiedAt = (await stat(CATALOG_PATH)).mtimeMs;
+  if (snapshotCache?.modifiedAt === modifiedAt) return snapshotCache.snapshot;
   if (!snapshotPromise) {
     snapshotPromise = (async () => {
       const raw: unknown = await Bun.file(CATALOG_PATH).json();
       const entriesRaw = objectValue(raw, "entries");
       if (!Array.isArray(entriesRaw)) throw new Error("NBS catalog is missing; run the catalog sync script");
-      return {
+      const snapshot = {
         generatedAt: stringValue(raw, "generatedAt"),
         source: stringValue(raw, "source"),
         entries: entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null),
       };
+      snapshotCache = { modifiedAt, snapshot };
+      return snapshot;
     })();
   }
-  return snapshotPromise;
+  try {
+    return await snapshotPromise;
+  } finally {
+    snapshotPromise = undefined;
+  }
 }
 
 export async function nbsCatalogStats() {
@@ -149,18 +243,35 @@ export async function nbsCatalogStats() {
 
 function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (!query) return 1;
-  const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const name = entry.name.toLocaleLowerCase();
   const shortName = entry.shortName.toLocaleLowerCase();
   const path = entry.categories.join(" ").toLocaleLowerCase();
   const haystack = `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()} ${entry.id}`;
-  if (!terms.every((term) => haystack.includes(term))) return 0;
-  let score = 10;
-  if (name === query.toLocaleLowerCase()) score += 100;
-  if (name.startsWith(query.toLocaleLowerCase())) score += 40;
-  if (shortName.includes(query.toLocaleLowerCase())) score += 20;
-  if (path.includes(query.toLocaleLowerCase())) score += 5;
-  return score;
+  const lowerQuery = query.toLocaleLowerCase();
+  const exactAliases = SEARCH_ALIASES[lowerQuery];
+  const variants = exactAliases ?? [lowerQuery];
+  let bestScore = 0;
+  for (const variant of variants) {
+    const terms = variant.split(/\s+/).filter(Boolean);
+    if (!terms.every((term) => haystack.includes(term))) continue;
+    let score = 10;
+    if (name === variant) score += 100;
+    if (name.startsWith(variant)) score += 40;
+    if (name.includes(variant)) score += 30;
+    if (shortName.includes(variant)) score += 20;
+    if (path.includes(variant)) score += 5;
+    bestScore = Math.max(bestScore, score);
+  }
+  if (bestScore > 0 || exactAliases) return bestScore;
+
+  const tokenGroups = lowerQuery.split(/\s+/)
+    .filter((word) => word && !SEARCH_STOP_WORDS.has(word))
+    .map((word) => SEARCH_ALIASES[word] ?? [word]);
+  if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => haystack.includes(term)))) {
+    const titleMatches = tokenGroups.filter((group) => group.some((term) => name.includes(term))).length;
+    return 10 + titleMatches * 20;
+  }
+  return bestScore;
 }
 
 export async function searchNbsCatalog(filters: NbsSearchFilters) {
@@ -195,7 +306,16 @@ async function getJson(path: string): Promise<unknown> {
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) throw new Error(`NBS metadata -> HTTP ${response.status}`);
-  return response.json();
+  const text = await response.text();
+  if (!text.trimStart().startsWith("{")) throw new Error("NBS metadata returned its anti-bot page");
+  const parsed: unknown = JSON.parse(text);
+  return parsed;
+}
+
+function fallbackDimensions(entry: NbsCatalogEntry): NbsRegionOption[] {
+  if (entry.geography === "Province") return NBS_PROVINCES;
+  if (entry.geography === "Hong Kong, Macao & Taiwan") return HMT_REGIONS;
+  return [];
 }
 
 export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegionOption[]> {
@@ -203,18 +323,28 @@ export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegio
   const cached = dimensionsCache.get(entry.cid);
   if (cached && Date.now() - cached.at < 6 * 60 * 60 * 1000) return cached.data;
 
-  const treeRaw = await getJson(
-    `/getDaCatalogTreeByIndicatorCid?indicatorCid=${encodeURIComponent(entry.cid)}`,
-  );
+  let treeRaw: unknown;
+  try {
+    treeRaw = await getJson(
+      `/new/getDaCatalogTreeByIndicatorCid?indicatorCid=${encodeURIComponent(entry.cid)}`,
+    );
+  } catch {
+    return fallbackDimensions(entry);
+  }
   const tree = objectValue(treeRaw, "data");
-  if (!Array.isArray(tree) || tree.length === 0) return [];
+  if (!Array.isArray(tree) || tree.length === 0) return fallbackDimensions(entry);
   const preferred = tree.find((item) => stringValue(item, "name").includes("全部")) ?? tree[0];
   const daCid = stringValue(preferred, "_id");
-  if (!daCid) return [];
+  if (!daCid) return fallbackDimensions(entry);
 
-  const regionsRaw = await getJson(`/getDasByDaCatalogId?daCid=${encodeURIComponent(daCid)}`);
+  let regionsRaw: unknown;
+  try {
+    regionsRaw = await getJson(`/new/getDasByDaCatalogId?daCid=${encodeURIComponent(daCid)}`);
+  } catch {
+    return fallbackDimensions(entry);
+  }
   const regions = objectValue(regionsRaw, "data");
-  if (!Array.isArray(regions)) return [];
+  if (!Array.isArray(regions)) return fallbackDimensions(entry);
   const parsed = regions.map((item) => ({
     text: stringValue(item, "show_name") || stringValue(item, "name_text"),
     value: stringValue(item, "name_value"),
@@ -292,11 +422,14 @@ export async function fetchNbsCatalogSeries(options: {
   region?: string;
   limit?: number;
   transform?: NbsTransform;
-}): Promise<SeriesResult & { metadata: NbsCatalogEntry; region: NbsRegionOption; transform: NbsTransform }> {
+}): Promise<NbsSeriesResult> {
   const limit = Math.min(600, Math.max(2, options.limit ?? 120));
   const transform = options.transform ?? defaultNbsTransform(options.entry);
   const dimensions = await getNbsDimensions(options.entry);
   const region = dimensions.find((item) => item.value === options.region) ?? dimensions[0] ?? NATIONAL;
+  const cacheKey = `${options.entry.key}:${region.value}:${limit}:${transform}`;
+  const cached = seriesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < 60 * 60 * 1000) return cached.data;
   const payload = {
     cid: options.entry.cid,
     indicatorIds: [options.entry.id],
@@ -330,6 +463,7 @@ export async function fetchNbsCatalogSeries(options: {
         (!stringValue(value, "da") || stringValue(value, "da") === region.value)
       );
       const rawValue = objectValue(found, "value");
+      if (rawValue === "" || rawValue === null || rawValue === undefined) continue;
       const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
       if (!code || !Number.isFinite(value)) continue;
       points.push({ date: periodLabel(code), value });
@@ -338,7 +472,7 @@ export async function fetchNbsCatalogSeries(options: {
   points.sort((a, b) => a.date.localeCompare(b.date));
   const transformed = transformPoints(points, transform, options.entry.frequency);
   const unit = transform === "raw" ? options.entry.unit || "Value" : transformLabel(transform);
-  return {
+  const result: NbsSeriesResult = {
     key: options.entry.key,
     title: options.entry.name,
     agency: "National Bureau of Statistics",
@@ -350,4 +484,6 @@ export async function fetchNbsCatalogSeries(options: {
     region,
     transform,
   };
+  seriesCache.set(cacheKey, { at: Date.now(), data: result });
+  return result;
 }

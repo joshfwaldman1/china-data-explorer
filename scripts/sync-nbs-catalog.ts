@@ -1,5 +1,6 @@
-import { mkdir, rename } from "node:fs/promises";
+import { mkdir, rename, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { chromium } from "playwright";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
@@ -90,8 +91,43 @@ function parseIndicator(value: unknown): IndicatorMetadata | null {
   };
 }
 
-const delayMs = Math.max(500, Number(option("delay") ?? "750"));
-const concurrency = Math.min(4, Math.max(1, Number(option("concurrency") ?? "3")));
+function parseCatalogEntry(value: unknown): CatalogEntry | null {
+  const id = textValue(value, "id");
+  const name = textValue(value, "name");
+  const key = textValue(value, "key");
+  const rootId = textValue(value, "rootId");
+  const cid = textValue(value, "cid");
+  const dataset = textValue(value, "dataset");
+  const datasetCode = objectValue(value, "datasetCode");
+  const frequency = objectValue(value, "frequency");
+  const geography = objectValue(value, "geography");
+  const categoriesRaw = objectValue(value, "categories");
+  const validFrequency = frequency === "Monthly" || frequency === "Quarterly" || frequency === "Annual";
+  const validGeography = geography === "National" || geography === "Province" || geography === "City" || geography === "Hong Kong, Macao & Taiwan";
+  if (!id || !name || !key || !rootId || !cid || !dataset || typeof datasetCode !== "number" ||
+      !validFrequency || !validGeography || !Array.isArray(categoriesRaw)) return null;
+  const precision = objectValue(value, "precision");
+  return {
+    id,
+    name,
+    shortName: textValue(value, "shortName") || name,
+    unit: textValue(value, "unit"),
+    note: textValue(value, "note"),
+    annotation: textValue(value, "annotation"),
+    precision: typeof precision === "number" ? precision : null,
+    key,
+    rootId,
+    cid,
+    datasetCode,
+    dataset,
+    frequency,
+    geography,
+    categories: categoriesRaw.filter((item): item is string => typeof item === "string"),
+  };
+}
+
+const delayMs = Math.max(750, Number(option("delay") ?? "1000"));
+const concurrency = Math.min(3, Math.max(1, Number(option("concurrency") ?? "1")));
 const outputPath = resolve(option("out") ?? DEFAULT_OUTPUT);
 const requestedCodes = new Set(
   (option("codes") ?? DATASETS.map((dataset) => dataset.code).join(","))
@@ -101,14 +137,40 @@ const requestedCodes = new Set(
 );
 let requestCount = 0;
 
+// The metadata endpoints occasionally return a JavaScript challenge to plain
+// HTTP clients. Loading the official portal once gives this collector the same
+// session cookies as a normal visitor, then all metadata requests stay on the
+// portal's own origin.
+const browser = await chromium.launch({
+  channel: option("channel") ?? "chrome",
+  headless: option("headed") !== "true",
+});
+const portalPage = await browser.newPage({ locale: "zh-CN" });
+await portalPage.goto("https://data.stats.gov.cn/dg/website/page.html", {
+  waitUntil: "commit",
+  timeout: 60_000,
+});
+await portalPage.getByRole("menuitem", { name: /地区数据/ }).waitFor({ timeout: 60_000 });
+
 async function getJson(path: string): Promise<unknown> {
-  requestCount += 1;
-  const response = await fetch(`${API}${path}`, {
-    headers: { Accept: "application/json", Referer: "https://data.stats.gov.cn/dg/website/page.html" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) throw new Error(`${path} -> HTTP ${response.status}`);
-  return response.json();
+  let lastError = "unknown response";
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    requestCount += 1;
+    try {
+      const text = await portalPage.evaluate(async (url: string) => {
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      }, `${API}${path}`);
+      if (!text.trimStart().startsWith("{")) throw new Error("received the portal anti-bot page");
+      const parsed: unknown = JSON.parse(text);
+      return parsed;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      if (attempt < 4) await Bun.sleep(delayMs * attempt * 2);
+    }
+  }
+  throw new Error(`${path} -> ${lastError} after 4 attempts`);
 }
 
 async function children(pid: string, code: number): Promise<CatalogNode[]> {
@@ -127,11 +189,32 @@ async function indicators(cid: string): Promise<IndicatorMetadata[]> {
   return data.map(parseIndicator).filter((item): item is IndicatorMetadata => item !== null);
 }
 
-const entries: CatalogEntry[] = [];
+const preservedEntries: CatalogEntry[] = [];
+if (option("merge") === "true" && await Bun.file(outputPath).exists()) {
+  const previous: unknown = await Bun.file(outputPath).json();
+  const previousEntries = objectValue(previous, "entries");
+  if (Array.isArray(previousEntries)) {
+    preservedEntries.push(...previousEntries
+      .map(parseCatalogEntry)
+      .filter((entry): entry is CatalogEntry => entry !== null && !requestedCodes.has(entry.datasetCode)));
+  }
+}
+const entries: CatalogEntry[] = preservedEntries;
 const datasets: { code: number; rootId: string; name: string; frequency: string; geography: string }[] = [];
+for (const entry of preservedEntries) {
+  if (datasets.some((dataset) => dataset.code === entry.datasetCode)) continue;
+  datasets.push({
+    code: entry.datasetCode,
+    rootId: entry.rootId,
+    name: entry.dataset,
+    frequency: entry.frequency,
+    geography: entry.geography,
+  });
+}
 const errors: { datasetCode: number; nodeId: string; message: string }[] = [];
+let lastCheckpointSize = 0;
 
-async function writeSnapshot(): Promise<void> {
+async function writeSnapshot(targetPath = outputPath): Promise<void> {
   entries.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
   const snapshot = {
     generatedAt: new Date().toISOString(),
@@ -141,10 +224,10 @@ async function writeSnapshot(): Promise<void> {
     entries,
     errors,
   };
-  const temporaryPath = `${outputPath}.tmp`;
-  await mkdir(dirname(outputPath), { recursive: true });
+  const temporaryPath = `${targetPath}.tmp`;
+  await mkdir(dirname(targetPath), { recursive: true });
   await Bun.write(temporaryPath, `${JSON.stringify(snapshot)}\n`);
-  await rename(temporaryPath, outputPath);
+  await rename(temporaryPath, targetPath);
 }
 
 for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset.code))) {
@@ -195,6 +278,11 @@ for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset
           });
         }
       }));
+      if (entries.length - lastCheckpointSize >= 1_000) {
+        await writeSnapshot(`${outputPath}.partial`);
+        lastCheckpointSize = entries.length;
+        console.log(`Checkpoint: ${entries.length.toLocaleString()} indicators`);
+      }
       if (queue.length > 0) await Bun.sleep(delayMs);
     }
     console.log(`${root.name}: ${entries.length.toLocaleString()} indexed so far`);
@@ -203,5 +291,7 @@ for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset
 }
 
 await writeSnapshot();
+await rm(`${outputPath}.partial`, { force: true });
+await browser.close();
 console.log(`Wrote ${entries.length.toLocaleString()} indicators to ${outputPath}`);
 if (errors.length > 0) console.warn(`${errors.length} catalog nodes failed; see snapshot.errors`);

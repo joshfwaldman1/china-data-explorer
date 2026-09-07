@@ -4,6 +4,9 @@ A FRED-style web app for browsing Chinese macroeconomic data. Built entirely on
 open-source tooling already in this project — **Bun** (server + bundler),
 **React 19** (UI), **Recharts** (charts) — nothing from scratch.
 
+The broader product target and remaining parity work are tracked in
+[`FRED_PARITY.md`](./FRED_PARITY.md).
+
 ![screenshot](./screenshot.png)
 
 ## Run it
@@ -18,31 +21,68 @@ bun run china-explorer/server.ts
 ## How it works
 
 ```
-browser ──> Bun.serve ──> Eastmoney datacenter   (GDP, CPI, PPI, PMI, money, retail, trade, IP, loans, reserves)
-                     ├──> NBS esData portal       (unemployment, Guangdong GDP)
+browser ──> Bun.serve ──> local NBS catalog       (tens of thousands of searchable series)
+                     ├──> NBS esData portal       (observations and regional dimensions)
+                     ├──> Eastmoney datacenter    (featured macro series)
                      └──> AKTools (AkShare)        (LPR, Caixin PMI ×2, electricity — optional; see below)
 ```
 
 - **`server.ts`** — Bun.serve serves the page (bundling `frontend.tsx` on the
-  fly) and exposes two JSON routes: `/api/catalog` and `/api/series/:key`.
-  `idleTimeout` is raised to 60s because AkShare calls can take 15–25s.
-- **`data.ts`** — the catalog (16 indicators, grouped) plus three source
-  fetchers (Eastmoney, NBS, AKTools) and a 1-hour in-memory cache. All fetching
+  fly) and exposes catalog search, dataset facets, regional dimensions,
+  releases, revisions, and series observations as JSON routes.
+- **`nbs-catalog.ts`** — loads the generated NBS catalog, searches it, resolves
+  geographic dimensions, retrieves observations, and applies transformations.
+- **`data.ts`** — the featured macro catalog plus three source fetchers
+  (Eastmoney, NBS, AKTools) and a 1-hour in-memory cache. All fetching
   is server-side, which is how FRED works and avoids the browser CORS wall
   (Eastmoney/NBS send no CORS headers).
-- **`frontend.tsx`** — React app: searchable grouped sidebar, an interactive
-  Recharts time-series with range controls (3Y/5Y/10Y/Max), a latest-value
-  readout, multi-series overlays (M1/M2, exports/imports, the unemployment
-  family), a zero baseline for YoY series, auto-fitted y-axis, and source
-  attribution.
+- **`frontend.tsx`** — responsive FRED-style workspace with global search,
+  dataset/frequency/geography filters, comparisons, transformations, region
+  selection, charts, tables, metadata, saved series, exports, and releases.
+
+## Build the full NBS catalog
+
+The checked-in snapshot is produced from the official portal's live hierarchy,
+not a hand-maintained series list:
+
+```sh
+bun run china:catalog
+```
+
+The sync walks all ten current dataset families: national monthly, quarterly,
+and annual; provincial monthly, quarterly, and annual; major-city monthly and
+annual; and Hong Kong/Macao/Taiwan monthly and annual. It publishes an atomic
+snapshot after each completed dataset root and keeps in-progress work in a
+`.partial` checkpoint. Use
+`--codes=1,5`, `--delay=750`, or `--concurrency=3` to tune a refresh.
+When refreshing only selected families, pass `--merge=true` to retain the
+families already present in the published snapshot.
 
 ## FRED-style features
 
 - **Deep links** — every series has its own URL (`#/series/cpi`), so views can
-  be bookmarked or shared; browser back/forward works. **Copy link** button too.
-- **CSV export** — downloads the full history, all columns (`china_cpi.csv`).
+  be bookmarked or shared; comma-separated keys create comparison views.
+- **Catalog discovery** — full-text search across titles, categories, dataset
+  names, and IDs, with frequency and geography facets.
+- **Series tools** — raw levels, changes, percent changes, year-over-year
+  changes, index-to-growth conversion, log scale, ranges, tables, and metadata.
+- **Regional dimensions** — applicable NBS series expose province or city
+  selectors loaded from the official data catalog.
+- **Saved series and releases** — favorites persist locally and the Releases
+  view uses the current official NBS publication schedule.
+- **CSV and JSON export** — downloads the observations behind the current view.
 - **PNG export** — renders the chart to a titled, 2x-resolution image with
   agency/frequency/unit and a source line baked in, ready to paste into a doc.
+
+## Local JSON API
+
+- `GET /api/catalog/stats` — coverage and dataset/category facets.
+- `GET /api/search?q=&frequency=&geography=&dataset=&category=&limit=&offset=`
+  — paginated catalog search.
+- `GET /api/dimensions/:key` — valid geographic selections for an NBS series.
+- `GET /api/series/:key?region=&transform=&limit=` — observations and metadata.
+- `GET /api/releases?start=&end=` — the NBS publication calendar.
+- `GET /api/revisions/:key?label=&period=` — locally stored revision history.
 
 ## Optional: AKTools (AkShare) for extra breadth
 
@@ -72,9 +112,8 @@ in `data.ts` (function name, date format, and which fields to plot).
 - Freshness varies: Eastmoney/NBS/LPR/electricity are current; the Caixin
   "report" series come via a vendor feed that lags ~1–2 months.
 - Demo project — not affiliated with any statistical agency.
-- **Provincial GDP** currently charts Guangdong real GDP growth from the NBS
-  quarterly regional dataset. `data.ts` includes the full 31-province GB/T 2260
-  mapping for extending the same series to a province selector later.
+- **Provincial GDP** is also retained as a curated shortcut. Full-catalog NBS
+  regional series expose their available geographic selector dynamically.
 
 ## Capture regional NBS IDs
 
