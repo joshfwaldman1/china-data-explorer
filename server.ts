@@ -11,19 +11,46 @@
 
 import index from "./index.html";
 import { catalogList, getSeries } from "./data";
+import { readSeries, readRevisions, dbStatus } from "./db";
+
+// Serve the stored copy when we have one. Falling through to a live fetch
+// keeps the app usable before the first ingest run and for any series the
+// scheduler has not reached yet, but the normal path never touches an
+// upstream portal during a page load.
+const SERVE_LIVE_FALLBACK = process.env.CHINA_LIVE_FALLBACK !== "0";
 
 const port = Number(process.env.PORT ?? 5173);
 
 const routes = {
     "/": index,
     "/api/catalog": () => Response.json(catalogList()),
+    // Coverage and recent ingest runs — a stale chart should be diagnosable.
+    "/api/status": () => Response.json(dbStatus()),
+    // The revision trail for one period: every value we have ever stored for
+    // it, oldest first.
+    "/api/revisions/:key": (req) => {
+      const url = new URL(req.url);
+      const label = url.searchParams.get("label") ?? "";
+      const period = url.searchParams.get("period") ?? "";
+      if (!label || !period) {
+        return Response.json({ error: "label and period are required" }, { status: 400 });
+      }
+      return Response.json(readRevisions(req.params.key, label, period));
+    },
     "/api/series/:key": async (req) => {
       const key = req.params.key;
       const limit = Number(new URL(req.url).searchParams.get("limit") ?? "120");
       try {
+        const stored = readSeries(key, Number.isFinite(limit) ? limit : 120);
+        if (stored && stored.series.some((s) => s.points.length > 0)) {
+          return Response.json({ ...stored, source: "store" });
+        }
+        if (!SERVE_LIVE_FALLBACK) {
+          return Response.json({ error: "Not yet ingested" }, { status: 503 });
+        }
         const data = await getSeries(key, Number.isFinite(limit) ? limit : 120);
         if (!data) return Response.json({ error: "Unknown series" }, { status: 404 });
-        return Response.json(data);
+        return Response.json({ ...data, source: "live" });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Upstream fetch failed";
         return Response.json({ error: message }, { status: 502 });

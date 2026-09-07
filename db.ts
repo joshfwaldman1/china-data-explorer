@@ -1,0 +1,267 @@
+/**
+ * Local store for the China Data Explorer.
+ *
+ * Why this exists: the explorer used to read straight from Eastmoney, the NBS
+ * portal, and AkShare on every request. That makes the site only as available
+ * as a foreign government portal, and it means we keep no record of what was
+ * published. China matters here specifically — NBS suspended the 16-24 youth
+ * unemployment series after June 2023 and resumed it in January 2024 on a
+ * different basis. Anyone storing observations through that window owns a
+ * record of what was published before it stopped. That is the point of this
+ * file; the fact that reads also get fast is a side effect.
+ *
+ * The observations table is append-only. A new row is written only when a
+ * value actually differs from the most recent stored value for that period,
+ * so a revision shows up as a second row rather than silently overwriting the
+ * first, and an unchanged daily ingest costs nothing.
+ */
+
+import { Database } from "bun:sqlite";
+import type { Series, SeriesResult } from "./data.ts";
+
+const DB_PATH = process.env.CHINA_DB_PATH ?? `${import.meta.dir}/china.db`;
+
+let handle: Database | null = null;
+
+/**
+ * Open the database, creating and migrating it on first use. WAL mode lets the
+ * server keep reading while an ingest run writes.
+ */
+export function db(): Database {
+  if (handle) return handle;
+
+  const database = new Database(DB_PATH, { create: true });
+  database.exec("PRAGMA journal_mode = WAL");
+  database.exec("PRAGMA foreign_keys = ON");
+
+  // One row per series we track. `region` is empty for national series and
+  // carries the NBS region label (for example 广东省) for provincial ones.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS series (
+      key         TEXT NOT NULL,
+      region      TEXT NOT NULL DEFAULT '',
+      label       TEXT NOT NULL,
+      title       TEXT NOT NULL,
+      agency      TEXT NOT NULL,
+      frequency   TEXT NOT NULL,
+      unit        TEXT NOT NULL,
+      source_url  TEXT NOT NULL DEFAULT '',
+      updated_at  TEXT NOT NULL,
+      PRIMARY KEY (key, region, label)
+    )
+  `);
+
+  // Append-only. `fetched_at` in the primary key is what makes a revision a
+  // new row instead of an overwrite.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS observations (
+      key         TEXT NOT NULL,
+      region      TEXT NOT NULL DEFAULT '',
+      label       TEXT NOT NULL,
+      period      TEXT NOT NULL,
+      value       REAL,
+      fetched_at  TEXT NOT NULL,
+      PRIMARY KEY (key, region, label, period, fetched_at)
+    )
+  `);
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_observations_lookup
+      ON observations (key, region, label, period, fetched_at DESC)
+  `);
+
+  // Every ingest attempt, successful or not. A source going dark should be
+  // visible as a run that failed, not as a chart that quietly goes stale.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS fetch_log (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      key          TEXT NOT NULL,
+      started_at   TEXT NOT NULL,
+      finished_at  TEXT NOT NULL,
+      status       TEXT NOT NULL,
+      point_count  INTEGER NOT NULL DEFAULT 0,
+      changed_count INTEGER NOT NULL DEFAULT 0,
+      message      TEXT NOT NULL DEFAULT ''
+    )
+  `);
+
+  handle = database;
+  return handle;
+}
+
+export interface WriteSummary {
+  points: number;
+  changed: number;
+}
+
+/**
+ * Store one fetched series result. Returns how many points were seen and how
+ * many were genuinely new or revised.
+ */
+export function writeSeries(
+  result: SeriesResult,
+  region: string,
+  fetchedAt: string,
+): WriteSummary {
+  const database = db();
+
+  const upsertSeries = database.prepare(`
+    INSERT INTO series (key, region, label, title, agency, frequency, unit, source_url, updated_at)
+    VALUES ($key, $region, $label, $title, $agency, $frequency, $unit, $sourceUrl, $updatedAt)
+    ON CONFLICT (key, region, label) DO UPDATE SET
+      title = $title, agency = $agency, frequency = $frequency,
+      unit = $unit, source_url = $sourceUrl, updated_at = $updatedAt
+  `);
+
+  // The most recent stored value for one period, so we can tell a revision
+  // from an unchanged repeat.
+  const latestValue = database.prepare(`
+    SELECT value FROM observations
+    WHERE key = $key AND region = $region AND label = $label AND period = $period
+    ORDER BY fetched_at DESC
+    LIMIT 1
+  `);
+
+  const insertObservation = database.prepare(`
+    INSERT OR IGNORE INTO observations (key, region, label, period, value, fetched_at)
+    VALUES ($key, $region, $label, $period, $value, $fetchedAt)
+  `);
+
+  let points = 0;
+  let changed = 0;
+
+  const write = database.transaction((series: Series[]) => {
+    for (const one of series) {
+      upsertSeries.run({
+        $key: result.key, $region: region, $label: one.label,
+        $title: result.title, $agency: result.agency,
+        $frequency: result.frequency, $unit: result.unit,
+        $sourceUrl: result.sourceUrl, $updatedAt: fetchedAt,
+      });
+
+      for (const point of one.points) {
+        points += 1;
+        const previous = latestValue.get({
+          $key: result.key, $region: region, $label: one.label, $period: point.date,
+        }) as { value: number | null } | null;
+
+        // Unchanged values are not re-stored; only first sightings and
+        // revisions become rows.
+        if (previous !== null && previous.value === point.value) continue;
+
+        insertObservation.run({
+          $key: result.key, $region: region, $label: one.label,
+          $period: point.date, $value: point.value, $fetchedAt: fetchedAt,
+        });
+        changed += 1;
+      }
+    }
+  });
+
+  write(result.series);
+  return { points, changed };
+}
+
+export function logFetch(entry: {
+  key: string;
+  startedAt: string;
+  finishedAt: string;
+  status: "ok" | "error" | "empty";
+  points: number;
+  changed: number;
+  message?: string;
+}): void {
+  db().prepare(`
+    INSERT INTO fetch_log (key, started_at, finished_at, status, point_count, changed_count, message)
+    VALUES ($key, $startedAt, $finishedAt, $status, $points, $changed, $message)
+  `).run({
+    $key: entry.key, $startedAt: entry.startedAt, $finishedAt: entry.finishedAt,
+    $status: entry.status, $points: entry.points, $changed: entry.changed,
+    $message: entry.message ?? "",
+  });
+}
+
+/**
+ * Read a series back out as the current best view: for each period, the value
+ * from the most recent fetch that recorded one.
+ */
+export function readSeries(key: string, limit = 120): SeriesResult | null {
+  const database = db();
+
+  const meta = database.prepare(`
+    SELECT key, region, label, title, agency, frequency, unit, source_url AS sourceUrl
+    FROM series WHERE key = $key ORDER BY label
+  `).all({ $key: key }) as {
+    key: string; region: string; label: string; title: string;
+    agency: string; frequency: string; unit: string; sourceUrl: string;
+  }[];
+
+  if (meta.length === 0) return null;
+
+  const latestPoints = database.prepare(`
+    SELECT period AS date, value
+    FROM observations o
+    WHERE key = $key AND region = $region AND label = $label
+      AND fetched_at = (
+        SELECT MAX(fetched_at) FROM observations
+        WHERE key = o.key AND region = o.region AND label = o.label AND period = o.period
+      )
+    ORDER BY period DESC
+    LIMIT $limit
+  `);
+
+  const series: Series[] = meta.map((row) => {
+    const points = latestPoints.all({
+      $key: key, $region: row.region, $label: row.label, $limit: limit,
+    }) as { date: string; value: number }[];
+    points.sort((a, b) => a.date.localeCompare(b.date));
+    return { label: row.label, points };
+  });
+
+  const first = meta[0];
+  return {
+    key, title: first.title, agency: first.agency, sourceUrl: first.sourceUrl,
+    frequency: first.frequency, unit: first.unit, series,
+  };
+}
+
+/** Every stored value for one period, oldest first — the revision trail. */
+export function readRevisions(key: string, label: string, period: string) {
+  return db().prepare(`
+    SELECT period, value, fetched_at AS fetchedAt
+    FROM observations
+    WHERE key = $key AND label = $label AND period = $period
+    ORDER BY fetched_at ASC
+  `).all({ $key: key, $label: label, $period: period });
+}
+
+/** Coverage summary, for the /api/status route and for eyeballing an ingest. */
+export function dbStatus() {
+  const database = db();
+  const totals = database.prepare(`
+    SELECT COUNT(*) AS observations,
+           COUNT(DISTINCT key) AS keys,
+           MAX(fetched_at) AS lastFetch
+    FROM observations
+  `).get() as { observations: number; keys: number; lastFetch: string | null };
+
+  const perSeries = database.prepare(`
+    SELECT key,
+           COUNT(DISTINCT period) AS periods,
+           MIN(period) AS firstPeriod,
+           MAX(period) AS lastPeriod,
+           MAX(fetched_at) AS lastFetch
+    FROM observations
+    GROUP BY key
+    ORDER BY key
+  `).all();
+
+  const recentRuns = database.prepare(`
+    SELECT key, status, point_count AS points, changed_count AS changed,
+           finished_at AS finishedAt, message
+    FROM fetch_log
+    ORDER BY id DESC
+    LIMIT 20
+  `).all();
+
+  return { path: DB_PATH, totals, perSeries, recentRuns };
+}

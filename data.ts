@@ -51,6 +51,11 @@ interface EastmoneyIndicator {
 interface NbsSeriesId {
   id: string;
   label: string;
+  valueOffset?: number;
+}
+export interface NbsRegion {
+  text: string;
+  value: string;
 }
 interface NbsIndicator {
   kind: "nbs";
@@ -62,6 +67,7 @@ interface NbsIndicator {
   cid: string;
   rootId: string;
   ids: NbsSeriesId[];
+  region?: NbsRegion;
 }
 // AkShare (via a local AKTools HTTP server) — huge breadth of fresh Chinese
 // series maintained by the AkShare community. Optional: only these indicators
@@ -88,6 +94,50 @@ type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator;
 
 const AKTOOLS_URL = process.env.AKTOOLS_URL ?? "http://127.0.0.1:8080";
 
+function nbsProvince(text: string, gbt2260: string): NbsRegion {
+  return { text, value: gbt2260.padEnd(12, "0") };
+}
+
+const GUANGDONG = nbsProvince("广东省", "440000");
+
+// NBS `das` values are the six-digit GB/T 2260 province code followed by six
+// zeroes. Three live captures (Beijing, Shanghai, and Guangdong) confirmed the
+// format. Keep the complete mainland province-level mapping here so additional
+// regional series can be added without another round of code discovery.
+export const NBS_PROVINCES: NbsRegion[] = [
+  nbsProvince("北京市", "110000"),
+  nbsProvince("天津市", "120000"),
+  nbsProvince("河北省", "130000"),
+  nbsProvince("山西省", "140000"),
+  nbsProvince("内蒙古自治区", "150000"),
+  nbsProvince("辽宁省", "210000"),
+  nbsProvince("吉林省", "220000"),
+  nbsProvince("黑龙江省", "230000"),
+  nbsProvince("上海市", "310000"),
+  nbsProvince("江苏省", "320000"),
+  nbsProvince("浙江省", "330000"),
+  nbsProvince("安徽省", "340000"),
+  nbsProvince("福建省", "350000"),
+  nbsProvince("江西省", "360000"),
+  nbsProvince("山东省", "370000"),
+  nbsProvince("河南省", "410000"),
+  nbsProvince("湖北省", "420000"),
+  nbsProvince("湖南省", "430000"),
+  GUANGDONG,
+  nbsProvince("广西壮族自治区", "450000"),
+  nbsProvince("海南省", "460000"),
+  nbsProvince("重庆市", "500000"),
+  nbsProvince("四川省", "510000"),
+  nbsProvince("贵州省", "520000"),
+  nbsProvince("云南省", "530000"),
+  nbsProvince("西藏自治区", "540000"),
+  nbsProvince("陕西省", "610000"),
+  nbsProvince("甘肃省", "620000"),
+  nbsProvince("青海省", "630000"),
+  nbsProvince("宁夏回族自治区", "640000"),
+  nbsProvince("新疆维吾尔自治区", "650000"),
+];
+
 export const CATALOG: Record<string, Indicator> = {
   gdp: {
     kind: "eastmoney", group: "Growth & Output",
@@ -95,6 +145,20 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Quarterly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_GDP",
     fields: [{ field: "SUM_SAME", label: "Real GDP (YoY %)" }],
+  },
+  provincial_gdp: {
+    kind: "nbs", group: "Regional",
+    title: "Guangdong Real GDP Growth", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Percent change from year ago",
+    cid: "44ecf9ea21884caea5451c35e9c08fff",
+    rootId: "854f819b04104191a5ae2f2cba270e6c",
+    region: GUANGDONG,
+    ids: [{
+      id: "23c7f329424d4e90b22abc092a5b676f",
+      label: "Guangdong real GDP (YoY %)",
+      // NBS reports this as an index where the same period a year ago = 100.
+      valueOffset: -100,
+    }],
   },
   industrial_production: {
     kind: "eastmoney", group: "Growth & Output",
@@ -283,11 +347,35 @@ function nbsMonthlyRange(limit: number): string {
   return `${ym(start)}MM-${ym(end)}MM`;
 }
 
+function nbsQuarterlyRange(limit: number): string {
+  const now = new Date();
+  const endIndex = now.getFullYear() * 4 + Math.floor(now.getMonth() / 3);
+  const startIndex = endIndex - (limit - 1);
+  const label = (index: number) => {
+    const year = Math.floor(index / 4);
+    const quarter = index % 4 + 1;
+    return `${year}0${quarter}SS`;
+  };
+  return `${label(startIndex)}-${label(endIndex)}`;
+}
+
+function nbsRange(cfg: NbsIndicator, limit: number): string {
+  return cfg.frequency === "Quarterly" ? nbsQuarterlyRange(limit) : nbsMonthlyRange(limit);
+}
+
+function nbsPeriod(code: string): string {
+  const quarter = code.match(/^(\d{4})0([1-4])SS$/);
+  if (quarter) return `${quarter[1]}-Q${quarter[2]}`;
+  const month = code.match(/^(\d{4})(\d{2})/);
+  return month ? `${month[1]}-${month[2]}` : code;
+}
+
 async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<SeriesResult> {
+  const region = cfg.region ?? { text: "全国", value: "000000000000" };
   const payload = {
     cid: cfg.cid, indicatorIds: cfg.ids.map((i) => i.id), daCatalogId: "",
-    das: [{ text: "全国", value: "000000000000" }], showType: "1",
-    dts: [nbsMonthlyRange(limit)], rootId: cfg.rootId,
+    das: [region], showType: "1",
+    dts: [nbsRange(cfg, limit)], rootId: cfg.rootId,
   };
   const res = await fetch(
     "https://data.stats.gov.cn/dg/website/publicrelease/web/external/stream/esData",
@@ -303,19 +391,22 @@ async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<
     },
   );
   const json = await res.json();
-  const months: { code?: string; name?: string; values?: { _id?: string; value?: unknown }[] }[] =
+  const periods: { code?: string; name?: string; values?: { _id?: string; da?: string; value?: unknown }[] }[] =
     json?.data ?? [];
 
   const series: Series[] = cfg.ids.map((idcfg) => {
     const points: SeriesPoint[] = [];
-    for (const m of months) {
-      const code = typeof m.code === "string" ? m.code : "";
-      const match = code.match(/^(\d{4})(\d{2})/);
-      const date = match ? `${match[1]}-${match[2]}` : code;
-      const found = (m.values ?? []).find((v) => v._id === idcfg.id);
+    for (const period of periods) {
+      const code = typeof period.code === "string" ? period.code : "";
+      const date = nbsPeriod(code);
+      const found = (period.values ?? []).find(
+        (value) => value._id === idcfg.id && (value.da === undefined || value.da === region.value),
+      );
       const num = typeof found?.value === "number" ? found.value : Number(found?.value);
       if (found?.value === null || found?.value === undefined || found?.value === "" || Number.isNaN(num)) continue;
-      points.push({ date, value: num });
+      const adjusted = num + (idcfg.valueOffset ?? 0);
+      const value = idcfg.valueOffset === undefined ? adjusted : Math.round(adjusted * 10) / 10;
+      points.push({ date, value });
     }
     points.sort((a, b) => a.date.localeCompare(b.date));
     return { label: idcfg.label, points };
@@ -399,4 +490,27 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
 
   cache.set(cacheKey, { at: Date.now(), data });
   return data;
+}
+
+/**
+ * The region a catalog entry describes — empty for national series, and the
+ * NBS region label (for example 广东省) for provincial ones. The store keys
+ * observations by this so provinces stay distinct rows.
+ */
+export function seriesRegion(key: string): string {
+  const cfg = CATALOG[key];
+  if (cfg && cfg.kind === "nbs" && cfg.region) return cfg.region.text;
+  return "";
+}
+
+/**
+ * Fetch straight from the upstream source, skipping the in-memory cache.
+ * The ingest job uses this; the server should prefer the stored copy.
+ */
+export async function fetchLive(key: string, limit = 120): Promise<SeriesResult | null> {
+  const cfg = CATALOG[key];
+  if (!cfg) return null;
+  if (cfg.kind === "nbs") return fetchNbs(key, cfg, limit);
+  if (cfg.kind === "aktools") return fetchAktools(key, cfg, limit);
+  return fetchEastmoney(key, cfg, limit);
 }

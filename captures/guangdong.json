@@ -1,0 +1,341 @@
+{
+  "capturedAt": "2026-09-07T02:31:12.675Z",
+  "pageUrl": "https://data.stats.gov.cn/dg/website/page.html#/pc/national/fsQuarterData",
+  "request": {
+    "url": "https://data.stats.gov.cn/dg/website/publicrelease/web/external/stream/esData",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\"",
+      "content-type": "application/json",
+      "sec-ch-ua-mobile": "?0",
+      "accept-language": "zh-CN"
+    },
+    "body": {
+      "cid": "44ecf9ea21884caea5451c35e9c08fff",
+      "indicatorIds": [
+        "dc168397231c49f391ee9e11966de389",
+        "23c7f329424d4e90b22abc092a5b676f"
+      ],
+      "daCatalogId": "",
+      "das": [
+        {
+          "text": "广东省",
+          "value": "440000000000"
+        }
+      ],
+      "showType": "1",
+      "dts": "",
+      "rootId": "854f819b04104191a5ae2f2cba270e6c"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "transfer-encoding": "chunked",
+      "content-encoding": "gzip",
+      "date": "Mon, 07 Sep 2026 02:31:12 GMT",
+      "content-type": "application/json;charset=UTF-8",
+      "vary": "Accept-Encoding",
+      "connection": "keep-alive",
+      "wzws-ray": "1129-1788777072.471-waf01fst-waf05fst"
+    },
+    "body": {
+      "data": [
+        {
+          "code": "202602SS",
+          "name": "2026年第二季度",
+          "values": [
+            {
+              "i_showname": "地区生产总值累计值 (亿元) ",
+              "num_accuracy_text": "0",
+              "_name": "国内生产总值",
+              "is_economy_chart_show_text": "是",
+              "ek": "db8e5a86c08246e79b1b11251927e740",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 1,
+              "du": "7dae305350e74cf793520af55bceffa4",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "_id": "dc168397231c49f391ee9e11966de389",
+              "num_accuracy_value": "0",
+              "du_name": "亿元",
+              "order": 1,
+              "value": "72281",
+              "da": "440000000000",
+              "da_name": "广东省"
+            },
+            {
+              "i_showname": "地区生产总值指数 (上年同期=100) 累计值 (%) ",
+              "num_accuracy_text": "1",
+              "_name": "国内生产总值指数",
+              "is_economy_chart_show_text": "是",
+              "ek": "6021702000022|1c626fdae0684a22b00d80eaad07bfa6",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 2,
+              "du": "414774dee2bc47f392cf13abfa9de882",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "chart_style_text": "折线图",
+              "_id": "23c7f329424d4e90b22abc092a5b676f",
+              "num_accuracy_value": "1",
+              "chart_style_value": "2",
+              "du_name": "%",
+              "order": 2,
+              "value": "104.5",
+              "da": "440000000000",
+              "da_name": "广东省"
+            }
+          ]
+        },
+        {
+          "code": "202601SS",
+          "name": "2026年第一季度",
+          "values": [
+            {
+              "i_showname": "地区生产总值累计值 (亿元) ",
+              "num_accuracy_text": "0",
+              "_name": "国内生产总值",
+              "is_economy_chart_show_text": "是",
+              "ek": "db8e5a86c08246e79b1b11251927e740",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 1,
+              "du": "7dae305350e74cf793520af55bceffa4",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "_id": "dc168397231c49f391ee9e11966de389",
+              "num_accuracy_value": "0",
+              "du_name": "亿元",
+              "order": 1,
+              "value": "34950",
+              "da": "440000000000",
+              "da_name": "广东省"
+            },
+            {
+              "i_showname": "地区生产总值指数 (上年同期=100) 累计值 (%) ",
+              "num_accuracy_text": "1",
+              "_name": "国内生产总值指数",
+              "is_economy_chart_show_text": "是",
+              "ek": "6021702000022|1c626fdae0684a22b00d80eaad07bfa6",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 2,
+              "du": "414774dee2bc47f392cf13abfa9de882",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "chart_style_text": "折线图",
+              "_id": "23c7f329424d4e90b22abc092a5b676f",
+              "num_accuracy_value": "1",
+              "chart_style_value": "2",
+              "du_name": "%",
+              "order": 2,
+              "value": "104.6",
+              "da": "440000000000",
+              "da_name": "广东省"
+            }
+          ]
+        },
+        {
+          "code": "202504SS",
+          "name": "2025年第四季度",
+          "values": [
+            {
+              "i_showname": "地区生产总值累计值 (亿元) ",
+              "num_accuracy_text": "0",
+              "_name": "国内生产总值",
+              "is_economy_chart_show_text": "是",
+              "ek": "db8e5a86c08246e79b1b11251927e740",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 1,
+              "du": "7dae305350e74cf793520af55bceffa4",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "_id": "dc168397231c49f391ee9e11966de389",
+              "num_accuracy_value": "0",
+              "du_name": "亿元",
+              "order": 1,
+              "value": "145847",
+              "da": "440000000000",
+              "da_name": "广东省"
+            },
+            {
+              "i_showname": "地区生产总值指数 (上年同期=100) 累计值 (%) ",
+              "num_accuracy_text": "1",
+              "_name": "国内生产总值指数",
+              "is_economy_chart_show_text": "是",
+              "ek": "6021702000022|1c626fdae0684a22b00d80eaad07bfa6",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 2,
+              "du": "414774dee2bc47f392cf13abfa9de882",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "chart_style_text": "折线图",
+              "_id": "23c7f329424d4e90b22abc092a5b676f",
+              "num_accuracy_value": "1",
+              "chart_style_value": "2",
+              "du_name": "%",
+              "order": 2,
+              "value": "103.9",
+              "da": "440000000000",
+              "da_name": "广东省"
+            }
+          ]
+        },
+        {
+          "code": "202503SS",
+          "name": "2025年第三季度",
+          "values": [
+            {
+              "i_showname": "地区生产总值累计值 (亿元) ",
+              "num_accuracy_text": "0",
+              "_name": "国内生产总值",
+              "is_economy_chart_show_text": "是",
+              "ek": "db8e5a86c08246e79b1b11251927e740",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 1,
+              "du": "7dae305350e74cf793520af55bceffa4",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "_id": "dc168397231c49f391ee9e11966de389",
+              "num_accuracy_value": "0",
+              "du_name": "亿元",
+              "order": 1,
+              "value": "105171",
+              "da": "440000000000",
+              "da_name": "广东省"
+            },
+            {
+              "i_showname": "地区生产总值指数 (上年同期=100) 累计值 (%) ",
+              "num_accuracy_text": "1",
+              "_name": "国内生产总值指数",
+              "is_economy_chart_show_text": "是",
+              "ek": "6021702000022|1c626fdae0684a22b00d80eaad07bfa6",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 2,
+              "du": "414774dee2bc47f392cf13abfa9de882",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "chart_style_text": "折线图",
+              "_id": "23c7f329424d4e90b22abc092a5b676f",
+              "num_accuracy_value": "1",
+              "chart_style_value": "2",
+              "du_name": "%",
+              "order": 2,
+              "value": "104.1",
+              "da": "440000000000",
+              "da_name": "广东省"
+            }
+          ]
+        },
+        {
+          "code": "202502SS",
+          "name": "2025年第二季度",
+          "values": [
+            {
+              "i_showname": "地区生产总值累计值 (亿元) ",
+              "num_accuracy_text": "0",
+              "_name": "国内生产总值",
+              "is_economy_chart_show_text": "是",
+              "ek": "db8e5a86c08246e79b1b11251927e740",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 1,
+              "du": "7dae305350e74cf793520af55bceffa4",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "_id": "dc168397231c49f391ee9e11966de389",
+              "num_accuracy_value": "0",
+              "du_name": "亿元",
+              "order": 1,
+              "value": "68724",
+              "da": "440000000000",
+              "da_name": "广东省"
+            },
+            {
+              "i_showname": "地区生产总值指数 (上年同期=100) 累计值 (%) ",
+              "num_accuracy_text": "1",
+              "_name": "国内生产总值指数",
+              "is_economy_chart_show_text": "是",
+              "ek": "6021702000022|1c626fdae0684a22b00d80eaad07bfa6",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 2,
+              "du": "414774dee2bc47f392cf13abfa9de882",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "chart_style_text": "折线图",
+              "_id": "23c7f329424d4e90b22abc092a5b676f",
+              "num_accuracy_value": "1",
+              "chart_style_value": "2",
+              "du_name": "%",
+              "order": 2,
+              "value": "104.2",
+              "da": "440000000000",
+              "da_name": "广东省"
+            }
+          ]
+        },
+        {
+          "code": "202501SS",
+          "name": "2025年第一季度",
+          "values": [
+            {
+              "i_showname": "地区生产总值累计值 (亿元) ",
+              "num_accuracy_text": "0",
+              "_name": "国内生产总值",
+              "is_economy_chart_show_text": "是",
+              "ek": "db8e5a86c08246e79b1b11251927e740",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 1,
+              "du": "7dae305350e74cf793520af55bceffa4",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "_id": "dc168397231c49f391ee9e11966de389",
+              "num_accuracy_value": "0",
+              "du_name": "亿元",
+              "order": 1,
+              "value": "33528",
+              "da": "440000000000",
+              "da_name": "广东省"
+            },
+            {
+              "i_showname": "地区生产总值指数 (上年同期=100) 累计值 (%) ",
+              "num_accuracy_text": "1",
+              "_name": "国内生产总值指数",
+              "is_economy_chart_show_text": "是",
+              "ek": "6021702000022|1c626fdae0684a22b00d80eaad07bfa6",
+              "dp": "21",
+              "type": "indicator",
+              "is_economy_chart_show_value": "1",
+              "ds_order": 2,
+              "du": "414774dee2bc47f392cf13abfa9de882",
+              "catalogid": "44ecf9ea21884caea5451c35e9c08fff",
+              "chart_style_text": "折线图",
+              "_id": "23c7f329424d4e90b22abc092a5b676f",
+              "num_accuracy_value": "1",
+              "chart_style_value": "2",
+              "du_name": "%",
+              "order": 2,
+              "value": "104.1",
+              "da": "440000000000",
+              "da_name": "广东省"
+            }
+          ]
+        }
+      ],
+      "success": true,
+      "state": 20000,
+      "message": "成功"
+    }
+  }
+}

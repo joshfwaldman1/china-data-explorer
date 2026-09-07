@@ -19,14 +19,14 @@ bun run china-explorer/server.ts
 
 ```
 browser ──> Bun.serve ──> Eastmoney datacenter   (GDP, CPI, PPI, PMI, money, retail, trade, IP, loans, reserves)
-                     ├──> NBS esData portal       (surveyed + youth unemployment)
+                     ├──> NBS esData portal       (unemployment, Guangdong GDP)
                      └──> AKTools (AkShare)        (LPR, Caixin PMI ×2, electricity — optional; see below)
 ```
 
 - **`server.ts`** — Bun.serve serves the page (bundling `frontend.tsx` on the
   fly) and exposes two JSON routes: `/api/catalog` and `/api/series/:key`.
   `idleTimeout` is raised to 60s because AkShare calls can take 15–25s.
-- **`data.ts`** — the catalog (15 indicators, grouped) plus three source
+- **`data.ts`** — the catalog (16 indicators, grouped) plus three source
   fetchers (Eastmoney, NBS, AKTools) and a 1-hour in-memory cache. All fetching
   is server-side, which is how FRED works and avoids the browser CORS wall
   (Eastmoney/NBS send no CORS headers).
@@ -58,7 +58,7 @@ pip install aktools
 python -m aktools            # serves http://127.0.0.1:8080  (override with AKTOOLS_URL)
 ```
 
-Without AKTools running, the other 11 indicators still work; the AkShare-backed
+Without AKTools running, the other 12 indicators still work; the AkShare-backed
 ones just error until it's up. Adding more AkShare series is a one-entry change
 in `data.ts` (function name, date format, and which fields to plot).
 
@@ -72,4 +72,19 @@ in `data.ts` (function name, date format, and which fields to plot).
 - Freshness varies: Eastmoney/NBS/LPR/electricity are current; the Caixin
   "report" series come via a vendor feed that lags ~1–2 months.
 - Demo project — not affiliated with any statistical agency.
-- Provincial data is not wired here yet (same open item as the agent).
+- **Provincial GDP** currently charts Guangdong real GDP growth from the NBS
+  quarterly regional dataset. `data.ts` includes the full 31-province GB/T 2260
+  mapping for extending the same series to a province selector later.
+
+## Capture regional NBS IDs
+
+The regional IDs were obtained from the portal's own live request. Re-run the
+capture against any province with Chrome installed:
+
+```sh
+bun run china-explorer/scripts/capture-area.ts --province=广东省
+```
+
+The script writes the complete matching `esData` request and response under
+`china-explorer/captures/`. Use `--out=path/to/file.json`, `--headed=true`, or
+`--channel=chromium` to override its defaults.
