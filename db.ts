@@ -84,6 +84,14 @@ export function db(): Database {
     )
   `);
 
+  // fetch_log gained a region column after the first schema shipped; add it
+  // to databases created before then. A blank region is a national or
+  // curated series.
+  const fetchLogColumns = database.query<{ name: string }>("PRAGMA table_info(fetch_log)").all();
+  if (!fetchLogColumns.some((column) => column.name === "region")) {
+    database.exec("ALTER TABLE fetch_log ADD COLUMN region TEXT NOT NULL DEFAULT ''");
+  }
+
   handle = database;
   return handle;
 }
@@ -163,6 +171,7 @@ export function writeSeries(
 
 export function logFetch(entry: {
   key: string;
+  region?: string;
   startedAt: string;
   finishedAt: string;
   status: "ok" | "error" | "empty";
@@ -171,10 +180,10 @@ export function logFetch(entry: {
   message?: string;
 }): void {
   db().prepare(`
-    INSERT INTO fetch_log (key, started_at, finished_at, status, point_count, changed_count, message)
-    VALUES ($key, $startedAt, $finishedAt, $status, $points, $changed, $message)
+    INSERT INTO fetch_log (key, region, started_at, finished_at, status, point_count, changed_count, message)
+    VALUES ($key, $region, $startedAt, $finishedAt, $status, $points, $changed, $message)
   `).run({
-    $key: entry.key, $startedAt: entry.startedAt, $finishedAt: entry.finishedAt,
+    $key: entry.key, $region: entry.region ?? "", $startedAt: entry.startedAt, $finishedAt: entry.finishedAt,
     $status: entry.status, $points: entry.points, $changed: entry.changed,
     $message: entry.message ?? "",
   });
@@ -184,13 +193,15 @@ export function logFetch(entry: {
  * Read a series back out as the current best view: for each period, the value
  * from the most recent fetch that recorded one.
  */
-export function readSeries(key: string, limit = 120): SeriesResult | null {
+export function readSeries(key: string, limit = 120, region?: string): SeriesResult | null {
   const database = db();
 
   const meta = database.prepare(`
     SELECT key, region, label, title, agency, frequency, unit, source_url AS sourceUrl
-    FROM series WHERE key = $key ORDER BY label
-  `).all({ $key: key }) as {
+    FROM series
+    WHERE key = $key AND ($region IS NULL OR region = $region)
+    ORDER BY region, label
+  `).all({ $key: key, $region: region ?? null }) as {
     key: string; region: string; label: string; title: string;
     agency: string; frequency: string; unit: string; sourceUrl: string;
   }[];
@@ -225,13 +236,29 @@ export function readSeries(key: string, limit = 120): SeriesResult | null {
 }
 
 /** Every stored value for one period, oldest first — the revision trail. */
-export function readRevisions(key: string, label: string, period: string) {
+export function readRevisions(key: string, label: string, period: string, region?: string) {
   return db().prepare(`
-    SELECT period, value, fetched_at AS fetchedAt
+    SELECT region, period, value, fetched_at AS fetchedAt
     FROM observations
     WHERE key = $key AND label = $label AND period = $period
+      AND ($region IS NULL OR region = $region)
     ORDER BY fetched_at ASC
-  `).all({ $key: key, $label: label, $period: period });
+  `).all({ $key: key, $label: label, $period: period, $region: region ?? null });
+}
+
+/** When any series for this key and region was last written, as an ISO stamp. */
+export function seriesFreshness(key: string, region: string): string | null {
+  const row = db().query<{ updatedAt: string | null }>(`
+    SELECT MAX(updated_at) AS updatedAt FROM series WHERE key = $key AND region = $region
+  `).get({ $key: key, $region: region });
+  return row?.updatedAt ?? null;
+}
+
+/** Every distinct (key, region) in the store whose key starts with `prefix`. */
+export function listStoredSeries(prefix: string): { key: string; region: string }[] {
+  return db().query<{ key: string; region: string }>(`
+    SELECT DISTINCT key, region FROM series WHERE key LIKE $prefix || '%' ORDER BY key, region
+  `).all({ $prefix: prefix });
 }
 
 /** Coverage summary, for the /api/status route and for eyeballing an ingest. */
@@ -245,18 +272,18 @@ export function dbStatus() {
   `).get() as { observations: number; keys: number; lastFetch: string | null };
 
   const perSeries = database.prepare(`
-    SELECT key,
+    SELECT key, region,
            COUNT(DISTINCT period) AS periods,
            MIN(period) AS firstPeriod,
            MAX(period) AS lastPeriod,
            MAX(fetched_at) AS lastFetch
     FROM observations
-    GROUP BY key
-    ORDER BY key
+    GROUP BY key, region
+    ORDER BY key, region
   `).all();
 
   const recentRuns = database.prepare(`
-    SELECT key, status, point_count AS points, changed_count AS changed,
+    SELECT key, region, status, point_count AS points, changed_count AS changed,
            finished_at AS finishedAt, message
     FROM fetch_log
     ORDER BY id DESC

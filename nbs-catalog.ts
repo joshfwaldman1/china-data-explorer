@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
+import { logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const CATALOG_PATH = resolve(import.meta.dir, "catalog/nbs-catalog.json");
@@ -128,12 +129,12 @@ type NbsSeriesResult = SeriesResult & {
   metadata: NbsCatalogEntry;
   region: NbsRegionOption;
   transform: NbsTransform;
+  source: "store" | "live" | "stale";
 };
 
 let snapshotCache: { modifiedAt: number; snapshot: CatalogSnapshot } | undefined;
 let snapshotPromise: Promise<CatalogSnapshot> | undefined;
 const dimensionsCache = new Map<string, { at: number; data: NbsRegionOption[] }>();
-const seriesCache = new Map<string, { at: number; data: NbsSeriesResult }>();
 
 function objectValue(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
@@ -417,27 +418,67 @@ export function defaultNbsTransform(entry: NbsCatalogEntry): NbsTransform {
   return /上年(?:同期)?\s*=\s*100/.test(`${entry.name} ${entry.shortName}`) ? "index_growth" : "raw";
 }
 
-export async function fetchNbsCatalogSeries(options: {
-  entry: NbsCatalogEntry;
-  region?: string;
-  limit?: number;
-  transform?: NbsTransform;
-}): Promise<NbsSeriesResult> {
-  const limit = Math.min(600, Math.max(2, options.limit ?? 120));
-  const transform = options.transform ?? defaultNbsTransform(options.entry);
-  const dimensions = await getNbsDimensions(options.entry);
-  const region = dimensions.find((item) => item.value === options.region) ?? dimensions[0] ?? NATIONAL;
-  const cacheKey = `${options.entry.key}:${region.value}:${limit}:${transform}`;
-  const cached = seriesCache.get(cacheKey);
-  if (cached && Date.now() - cached.at < 60 * 60 * 1000) return cached.data;
+// ── Observations ──────────────────────────────────────────────────────────────
+//
+// Every catalog series is served from the local store. A first view fetches
+// the full available history from NBS, writes it, and serves it; later views
+// read the stored copy until it is older than the TTL, when one live fetch
+// refreshes it and any revised value lands as a new row. The daily ingest
+// refreshes everything that has ever been viewed, so cost scales with use
+// rather than with the size of the catalog.
+//
+// Only raw values are stored. Transforms are applied on the way out, so a
+// series has one revision history rather than one per transform.
+
+const STORE_TTL_MS = Number(process.env.NBS_STORE_TTL_HOURS ?? 24) * 60 * 60 * 1000;
+// Fetch fifty years, which is effectively "everything" NBS has, so that any
+// requested limit is then a slice of the stored copy. It has to be expressed
+// per frequency: 600 periods is fifty years of months, but asked of a
+// quarterly series it is 1876 onward and esData answers with HTTP 500.
+function historyLimit(frequency: NbsCatalogEntry["frequency"]): number {
+  if (frequency === "Monthly") return 600;
+  if (frequency === "Quarterly") return 200;
+  return 80;
+}
+
+/**
+ * Turn one esData response into raw points for a single indicator and region.
+ * NBS returns every value as a string and marks a missing cell with "", so an
+ * empty string is skipped rather than parsed — the alternative is a false
+ * zero. Values tagged with another region's `da` are ignored, which is what
+ * stops a province request from being quietly answered with national figures.
+ */
+export function parseEsDataPoints(raw: unknown, indicatorId: string, regionValue: string): SeriesPoint[] {
+  const periods = objectValue(raw, "data");
+  const points: SeriesPoint[] = [];
+  if (!Array.isArray(periods)) return points;
+  for (const period of periods) {
+    const code = stringValue(period, "code");
+    const values = objectValue(period, "values");
+    if (!code || !Array.isArray(values)) continue;
+    const found = values.find((value) =>
+      stringValue(value, "_id") === indicatorId &&
+      (!stringValue(value, "da") || stringValue(value, "da") === regionValue)
+    );
+    const rawValue = objectValue(found, "value");
+    if (rawValue === "" || rawValue === null || rawValue === undefined) continue;
+    const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
+    if (!Number.isFinite(value)) continue;
+    points.push({ date: periodLabel(code), value });
+  }
+  points.sort((a, b) => a.date.localeCompare(b.date));
+  return points;
+}
+
+async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption): Promise<SeriesPoint[]> {
   const payload = {
-    cid: options.entry.cid,
-    indicatorIds: [options.entry.id],
+    cid: entry.cid,
+    indicatorIds: [entry.id],
     daCatalogId: "",
     das: [region],
     showType: "1",
-    dts: [periodRange(options.entry.frequency, limit)],
-    rootId: options.entry.rootId,
+    dts: [periodRange(entry.frequency, historyLimit(entry.frequency))],
+    rootId: entry.rootId,
   };
   const response = await fetch(`${API}/stream/esData`, {
     method: "POST",
@@ -451,39 +492,106 @@ export async function fetchNbsCatalogSeries(options: {
   });
   if (!response.ok) throw new Error(`NBS esData -> HTTP ${response.status}`);
   const raw: unknown = await response.json();
-  const periods = objectValue(raw, "data");
-  const points: SeriesPoint[] = [];
-  if (Array.isArray(periods)) {
-    for (const period of periods) {
-      const code = stringValue(period, "code");
-      const values = objectValue(period, "values");
-      if (!Array.isArray(values)) continue;
-      const found = values.find((value) =>
-        stringValue(value, "_id") === options.entry.id &&
-        (!stringValue(value, "da") || stringValue(value, "da") === region.value)
-      );
-      const rawValue = objectValue(found, "value");
-      if (rawValue === "" || rawValue === null || rawValue === undefined) continue;
-      const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
-      if (!code || !Number.isFinite(value)) continue;
-      points.push({ date: periodLabel(code), value });
-    }
-  }
-  points.sort((a, b) => a.date.localeCompare(b.date));
-  const transformed = transformPoints(points, transform, options.entry.frequency);
-  const unit = transform === "raw" ? options.entry.unit || "Value" : transformLabel(transform);
-  const result: NbsSeriesResult = {
-    key: options.entry.key,
-    title: options.entry.name,
+  return parseEsDataPoints(raw, entry.id, region.value);
+}
+
+async function resolveNbsRegion(entry: NbsCatalogEntry, regionValue?: string): Promise<NbsRegionOption> {
+  const dimensions = await getNbsDimensions(entry);
+  return dimensions.find((item) => item.value === regionValue) ?? dimensions[0] ?? NATIONAL;
+}
+
+function rawResult(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[]): SeriesResult {
+  return {
+    key: entry.key,
+    title: entry.name,
     agency: "National Bureau of Statistics",
     sourceUrl: "https://data.stats.gov.cn/dg/website/page.html",
-    frequency: options.entry.frequency,
+    frequency: entry.frequency,
+    unit: entry.unit || "Value",
+    series: [{ label: region.text, points }],
+  };
+}
+
+function storedPoints(entry: NbsCatalogEntry, region: NbsRegionOption): SeriesPoint[] {
+  const stored = readSeries(entry.key, historyLimit(entry.frequency), region.value);
+  return stored?.series[0]?.points ?? [];
+}
+
+function isFresh(entry: NbsCatalogEntry, region: NbsRegionOption): boolean {
+  const updatedAt = seriesFreshness(entry.key, region.value);
+  return updatedAt !== null && Date.now() - Date.parse(updatedAt) < STORE_TTL_MS;
+}
+
+/**
+ * Fetch a series live and store it, logging the attempt either way. Zero
+ * points is a failure, not an empty series: NBS answers an impossible
+ * region/indicator pairing with a well-formed grid of blanks, and storing that
+ * would look exactly like a successful ingest.
+ */
+export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValue?: string): Promise<{
+  region: NbsRegionOption;
+  points: SeriesPoint[];
+  changed: number;
+}> {
+  const region = await resolveNbsRegion(entry, regionValue);
+  const startedAt = new Date().toISOString();
+  let points: SeriesPoint[];
+  try {
+    points = await fetchNbsRawPoints(entry, region);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logFetch({ key: entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(),
+      status: "error", points: 0, changed: 0, message });
+    throw error;
+  }
+  const finishedAt = new Date().toISOString();
+  if (points.length === 0) {
+    logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "empty",
+      points: 0, changed: 0, message: "source returned a grid with no values" });
+    throw new Error(`NBS returned no observations for ${entry.key} in ${region.text}`);
+  }
+  const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt);
+  logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok",
+    points: summary.points, changed: summary.changed });
+  return { region, points, changed: summary.changed };
+}
+
+/** The store-first read that every page view goes through. */
+export async function getNbsCatalogSeries(options: {
+  entry: NbsCatalogEntry;
+  region?: string;
+  limit?: number;
+  transform?: NbsTransform;
+}): Promise<NbsSeriesResult> {
+  const limit = Math.min(historyLimit(options.entry.frequency), Math.max(2, options.limit ?? 120));
+  const transform = options.transform ?? defaultNbsTransform(options.entry);
+  const region = await resolveNbsRegion(options.entry, options.region);
+
+  let points = storedPoints(options.entry, region);
+  let source: NbsSeriesResult["source"] = "store";
+
+  if (points.length === 0 || !isFresh(options.entry, region)) {
+    try {
+      const refreshed = await refreshNbsCatalogSeries(options.entry, region.value);
+      points = refreshed.points;
+      source = "live";
+    } catch (error) {
+      // A stale copy beats an error page; a missing copy does not.
+      if (points.length === 0) throw error;
+      source = "stale";
+    }
+  }
+
+  // Transform over the full history, then slice, so lagged transforms keep
+  // their first year instead of losing it to the limit.
+  const transformed = transformPoints(points, transform, options.entry.frequency).slice(-limit);
+  const unit = transform === "raw" ? options.entry.unit || "Value" : transformLabel(transform);
+  return {
+    ...rawResult(options.entry, region, transformed),
     unit,
-    series: [{ label: region.text, points: transformed }],
     metadata: options.entry,
     region,
     transform,
+    source,
   };
-  seriesCache.set(cacheKey, { at: Date.now(), data: result });
-  return result;
 }

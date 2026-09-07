@@ -16,16 +16,19 @@ copy, and visual assets are not.
 - Up to four series on one chart, with removable comparison chips.
 - Province/city dimension discovery where the official series supports it.
 - CSV, JSON, and PNG downloads plus shareable URLs.
-- Locally saved series, an official NBS releases view, a JSON API, and the
-  append-only revision store for curated series.
+- Locally saved series, an official NBS releases view, and a JSON API.
+- An append-only revision store that every series is served from: curated
+  series on a schedule, catalog series on first view and then refreshed daily.
+  Page views never call the portal for a series the store already holds.
 - Responsive desktop and compact layouts.
 
 ## P0: data completeness and reliability
 
 - Complete all ten NBS catalog families and refresh their metadata on a
   conservative schedule.
-- Move dynamic-series observations into the append-only store so every catalog
-  series can be served without making a portal request during a page view.
+- Store observations for the whole catalog on a schedule, not only for series
+  that have been viewed, once the catalog lives in SQLite and the crawl can be
+  budgeted.
 - Add per-series freshness, last-success, and upstream-health fields.
 - Persist NBS vintages and expose an ALFRED-style observation/revision timeline.
 - Add release-page ingestion for PBOC, GAC, SAFE, MOF, and other official

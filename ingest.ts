@@ -6,8 +6,9 @@
  * monthly or quarterly) and the web app never has to touch a foreign portal
  * during a page load.
  *
- *   bun run china-explorer/ingest.ts             # everything
- *   bun run china-explorer/ingest.ts cpi gdp     # named series only
+ *   bun run china-explorer/ingest.ts                        # curated + every stored catalog series
+ *   bun run china-explorer/ingest.ts cpi gdp                # named curated series only
+ *   bun run china-explorer/ingest.ts nbs_<id>@440000000000  # one catalog series, one region
  *
  * Failures are per-series and recorded, not fatal. If AKTools is not running,
  * four series fail and the other thirteen still land — that is the intended
@@ -15,7 +16,8 @@
  */
 
 import { CATALOG, fetchLive, seriesRegion } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus } from "./db.ts";
+import { db, writeSeries, logFetch, dbStatus, listStoredSeries } from "./db.ts";
+import { getNbsCatalogEntry, refreshNbsCatalogSeries } from "./nbs-catalog.ts";
 
 // Upstream sources are public and unauthenticated, so we stay well-mannered:
 // one series at a time with a pause between, rather than a burst of parallel
@@ -58,23 +60,70 @@ async function ingestOne(key: string): Promise<"ok" | "error" | "empty"> {
   }
 }
 
+/**
+ * One catalog series in one region. Logging happens inside the refresh, so a
+ * failure here is already in fetch_log by the time it is printed.
+ */
+async function refreshOne(key: string, region: string): Promise<"ok" | "error" | "empty"> {
+  const label = region ? `${key}@${region}` : key;
+  const entry = await getNbsCatalogEntry(key);
+  if (!entry) {
+    console.log(`  ${label.padEnd(52)} not in the catalog snapshot`);
+    return "error";
+  }
+  try {
+    const result = await refreshNbsCatalogSeries(entry, region || undefined);
+    console.log(
+      `  ${label.padEnd(52)} ${String(result.points.length).padStart(4)} points, ` +
+      `${result.changed} new or revised`,
+    );
+    return "ok";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`  ${label.padEnd(52)} FAILED  ${message}`);
+    return "error";
+  }
+}
+
 async function main(): Promise<void> {
   const requested = process.argv.slice(2);
-  const keys = requested.length > 0 ? requested : Object.keys(CATALOG);
+  const curatedKeys = requested.length > 0
+    ? requested.filter((spec) => !spec.startsWith("nbs_"))
+    : Object.keys(CATALOG);
+  // Catalog series are named nbs_<id>, with an optional @<region code>. With
+  // no arguments, every catalog series anyone has viewed is refreshed.
+  const catalogTargets = requested.length > 0
+    ? requested.filter((spec) => spec.startsWith("nbs_")).map((spec) => {
+        const [key = "", region = ""] = spec.split("@");
+        return { key, region };
+      })
+    : listStoredSeries("nbs_");
 
-  const unknown = keys.filter((k) => !CATALOG[k]);
+  const unknown = curatedKeys.filter((k) => !CATALOG[k]);
   if (unknown.length > 0) {
     console.error(`Unknown series: ${unknown.join(", ")}`);
     process.exit(1);
   }
 
   db(); // create and migrate before the first write
-  console.log(`Ingesting ${keys.length} series\n`);
-
   const tally = { ok: 0, error: 0, empty: 0 };
-  for (const [index, key] of keys.entries()) {
-    tally[await ingestOne(key)] += 1;
-    if (index < keys.length - 1) await sleep(PAUSE_MS);
+
+  if (curatedKeys.length > 0) {
+    console.log(`Ingesting ${curatedKeys.length} curated series\n`);
+    for (const [index, key] of curatedKeys.entries()) {
+      tally[await ingestOne(key)] += 1;
+      if (index < curatedKeys.length - 1) await sleep(PAUSE_MS);
+    }
+  }
+
+  // This is how the store grows: by what people look at, not by crawling the
+  // whole catalog. Each viewed series gets a daily revision check.
+  if (catalogTargets.length > 0) {
+    console.log(`\nRefreshing ${catalogTargets.length} stored catalog series\n`);
+    for (const [index, target] of catalogTargets.entries()) {
+      tally[await refreshOne(target.key, target.region)] += 1;
+      if (index < catalogTargets.length - 1) await sleep(PAUSE_MS);
+    }
   }
 
   const status = dbStatus();

@@ -13,7 +13,7 @@ import index from "./index.html";
 import { catalogList, getSeries } from "./data";
 import { readSeries, readRevisions, dbStatus } from "./db";
 import {
-  fetchNbsCatalogSeries,
+  getNbsCatalogSeries,
   getNbsCatalogEntry,
   getNbsDimensions,
   nbsCatalogStats,
@@ -151,10 +151,11 @@ const routes = {
       const url = new URL(req.url);
       const label = url.searchParams.get("label") ?? "";
       const period = url.searchParams.get("period") ?? "";
+      const region = url.searchParams.get("region") ?? undefined;
       if (!label || !period) {
         return Response.json({ error: "label and period are required" }, { status: 400 });
       }
-      return Response.json(readRevisions(key, label, period));
+      return Response.json(readRevisions(key, label, period, region));
     },
     "/api/series/:key": async (req: RouteRequest) => {
       const key = req.params.key;
@@ -166,7 +167,7 @@ const routes = {
           const entry = await getNbsCatalogEntry(key);
           if (!entry) return Response.json({ error: "Unknown NBS series" }, { status: 404 });
           const transform = params.get("transform");
-          return Response.json(await fetchNbsCatalogSeries({
+          return Response.json(await getNbsCatalogSeries({
             entry,
             region: params.get("region") ?? undefined,
             limit: Number.isFinite(limit) ? limit : 120,
