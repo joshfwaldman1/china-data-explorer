@@ -33,6 +33,9 @@ const SERVE_LIVE_FALLBACK = process.env.CHINA_LIVE_FALLBACK !== "0";
 
 const port = Number(process.env.PORT ?? 5173);
 
+const RELEASE_TTL_MS = 6 * 60 * 60 * 1000;
+const releaseCache = new Map<string, { at: number; body: unknown }>();
+
 interface RouteRequest extends Request {
   params: Record<string, string>;
 }
@@ -67,6 +70,11 @@ const routes = {
     "/api/catalog/stats": async () => Response.json(await nbsCatalogStats()),
     "/api/releases": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
+      // The agenda changes monthly; the home page asks for it on every load.
+      // One NBS call per six hours per month window, not one per visit.
+      const cacheKey = `${params.get("start") ?? ""}|${params.get("end") ?? ""}`;
+      const hit = releaseCache.get(cacheKey);
+      if (hit && Date.now() - hit.at < RELEASE_TTL_MS) return Response.json(hit.body);
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -99,7 +107,9 @@ const routes = {
             const described = describeRelease(content);
             return { ...(typeof item === "object" && item !== null ? item : {}), en: described?.en ?? "", keys: described?.keys ?? [] };
           });
-          return Response.json({ ...(typeof body === "object" && body !== null ? body : {}), data: enriched });
+          const payload = { ...(typeof body === "object" && body !== null ? body : {}), data: enriched };
+          releaseCache.set(cacheKey, { at: Date.now(), body: payload });
+          return Response.json(payload);
         }
         return Response.json(body);
       } catch (error) {

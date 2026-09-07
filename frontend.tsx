@@ -785,6 +785,53 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
   );
 }
 
+// ── Add a series ──────────────────────────────────────────────────────────────
+//
+// The same search as the search page, inline on the chart, so a comparison
+// starts where the reader already is. Picking a result appends it to the URL.
+
+function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Route) => void }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [results, setResults] = useState<NbsCatalogEntry[]>([]);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  useEffect(() => {
+    if (!draft.trim()) { setResults([]); return; }
+    let cancelled = false;
+    setBusy(true);
+    const timer = window.setTimeout(() => {
+      json(`/api/search?q=${encodeURIComponent(draft.trim())}&limit=8`).then((body) => {
+        if (cancelled) return;
+        if (isSearchResponse(body)) setResults(body.results.filter((entry) => !props.keys.includes(entry.key)));
+      }).catch(() => { if (!cancelled) setResults([]); }).finally(() => { if (!cancelled) setBusy(false); });
+    }, 180);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [draft, props.keys.join(",")]);
+  if (props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
+  if (!open) return <button className="button" onClick={() => setOpen(true)} aria-expanded={false}>+ Add a series to compare</button>;
+  return (
+    <div className="add-series" role="search">
+      <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese — GDP, 工业增加值, steel output…" /></div>
+      <div className="add-series-results" role="listbox" aria-label="Matching series" aria-busy={busy}>
+        {draft.trim() && !busy && results.length === 0 && <p className="add-series-note">No series match “{draft.trim()}”. The catalog holds national monthly and quarterly NBS series.</p>}
+        {results.map((entry) => {
+          const zhFirst = props.lang === "zh" || !entry.nameEn || entry.datasetCode === 0;
+          return (
+            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "" }); }}>
+              <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
+              {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
+              <span className="meta">{entry.frequency} · {entry.datasetCode === 0 ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button className="button" onClick={() => { setOpen(false); setDraft(""); }}>Cancel</button>
+    </div>
+  );
+}
+
 // ── Series page ───────────────────────────────────────────────────────────────
 
 function SeriesPage(props: {
@@ -924,7 +971,10 @@ function SeriesPage(props: {
         </section>
       )}
 
-      {results.length > 1 && <div className="chip-row">{results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}</div>}
+      <div className="chip-row">
+        {results.length > 1 && results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}
+        <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
+      </div>
       {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div><b>Level series are shown as % change from a year ago</b> so their units match the rates on this chart. Choose “Show as” to change that.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}

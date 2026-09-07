@@ -233,6 +233,18 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 .chip .swatch { width: 14px; height: 3px; border-radius: 2px; }
 .chip button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--panel-2); color: var(--muted); font-size: 14px; }
 .chip button:hover { background: var(--line); }
+.add-series { width: 100%; display: grid; gap: var(--s-2); padding: var(--s-3); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow); }
+.add-series .global-search { background: var(--panel-2); border-color: var(--line); color: var(--ink); height: 40px; }
+.add-series .global-search input::placeholder { color: var(--faint); }
+.add-series-results { display: grid; max-height: 320px; overflow: auto; }
+.add-series-row { display: grid; gap: 2px; padding: var(--s-2) var(--s-3); border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; color: var(--ink); }
+.add-series-row:last-child { border-bottom: 0; }
+.add-series-row:hover { background: var(--panel-2); }
+.add-series-row .title { color: var(--accent-text); font-weight: 600; }
+.add-series-row .gloss { margin: 0; font-size: var(--fs-2); }
+.add-series-row .meta { color: var(--faint); font-size: var(--fs-1); }
+.add-series-note { margin: 0; align-self: center; color: var(--muted); font-size: var(--fs-2); }
+.add-series > .button { justify-self: end; }
 .notice { display: flex; gap: var(--s-3); align-items: flex-start; margin: var(--s-3) 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-left: 3px solid var(--amber); border-radius: var(--r-2); background: var(--amber-soft); color: var(--ink); font-size: var(--fs-3); }
 .notice b { display: block; margin-bottom: 2px; }
 .notice.info { border-left-color: var(--blue); background: var(--blue-soft); }
