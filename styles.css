@@ -25,14 +25,17 @@
   --focus: #2e6da4;
   --accent-text: #12395c;   /* navy in light, readable blue in dark */
 
-  --chart-1: #2e6da4;
-  --chart-2: #c0392b;
-  --chart-3: #1b8a6b;
-  --chart-4: #b5820c;
-  --chart-5: #7a5aa6;
-  --chart-6: #2a8fa6;
-  --chart-7: #8a6d3b;
-  --chart-8: #5e6b7a;
+  /* Categorical series colours: a validated set (adjacent-pair CVD ΔE ≥ 8,
+     normal-vision ΔE ≥ 15, chroma above the grey floor). Assigned in this
+     fixed order, never cycled; red is last so it stays rare on charts. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #4a3aa7;
+  --chart-5: #eda100;
+  --chart-6: #e87ba4;
+  --chart-7: #008300;
+  --chart-8: #e34948;
 
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, ui-monospace, monospace;
@@ -55,8 +58,11 @@
     --navy: #0d2b47; --blue: #6ea3d6; --red: #e0655a; --amber: #d9a441;
     --blue-soft: #1a2a3b; --amber-soft: #2a2313; --red-soft: #33201d;
     --on-navy: #ffffff; --on-navy-muted: #a9c0d6; --focus: #8fb9e2; --accent-text: #8fb9e2;
-    --chart-1: #6ea3d6; --chart-2: #e0655a; --chart-3: #3fb391; --chart-4: #d9a441;
-    --chart-5: #a68ad0; --chart-6: #56b3c8; --chart-7: #b39867; --chart-8: #8b98a5;
+    /* The one four-set of the reference dark palette that passes all pairs
+       on this surface: blue, magenta, green, yellow. Yellow is last because
+       it sits nearest the amber used for breaks and warnings. */
+    --chart-1: #3987e5; --chart-2: #d55181; --chart-3: #008300; --chart-4: #c98500;
+    --chart-5: #d95926; --chart-6: #199e70; --chart-7: #9085e9; --chart-8: #e66767;
     --shadow: none;
   }
 }
@@ -68,8 +74,8 @@
   --navy: #0d2b47; --blue: #6ea3d6; --red: #e0655a; --amber: #d9a441;
   --blue-soft: #1a2a3b; --amber-soft: #2a2313; --red-soft: #33201d;
   --on-navy: #ffffff; --on-navy-muted: #a9c0d6; --focus: #8fb9e2; --accent-text: #8fb9e2;
-  --chart-1: #6ea3d6; --chart-2: #e0655a; --chart-3: #3fb391; --chart-4: #d9a441;
-  --chart-5: #a68ad0; --chart-6: #56b3c8; --chart-7: #b39867; --chart-8: #8b98a5;
+  --chart-1: #3987e5; --chart-2: #d55181; --chart-3: #008300; --chart-4: #c98500;
+  --chart-5: #d95926; --chart-6: #199e70; --chart-7: #9085e9; --chart-8: #e66767;
   --shadow: none;
 }
 

@@ -14,7 +14,7 @@ interface NbsCatalogEntry {
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
 }
 interface SeriesPoint { date: string; value: number; }
-interface Series { label: string; points: SeriesPoint[]; }
+interface Series { label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
 interface Region { text: string; value: string; }
 interface SeriesResult {
   key: string; title: string; agency: string; sourceUrl: string; frequency: string; unit: string;
@@ -263,8 +263,9 @@ function applyBreaks(result: SeriesResult): { series: Series[]; notes: string[];
   for (const one of result.series) {
     const rule = BREAKS.find((item) => item.key === result.key && item.match.test(one.label));
     if (!rule) { series.push(one); continue; }
-    series.push({ label: rule.before, points: one.points.filter((point) => point.date < rule.from) });
-    series.push({ label: rule.after, points: one.points.filter((point) => point.date > rule.to) });
+    // Both halves are one statistic: same hue, and the earlier basis dashed.
+    series.push({ label: rule.before, points: one.points.filter((point) => point.date < rule.from), shareColorWith: rule.after, dashed: true });
+    series.push({ label: rule.after, points: one.points.filter((point) => point.date > rule.to), dashed: false });
     notes.push(rule.note);
     gaps.push({ from: rule.from, to: rule.to });
   }
@@ -281,17 +282,18 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
     notes.push(...shaped.notes.filter((note) => !notes.includes(note)));
     gaps.push(...shaped.gaps);
     for (const one of shaped.series) {
-      const id = `${result.key} ${one.label}`;
-      if (!colors.has(id)) {
+      const id = `${result.key} ${one.label}`;
+      const colorId = one.shareColorWith ? `${result.key} ${one.shareColorWith}` : id;
+      if (!colors.has(colorId)) {
         const used = new Set(colors.values());
         let slot = 0;
         while (used.has(slot)) slot += 1;
-        colors.set(id, slot);
+        colors.set(colorId, slot);
       }
-      const slot = colors.get(id) ?? 0;
+      const slot = colors.get(colorId) ?? 0;
       tracks.push({
         id, name: results.length > 1 ? `${result.title} · ${one.label}` : one.label, unit: result.unit, frequency: result.frequency,
-        color: chartColor(slot), dash: DASHES[slot % DASHES.length] ?? "",
+        color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
       });
     }
@@ -341,6 +343,13 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
     ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => Date.UTC(new Date(min).getUTCFullYear() + index, 0, 1)).filter((value) => value >= min && value <= max)
     : undefined;
   const hasZero = isRate(props.unit) && !props.logScale;
+  // Lunar New Year falls in January or February and shifts between them, so
+  // monthly comparisons across that window mislead. Shade it, faintly, on
+  // monthly charts short enough for the bands to read.
+  const lunar = props.tracks.some((track) => track.frequency === "Monthly") && spanYears <= 12
+    ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => new Date(min).getUTCFullYear() + index)
+      .map((year) => ({ year, x1: Date.UTC(year, 0, 1), x2: Date.UTC(year, 2, 1) })).filter((band) => band.x2 >= min && band.x1 <= max)
+    : [];
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
   const description = `${props.title}. ${shown.length} series, ${props.unit}. Use the Table tab for the values.`;
   return (
@@ -352,6 +361,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
           <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={["auto", "auto"]} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)", fontVariantNumeric: "tabular-nums" }} stroke="var(--line-strong)" />
           {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
           {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
+          {lunar.map((band) => <ReferenceArea key={`lny-${band.year}`} x1={Math.max(band.x1, min)} x2={Math.min(band.x2, max)} fill="var(--ink)" fillOpacity={0.035} stroke="none" />)}
           {props.gaps.map((gap) => (
             <ReferenceArea key={gap.from} x1={periodTime(gap.from)} x2={periodTime(gap.to)} fill="var(--amber)" fillOpacity={0.09} stroke="var(--amber)" strokeOpacity={0.5} strokeDasharray="4 4" label={{ value: "series suspended", position: "insideTop", fontSize: 10, fill: "var(--amber)" }} />
           ))}
@@ -912,7 +922,7 @@ function SeriesPage(props: {
         </section>
       )}
 
-      {results.length > 1 && <div className="chip-row">{results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}</div>}
+      {results.length > 1 && <div className="chip-row">{results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}</div>}
       {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div><b>Level series are shown as % change from a year ago</b> so their units match the rates on this chart. Choose “Show as” to change that.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
@@ -934,7 +944,7 @@ function SeriesPage(props: {
               <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}{primary.frequency === "Monthly" && (years === null ? false : years <= 12) ? " · January–February shaded: Lunar New Year shifts between the two months and distorts both" : ""}</p>}
             </>
           )}
           {tab === "table" && (
