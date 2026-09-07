@@ -12,6 +12,8 @@ interface CuratedEntry { key: string; title: string; group: string; agency: stri
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
+  nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
+  legacyDatabase?: string; legacyIndicatorCode?: string;
 }
 interface SeriesPoint { date: string; value: number; }
 interface Series { label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
@@ -662,7 +664,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
               <article className="result" key={entry.key}>
                 <a className="main" href={seriesHash([entry.key])}>
                   <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
-                  {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">auto-translated</span></span>}
+                  {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
                   {!curated && <span className="path"><Zh>{entry.categories.join(" › ")}</Zh></span>}
                   <span className="meta">{entry.frequency} · {curated ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
                 </a>
@@ -897,7 +899,7 @@ function SeriesPage(props: {
       </div>
       <div className="series-head">
         <div>
-          <h1>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">auto-translated</span></span>}</h1>
+          <h1>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</h1>
           {results.length > 1 && <p className="lede">Compared with {results.slice(1).map((result) => result.title).join(", ")}</p>}
         </div>
         <div className="actions">
@@ -961,6 +963,9 @@ function SeriesPage(props: {
               <div><dt>Frequency</dt><dd>{primary.frequency}</dd></div>
               <div><dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd></div>
               <div><dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd></div>
+              {meta?.nameEn && <div><dt>English label</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
+                ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
+                : "Auto-translated from the official Chinese title"}</dd></div>}
               <div className="meta-wide"><dt>Definition</dt><dd><p>{meta?.note ? <Zh>{meta.note}</Zh> : ABOUT[primary.key] ?? "No definition is published for this series."}</p></dd></div>
               <div className="meta-wide"><dt>Methodology notes</dt><dd><p>{meta?.annotation ? <Zh>{meta.annotation}</Zh> : built.notes[0] ?? "NBS publishes no methodology note for this series."}</p></dd></div>
             </dl>

@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
 import { db, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss } from "./gloss";
+import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const CATALOG_PATH = resolve(import.meta.dir, "catalog/nbs-catalog.json");
@@ -118,6 +119,12 @@ export interface NbsCatalogEntry {
   categories: string[];
   /** English gloss of the title (see gloss.ts); the Chinese stays authoritative. */
   nameEn?: string;
+  /** Distinguishes an audited NBS label from our generated fallback. */
+  nameEnSource?: EnglishLabelSource;
+  nameEnSourceUrl?: string;
+  nameEnCapturedAt?: string;
+  legacyDatabase?: string;
+  legacyIndicatorCode?: string;
   /** Toneless pinyin of the short name, for search. */
   pinyin?: string;
 }
@@ -214,9 +221,13 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
       const raw: unknown = await Bun.file(CATALOG_PATH).json();
       const entriesRaw = objectValue(raw, "entries");
       if (!Array.isArray(entriesRaw)) throw new Error("NBS catalog is missing; run the catalog sync script");
-      await warmGloss();
+      await Promise.all([warmGloss(), warmOfficialEnglish()]);
       const entries = entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null)
-        .map((entry) => { const spaced = toPinyin(entry.shortName); return { ...entry, nameEn: glossTitle(entry.name), pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` }; });
+        .map((entry) => {
+          const spaced = toPinyin(entry.shortName);
+          const english = resolveEnglishLabel(entry.key, entry.name, glossTitle(entry.name));
+          return { ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
+        });
       const snapshot = {
         generatedAt: stringValue(raw, "generatedAt"),
         source: stringValue(raw, "source"),
