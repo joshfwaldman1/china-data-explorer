@@ -12,6 +12,14 @@
 import index from "./index.html";
 import { catalogList, getSeries } from "./data";
 import { readSeries, readRevisions, dbStatus } from "./db";
+import {
+  fetchNbsCatalogSeries,
+  getNbsCatalogEntry,
+  getNbsDimensions,
+  nbsCatalogStats,
+  searchNbsCatalog,
+  type NbsTransform,
+} from "./nbs-catalog";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -21,14 +29,69 @@ const SERVE_LIVE_FALLBACK = process.env.CHINA_LIVE_FALLBACK !== "0";
 
 const port = Number(process.env.PORT ?? 5173);
 
+interface RouteRequest extends Request {
+  params: Record<string, string>;
+}
+
+function isTransform(value: string | null): value is NbsTransform {
+  return value === "raw" || value === "change" || value === "percent_change" ||
+    value === "yoy" || value === "index_growth";
+}
+
+function nbsDate(date: Date, endOfDay = false): string {
+  const day = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+  return `${day} ${endOfDay ? "23:59:59" : "00:00:00"}`;
+}
+
 const routes = {
     "/": index,
     "/api/catalog": () => Response.json(catalogList()),
+    "/api/catalog/stats": async () => Response.json(await nbsCatalogStats()),
+    "/api/releases": async (req: RouteRequest) => {
+      const params = new URL(req.url).searchParams;
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const startDate = params.get("start") ?? nbsDate(monthStart);
+      const endDate = params.get("end") ?? nbsDate(monthEnd, true);
+      const query = new URLSearchParams({ startDate, endDate });
+      const response = await fetch(
+        `https://data.stats.gov.cn/dg/website/publicrelease/web/external/queryAgendaByDate?${query}`,
+        { signal: AbortSignal.timeout(30_000) },
+      );
+      if (!response.ok) return Response.json({ error: `NBS releases -> HTTP ${response.status}` }, { status: 502 });
+      return Response.json(await response.json());
+    },
+    "/api/search": async (req: RouteRequest) => {
+      const params = new URL(req.url).searchParams;
+      const datasetText = params.get("dataset");
+      const datasetCode = datasetText === null ? undefined : Number(datasetText);
+      const limitText = params.get("limit");
+      const offsetText = params.get("offset");
+      return Response.json(await searchNbsCatalog({
+        query: params.get("q") ?? "",
+        frequency: params.get("frequency") ?? undefined,
+        geography: params.get("geography") ?? undefined,
+        datasetCode: datasetCode !== undefined && Number.isFinite(datasetCode) ? datasetCode : undefined,
+        category: params.get("category") ?? undefined,
+        limit: limitText === null ? undefined : Number(limitText),
+        offset: offsetText === null ? undefined : Number(offsetText),
+      }));
+    },
+    "/api/dimensions/:key": async (req: RouteRequest) => {
+      const entry = await getNbsCatalogEntry(req.params.key);
+      if (!entry) return Response.json({ error: "Unknown NBS series" }, { status: 404 });
+      return Response.json({
+        key: entry.key,
+        geography: entry.geography,
+        regions: await getNbsDimensions(entry),
+      });
+    },
     // Coverage and recent ingest runs — a stale chart should be diagnosable.
     "/api/status": () => Response.json(dbStatus()),
     // The revision trail for one period: every value we have ever stored for
     // it, oldest first.
-    "/api/revisions/:key": (req) => {
+    "/api/revisions/:key": (req: RouteRequest) => {
       const url = new URL(req.url);
       const label = url.searchParams.get("label") ?? "";
       const period = url.searchParams.get("period") ?? "";
@@ -37,10 +100,22 @@ const routes = {
       }
       return Response.json(readRevisions(req.params.key, label, period));
     },
-    "/api/series/:key": async (req) => {
+    "/api/series/:key": async (req: RouteRequest) => {
       const key = req.params.key;
-      const limit = Number(new URL(req.url).searchParams.get("limit") ?? "120");
+      const params = new URL(req.url).searchParams;
+      const limit = Number(params.get("limit") ?? "120");
       try {
+        if (key.startsWith("nbs_")) {
+          const entry = await getNbsCatalogEntry(key);
+          if (!entry) return Response.json({ error: "Unknown NBS series" }, { status: 404 });
+          const transform = params.get("transform");
+          return Response.json(await fetchNbsCatalogSeries({
+            entry,
+            region: params.get("region") ?? undefined,
+            limit: Number.isFinite(limit) ? limit : 120,
+            transform: isTransform(transform) ? transform : undefined,
+          }));
+        }
         const stored = readSeries(key, Number.isFinite(limit) ? limit : 120);
         if (stored && stored.series.some((s) => s.points.length > 0)) {
           return Response.json({ ...stored, source: "store" });
