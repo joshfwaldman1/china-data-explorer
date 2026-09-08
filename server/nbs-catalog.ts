@@ -116,6 +116,8 @@ const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "seri
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
 
+export interface NbsFamily { head: string; members: string[]; span: string; }
+
 export interface NbsCatalogEntry {
   key: string;
   id: string;
@@ -138,6 +140,13 @@ export interface NbsCatalogEntry {
   nameEnSource?: EnglishLabelSource;
   nameEnSourceUrl?: string;
   nameEnCapturedAt?: string;
+  /**
+   * NBS publishes some tables in year-range slices ("(-2015)", "(2016-2020)",
+   * "(2026-)") that are the same series. Members of such a family carry it
+   * here; search shows only the head (the newest slice) and a series request
+   * for any member returns the slices stitched together.
+   */
+  family?: NbsFamily;
   /** English for the prose fields, from catalog/notes-en.json (translate-notes.ts). */
   noteEn?: string;
   annotationEn?: string;
@@ -238,7 +247,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 2;
+const GLOSS_FORMAT = 4; // 4: year-range families attached (unit-agnostic)
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -261,12 +270,65 @@ function reviveEntry(raw: unknown): NbsCatalogEntry | null {
     nameEn: stringValue(raw, "nameEn") || undefined,
     nameEnSource: isLabelSource(source) ? source : undefined,
     nameEnSourceUrl: stringValue(raw, "nameEnSourceUrl") || undefined,
+    family: reviveFamily(objectValue(raw, "family")),
     noteEn: stringValue(raw, "noteEn") || undefined,
     annotationEn: stringValue(raw, "annotationEn") || undefined,
     datasetEn: stringValue(raw, "datasetEn") || undefined,
     categoriesEn: Array.isArray(objectValue(raw, "categoriesEn")) ? listOfStrings(objectValue(raw, "categoriesEn")) : undefined,
     pinyin: stringValue(raw, "pinyin") || undefined,
   };
+}
+
+function reviveFamily(raw: unknown): NbsFamily | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const head = stringValue(raw, "head"), span = stringValue(raw, "span");
+  const members = listOfStrings(objectValue(raw, "members"));
+  return head && members.length > 1 ? { head, members, span } : undefined;
+}
+
+/** The year-range suffix NBS puts on a sliced table's category: (2016-2020), (-2015), (2026-), (2021-至今). */
+const SLICE_SUFFIX = /\s*[（(]\s*(?:(\d{4})\s*[-–]\s*(\d{4})|[-–]\s*(\d{4})|(\d{4})\s*[-–]\s*(?:至今)?)\s*[)）]\s*$/;
+
+function sliceRange(category: string): { base: string; start: number; end: number } | null {
+  const match = category.match(SLICE_SUFFIX);
+  if (!match) return null;
+  const [, a, b, onlyEnd, onlyStart] = match;
+  const start = a ? Number(a) : onlyStart ? Number(onlyStart) : Number.NEGATIVE_INFINITY;
+  const end = b ? Number(b) : onlyEnd ? Number(onlyEnd) : Number.POSITIVE_INFINITY;
+  return { base: category.replace(SLICE_SUFFIX, "").trim(), start, end };
+}
+
+/** Group year-range slices of the same table into families; returns the entries with `family` set on members. */
+export function attachFamilies(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
+  const groups = new Map<string, { entry: NbsCatalogEntry; start: number; end: number }[]>();
+  for (const entry of entries) {
+    const last = entry.categories[entry.categories.length - 1];
+    const range = last ? sliceRange(last) : null;
+    if (!range) continue;
+    // The unit is left out: an older slice sometimes carries "无" where the newer says "%".
+    const key = JSON.stringify([entry.name, entry.frequency, entry.geography, entry.categories.slice(0, -1), range.base]);
+    groups.set(key, [...(groups.get(key) ?? []), { entry, start: range.start, end: range.end }]);
+  }
+  const families = new Map<string, NbsFamily>();
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    members.sort((a, b) => a.start - b.start || a.end - b.end);
+    const first = members[0], last = members[members.length - 1];
+    if (!first || !last) continue;
+    // "2016 to present", or "all years to present" when the oldest slice is open at the start.
+    const from = Number.isFinite(first.start) ? String(first.start) : "all years";
+    const to = Number.isFinite(last.end) ? String(last.end) : "present";
+    const family: NbsFamily = { head: last.entry.key, members: members.map((member) => member.entry.key), span: `${from} to ${to}` };
+    for (const member of members) families.set(member.entry.key, family);
+  }
+  return entries.map((entry) => { const family = families.get(entry.key); return family ? { ...entry, family } : entry; });
+}
+
+/** Join year-range slices into one history; a later slice wins where two overlap. */
+export function stitchPoints(slices: SeriesPoint[][]): SeriesPoint[] {
+  const byDate = new Map<string, SeriesPoint>();
+  for (const slice of slices) for (const point of slice) byDate.set(point.date, point);
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function listOfStrings(value: unknown): string[] {
@@ -346,10 +408,11 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
           const english = resolveEnglishLabel(entry.key, entry.name, glossTitle(entry.name));
           return withProseEnglish({ ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` }, notesTable);
         });
+      const stitched = attachFamilies(entries);
       const snapshot = {
         generatedAt: stringValue(raw, "generatedAt"),
         source: stringValue(raw, "source"),
-        entries,
+        entries: stitched,
       };
       writeStoredCatalog(snapshot, version);
       snapshotCache = { version, snapshot };
@@ -548,7 +611,8 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
     (!filters.frequency || entry.frequency === filters.frequency) &&
     (!filters.geography || entry.geography === filters.geography) &&
     (filters.datasetCode === undefined || entry.datasetCode === filters.datasetCode) &&
-    (!filters.category || entry.categories.includes(filters.category));
+    (!filters.category || entry.categories.includes(filters.category)) &&
+    (!entry.family || entry.family.head === entry.key);
 
   const rank = (extraTerms: string[]) => {
     const fullText = query ? fullTextCandidates([...queryVariants(query), ...extraTerms]) : new Map<string, number>();
@@ -854,20 +918,19 @@ export async function getNbsCatalogSeries(options: {
   const transform = options.transform ?? defaultNbsTransform(options.entry);
   const region = await resolveNbsRegion(options.entry, options.region);
 
-  let points = storedPoints(options.entry, region);
-  let source: NbsSeriesResult["source"] = "store";
-
-  if (points.length === 0 || !isFresh(options.entry, region)) {
-    try {
-      const refreshed = await refreshNbsCatalogSeries(options.entry, region.value);
-      points = refreshed.points;
-      source = "live";
-    } catch (error) {
-      // A stale copy beats an error page; a missing copy does not.
-      if (points.length === 0) throw error;
-      source = "stale";
-    }
+  // A sliced table is served whole: every member of the family, oldest first,
+  // stitched so the newest slice wins where two overlap.
+  const memberEntries = options.entry.family
+    ? (await Promise.all(options.entry.family.members.map((key) => getNbsCatalogEntry(key)))).filter((member): member is NbsCatalogEntry => member !== null)
+    : [options.entry];
+  const parts: { points: SeriesPoint[]; source: NbsSeriesResult["source"] }[] = [];
+  for (const member of memberEntries) {
+    try { parts.push(await pointsFor(member, region)); }
+    catch (error) { if (memberEntries.length === 1) throw error; }
   }
+  if (parts.every((part) => part.points.length === 0)) throw new Error("NBS returned no observations for this series");
+  const points = stitchPoints(parts.map((part) => part.points));
+  const source: NbsSeriesResult["source"] = parts.some((part) => part.source === "stale") ? "stale" : parts.some((part) => part.source === "live") ? "live" : "store";
 
   // Transform over the full history, then slice, so lagged transforms keep
   // their first year instead of losing it to the limit.
@@ -880,6 +943,19 @@ export async function getNbsCatalogSeries(options: {
     region,
     transform,
     source,
-    updatedAt: seriesFreshness(options.entry.key, region.value) ?? new Date().toISOString(),
+    updatedAt: memberEntries.map((member) => seriesFreshness(member.key, region.value)).filter((value): value is string => typeof value === "string").sort().at(-1) ?? new Date().toISOString(),
   };
+}
+
+/** Stored points if fresh, otherwise a refresh; a stale copy beats an error page, a missing copy does not. */
+async function pointsFor(entry: NbsCatalogEntry, region: NbsRegionOption): Promise<{ points: SeriesPoint[]; source: NbsSeriesResult["source"] }> {
+  const points = storedPoints(entry, region);
+  if (points.length > 0 && isFresh(entry, region)) return { points, source: "store" };
+  try {
+    const refreshed = await refreshNbsCatalogSeries(entry, region.value);
+    return { points: refreshed.points, source: "live" };
+  } catch (error) {
+    if (points.length === 0) throw error;
+    return { points, source: "stale" };
+  }
 }

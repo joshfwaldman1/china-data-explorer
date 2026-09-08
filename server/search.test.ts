@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -70,4 +70,21 @@ test("a plain output series outranks a ratio of it on a bare noun", async () => 
   const ratio = names.findIndex((name) => /ratio/i.test(name));
   expect(output).toBeGreaterThanOrEqual(0);
   if (ratio >= 0) expect(output).toBeLessThan(ratio);
+});
+
+test("year-range slices of one NBS table form a family and search shows only the newest", async () => {
+  const result = await searchNbsCatalog({ query: "居民消费价格指数 (上月=100)", limit: 20 });
+  const same = result.results.filter((entry) => entry.name === "居民消费价格指数 (上月=100)");
+  expect(same.length).toBe(1);
+  const head = same[0];
+  expect(head?.family?.members.length).toBeGreaterThan(1);
+  expect(head?.family?.head).toBe(head?.key ?? "");
+});
+
+test("stitchPoints joins slices oldest to newest, newer winning on overlap", () => {
+  const joined = stitchPoints([
+    [{ date: "2015-11", value: 1 }, { date: "2015-12", value: 2 }],
+    [{ date: "2015-12", value: 3 }, { date: "2016-01", value: 4 }],
+  ]);
+  expect(joined.map((point) => `${point.date}:${point.value}`)).toEqual(["2015-11:1", "2015-12:3", "2016-01:4"]);
 });

@@ -17,6 +17,7 @@ interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
   noteEn?: string; annotationEn?: string; datasetEn?: string; categoriesEn?: string[];
+  family?: { head: string; members: string[]; span: string };
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
 }
@@ -201,9 +202,12 @@ function unitLabel(unit: string): string {
 }
 function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 /** A category path in English where the translation table has it, otherwise the Chinese, never a middle dot. */
-function categoryPath(entry: { categories: string[]; categoriesEn?: string[] }): React.ReactNode {
-  const english = entry.categories.map((category, index) => entry.categoriesEn?.[index] || categoryEn(category) || category);
-  const chinese = entry.categories.join(" › ");
+/** The year-range suffix on a sliced NBS table's category, in either language: (2016-2020), (-2015), (to 2015), (2026-). */
+const SLICE_SUFFIX = /\s*[（(]\s*(?:to\s+\d{4}|\d{4}\s*[-–]\s*(?:\d{4}|present|至今)?|[-–]\s*\d{4})\s*[)）]\s*$/i;
+function categoryPath(entry: { categories: string[]; categoriesEn?: string[]; family?: { span: string } }): React.ReactNode {
+  const strip = (text: string) => (entry.family ? text.replace(SLICE_SUFFIX, "") : text);
+  const english = entry.categories.map((category, index) => strip(entry.categoriesEn?.[index] || categoryEn(category) || category));
+  const chinese = entry.categories.map(strip).join(" › ");
   const englishPath = english.join(" › ");
   if (englishPath === chinese) return <Zh>{chinese}</Zh>;
   return <><Zh>{englishPath}</Zh><Zh className="gloss block">{chinese}</Zh></>;
@@ -945,7 +949,11 @@ function SeriesPage(props: {
   const curated = props.curated.find((entry) => entry.key === primary.key);
   const definition = meta?.noteEn || meta?.note || ABOUT[primary.key] || "";
   const definitionZh = meta?.noteEn && meta.note ? meta.note : "";
-  const readingNotes = [...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)), ...(curated?.endedNote ? [curated.endedNote] : [])];
+  const readingNotes = [
+    ...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)),
+    ...(curated?.endedNote ? [curated.endedNote] : []),
+    ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces; they are joined here into one series covering ${meta.family.span}. Where two pieces overlap, the newer one is used.`] : []),
+  ];
   const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
   const today = new Date().toISOString().slice(0, 10);
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
