@@ -147,8 +147,19 @@ export function glossTitle(name: string): string {
   const baseEn = known[parts.base] ?? segmentGloss(parts.base);
   if (!baseEn) return "";
   const measureEn = MEASURES.find(([zh]) => zh === parts.measure)?.[1] ?? "";
-  const head = measureEn ? `${baseEn}, ${measureEn}` : baseEn;
+  const base = baseOf(parts.unit);
+  const head = [baseEn, measureEn, base].filter(Boolean).join(", ");
   return head.charAt(0).toUpperCase() + head.slice(1);
+}
+
+/** An index title's base period, "(上月=100)", is part of what the series is, so it stays in the English title. */
+function baseOf(unit: string): string {
+  if (!/=\s*100/.test(unit)) return "";
+  if (/上年同月/.test(unit)) return "same month a year earlier = 100";
+  if (/上年同期/.test(unit)) return "same period a year earlier = 100";
+  if (/上月/.test(unit)) return "previous month = 100";
+  if (/上年/.test(unit)) return "previous year = 100";
+  return "base period = 100";
 }
 
 /** Toneless pinyin with spaces, for search: 失业率 → "shi ye lv". */

@@ -175,7 +175,10 @@ const routes = {
           if (frequency && entry.frequency !== frequency) return false;
           if (category && entry.group !== category) return false;
           const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key} ${(CURATED_SYNONYMS[entry.key] ?? []).join(" ")}`.toLocaleLowerCase();
-          return queryTerms.every((term) => haystack.includes(term));
+          // Latin terms match at a word start ("unemp" finds unemployment, "ppi" no longer finds shopping); Chinese anywhere.
+          return queryTerms.every((term) => /[\u3400-\u9fff]/.test(term)
+            ? haystack.includes(term)
+            : new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack));
         }).map((entry) => ({
           key: entry.key,
           id: entry.key,

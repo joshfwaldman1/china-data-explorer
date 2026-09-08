@@ -17,3 +17,8 @@ test("pinyin and base concepts", () => {
   expect(toPinyin("失业率")).toBe("shi ye lv");
   expect(baseConcepts(["粗钢产量累计值 (万吨)", "粗钢产量累计增长 (%)", "钢材产量当期值 (万吨)"])).toEqual(["粗钢产量", "钢材产量"]);
 });
+
+test("an index title keeps its base period in English", () => {
+  expect(glossTitle("居民消费价格指数 (上月=100)")).toMatch(/^Consumer prices? index, previous month = 100$/);
+  expect(glossTitle("食品类工业生产者出厂价格指数 (上年同月=100)")).toMatch(/same month a year earlier = 100$/);
+});
