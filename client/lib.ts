@@ -54,6 +54,17 @@ export function isTargetFrequency(value: string): value is TargetFrequency { ret
 
 export function isAggregation(value: string): value is Aggregation { return value === "avg" || value === "sum" || value === "last"; }
 
+/**
+ * One key per calendar period for a table or CSV, so a native quarterly point
+ * ("2026-06") and a monthly series aggregated to quarters ("2026-Q2") land on
+ * the same row. Other frequencies keep the period as published.
+ */
+export function canonicalPeriod(period: string, frequency: string): string {
+  if (frequency !== "Quarterly" || /^\d{4}-Q[1-4]$/.test(period)) return period;
+  const t = periodTime(period);
+  return Number.isFinite(t) ? periodOf(t, "Quarterly") : period;
+}
+
 export function periodOf(t: number, target: TargetFrequency): string {
   const date = new Date(t);
   return target === "Annual" ? String(date.getUTCFullYear()) : `${date.getUTCFullYear()}-Q${Math.floor(date.getUTCMonth() / 3) + 1}`;

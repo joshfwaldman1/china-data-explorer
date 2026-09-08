@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -400,10 +400,12 @@ function csvOf(results: SeriesResult[], tracks: Track[], notes: string[]): strin
     ...notes.map((note) => `# Note: ${note}`),
     `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
   ];
-  const periods = [...new Set(tracks.flatMap((track) => track.points.map((point) => point.p)))].sort();
+  const frequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
+  const keyed = tracks.map((track) => new Map(track.points.map((point) => [canonicalPeriod(point.p, frequency), point.v])));
+  const periods = [...new Set(keyed.flatMap((points) => [...points.keys()]))].sort((a, b) => periodTime(a) - periodTime(b));
   const lines = [["period", ...tracks.map((track) => track.name)].map(quote).join(",")];
   for (const period of periods) {
-    lines.push([period, ...tracks.map((track) => { const found = track.points.find((point) => point.p === period); return found ? String(found.v) : ""; })].map(quote).join(","));
+    lines.push([period, ...keyed.map((points) => { const value = points.get(period); return value === undefined ? "" : String(value); })].map(quote).join(","));
   }
   return [...head, ...lines].join("\n");
 }
@@ -920,6 +922,7 @@ function SeriesPage(props: {
   const aggregation: Aggregation = isAggregation(props.route.agg) ? props.route.agg : "avg";
   const nativeTracks = targetFrequency ? built.tracks.map((track) => convertTrack(track, targetFrequency, aggregation)) : built.tracks;
   const converted = targetFrequency ? built.tracks.filter((track) => (FREQUENCY_RANK[track.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)) : [];
+  const convertedTitles = [...new Set(results.filter((result) => targetFrequency && (FREQUENCY_RANK[result.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)).map((result) => displayTitle(result, results)))];
   // Mixed level units are rebased to a common index; a percentage cannot be
   // rebased meaningfully, so a mix that includes a rate shares one raw axis.
   const rebased = mixed && !nativeTracks.some((track) => isRate(track.unit));
@@ -950,12 +953,20 @@ function SeriesPage(props: {
   const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : "the NBS data portal";
   const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
   const citation = `${primary.agency}, "${primary.title}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key])}`;
+  const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
   const tableRows = (() => {
-    const periods = [...new Set(tracks.flatMap((track) => track.points.map((point) => point.p)))].sort().reverse();
-    return periods.map((period) => ({ period, cells: tracks.map((track) => track.points.find((point) => point.p === period)?.v ?? null) }));
+    const rows = new Map<string, { period: string; t: number; cells: (number | null)[] }>();
+    tracks.forEach((track, index) => {
+      for (const point of track.points) {
+        const key = canonicalPeriod(point.p, tableFrequency);
+        const row = rows.get(key) ?? { period: key, t: periodTime(key), cells: tracks.map(() => null) };
+        row.cells[index] = point.v;
+        rows.set(key, row);
+      }
+    });
+    return [...rows.values()].sort((a, b) => b.t - a.t);
   })();
   const shownRows = tableRows.slice(0, 500);
-  const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
   const delta = deltaText(latest, previous, primary.unit, "long", primary.frequency);
   const downloadItems = [
     {
@@ -1036,7 +1047,7 @@ function SeriesPage(props: {
       <div className="chip-row">
         {results.length > 1 && results.map((result) => { const ident = result.spec ?? result.key; const track = built.tracks.find((item) => item.id.startsWith(`${ident} `)); const title = displayTitle(result, results); return <span className="chip" key={ident}><i className="swatch" style={{ background: track?.color }} />{title}<button onClick={() => set({ keys: props.route.keys.filter((spec) => spec !== ident) })} aria-label={`Remove ${title} from the chart`}>×</button></span>; })}
       </div>
-      {autoFrequency && converted.length > 0 && <div className="notice info"><div>{listWords(converted.map((track) => track.name))} {converted.length === 1 ? "is" : "are"} shown as {autoFrequency.toLowerCase()} {aggregationLabel} so the frequencies on this chart match. Change this under Options.</div></div>}
+      {autoFrequency && converted.length > 0 && <div className="notice info"><div>{listWords(convertedTitles)} {convertedTitles.length === 1 ? "is" : "are"} shown as {autoFrequency.toLowerCase()} {aggregationLabel} so the frequencies on this chart match. Change this under Options.</div></div>}
       {rebased && <div className="notice info"><div>These series have different units ({units.join("; ")}), so each is shown as an index with the first period = 100. Choose a common transform under Options.</div></div>}
       {mixed && !rebased && <div className="notice"><div>These series have different units ({units.join("; ")}) and share one axis, so compare their shapes, not their levels. Choose a common transform under Options.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div>Level series are shown as % change from a year ago so their units match the rates on this chart. Change this under Options.</div></div>}

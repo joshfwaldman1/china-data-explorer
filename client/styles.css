@@ -292,7 +292,7 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 table { width: 100%; border-collapse: collapse; font-size: var(--fs-2); }
 th, td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); text-align: right; }
 th { position: sticky; top: 0; background: var(--panel-2); color: var(--muted); font-size: var(--fs-1); font-weight: 600; }
-th:first-child, td:first-child { text-align: left; font-family: var(--mono); }
+th:first-child, td:first-child { text-align: left; white-space: nowrap; }
 .table-foot { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); color: var(--muted); font-size: var(--fs-2); border-top: 1px solid var(--line); }
 .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 var(--s-5); padding: var(--s-2) var(--s-4) var(--s-4); }
 .meta-grid > div { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }

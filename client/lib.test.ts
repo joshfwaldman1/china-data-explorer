@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { convertTrack, coarsestFrequency, fmt, fmtTick, periodPretty, periodTime, rebase, type Track } from "./lib.ts";
+import { canonicalPeriod, convertTrack, coarsestFrequency, fmt, fmtTick, periodPretty, periodTime, rebase, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -42,4 +42,10 @@ test("rebasing indexes each series to 100 at the first shown period", () => {
   const [out] = rebase([monthly([50, 75, 100])], Date.UTC(2025, 0, 1));
   expect(out?.points.map((p) => p.v)).toEqual([100, 150, 200]);
   expect(out?.unit).toContain("= 100");
+});
+
+test("canonicalPeriod puts a native quarterly month and an aggregated quarter on one key", () => {
+  expect(canonicalPeriod("2026-06", "Quarterly")).toBe("2026-Q2");
+  expect(canonicalPeriod("2026-Q2", "Quarterly")).toBe("2026-Q2");
+  expect(canonicalPeriod("2026-06", "Monthly")).toBe("2026-06");
 });
