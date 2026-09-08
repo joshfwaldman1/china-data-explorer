@@ -298,7 +298,7 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
       }
       const slot = colors.get(colorId) ?? 0;
       tracks.push({
-        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length > 1 && labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
+        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length === 1 ? displayTitle(result, results) : labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
       });
@@ -905,14 +905,17 @@ function SeriesPage(props: {
   const aggregation: Aggregation = isAggregation(props.route.agg) ? props.route.agg : "avg";
   const nativeTracks = targetFrequency ? built.tracks.map((track) => convertTrack(track, targetFrequency, aggregation)) : built.tracks;
   const converted = targetFrequency ? built.tracks.filter((track) => (FREQUENCY_RANK[track.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)) : [];
-  const tracks = mixed ? rebase(nativeTracks, rangeStart) : nativeTracks;
-  const unit = mixed ? "Index, first shown period = 100" : (primary?.unit ?? "");
+  // Mixed level units are rebased to a common index; a percentage cannot be
+  // rebased meaningfully, so a mix that includes a rate shares one raw axis.
+  const rebased = mixed && !nativeTracks.some((track) => isRate(track.unit));
+  const tracks = rebased ? rebase(nativeTracks, rangeStart) : nativeTracks;
+  const unit = rebased ? "Index, first shown period = 100" : mixed ? units.join("; ") : (primary?.unit ?? "");
   const aggregationLabel = aggregation === "sum" ? "sums" : aggregation === "last" ? "end-of-period values" : "averages";
   const canLog = tracks.every((track) => track.points.every((point) => point.v > 0));
   const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
 
   if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time — this takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
-  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
+  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/Unknown/.test(error) ? "There is no series with this ID. Check the link, or search for the series by name." : /AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
 
   const firstSeries = built.tracks[0];
   const headline = primary.series[0];
@@ -1018,9 +1021,10 @@ function SeriesPage(props: {
       <div className="chip-row">
         {results.length > 1 && results.map((result) => { const ident = result.spec ?? result.key; const track = built.tracks.find((item) => item.id.startsWith(`${ident} `)); const title = displayTitle(result, results); return <span className="chip" key={ident}><i className="swatch" style={{ background: track?.color }} />{title}<button onClick={() => set({ keys: props.route.keys.filter((spec) => spec !== ident) })} aria-label={`Remove ${title} from the chart`}>×</button></span>; })}
       </div>
-      {autoFrequency && converted.length > 0 && <div className="notice info"><div><b>{converted.length === 1 ? "One series is" : `${converted.length} series are`} shown as {autoFrequency.toLowerCase()} {aggregationLabel}</b> so the frequencies on this chart match. Choose “Frequency” to change that.</div></div>}
-      {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
-      {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div><b>Level series are shown as % change from a year ago</b> so their units match the rates on this chart. Choose “Show as” to change that.</div></div>}
+      {autoFrequency && converted.length > 0 && <div className="notice info"><div>{listWords(converted.map((track) => track.name))} {converted.length === 1 ? "is" : "are"} shown as {autoFrequency.toLowerCase()} {aggregationLabel} so the frequencies on this chart match. Change this under Options.</div></div>}
+      {rebased && <div className="notice info"><div>These series have different units ({units.join("; ")}), so each is shown as an index with the first period = 100. Choose a common transform under Options.</div></div>}
+      {mixed && !rebased && <div className="notice"><div>These series have different units ({units.join("; ")}) and share one axis, so compare their shapes, not their levels. Choose a common transform under Options.</div></div>}
+      {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div>Level series are shown as % change from a year ago so their units match the rates on this chart. Change this under Options.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
 
       <section className="card data-card">
