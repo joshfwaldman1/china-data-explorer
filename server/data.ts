@@ -656,12 +656,10 @@ async function fetchEastmoneyRegion(key: string, cfg: EastmoneyIndicator, region
 async function fetchFred(key: string, cfg: FredIndicator, limit: number): Promise<SeriesResult> {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) throw new Error("FRED_API_KEY is not configured on this deployment; this series serves from the store only.");
-  const monthsPerPeriod = cfg.frequency === "Monthly" ? 1 : cfg.frequency === "Quarterly" ? 3 : 12;
-  const start = new Date();
-  start.setUTCMonth(start.getUTCMonth() - limit * monthsPerPeriod);
+  // Always the full history: a FRED series is at most a few hundred points, the
+  // store keeps everything, and a window shorter than the source's lag (the
+  // BIS publishes a quarter six months late) would come back empty.
   const params = new URLSearchParams({ series_id: cfg.seriesId, api_key: apiKey, file_type: "json" });
-  // Annual series are short and sometimes sparse (a Gini survey every few years): always take the full history.
-  if (cfg.frequency !== "Annual") params.set("observation_start", start.toISOString().slice(0, 10));
   if (cfg.aggregate) {
     params.set("frequency", cfg.frequency === "Monthly" ? "m" : cfg.frequency === "Quarterly" ? "q" : "a");
     params.set("aggregation_method", cfg.aggregate);
@@ -684,7 +682,7 @@ async function fetchFred(key: string, cfg: FredIndicator, limit: number): Promis
   return {
     key, title: cfg.title, agency: cfg.agency,
     sourceUrl: `https://fred.stlouisfed.org/series/${cfg.seriesId}`,
-    frequency: cfg.frequency, unit: cfg.unit, series: [{ label: cfg.label, points }],
+    frequency: cfg.frequency, unit: cfg.unit, series: [{ label: cfg.label, points: points.slice(-Math.max(limit, 2)) }],
   };
 }
 
