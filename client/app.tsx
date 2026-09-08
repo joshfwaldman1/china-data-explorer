@@ -1168,20 +1168,19 @@ function RegionsPage(props: { toast: (text: string) => void }) {
       <div className="series-head">
         <div>
           <h1>Real GDP Growth by Province</h1>
-          <p className="lede">Real GDP, year to date, % change from the same period a year earlier. Source: provincial statistical bureaus, via NBS.</p>
+          <p className="lede">Year-to-date real GDP, % change from the same period a year earlier: Q2 is first-half growth, Q4 is full-year growth. Source: provincial statistical bureaus, via NBS.</p>
         </div>
         <div className="actions">
           <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).slice(0, 24).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
         </div>
       </div>
-      <div className="notice info"><div><b>Year-to-date growth, not quarterly growth.</b>NBS publishes provincial GDP growth as 本期累计 (cumulative for the year). Q2 is first-half growth; Q4 is full-year growth. Provincial figures have historically summed to more than the national total.</div></div>
 
       {status === "loading" && <div className="state" role="status"><span className="loader" aria-hidden="true" />Loading provinces…</div>}
       {status === "error" && <div className="state" role="alert"><b>Provincial data unavailable</b><p>The store has no provincial rows yet. Run the ingest and try again.</p></div>}
       {status === "ok" && data && (
         <div className="regional-grid">
           <section className="card" aria-label="Map of provinces">
-            <div className="card-head"><h2>Real GDP Growth by Province, {shownPeriod ? periodPretty(shownPeriod) : ""}</h2><span>% change from a year earlier, year to date. Tile map, approximate geography.</span></div>
+            <div className="card-head"><h2>Tile map</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, approximate geography</span></div>
             <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
               {rows.map((item) => {
                 const province = item.province;
@@ -1195,7 +1194,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
               })}
             </div>
             <div className="ramp" aria-hidden="true">
-              <span>{data.unit.split(",")[0]}</span>
+              <span>% change</span>
               <div>
                 <div className="steps">{RAMP.map((color) => <i key={color} style={{ background: color }} />)}</div>
                 <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge}</span>)}</div>
@@ -1224,7 +1223,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
               </section>
             )}
             <section className="card">
-              <div className="card-head"><h2>Provinces Ranked by Real GDP Growth</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, % change, year to date</span></div>
+              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, highest to lowest</span></div>
               <div className="ranked">
                 {ranked.map((item) => {
                   const province = item.province;
@@ -1243,7 +1242,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
             <section className="card" style={{ padding: 16 }}>
               <h2>Notes on Provincial Data</h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
-                <li>Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total; treat cross-province ranking as indicative.</li>
+                <li>NBS publishes provincial GDP growth as 本期累计, cumulative for the year. Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total, so treat the ranking as indicative.</li>
                 <li>Growth in small western provinces moves on a low base — a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>
                 <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are not in this series.</li>
               </ul>
