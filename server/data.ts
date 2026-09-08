@@ -57,7 +57,7 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   pmi: ["pmi", "manufacturing pmi", "purchasing managers", "factory activity", "采购经理指数", "制造业"],
   caixin_pmi: ["caixin", "caixin pmi", "private pmi", "财新", "财新制造业"],
   caixin_services_pmi: ["caixin services", "services pmi", "财新服务业"],
-  electricity: ["electricity", "power consumption", "electricity consumption", "energy", "用电量", "电力"],
+  electricity_output: ["electricity", "power generation", "electricity output", "energy", "发电量", "电力"],
   lpr: ["lpr", "loan prime rate", "interest rate", "policy rate", "benchmark rate", "贷款市场报价利率", "利率"],
 };
 
@@ -78,6 +78,8 @@ interface EastmoneyIndicator {
   frequency: string;
   unit: string;
   reportName: string;
+  /** The date column; most reports use REPORT_DATE, the LPR report TRADE_DATE. */
+  dateField?: string;
   fields: EastmoneyField[];
 }
 interface NbsSeriesId {
@@ -315,18 +317,20 @@ export const CATALOG: Record<string, Indicator> = {
     fn: "macro_china_cx_services_pmi_yearly", dateField: "日期", dateFormat: "iso", dateLen: 7,
     fields: [{ field: "今值", label: "Caixin Services PMI" }],
   },
-  electricity: {
-    kind: "aktools", group: "Growth & Output",
-    title: "Electricity Consumption (Total Society)", agency: "National Energy Administration",
+  electricity_output: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Electricity Generation", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago",
-    fn: "macro_china_society_electricity", dateField: "统计时间", dateFormat: "cn_dot",
-    fields: [{ field: "全社会用电量同比", label: "Total electricity use (YoY %)" }],
+    cid: "1abb1cfea75847b8bf1a0e395d85966b",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [{ id: "5cc686f383d84ed9bd11f4293ab4170e", label: "Electricity output (YoY %)" }],
   },
   lpr: {
-    kind: "aktools", group: "Interest Rates",
+    kind: "eastmoney", group: "Interest Rates",
     title: "Loan Prime Rate (LPR)", agency: "People's Bank of China",
     frequency: "Monthly", unit: "Percent per annum",
-    fn: "macro_china_lpr", dateField: "TRADE_DATE", dateFormat: "iso", dateLen: 7,
+    // Eastmoney mirrors the monthly PBOC fixing, dated by the fixing day.
+    reportName: "RPTA_WEB_RATE", dateField: "TRADE_DATE",
     fields: [
       { field: "LPR1Y", label: "LPR 1-Year (%)" },
       { field: "LPR5Y", label: "LPR 5-Year (%)" },
@@ -363,7 +367,7 @@ function toMonth(reportDate: string): string {
 async function fetchEastmoney(key: string, cfg: EastmoneyIndicator, limit: number): Promise<SeriesResult> {
   const params = new URLSearchParams({
     reportName: cfg.reportName, columns: "ALL", pageNumber: "1",
-    pageSize: String(limit), sortColumns: "REPORT_DATE", sortTypes: "-1",
+    pageSize: String(limit), sortColumns: cfg.dateField ?? "REPORT_DATE", sortTypes: "-1",
   });
   const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?${params.toString()}`;
   const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json, text/plain, */*" } });
@@ -373,7 +377,7 @@ async function fetchEastmoney(key: string, cfg: EastmoneyIndicator, limit: numbe
   const series: Series[] = cfg.fields.map((f) => {
     const points: SeriesPoint[] = [];
     for (const row of rows) {
-      const rawDate = row.REPORT_DATE;
+      const rawDate = row[cfg.dateField ?? "REPORT_DATE"];
       const rawVal = row[f.field];
       if (typeof rawDate !== "string") continue;
       const num = typeof rawVal === "number" ? rawVal : Number(rawVal);

@@ -21,7 +21,7 @@ export const RELEASE_MAP: ReleaseMapping[] = [
   { match: "商品住宅销售价格", en: "70-city new home prices, monthly", keys: [] },
   { match: "国民经济运行情况", en: "National economy monthly bundle: industrial output, retail sales, investment, unemployment", keys: ["industrial_production", "retail_sales", "unemployment"] },
   { match: "规模以上工业生产", en: "Industrial production (large firms), monthly", keys: ["industrial_production"] },
-  { match: "能源生产情况", en: "Energy production, monthly", keys: ["electricity"] },
+  { match: "能源生产情况", en: "Energy production, monthly", keys: ["electricity_output"] },
   { match: "固定资产投资", en: "Fixed-asset investment (excluding rural households), monthly", keys: [] },
   { match: "房地产开发和销售", en: "Real estate development and sales, monthly", keys: ["real_estate"] },
   { match: "社会消费品零售总额", en: "Retail sales of consumer goods, monthly", keys: ["retail_sales"] },

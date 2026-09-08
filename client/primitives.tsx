@@ -20,8 +20,18 @@ export interface ActionMenuItem {
 
 export function ActionMenu(props: { label: string; items: ActionMenuItem[] }) {
   return (
-    <details className="action-menu">
-      <summary className="button">{props.label}<span aria-hidden="true" className="chevron">⌄</span></summary>
+    <details
+      className="action-menu"
+      onKeyDown={(event) => {
+        // Escape closes the menu and returns focus to its button, as a menu should.
+        if (event.key !== "Escape") return;
+        const details = event.currentTarget;
+        if (!details.open) return;
+        details.open = false;
+        details.querySelector("summary")?.focus();
+      }}
+    >
+      <summary className="button" aria-haspopup="menu">{props.label}<span aria-hidden="true" className="chevron">⌄</span></summary>
       <div className="menu" role="menu">
         {props.items.map((item) => (
           <button

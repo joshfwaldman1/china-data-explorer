@@ -161,7 +161,7 @@ const ABOUT: Record<string, string> = {
   pmi: "The official NBS manufacturing purchasing managers' index, a diffusion index where 50 separates expansion from contraction. Weighted toward large state-owned firms.",
   caixin_pmi: "The Caixin/S&P Global manufacturing PMI, a private survey weighted toward smaller, export-oriented private firms. Often diverges from the official PMI.",
   caixin_services_pmi: "The Caixin/S&P Global services PMI, covering private service-sector firms. 50 separates expansion from contraction.",
-  electricity: "Total electricity consumption, year over year, from the National Energy Administration. Used as a proxy for industrial activity because it is hard to smooth.",
+  electricity_output: "Electricity output of industrial enterprises above designated size, year over year, from the NBS monthly energy production release. Watched as a proxy for industrial activity because generation is hard to smooth.",
   lpr: "The loan prime rate, the benchmark for new bank lending, set monthly by the PBOC from quotes by 18 banks. The 1-year rate anchors corporate loans; the 5-year rate anchors mortgages.",
 };
 const READING: Record<string, string[]> = {
@@ -1044,8 +1044,15 @@ function SeriesPage(props: {
 
       <section className="card data-card">
         <ChartPanelHeader
-          views={<div className="segmented" role="tablist" aria-label="View">
-            {(["chart", "table"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
+          views={<div className="segmented" role="tablist" aria-label="View" onKeyDown={(event) => {
+            // Arrow keys move between tabs, as the tablist pattern expects.
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            const next: Tab = tab === "chart" ? "table" : "chart";
+            setTab(next);
+            document.getElementById(`tab-${next}`)?.focus();
+            event.preventDefault();
+          }}>
+            {(["chart", "table"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} tabIndex={tab === item ? 0 : -1} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
           </div>}
           controls={<>
           {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
