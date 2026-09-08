@@ -33,7 +33,7 @@ interface Revised { label: string; period: string; vintages: Vintage[]; }
 
 type Route =
   | { view: "home" }
-  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string }
+  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string; freq: string; agg: string }
   | { view: "search"; q: string; freq: string; cat: string; dataset: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
@@ -223,7 +223,7 @@ function parseRoute(hash: string): Route {
   const parts = path.split("/").filter(Boolean);
   const head = parts[0] ?? "";
   if (head === "series" && parts[1]) {
-    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "" };
+    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "", freq: query.get("freq") ?? "", agg: query.get("agg") ?? "" };
   }
   if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "" };
   if (head === "browse") return { view: "browse", cat: "" };
@@ -238,7 +238,7 @@ function routeHash(route: Route): string {
   const qs = (pairs: [string, string][]) => { const query = new URLSearchParams(pairs.filter(([, value]) => value)); const text = query.toString(); return text ? `?${text}` : ""; };
   switch (route.view) {
     case "home": return "#/";
-    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to]])}`;
+    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to], ["freq", route.freq], ["agg", route.agg]])}`;
     case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
@@ -248,7 +248,7 @@ function routeHash(route: Route): string {
   }
 }
 function seriesHash(keys: string[], extra: Partial<{ show: string; range: string; region: string; from: string; to: string }> = {}): string {
-  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "" });
+  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "", freq: "", agg: "" });
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -304,6 +304,37 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
     }
   }
   return { tracks, notes, gaps };
+}
+
+type TargetFrequency = "Quarterly" | "Annual";
+type Aggregation = "avg" | "sum" | "last";
+const FREQUENCY_RANK: Record<string, number> = { Monthly: 1, Quarterly: 2, Annual: 3 };
+function isTargetFrequency(value: string): value is TargetFrequency { return value === "Quarterly" || value === "Annual"; }
+function isAggregation(value: string): value is Aggregation { return value === "avg" || value === "sum" || value === "last"; }
+function periodOf(t: number, target: TargetFrequency): string {
+  const date = new Date(t);
+  return target === "Annual" ? String(date.getUTCFullYear()) : `${date.getUTCFullYear()}-Q${Math.floor(date.getUTCMonth() / 3) + 1}`;
+}
+/**
+ * Aggregate a finer series to a coarser calendar period. Incomplete final
+ * periods are dropped rather than shown as if they were whole — a quarter
+ * built from one month is not a quarter.
+ */
+function convertTrack(track: Track, target: TargetFrequency, agg: Aggregation): Track {
+  if ((FREQUENCY_RANK[track.frequency] ?? 0) >= (FREQUENCY_RANK[target] ?? 0)) return track;
+  const need = target === "Annual" ? (track.frequency === "Monthly" ? 12 : 4) : 3;
+  const groups = new Map<string, number[]>();
+  for (const point of track.points) { const key = periodOf(point.t, target); groups.set(key, [...(groups.get(key) ?? []), point.v]); }
+  const points = [...groups.entries()].filter(([, values]) => values.length >= need).map(([key, values]) => ({
+    p: key, t: periodTime(key),
+    v: agg === "sum" ? values.reduce((a, b) => a + b, 0) : agg === "last" ? (values[values.length - 1] ?? 0) : values.reduce((a, b) => a + b, 0) / values.length,
+  })).sort((a, b) => a.t - b.t);
+  return { ...track, frequency: target, points };
+}
+function coarsestFrequency(tracks: Track[]): TargetFrequency | "" {
+  const ranks = tracks.map((track) => FREQUENCY_RANK[track.frequency] ?? 0);
+  if (ranks.length < 2 || Math.max(...ranks) === Math.min(...ranks)) return "";
+  return Math.max(...ranks) === 3 ? "Annual" : "Quarterly";
 }
 
 function rebase(tracks: Track[], start: number): Track[] {
@@ -829,7 +860,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
         {results.map((entry) => {
           const zhFirst = props.lang === "zh" || !entry.nameEn || entry.datasetCode === 0;
           return (
-            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "" }); }}>
+            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "" }); }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
               <span className="meta">{entry.frequency} · {entry.datasetCode === 0 ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
@@ -922,8 +953,18 @@ function SeriesPage(props: {
   const mixed = units.length > 1;
   const lastT = Math.max(0, ...built.tracks.flatMap((track) => track.points.map((point) => point.t)));
   const rangeStart = years === null ? -Infinity : lastT - years * 365.25 * 86400000;
-  const tracks = mixed ? rebase(built.tracks, rangeStart) : built.tracks;
+  // Frequency: an explicit choice wins; otherwise a compare that mixes
+  // monthly and quarterly series is brought to the coarser one, so twelve
+  // points a year are never drawn against four on the same axis.
+  const chosenFrequency = isTargetFrequency(props.route.freq) ? props.route.freq : "";
+  const autoFrequency = chosenFrequency ? "" : coarsestFrequency(built.tracks);
+  const targetFrequency: TargetFrequency | "" = chosenFrequency || autoFrequency;
+  const aggregation: Aggregation = isAggregation(props.route.agg) ? props.route.agg : "avg";
+  const nativeTracks = targetFrequency ? built.tracks.map((track) => convertTrack(track, targetFrequency, aggregation)) : built.tracks;
+  const converted = targetFrequency ? built.tracks.filter((track) => (FREQUENCY_RANK[track.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)) : [];
+  const tracks = mixed ? rebase(nativeTracks, rangeStart) : nativeTracks;
   const unit = mixed ? "Index, first shown period = 100" : (primary?.unit ?? "");
+  const aggregationLabel = aggregation === "sum" ? "sums" : aggregation === "last" ? "end-of-period values" : "averages";
   const canLog = tracks.every((track) => track.points.every((point) => point.v > 0));
   const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
 
@@ -1005,6 +1046,7 @@ function SeriesPage(props: {
       <div className="chip-row">
         {results.length > 1 && results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}
       </div>
+      {autoFrequency && converted.length > 0 && <div className="notice info"><div><b>{converted.length === 1 ? "One series is" : `${converted.length} series are`} shown as {autoFrequency.toLowerCase()} {aggregationLabel}</b> so the frequencies on this chart match. Choose “Frequency” to change that.</div></div>}
       {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div><b>Level series are shown as % change from a year ago</b> so their units match the rates on this chart. Choose “Show as” to change that.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
@@ -1016,6 +1058,8 @@ function SeriesPage(props: {
           </div>}
           controls={<>
           {regions.length > 1 && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
+          <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select></label>
+          {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
           <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
@@ -1028,6 +1072,7 @@ function SeriesPage(props: {
               <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
+              {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
               {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}{primary.frequency === "Monthly" && (years === null ? false : years <= 5) ? " · January–February shaded: Lunar New Year shifts between the two months and distorts both" : ""}</p>}
             </>
           )}
@@ -1340,7 +1385,7 @@ function App() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
