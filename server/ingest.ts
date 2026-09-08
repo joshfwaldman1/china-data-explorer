@@ -109,8 +109,8 @@ async function refreshOne(key: string, region: string): Promise<"ok" | "error" |
   }
 }
 
-async function main(): Promise<void> {
-  const requested = process.argv.slice(2);
+/** One full ingest pass. `requested` is the CLI argument list; empty means everything. */
+export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
   const curatedKeys = requested.length > 0
     ? requested.filter((spec) => !spec.startsWith("nbs_"))
     : Object.keys(CATALOG);
@@ -167,9 +167,12 @@ async function main(): Promise<void> {
     `${status.totals.keys} series in ${status.path}`,
   );
 
+  return tally;
+}
+
+if (import.meta.main) {
+  const tally = await runIngest(process.argv.slice(2));
   // A run where nothing at all landed is worth a non-zero exit so a scheduler
   // surfaces it. Partial failure is normal and stays quiet.
   if (tally.ok === 0) process.exit(1);
 }
-
-await main();

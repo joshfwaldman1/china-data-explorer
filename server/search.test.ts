@@ -13,6 +13,7 @@ const scratch = mkdtempSync(join(tmpdir(), "china-search-"));
 process.env.CHINA_DB_PATH = join(scratch, "store.db");
 process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
+process.env.CHINA_SEED = "off";
 
 const { searchNbsCatalog, nbsCatalogStats } = await import("./nbs-catalog.ts");
 

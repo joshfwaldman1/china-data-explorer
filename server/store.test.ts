@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 process.env.CHINA_DB_PATH = join(mkdtempSync(join(tmpdir(), "china-store-")), "test.db");
+process.env.CHINA_SEED = "off"; // start from an empty store, not the seed
 
 const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness } = await import("./db.ts");
 const { parseEsDataPoints } = await import("./nbs-catalog.ts");

@@ -152,6 +152,25 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
   `AKTOOLS_URL` to point elsewhere). Without it they serve from the store and
   their refresh is logged as a failure rather than breaking anything.
 
+### Railway, specifically
+
+1. `railway login`, then in this repository `railway init` (new project) or
+   `railway link` (existing). Create a service from the GitHub repo, branch
+   `china-data-explorer`.
+2. In the service settings set **Config file path** to `railway.china.toml`
+   (the root `railway.toml` belongs to the agent app). It selects
+   `Dockerfile.china` and the `/health` check.
+3. Add a **volume** mounted at `/data`. On first boot the store is seeded
+   from `china-explorer/seed/china.db` (committed; refresh it with
+   `bun run china:seed` after a good ingest), so the site has data before the
+   first refresh.
+4. Variables: none required. Optional: `ANTHROPIC_API_KEY` (search query
+   expansion), `INGEST_EVERY_HOURS` (default 24 in production; the refresh
+   runs inside the web process because a volume attaches to one service),
+   `AKTOOLS_URL` if you run AKTools somewhere reachable.
+5. Deploy. Watch the first scheduled ingest in the logs two minutes after
+   boot — that is the moment you learn whether NBS answers Railway's IPs.
+
 Unverified: whether the NBS portal answers requests from cloud IP ranges. All
 testing so far was from a residential US connection. Check the fetch log after
 the first scheduled ingest.

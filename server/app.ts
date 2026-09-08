@@ -24,6 +24,7 @@ import {
   type NbsTransform,
 } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease } from "./releases";
+import { runIngest } from "./ingest";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -303,3 +304,27 @@ try {
 console.log(`\n  China Data Explorer running at ${server.url}\n`);
 // Warm the catalog, gloss and search index now rather than on the first visitor.
 nbsCatalogStats().catch(() => undefined);
+
+// On a single-service deployment the daily refresh runs in this process: a
+// separate cron cannot share the volume the store lives on. Off in
+// development unless asked for; every 24 hours in production by default.
+const ingestEveryHours = Number(process.env.INGEST_EVERY_HOURS ?? (process.env.NODE_ENV === "production" ? 24 : 0));
+if (ingestEveryHours > 0) {
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    const started = Date.now();
+    try {
+      const tally = await runIngest();
+      console.log(`  Scheduled ingest: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty in ${Math.round((Date.now() - started) / 1000)}s`);
+    } catch (error) {
+      console.error("  Scheduled ingest failed:", error instanceof Error ? error.message : String(error));
+    } finally {
+      running = false;
+    }
+  };
+  setTimeout(tick, 2 * 60 * 1000);
+  setInterval(tick, ingestEveryHours * 60 * 60 * 1000);
+  console.log(`  Ingest scheduled every ${ingestEveryHours}h (first run in 2 minutes)`);
+}

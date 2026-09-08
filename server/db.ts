@@ -17,6 +17,8 @@
  */
 
 import { Database } from "bun:sqlite";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type { Series, SeriesResult } from "./data.ts";
 
 const DB_PATH = process.env.CHINA_DB_PATH ?? `${import.meta.dir}/../china.db`;
@@ -27,9 +29,24 @@ let handle: Database | null = null;
  * Open the database, creating and migrating it on first use. WAL mode lets the
  * server keep reading while an ingest run writes.
  */
+const SEED_PATH = `${import.meta.dir}/../seed/china.db`;
+
+/**
+ * A fresh deployment starts with an empty volume. Rather than an empty site
+ * until the first ingest, copy the committed seed snapshot into place once.
+ * The seed is refreshed by `bun run china:seed`.
+ */
+function seedStoreIfMissing(): void {
+  if (process.env.CHINA_SEED === "off" || existsSync(DB_PATH) || !existsSync(SEED_PATH)) return;
+  mkdirSync(dirname(DB_PATH), { recursive: true });
+  copyFileSync(SEED_PATH, DB_PATH);
+  console.log(`  Store seeded from ${SEED_PATH}`);
+}
+
 export function db(): Database {
   if (handle) return handle;
 
+  seedStoreIfMissing();
   const database = new Database(DB_PATH, { create: true });
   database.exec("PRAGMA journal_mode = WAL");
   database.exec("PRAGMA foreign_keys = ON");
