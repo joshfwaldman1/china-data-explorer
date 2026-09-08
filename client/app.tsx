@@ -847,7 +847,8 @@ function SeriesPage(props: {
   const keysText = props.route.keys.join(",");
 
   useEffect(() => {
-    const dynamic = props.route.keys.find((key) => key.startsWith("nbs_"));
+    // Any single-key page may have a region dimension: NBS catalog series or a curated one such as provincial GDP.
+    const dynamic = props.route.keys.length === 1 ? splitSpec(props.route.keys[0] ?? "").key : "";
     setRegions([]);
     if (!dynamic) return;
     json(`/api/dimensions/${dynamic}`).then((body) => {
@@ -1055,7 +1056,7 @@ function SeriesPage(props: {
             {(["chart", "table"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} tabIndex={tab === item ? 0 : -1} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
           </div>}
           controls={<>
-          {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
+          {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{regionLabel(item) === item.text ? item.text : `${regionLabel(item)} ${item.text}`}</option>)}</select></label>}
           <button className="button" aria-expanded={optionsOpen} aria-controls="chart-options" onClick={() => setOptionsOpen((value) => !value)}>Options</button>
           <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
           </>}
