@@ -79,11 +79,27 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   property: ["房地产"],
   housing: ["住宅", "房地产"],
   "house price": ["住宅销售价格", "房价"],
-  "house prices": ["住宅销售价格", "房价"],
+  "house prices": ["住宅销售价格", "商品房销售", "住宅销售", "商品住宅", "房价"],
   "producer prices": ["工业生产者价格"],
   "food prices": ["食品价格"],
   "trade balance": ["进出口差额", "贸易差额"],
   "provincial gdp": ["地区生产总值"],
+  // Common English queries a researcher types first; each maps to the NBS wording.
+  "home prices": ["住宅销售价格", "商品房销售", "住宅销售", "房价"],
+  "youth unemployment": ["16—24岁", "16-24岁", "青年失业"],
+  "money supply": ["货币供应量"],
+  "m2": ["广义货币", "M2"],
+  "m1": ["狭义货币", "M1"],
+  "loans": ["贷款"],
+  "credit": ["贷款", "社会融资"],
+  "social financing": ["社会融资"],
+  "profits": ["利润"],
+  "car sales": ["汽车销量", "汽车"],
+  "cars": ["汽车"],
+  "power": ["发电量", "电力"],
+  "tourism": ["旅游"],
+  "rail": ["铁路"],
+  "ports": ["港口"],
 };
 Object.assign(SEARCH_ALIASES, {
   youth: ["16—24岁", "16-24岁", "青年"], "youth unemployment": ["16—24岁", "16-24岁"], jobless: ["失业"], population: ["人口"],
@@ -465,6 +481,7 @@ export function indexHitIsReal(entry: NbsCatalogEntry, query: string): boolean {
   return queryVariants(query).some((variant) => variant.split(/\s+/).filter(Boolean).every((term) => latinTermHit(haystack, pinyinJoined, term)));
 }
 
+function band(score: number): number { return Math.round(score / 5) * 5; }
 /** Tie-break length: the English title when there is one, since units inflate the Chinese one ("(万吨)" vs "(%)"). */
 function titleLength(entry: NbsCatalogEntry): number {
   return (entry.nameEn ?? entry.name).length;
@@ -544,7 +561,10 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       const text = fullText.has(entry.key) && (base > 0 || indexHitIsReal(entry, query)) ? Math.min(2, (fullText.get(entry.key) ?? 0) / 5) : undefined;
       const score = base > 0 ? base + (text ?? 0) : text !== undefined ? 5 + text + extra : extra;
       return { entry, score };
-    }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score || titleLength(a.entry) - titleLength(b.entry) || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+    }).filter((item) => item.score > 0).sort((a, b) =>
+      // Keyword score decides in bands of five (the full-text tiebreak is worth at most two points),
+      // then the shorter English title, then the full-text score itself.
+      band(b.score) - band(a.score) || titleLength(a.entry) - titleLength(b.entry) || b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
   };
 
   let scored = rank([]);
