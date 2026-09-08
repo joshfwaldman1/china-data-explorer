@@ -660,8 +660,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
                   <span className="meta">{entry.frequency} · {curated ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
-                  ? <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>
-                  : <a className="button" href={seriesHash([entry.key])} aria-label={`Open ${entry.name}`}>Open</a>}
+                  && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>}
               </article>
             );
           })}
@@ -708,7 +707,7 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
       <h1>{props.title}</h1>
       {props.keys.length === 0 ? <div className="state"><b>{props.empty}</b><p>Saved series and recently viewed series live in this browser only.</p></div> : (
         <div className="result-list" style={{ marginTop: 20 }}>
-          {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a><a className="button" href={seriesHash([key])}>Open</a></article>; })}
+          {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a></article>; })}
         </div>
       )}
     </main>

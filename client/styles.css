@@ -144,7 +144,8 @@ h1:lang(zh), h1 [lang="zh-Hans"] { letter-spacing: 0; font-weight: 600; }
 .group-label { margin: var(--s-3) var(--s-2) var(--s-1); color: var(--muted); font-size: var(--fs-2); font-weight: 600; }
 
 main { min-width: 0; padding: var(--s-5) clamp(20px, 4vw, 56px) var(--s-7); }
-.page { max-width: 1240px; margin: 0 auto; }
+.page { width: 100%; max-width: 1240px; margin: 0 auto; }
+main:focus { outline: none; }
 .kicker { color: var(--blue); font-size: var(--fs-2); font-weight: 600; }
 .breadcrumbs { display: flex; flex-wrap: wrap; gap: var(--s-2); color: var(--muted); font-size: var(--fs-2); }
 .breadcrumbs a { color: var(--blue); }
@@ -325,11 +326,11 @@ th:first-child, td:first-child { text-align: left; font-family: var(--mono); }
 .result-count { margin: var(--s-2) 0 var(--s-4); color: var(--muted); font-size: var(--fs-2); }
 .facets { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-3) 0; }
 .facets select { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--r-1); background: var(--panel); padding: 0 var(--s-2); color: var(--ink); font-size: var(--fs-2); }
-.result-list { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); overflow: hidden; }
+.result-list { max-width: 960px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); overflow: hidden; }
 .result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); }
 .result:last-child { border-bottom: 0; }
 .result:hover { background: var(--panel-2); }
-.result .main { display: grid; gap: 3px; border: 0; background: none; padding: 0; text-align: left; min-width: 0; color: var(--ink); }
+.result .main { display: grid; width: 100%; gap: 3px; border: 0; background: none; padding: 0; text-align: left; min-width: 0; color: var(--ink); }
 .result .title { color: var(--accent-text); font-size: var(--fs-4); font-weight: 600; }
 .result .gloss { margin: 0; font-size: var(--fs-2); }
 .result .path { color: var(--muted); font-size: var(--fs-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
