@@ -111,6 +111,7 @@ const DASHES = ["", "6 3", "2 3", "8 3 2 3", "", "6 3", "2 3", "8 3 2 3"];
 
 /** English for the NBS top-level categories. The Chinese stays authoritative. */
 const CATEGORY_EN: Record<string, string> = {
+  "对外经济": "Foreign trade and investment", "采购经理指数": "Purchasing managers' index", "城镇调查失业率": "Surveyed urban unemployment", "服务业生产指数": "Index of services production",
   "工业": "Industry", "价格指数": "Price indices", "固定资产投资 (不含农户)": "Fixed-asset investment (excl. rural households)",
   "固定资产投资（不含农户）": "Fixed-asset investment (excl. rural households)", "国内贸易": "Domestic trade", "邮电通信": "Post and telecommunications",
   "交通运输": "Transport", "人民生活": "Household living standards", "能源": "Energy", "国民经济核算": "National accounts",
@@ -1266,7 +1267,8 @@ function App() {
   const [recent, setRecent] = useState<string[]>(() => readList("china-recent"));
   const [draft, setDraft] = useState(route.view === "search" ? route.q : "");
   const [theme, setTheme] = useState(() => readPref("china-theme"));
-  const [lang, setLang] = useState(() => readPref("china-lang") || "en");
+  // Titles are English-first with the official Chinese alongside; a Chinese-first UI is a separate project.
+  const lang = "en";
   const [toast, setToast] = useState("");
   const lastSeries = useRef<string[]>(route.view === "series" ? route.keys : []);
 
@@ -1339,7 +1341,6 @@ function App() {
 
   const toggleSaved = (key: string) => setSaved((current) => { const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current]; writeList("china-favorites", next); return next; });
   const cycleTheme = () => { const next = theme === "" ? "dark" : theme === "dark" ? "light" : ""; setTheme(next); writePref("china-theme", next); setToast(next === "" ? "Theme follows your system" : next === "dark" ? "Dark theme" : "Light theme"); };
-  const toggleLang = () => { const next = lang === "zh" ? "en" : "zh"; setLang(next); writePref("china-lang", next); };
   const current = (view: Route["view"]) => route.view === view ? "page" : undefined;
 
   return (
@@ -1355,7 +1356,6 @@ function App() {
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
         </nav>
         <div className="topbar-tools">
-          <button className="icon-button" onClick={toggleLang} aria-label={lang === "zh" ? "Show English titles first" : "Show Chinese titles first"} aria-pressed={lang === "zh"}>{lang === "zh" ? "中文" : "EN"}</button>
           <button className="icon-button" onClick={cycleTheme} aria-label="Switch theme"><ThemeIcon /></button>
         </div>
       </header>
