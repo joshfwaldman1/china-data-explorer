@@ -247,7 +247,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 4; // 4: year-range families attached (unit-agnostic)
+const GLOSS_FORMAT = 5; // 5: index units derived from titles at load
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -349,6 +349,8 @@ function withProseEnglish(entry: NbsCatalogEntry, table: Record<string, string>)
   const categoriesEn = entry.categories.map((category) => table[category.trim()] ?? "");
   return {
     ...entry,
+    // An index table's "无" unit becomes its base period everywhere the unit is shown.
+    unit: rawUnitOf(entry),
     noteEn: table[entry.note.trim()] || undefined,
     annotationEn: table[entry.annotation.trim()] || undefined,
     datasetEn: table[entry.dataset.trim()] || undefined,
