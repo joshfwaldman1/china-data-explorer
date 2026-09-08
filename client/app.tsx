@@ -59,7 +59,7 @@ type Route =
   | { view: "saved" }
   | { view: "recent" };
 
-type Tab = "chart" | "table" | "metadata" | "revisions";
+type Tab = "chart" | "table";
 type Show = "default" | "raw" | "change" | "percent_change" | "yoy" | "index_growth";
 
 // ── Guards ────────────────────────────────────────────────────────────────────
@@ -891,7 +891,7 @@ function SeriesPage(props: {
   }, [keysText, props.route.region, show]);
 
   useEffect(() => {
-    if (tab !== "revisions" || results.length === 0) return;
+    if (results.length === 0) return;
     const primary = results[0];
     if (!primary) return;
     const query = new URLSearchParams();
@@ -901,7 +901,7 @@ function SeriesPage(props: {
       if (!Array.isArray(list)) { setRevised([]); return; }
       setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: listOf(item, "vintages").map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
     }).catch(() => setRevised([]));
-  }, [tab, results.map((result) => result.key).join(",")]);
+  }, [results.map((result) => result.key).join(",")]);
 
   const primary = results[0];
   const built = useMemo(() => buildTracks(results, colors.current), [results]);
@@ -933,6 +933,8 @@ function SeriesPage(props: {
   const previous = headline?.points[headline.points.length - 2];
   const saved = props.saved.includes(primary.key);
   const meta = primary.metadata;
+  const definition = meta?.note || ABOUT[primary.key] || "";
+  const readingNotes = READING[primary.key] ?? (meta?.annotation ? [meta.annotation] : built.notes);
   const curated = props.curated.find((entry) => entry.key === primary.key);
   const today = new Date().toISOString().slice(0, 10);
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
@@ -1010,7 +1012,7 @@ function SeriesPage(props: {
       <section className="card data-card">
         <ChartPanelHeader
           views={<div className="segmented" role="tablist" aria-label="View">
-            {(["chart", "table", "metadata", "revisions"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
+            {(["chart", "table"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
           </div>}
           controls={<>
           {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
@@ -1038,45 +1040,39 @@ function SeriesPage(props: {
               <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods · download the CSV for all` : `${tableRows.length} periods`}</span></div>
             </>
           )}
-          {tab === "metadata" && (
-            <dl className="meta-grid">
-              <div><dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline indicators"}</dd></div>
-              <div><dt>Category</dt><dd>{meta ? <Zh>{meta.categories.join(" › ")}</Zh> : curated?.group ?? "—"}</dd></div>
-              <div><dt>Region</dt><dd>{primary.region ? <Zh>{primary.region.text}</Zh> : "China, national"}</dd></div>
-              <div><dt>Frequency</dt><dd>{primary.frequency}</dd></div>
-              <div><dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd></div>
-              <div><dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd></div>
-              {meta?.nameEn && <div><dt>English label</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
-                ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
-                : "Auto-translated from the official Chinese title"}</dd></div>}
-              <div className="meta-wide"><dt>Definition</dt><dd><p>{meta?.note ? <Zh>{meta.note}</Zh> : ABOUT[primary.key] ?? "No definition is published for this series."}</p></dd></div>
-              <div className="meta-wide"><dt>Methodology notes</dt><dd><p>{meta?.annotation ? <Zh>{meta.annotation}</Zh> : built.notes[0] ?? "NBS publishes no methodology note for this series."}</p></dd></div>
-            </dl>
-          )}
-          {tab === "revisions" && (
-            revised === null ? <div className="state"><span className="loader" aria-hidden="true" />Loading revisions…</div>
-              : revised.length === 0 ? <div className="state"><b>No revisions recorded</b><p>Every value stored since {fmtDate(primary.updatedAt) || "this series was first viewed"} has matched the one before it. When the source restates a number, the earlier value stays here.</p></div>
-              : <div className="table-scroll"><table><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{row.period}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "—" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>
-          )}
         </div>
       </section>
 
       <section className="details">
+        <div className="card about">
+          <h2>About this series</h2>
+          {definition ? <p><Zh>{definition}</Zh></p> : readingNotes.length === 0 ? <p className="muted">NBS publishes no definition or methodology note for this series.</p> : null}
+          {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
+        </div>
         <div className="card">
-          <h2>Series details</h2>
+          <h2>Details</h2>
           <dl>
             <dt>Source</dt><dd>{primary.agency}</dd>
             <dt>Retrieved via</dt><dd>{via} · <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"} ↗</a></dd>
-            <dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd>
+            <dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline indicators"}</dd>
+            <dt>Category</dt><dd>{meta ? <Zh>{meta.categories.join(" › ")}</Zh> : curated?.group ?? "—"}</dd>
+            <dt>Region</dt><dd>{primary.region ? <Zh>{primary.region.text}</Zh> : "China, national"}</dd>
+            <dt>Frequency</dt><dd>{primary.frequency}</dd>
+            <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
             <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${headline.points[0]?.date} → ${headline.points[headline.points.length - 1]?.date}` : "—"}</dd>
             <dt>Updated</dt><dd>{fmtDate(primary.updatedAt) || "—"}</dd>
+            <dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd>
+            {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
+              ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
+              : "Auto-translated from the official Chinese title"}</dd></>}
           </dl>
         </div>
-        <div className="card">
-          <h2>Reading this series</h2>
-          <p>{meta?.note ? <Zh>{meta.note.length > 400 ? `${meta.note.slice(0, 400)}…` : meta.note}</Zh> : ABOUT[primary.key] ?? "Official data published by the originating agency."}</p>
-          {(READING[primary.key] ?? (meta?.annotation ? [meta.annotation] : [])).length > 0 && <ul>{(READING[primary.key] ?? (meta?.annotation ? [meta.annotation] : [])).map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul>}
-        </div>
+      </section>
+
+      <section className="card revisions">
+        <div className="revisions-head"><h2>Revisions</h2><span>{revised === null ? "Checking the store…" : revised.length === 0 ? "None recorded" : `${revised.length} restated ${revised.length === 1 ? "value" : "values"}`}</span></div>
+        {revised !== null && revised.length === 0 && <p>Every value stored so far has matched the one before it. When the source restates a number, the earlier value stays here.</p>}
+        {revised !== null && revised.length > 0 && <div className="table-scroll"><table><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{row.period}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "—" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>}
       </section>
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 

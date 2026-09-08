@@ -449,3 +449,13 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
   .row .date { display: none; }
   .hero { padding-top: var(--s-4); }
 }
+
+/* Series page: about + details cards, revisions block below */
+.details .about p { max-width: 68ch; line-height: 1.55; }
+.details .muted { color: var(--muted); }
+.revisions { margin-top: var(--s-4); padding: var(--s-4); }
+.revisions-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.revisions-head h2 { margin: 0; }
+.revisions-head span { color: var(--muted); font-size: var(--fs-2); }
+.revisions > p { margin: var(--s-2) 0 0; color: var(--muted); font-size: var(--fs-2); max-width: 70ch; }
+.revisions .table-scroll { margin-top: var(--s-3); }
