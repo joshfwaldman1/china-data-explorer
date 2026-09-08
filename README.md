@@ -127,3 +127,31 @@ bun run china-explorer/scripts/capture-area.ts --province=广东省
 The script writes the complete matching `esData` request and response under
 `china-explorer/captures/`. Use `--out=path/to/file.json`, `--headed=true`, or
 `--channel=chromium` to override its defaults.
+
+## Deploying
+
+The explorer runs from one process and two SQLite files. `Dockerfile.china`
+at the repository root builds it alone:
+
+```sh
+docker build -f Dockerfile.china -t econstats-china .
+docker run -p 5173:5173 -v china-data:/data econstats-china
+```
+
+- `/data/china.db` is the store — observations, revisions, fetch log. Mount a
+  persistent volume; it is the only state that matters. Seed it by running
+  `bun run china-explorer/server/ingest.ts` inside the container, and schedule
+  the same command daily (a Railway cron, a systemd timer, anything).
+- `/data/catalog.db` is a cache rebuilt from `china-explorer/catalog/*.json`
+  whenever those files change. Losing it costs half a second.
+- `GET /health` returns `{ ok: true, observations, lastFetch }` for a platform
+  healthcheck (`railway.toml` already points at `/health`).
+- `ANTHROPIC_API_KEY` is optional: without it, search still works but English
+  queries that miss are not expanded.
+- The five AkShare-backed series need AKTools (`python -m aktools` on :8080,
+  `AKTOOLS_URL` to point elsewhere). Without it they serve from the store and
+  their refresh is logged as a failure rather than breaking anything.
+
+Unverified: whether the NBS portal answers requests from cloud IP ranges. All
+testing so far was from a residential US connection. Check the fetch log after
+the first scheduled ingest.

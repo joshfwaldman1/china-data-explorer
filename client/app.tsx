@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -16,7 +17,6 @@ interface NbsCatalogEntry {
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
 }
-interface SeriesPoint { date: string; value: number; }
 interface Series { label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
 interface Region { text: string; value: string; }
 interface SeriesResult {
@@ -180,37 +180,6 @@ function unitLabel(unit: string): string {
 }
 function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 
-function isRate(unit: string): boolean { return /%|percent|index|=100/i.test(unit); }
-function fmt(value: number, unit: string): string {
-  const decimals = isRate(unit) ? 1 : Math.abs(value) >= 1000 ? 0 : 2;
-  return value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-function fmtTick(value: number): string {
-  if (Math.abs(value) >= 100000) return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-  return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
-}
-function fmtDate(iso: string | undefined): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-}
-/** A period label to a timestamp: months to the first of the month, quarters to their last month. */
-function periodTime(period: string): number {
-  const quarter = period.match(/^(\d{4})-Q([1-4])$/);
-  if (quarter) return Date.UTC(Number(quarter[1]), Number(quarter[2]) * 3 - 1, 1);
-  const month = period.match(/^(\d{4})-(\d{2})/);
-  if (month) return Date.UTC(Number(month[1]), Number(month[2]) - 1, 1);
-  const year = period.match(/^(\d{4})$/);
-  if (year) return Date.UTC(Number(year[1]), 11, 1);
-  return Number.NaN;
-}
-function periodPretty(period: string): string {
-  const quarter = period.match(/^(\d{4})-Q([1-4])$/);
-  if (quarter) return `Q${quarter[2]} ${quarter[1]}`;
-  const month = period.match(/^(\d{4})-(\d{2})/);
-  if (month) return new Date(Date.UTC(Number(month[1]), Number(month[2]) - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
-  return period;
-}
 function chartColor(index: number): string { return `var(${CHART_TOKENS[index % CHART_TOKENS.length]})`; }
 function resolvedColor(index: number): string {
   const token = CHART_TOKENS[index % CHART_TOKENS.length] ?? "--chart-1";
@@ -277,7 +246,6 @@ function ThemeIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><circl
 
 // ── Data shaping for charts ───────────────────────────────────────────────────
 
-interface Track { id: string; name: string; unit: string; frequency: string; color: string; dash: string; points: { t: number; v: number; p: string }[]; }
 
 function applyBreaks(result: SeriesResult): { series: Series[]; notes: string[]; gaps: { from: string; to: string }[] } {
   const notes: string[] = [];
@@ -325,44 +293,7 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
   return { tracks, notes, gaps };
 }
 
-type TargetFrequency = "Quarterly" | "Annual";
-type Aggregation = "avg" | "sum" | "last";
-const FREQUENCY_RANK: Record<string, number> = { Monthly: 1, Quarterly: 2, Annual: 3 };
-function isTargetFrequency(value: string): value is TargetFrequency { return value === "Quarterly" || value === "Annual"; }
-function isAggregation(value: string): value is Aggregation { return value === "avg" || value === "sum" || value === "last"; }
-function periodOf(t: number, target: TargetFrequency): string {
-  const date = new Date(t);
-  return target === "Annual" ? String(date.getUTCFullYear()) : `${date.getUTCFullYear()}-Q${Math.floor(date.getUTCMonth() / 3) + 1}`;
-}
-/**
- * Aggregate a finer series to a coarser calendar period. Incomplete final
- * periods are dropped rather than shown as if they were whole — a quarter
- * built from one month is not a quarter.
- */
-function convertTrack(track: Track, target: TargetFrequency, agg: Aggregation): Track {
-  if ((FREQUENCY_RANK[track.frequency] ?? 0) >= (FREQUENCY_RANK[target] ?? 0)) return track;
-  const need = target === "Annual" ? (track.frequency === "Monthly" ? 12 : 4) : 3;
-  const groups = new Map<string, number[]>();
-  for (const point of track.points) { const key = periodOf(point.t, target); groups.set(key, [...(groups.get(key) ?? []), point.v]); }
-  const points = [...groups.entries()].filter(([, values]) => values.length >= need).map(([key, values]) => ({
-    p: key, t: periodTime(key),
-    v: agg === "sum" ? values.reduce((a, b) => a + b, 0) : agg === "last" ? (values[values.length - 1] ?? 0) : values.reduce((a, b) => a + b, 0) / values.length,
-  })).sort((a, b) => a.t - b.t);
-  return { ...track, frequency: target, points };
-}
-function coarsestFrequency(tracks: Track[]): TargetFrequency | "" {
-  const ranks = tracks.map((track) => FREQUENCY_RANK[track.frequency] ?? 0);
-  if (ranks.length < 2 || Math.max(...ranks) === Math.min(...ranks)) return "";
-  return Math.max(...ranks) === 3 ? "Annual" : "Quarterly";
-}
 
-function rebase(tracks: Track[], start: number): Track[] {
-  return tracks.map((track) => {
-    const first = track.points.find((point) => point.t >= start && point.v !== 0);
-    if (!first) return { ...track, unit: "Index, first shown period = 100" };
-    return { ...track, unit: "Index, first shown period = 100", points: track.points.map((point) => ({ ...point, v: (point.v / first.v) * 100 })) };
-  });
-}
 
 // ── Chart ─────────────────────────────────────────────────────────────────────
 

@@ -373,6 +373,8 @@ let anthropic: Anthropic | null = null;
 const EXPANSION_SYSTEM = "You map English search queries about Chinese official statistics to the Chinese terms that appear in National Bureau of Statistics indicator titles. Reply with a JSON array of 2 to 6 short Chinese terms (2-8 characters each), most specific first — for example [\"16—24岁\", \"失业率\", \"青年\"] for \"youth jobless rate\". No commentary.";
 
 async function expandQuery(query: string): Promise<string[]> {
+  // Tests and offline runs: no model calls, no surprises.
+  if (process.env.NBS_QUERY_EXPANSION === "off") return [];
   const store = db();
   store.exec("CREATE TABLE IF NOT EXISTS query_expansions (query TEXT PRIMARY KEY, terms TEXT NOT NULL, created_at TEXT NOT NULL)");
   const cached = store.query<{ terms: string }, string>("SELECT terms FROM query_expansions WHERE query = ?").get(query.toLocaleLowerCase());
@@ -405,13 +407,35 @@ function hasTerm(text: string, term: string): boolean {
   return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9])`, "i").test(text);
 }
 
-function searchScore(entry: NbsCatalogEntry, query: string): number {
+function haystackOf(entry: NbsCatalogEntry): string {
+  return `${entry.name} ${entry.shortName} ${entry.categories.join(" ")} ${entry.dataset} ${entry.nameEn ?? ""} ${entry.pinyin ?? ""}`.toLocaleLowerCase();
+}
+
+/**
+ * A Latin term hits on a word boundary in the text, or as a substring of the
+ * joined pinyin — "shiyelv" sits inside "chengzhendiaochashiyelv" with no
+ * boundary to find, and that is the one place a substring is the right rule.
+ */
+function latinTermHit(haystack: string, pinyinJoined: string, term: string): boolean {
+  return hasTerm(haystack, term) || (/^[a-z]{3,}$/.test(term) && pinyinJoined.includes(term));
+}
+
+/** A trigram index matches substrings; for a Latin query that is only a real hit by the rule above. */
+export function indexHitIsReal(entry: NbsCatalogEntry, query: string): boolean {
+  if (!/^[a-z0-9 .'-]+$/i.test(query)) return true;
+  const haystack = haystackOf(entry);
+  const pinyinJoined = (entry.pinyin ?? "").replaceAll(" ", "");
+  return queryVariants(query).some((variant) => variant.split(/\s+/).filter(Boolean).every((term) => latinTermHit(haystack, pinyinJoined, term)));
+}
+
+export function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (!query) return 1;
   const name = entry.name.toLocaleLowerCase();
   const shortName = entry.shortName.toLocaleLowerCase();
   const path = entry.categories.join(" ").toLocaleLowerCase();
   const nameEn = (entry.nameEn ?? "").toLocaleLowerCase();
-  const haystack = `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()} ${nameEn} ${entry.pinyin ?? ""}`;
+  const haystack = haystackOf(entry);
+  const pinyinJoined = (entry.pinyin ?? "").replaceAll(" ", "");
   const lowerQuery = query.toLocaleLowerCase().replace(/^nbs_/, "");
   // An ID is only a match when enough of it is typed to be one — otherwise
   // any two-character query lights up random hashes.
@@ -421,7 +445,7 @@ function searchScore(entry: NbsCatalogEntry, query: string): number {
   let bestScore = 0;
   for (const variant of variants) {
     const terms = variant.split(/\s+/).filter(Boolean);
-    if (!terms.every((term) => hasTerm(haystack, term))) continue;
+    if (!terms.every((term) => latinTermHit(haystack, pinyinJoined, term))) continue;
     let score = 10;
     if (name === variant || nameEn === variant) score += 100;
     if (name.startsWith(variant) || nameEn.startsWith(variant)) score += 40;
@@ -436,7 +460,7 @@ function searchScore(entry: NbsCatalogEntry, query: string): number {
   const tokenGroups = lowerQuery.split(/\s+/)
     .filter((word) => word && !SEARCH_STOP_WORDS.has(word))
     .map((word) => SEARCH_ALIASES[word] ?? [word]);
-  if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => hasTerm(haystack, term)))) {
+  if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => latinTermHit(haystack, pinyinJoined, term)))) {
     const titleMatches = tokenGroups.filter((group) => group.some((term) => hasTerm(name, term) || hasTerm(nameEn, term))).length;
     bestScore = Math.max(bestScore, 10 + titleMatches * 20);
   }
@@ -451,7 +475,7 @@ function termHit(name: string, term: string): number {
 }
 
 /** Every phrasing the dictionary offers for a query, plus the query itself. */
-function queryVariants(query: string): string[] {
+export function queryVariants(query: string): string[] {
   const lower = query.toLocaleLowerCase();
   const direct = SEARCH_ALIASES[lower] ?? [];
   const perWord = lower.split(/\s+/).filter((word) => word && !SEARCH_STOP_WORDS.has(word)).flatMap((word) => SEARCH_ALIASES[word] ?? []);
@@ -475,7 +499,7 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       // Full text is a tiebreak, never the ranking: two-character Chinese
       // terms cannot hit a trigram index, so letting bm25 dominate would rank
       // long generic titles above the specific ones the query meant.
-      const text = fullText.has(entry.key) ? Math.min(2, (fullText.get(entry.key) ?? 0) / 5) : undefined;
+      const text = fullText.has(entry.key) && (base > 0 || indexHitIsReal(entry, query)) ? Math.min(2, (fullText.get(entry.key) ?? 0) / 5) : undefined;
       const score = base > 0 ? base + (text ?? 0) : text !== undefined ? 5 + text + extra : extra;
       return { entry, score };
     }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score || a.entry.name.length - b.entry.name.length || a.entry.name.localeCompare(b.entry.name, "zh-CN"));

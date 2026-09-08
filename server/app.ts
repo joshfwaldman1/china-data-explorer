@@ -66,6 +66,11 @@ function nbsDate(date: Date, endOfDay = false): string {
 
 const routes = {
     "/": index,
+    // Liveness for a platform healthcheck: the store opens and answers.
+    "/health": () => {
+      try { const totals = dbStatus().totals; return Response.json({ ok: true, observations: totals.observations, lastFetch: totals.lastFetch }); }
+      catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 503 }); }
+    },
     "/api/catalog": () => Response.json(catalogList()),
     "/api/catalog/stats": async () => Response.json(await nbsCatalogStats()),
     "/api/releases": async (req: RouteRequest) => {
