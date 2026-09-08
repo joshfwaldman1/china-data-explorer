@@ -460,3 +460,11 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .revisions-head span { color: var(--muted); font-size: var(--fs-2); }
 .revisions > p { margin: var(--s-2) 0 0; color: var(--muted); font-size: var(--fs-2); max-width: 70ch; }
 .revisions .table-scroll { margin-top: var(--s-3); }
+
+/* Chart options: collapsed by default, one row when open */
+.chart-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); padding: var(--s-2) var(--s-4); background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.chart-options label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--fs-2); }
+.chart-options select { min-height: 32px; max-width: 240px; border: 1px solid var(--line-strong); border-radius: var(--r-1); background: var(--panel); padding: 0 var(--s-2); color: var(--ink); font-size: var(--fs-2); }
+.chart-options input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--blue); }
+.readout .delta { color: var(--muted); font-size: var(--fs-3); }
+.chart-panel-controls .button[aria-expanded="true"] { background: var(--blue-soft); color: var(--accent-text); border-color: var(--blue-soft); }

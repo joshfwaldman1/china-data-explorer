@@ -93,7 +93,7 @@ function isShow(value: string): value is Show {
 // ── Vocabulary ────────────────────────────────────────────────────────────────
 
 const SHOW_OPTIONS: { value: Show; label: string }[] = [
-  { value: "default", label: "Default for this series" },
+  { value: "default", label: "Default" },
   { value: "raw", label: "Level" },
   { value: "change", label: "Change from previous period" },
   { value: "percent_change", label: "% change from previous period" },
@@ -176,7 +176,7 @@ function unitEn(unit: string): string { return UNIT_EN[unit] ?? ""; }
 function unitLabel(unit: string): string {
   if (!unit) return "Unit not stated";
   const en = unitEn(unit);
-  return en && en !== unit ? `${unit} · ${en}` : unit;
+  return en && en !== unit ? `${unit} (${en})` : unit;
 }
 function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 
@@ -284,7 +284,7 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
       }
       const slot = colors.get(colorId) ?? 0;
       tracks.push({
-        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : `${displayTitle(result, results)} · ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
+        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
       });
@@ -415,9 +415,9 @@ function exportPng(results: SeriesResult[], tracks: Track[], notes: string[], ta
     const ink = computed.getPropertyValue("--ink").trim() || "#1f2933";
     const muted = computed.getPropertyValue("--muted").trim() || "#5b6b7a";
     context.fillStyle = ink; context.font = "600 17px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
-    context.fillText(results.map((result) => result.title).join(" · "), 20, 28);
+    context.fillText(results.map((result) => result.title).join(", "), 20, 28);
     context.fillStyle = muted; context.font = "12px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
-    context.fillText(`${[...new Set(results.map((result) => result.frequency))].join(", ")} · ${unit}`, 20, 48);
+    context.fillText(`${unit}, ${[...new Set(results.map((result) => result.frequency.toLowerCase()))].join(", ")}`, 20, 48);
     context.drawImage(image, 0, 62, width, height);
     let y = 62 + height + 18;
     tracks.forEach((track, index) => {
@@ -432,7 +432,7 @@ function exportPng(results: SeriesResult[], tracks: Track[], notes: string[], ta
     context.fillStyle = muted; context.font = "11px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
     for (const note of notes) { context.fillText(note.slice(0, 150), 20, y); y += 16; }
     const via = results.some((result) => result.sourceUrl.includes("eastmoney")) ? " (via Eastmoney datacenter)" : "";
-    context.fillText(`Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}${via} · EconStats China Data · ${new Date().toISOString().slice(0, 10)}`, 20, total - 12);
+    context.fillText(`Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}${via}. EconStats China Data, ${new Date().toISOString().slice(0, 10)}`, 20, total - 12);
     canvas.toBlob((blob) => { if (blob) download(`econstats-china-${results.map((result) => result.key).join("-")}.png`, blob); }, "image/png");
     URL.revokeObjectURL(source);
   };
@@ -462,7 +462,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
               <div className="group-label">{group}</div>
               {entries.map((entry) => (
                 <a key={entry.key} className="nav-row" href={seriesHash([entry.key])} aria-current={activeKey === entry.key ? "page" : undefined}>
-                  <span className="label"><span className="nav-title">{entry.title}</span><small>{entry.frequency}{entry.agency !== "National Bureau of Statistics" ? ` · ${entry.agency}` : ""}</small></span>
+                  <span className="label"><span className="nav-title">{entry.title}</span><small>{entry.frequency}{entry.agency !== "National Bureau of Statistics" ? `, ${entry.agency}` : ""}</small></span>
                 </a>
               ))}
             </React.Fragment>
@@ -546,7 +546,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>{isRate(entry.unit) && entry.unit !== "%" && !/index/i.test(entry.unit) ? "%" : ""}</span></span>
                 {first && <Sparkline points={first.points} />}
-                <small>{entry.agency === "National Bureau of Statistics" ? "NBS" : entry.agency === "People's Bank of China" ? "PBOC" : entry.agency} · {latest ? periodPretty(latest.date) : entry.frequency}{first && first.label !== entry.title ? ` · ${first.label}` : ""}</small>
+                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{latest ? periodPretty(latest.date) : entry.frequency}, {entry.agency === "National Bureau of Statistics" ? "NBS" : entry.agency === "People's Bank of China" ? "PBOC" : entry.agency}</small>
               </a>
             );
           })}
@@ -565,7 +565,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                   <div className="cal-date"><span>{date.toLocaleDateString("en-US", { month: "short" })}</span><b>{date.getDate()}</b></div>
                   <div>
                     <div className="what">{release.en || <Zh>{release.title}</Zh>}</div>
-                    {release.en && <small><Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh> · {release.date.slice(11, 16)} CST</small>}
+                    {release.en && <small><Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh>, {release.date.slice(11, 16)} CST</small>}
                     {release.keys.length > 0 && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}</div>}
                   </div>
                 </div>
@@ -657,7 +657,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
                   <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
                   {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
                   {!curated && <span className="path"><Zh>{entry.categories.join(" › ")}</Zh></span>}
-                  <span className="meta">{entry.frequency} · {curated ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
+                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
                   && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>}
@@ -695,8 +695,8 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
   useEffect(() => {
     let cancelled = false;
     Promise.all(props.keys.map((key) => json(`/api/entry/${splitSpec(key).key}`).then((body): [string, { title: string; sub: string }] | null => {
-      if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency} · ${body.agency}` }];
-      if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency} · ${body.categories.join(" › ")}` }];
+      if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency}, ${body.agency}` }];
+      if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency}, ${body.categories.join(" › ")}` }];
       return null;
     }).catch(() => null))).then((pairs) => { if (!cancelled) setEntries(new Map(pairs.filter((pair): pair is [string, { title: string; sub: string }] => pair !== null))); });
     return () => { cancelled = true; };
@@ -800,7 +800,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [draft, props.keys.join(",")]);
   if (props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
-  if (!open) return <button className="button" onClick={() => setOpen(true)} aria-expanded={false}>+ Add a series to compare</button>;
+  if (!open) return <button className="button" onClick={() => setOpen(true)} aria-expanded={false}>Add series</button>;
   return (
     <div className="add-series" role="search">
       <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese — GDP, 工业增加值, steel output…" /></div>
@@ -812,7 +812,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
             <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "" }); }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
-              <span className="meta">{entry.frequency} · {entry.datasetCode === 0 ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
+              <span className="meta">{entry.frequency}, {entry.datasetCode === 0 ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}</span>
             </button>
           );
         })}
@@ -834,6 +834,8 @@ function SeriesPage(props: {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("chart");
   const [logScale, setLogScale] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(Boolean(props.route.freq || props.route.show));
+  const [customDates, setCustomDates] = useState(Boolean(props.route.from || props.route.to));
   const [revised, setRevised] = useState<Revised[] | null>(null);
   const [firstView, setFirstView] = useState(false);
   const colors = useRef(new Map<string, number>());
@@ -992,11 +994,12 @@ function SeriesPage(props: {
         <section className="readout" aria-label="Latest observation">
           <div className="main">
             <span className="latest-value">{fmt(latest.value, primary.unit)}</span>
-            <span className="unit">{primary.unit}{delta ? ` · ${delta}` : ""}</span>
-            <span className="which">{headline?.label !== primary.title ? headline?.label : ""}{headline?.label !== primary.title ? " · " : ""}{periodPretty(latest.date)}</span>
+            <span className="unit">{primary.unit}</span>
+            {delta && <span className="delta">{delta}</span>}
+            <span className="which">{headline?.label !== primary.title ? `${headline?.label}, ` : ""}{periodPretty(latest.date)}</span>
           </div>
           <dl><dt>Updated</dt><dd className={stale ? "stale" : ""}>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}{stale && <small>NBS was unreachable today; showing the stored copy</small>}</dd></dl>
-          <dl><dt>Next release</dt><dd>{nextRelease ? <>{fmtDate(nextRelease.date.slice(0, 10))}<small>{nextRelease.date.slice(11, 16)} CST · {nextRelease.en}</small></> : <span className="muted-value">Not on this month's calendar</span>}</dd></dl>
+          <dl><dt>Next release</dt><dd>{nextRelease ? <>{fmtDate(nextRelease.date.slice(0, 10))}<small>{nextRelease.date.slice(11, 16)} CST, {nextRelease.en}</small></> : <span className="muted-value">Not on this month's calendar</span>}</dd></dl>
         </section>
       )}
 
@@ -1015,28 +1018,31 @@ function SeriesPage(props: {
           </div>}
           controls={<>
           {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
+          <button className="button" aria-expanded={optionsOpen} aria-controls="chart-options" onClick={() => setOptionsOpen((value) => !value)}>Options</button>
+          <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
+          </>}
+        />
+        {optionsOpen && <div className="chart-options" id="chart-options">
           <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select></label>
           {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
-          <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
-          </>}
-        />
+        </div>}
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
             <>
-              <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" })}>{item.label}</button>)}<label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></div>
-              <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
+              <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => setCustomDates((value) => !value)}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
+              <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}{primary.frequency === "Monthly" && (years === null ? false : years <= 5) ? " · January–February shaded: Lunar New Year shifts between the two months and distorts both" : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency === "Monthly" && (years === null ? false : years <= 5) ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
             </>
           )}
           {tab === "table" && (
             <>
               <div className="table-scroll"><table><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{row.period}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
-              <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods · download the CSV for all` : `${tableRows.length} periods`}</span></div>
+              <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods. The CSV download has all of them.` : `${tableRows.length} periods`}</span></div>
             </>
           )}
         </div>
@@ -1052,7 +1058,7 @@ function SeriesPage(props: {
           <h2>Series Details</h2>
           <dl>
             <dt>Source</dt><dd>{primary.agency}</dd>
-            <dt>Retrieved via</dt><dd>{via} · <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"} ↗</a></dd>
+            <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"} ↗</a></dd>
             <dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline Indicators"}</dd>
             <dt>Category</dt><dd>{meta ? <Zh>{meta.categories.join(" › ")}</Zh> : curated?.group ?? "—"}</dd>
             <dt>Region</dt><dd>{primary.region ? <Zh>{primary.region.text}</Zh> : "China, national"}</dd>
@@ -1075,7 +1081,7 @@ function SeriesPage(props: {
       </section>
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 
-      {curated && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency} · {entry.agency}</small></a>)}</div></section>}
+      {curated && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency}, {entry.agency}</small></a>)}</div></section>}
     </main>
   );
 }
@@ -1181,7 +1187,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
       {status === "ok" && data && (
         <div className="regional-grid">
           <section className="card" aria-label="Map of provinces">
-            <div className="card-head"><h2>Real GDP Growth by Province, {shownPeriod ? periodPretty(shownPeriod) : ""}</h2><span>% change from a year earlier, year to date · tile map, approximate geography</span></div>
+            <div className="card-head"><h2>Real GDP Growth by Province, {shownPeriod ? periodPretty(shownPeriod) : ""}</h2><span>% change from a year earlier, year to date. Tile map, approximate geography.</span></div>
             <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
               {rows.map((item) => {
                 const province = item.province;
@@ -1206,7 +1212,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
             {current && current.province && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
                 <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{current.province.en} <Zh className="gloss">{current.province.zh}</Zh></h2></div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, "%")}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>% · {shownPeriod ? periodPretty(shownPeriod) : ""}, year to date</span></div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, "%")}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>%, {shownPeriod ? periodPretty(shownPeriod) : ""}, year to date</span></div>
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
                   <a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open the full series</a>
@@ -1224,7 +1230,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
               </section>
             )}
             <section className="card">
-              <div className="card-head"><h2>Provinces Ranked by Real GDP Growth</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""} · % change, year to date</span></div>
+              <div className="card-head"><h2>Provinces Ranked by Real GDP Growth</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, % change, year to date</span></div>
               <div className="ranked">
                 {ranked.map((item, index) => {
                   const province = item.province;
@@ -1302,7 +1308,7 @@ function App() {
       if (key) { const next = [key, ...recent.filter((item) => item !== key)].slice(0, 20); setRecent(next); writeList("china-recent", next); }
     }
     if (route.view !== "search") setDraft("");
-    document.title = route.view === "home" ? "EconStats China Data" : `${route.view === "series" ? route.keys.join(", ") : route.view} · EconStats China Data`;
+    document.title = route.view === "home" ? "EconStats China Data" : `${route.view === "series" ? route.keys.join(", ") : route.view} - EconStats China Data`;
     const main = document.getElementById("main");
     if (main && route.view !== "home") main.focus({ preventScroll: true });
   }, [routeHash(route)]);
