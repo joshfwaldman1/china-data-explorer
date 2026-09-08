@@ -32,6 +32,14 @@ copy, and visual assets are not.
   accessibility pass (skip link, tablist, pressed states, 44px targets).
 - Provincial GDP for all 31 units in the store, and a Regions page with a tile
   cartogram, ranked list and period selector.
+- From/To date pickers beside the range presets; the window lives in the URL.
+- Frequency conversion (quarterly or annual; average, sum or end of period),
+  applied automatically when a compare mixes frequencies.
+- Province-against-province comparison: a region per series in the URL
+  (provincial_gdp@440000000000), picked from the Regions page.
+- "+ Add a series to compare" on the chart; a Download menu; a sticky
+  sidebar with a mobile toggle.
+- The catalog served from SQLite (catalog.db) with a persistent FTS index.
 
 ## P0: data completeness and reliability
 
@@ -47,8 +55,7 @@ copy, and visual assets are not.
 
 ## P1: full chart and workspace parity
 
-- Formula builder for arithmetic, ratios, rebasing, annualization, and custom
-  frequency aggregation.
+- Formula builder for arithmetic, ratios and rebasing across series.
 - Per-series axes, units, colors, line styles, chart types, and observation
   labels; recession/event shading and user annotations.
 - Editable start/end dates, zoom, frequency conversion, missing-value rules,

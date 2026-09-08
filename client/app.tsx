@@ -23,6 +23,24 @@ interface SeriesResult {
   key: string; title: string; agency: string; sourceUrl: string; frequency: string; unit: string;
   series: Series[]; metadata?: NbsCatalogEntry; region?: Region; transform?: string;
   source?: string; updatedAt?: string;
+  /** The URL spec this result answers: the key, or key@region for one province of a regional series. */
+  spec?: string;
+}
+
+/** "provincial_gdp@440000000000" → { key, region }; a bare key has no region. */
+function splitSpec(spec: string): { key: string; region: string } {
+  const at = spec.indexOf("@");
+  return at < 0 ? { key: spec, region: "" } : { key: spec.slice(0, at), region: spec.slice(at + 1) };
+}
+/** A region's name for the UI: the English name where we have one, else what NBS sent. */
+function regionLabel(region: Region): string {
+  return PROVINCES.find((province) => province.code === region.value)?.en ?? region.text;
+}
+/** What to call a result on a chart shared with others: the province when the key repeats. */
+function displayTitle(result: SeriesResult, all: SeriesResult[]): string {
+  const sameKey = all.filter((other) => other.key === result.key);
+  if (sameKey.length > 1 && result.region) return all.every((other) => other.key === result.key) ? regionLabel(result.region) : `${result.title} (${regionLabel(result.region)})`;
+  return result.title;
 }
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
@@ -287,8 +305,9 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
     notes.push(...shaped.notes.filter((note) => !notes.includes(note)));
     gaps.push(...shaped.gaps);
     for (const one of shaped.series) {
-      const id = `${result.key} ${one.label}`;
-      const colorId = one.shareColorWith ? `${result.key} ${one.shareColorWith}` : id;
+      const ident = result.spec ?? result.key;
+      const id = `${ident} ${one.label}`;
+      const colorId = one.shareColorWith ? `${ident} ${one.shareColorWith}` : id;
       if (!colors.has(colorId)) {
         const used = new Set(colors.values());
         let slot = 0;
@@ -297,7 +316,7 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
       }
       const slot = colors.get(colorId) ?? 0;
       tracks.push({
-        id, name: results.length > 1 ? `${result.title} · ${one.label}` : one.label, unit: result.unit, frequency: result.frequency,
+        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : `${displayTitle(result, results)} · ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
       });
@@ -495,7 +514,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
   const [mobileOpen, setMobileOpen] = useState(false);
   const groups = new Map<string, CuratedEntry[]>();
   for (const entry of props.curated) groups.set(entry.group, [...(groups.get(entry.group) ?? []), entry]);
-  const activeKey = props.route.view === "series" ? props.route.keys[0] : "";
+  const activeKey = props.route.view === "series" ? splitSpec(props.route.keys[0] ?? "").key : "";
   const activeCat = props.route.view === "search" ? props.route.cat : "";
   const activeDataset = props.route.view === "search" ? props.route.dataset : "";
   return (
@@ -745,7 +764,7 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
   const [entries, setEntries] = useState<Map<string, { title: string; sub: string }>>(new Map());
   useEffect(() => {
     let cancelled = false;
-    Promise.all(props.keys.map((key) => json(`/api/entry/${key}`).then((body): [string, { title: string; sub: string }] | null => {
+    Promise.all(props.keys.map((key) => json(`/api/entry/${splitSpec(key).key}`).then((body): [string, { title: string; sub: string }] | null => {
       if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency} · ${body.agency}` }];
       if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency} · ${body.categories.join(" › ")}` }];
       return null;
@@ -913,7 +932,14 @@ function SeriesPage(props: {
     const query = new URLSearchParams({ limit: "600" });
     if (props.route.region) query.set("region", props.route.region);
     if (show !== "default") query.set("transform", show);
-    Promise.all(props.route.keys.map((key) => json(`/api/series/${key}?${query}`)))
+    const fetchSpec = (spec: string, transform?: string): Promise<unknown> => {
+      const { key, region } = splitSpec(spec);
+      const params = new URLSearchParams(query);
+      if (region) params.set("region", region);
+      if (transform) params.set("transform", transform);
+      return json(`/api/series/${key}?${params}`).then((body) => (isSeriesResult(body) ? { ...body, spec } : body));
+    };
+    Promise.all(props.route.keys.map((spec) => fetchSpec(spec)))
       .then(async (bodies) => {
         let parsed = bodies.filter(isSeriesResult);
         // Comparing a rate with a level puts a line at zero next to one in
@@ -922,8 +948,7 @@ function SeriesPage(props: {
         if (show === "default" && new Set(parsed.map((result) => result.unit)).size > 1 && parsed.some((result) => isRate(result.unit))) {
           parsed = await Promise.all(parsed.map(async (result) => {
             if (isRate(result.unit)) return result;
-            const alt = new URLSearchParams(query); alt.set("transform", /=100/.test(result.unit) ? "index_growth" : "yoy");
-            const body = await json(`/api/series/${result.key}?${alt}`).catch(() => null);
+            const body = await fetchSpec(result.spec ?? result.key, /=100/.test(result.unit) ? "index_growth" : "yoy").catch(() => null);
             return isSeriesResult(body) ? body : result;
           }));
         }
@@ -1022,14 +1047,14 @@ function SeriesPage(props: {
       </div>
       <PageHeader
         title={<>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
-        subtitle={results.length > 1 ? <p className="lede">Compared with {results.slice(1).map((result) => result.title).join(", ")}</p> : undefined}
+        subtitle={results.length > 1 ? <p className="lede">Compared with {results.slice(1).map((result) => displayTitle(result, results)).join(", ")}</p> : undefined}
         actions={<>
           <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
           <ActionMenu label="Download" items={downloadItems} />
           <button className="button" onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => props.toast("Link copied")).catch(() => props.toast("Couldn't copy the link")); }}>Share</button>
         </>}
       />
-      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: <Zh>{primary.region.text}</Zh></span>}</div>
+      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
       {latest && (
         <section className="readout" aria-label="Latest observation">
@@ -1044,7 +1069,7 @@ function SeriesPage(props: {
       )}
 
       <div className="chip-row">
-        {results.length > 1 && results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}
+        {results.length > 1 && results.map((result) => { const ident = result.spec ?? result.key; const track = built.tracks.find((item) => item.id.startsWith(`${ident} `)); const title = displayTitle(result, results); return <span className="chip" key={ident}><i className="swatch" style={{ background: track?.color }} />{title}<button onClick={() => set({ keys: props.route.keys.filter((spec) => spec !== ident) })} aria-label={`Remove ${title} from the chart`}>×</button></span>; })}
       </div>
       {autoFrequency && converted.length > 0 && <div className="notice info"><div><b>{converted.length === 1 ? "One series is" : `${converted.length} series are`} shown as {autoFrequency.toLowerCase()} {aggregationLabel}</b> so the frequencies on this chart match. Choose “Frequency” to change that.</div></div>}
       {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
@@ -1057,7 +1082,7 @@ function SeriesPage(props: {
             {(["chart", "table", "metadata", "revisions"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
           </div>}
           controls={<>
-          {regions.length > 1 && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
+          {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
           <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select></label>
           {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
@@ -1192,6 +1217,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [selected, setSelected] = useState<string>("");
+  const [picked, setPicked] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
@@ -1256,7 +1282,19 @@ function RegionsPage(props: { toast: (text: string) => void }) {
                 <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{current.province.en} <Zh className="gloss">{current.province.zh}</Zh></h2></div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, "%")}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>% · {shownPeriod ? periodPretty(shownPeriod) : ""}, year to date</span></div>
                 <Sparkline points={current.points} />
-                <div style={{ marginTop: 10 }}><a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open the full series</a></div>
+                <div className="actions" style={{ marginTop: 10 }}>
+                  <a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open the full series</a>
+                  {picked.includes(current.province.code)
+                    ? <button className="button" onClick={() => setPicked(picked.filter((code) => code !== current.province?.code))}>Remove from comparison</button>
+                    : <button className="button" disabled={picked.length >= 4} onClick={() => setPicked([...picked, current.province?.code ?? ""].filter(Boolean))}>{picked.length >= 4 ? "Comparison is full" : "Add to comparison"}</button>}
+                </div>
+              </section>
+            )}
+            {picked.length > 0 && (
+              <section className="card" style={{ padding: 16 }} aria-live="polite">
+                <div className="section-head" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Compare provinces</h2><span>{picked.length} of 4</span></div>
+                <div className="chip-row" style={{ margin: "0 0 10px" }}>{picked.map((code) => { const province = PROVINCES.find((item) => item.code === code); return <span className="chip" key={code}>{province?.en ?? code}<button onClick={() => setPicked(picked.filter((item) => item !== code))} aria-label={`Remove ${province?.en ?? code}`}>×</button></span>; })}</div>
+                <a className="button" href={seriesHash(picked.map((code) => `provincial_gdp@${code}`), { range: "10y" })} aria-disabled={picked.length < 2}>{picked.length < 2 ? "Pick at least two" : `Chart ${picked.length} provinces together`}</a>
               </section>
             )}
             <section className="card">
