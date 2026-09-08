@@ -555,10 +555,10 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             })}</div>}
         </div>
         <div className="card">
-          <div className="card-head"><h2>Coverage</h2><span>What this site includes</span></div>
+          <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>Every revision, from the day a series was first viewed</li></ul></div>
-            <div><h3>Not included</h3><ul><li>70-city house prices</li><li>Provincial series beyond GDP, and city series</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li><li>English titles for most NBS series are machine glosses</li></ul></div>
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li></ul></div>
+            <div><h3>Not included</h3><ul><li>70-city house prices</li><li>Provincial series beyond GDP, and city series</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
           </div>
         </div>
       </section>
