@@ -11,7 +11,9 @@ export function isRate(unit: string): boolean { return /%|percent|index|=100/i.t
 
 export function fmt(value: number, unit: string): string {
   const decimals = isRate(unit) ? 1 : Math.abs(value) >= 1000 ? 0 : 2;
-  return value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const text = value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  // A value that rounds to zero is zero, not "-0.0".
+  return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
 }
 
 export function fmtTick(value: number): string {

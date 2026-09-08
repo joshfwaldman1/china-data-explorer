@@ -49,3 +49,9 @@ test("canonicalPeriod puts a native quarterly month and an aggregated quarter on
   expect(canonicalPeriod("2026-Q2", "Quarterly")).toBe("2026-Q2");
   expect(canonicalPeriod("2026-06", "Monthly")).toBe("2026-06");
 });
+
+test("fmt never shows a negative zero", () => {
+  expect(fmt(-0.03, "%")).toBe("0.0");
+  expect(fmt(-0.001, "Hundred million yuan")).toBe("0.00");
+  expect(fmt(-0.06, "%")).toBe("-0.1");
+});
