@@ -216,11 +216,13 @@ const GLOSS_FILE = resolve(import.meta.dir, "../catalog/gloss-en.json");
 const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
+const GLOSS_FORMAT = 2;
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
   }));
-  return parts.join("|");
+  // GLOSS_FORMAT bumps when glossTitle's output shape changes, so stored glosses rebuild.
+  return [...parts, `gloss-format:${GLOSS_FORMAT}`].join("|");
 }
 
 function isLabelSource(value: unknown): value is EnglishLabelSource {

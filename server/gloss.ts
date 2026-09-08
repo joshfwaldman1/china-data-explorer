@@ -147,7 +147,7 @@ export function glossTitle(name: string): string {
   const baseEn = known[parts.base] ?? segmentGloss(parts.base);
   if (!baseEn) return "";
   const measureEn = MEASURES.find(([zh]) => zh === parts.measure)?.[1] ?? "";
-  const head = measureEn ? `${baseEn} — ${measureEn}` : baseEn;
+  const head = measureEn ? `${baseEn}, ${measureEn}` : baseEn;
   return head.charAt(0).toUpperCase() + head.slice(1);
 }
 

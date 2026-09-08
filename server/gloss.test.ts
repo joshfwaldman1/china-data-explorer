@@ -8,7 +8,7 @@ test("titles split into base, measure and unit", () => {
 });
 
 test("the gloss composes from the dictionary when no table entry exists", () => {
-  expect(glossTitle("粗钢产量累计增长 (%)")).toBe("Crude steel output — year-to-date growth, %");
+  expect(glossTitle("粗钢产量累计增长 (%)")).toBe("Crude steel output, year-to-date growth, %");
   expect(glossTitle("城镇调查失业率 (%)")).toBe("Surveyed urban unemployment rate");
   expect(segmentGloss("汽车产量")).toBe("automobiles output");
 });

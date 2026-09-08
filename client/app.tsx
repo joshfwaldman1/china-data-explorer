@@ -7,6 +7,8 @@ import {
 import "./styles.css";
 import { FREQUENCY_RANK, coarsestFrequency, convertTrack, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
+import { niceTicks, visibleTracks, type ShareInput } from "./export";
+import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +53,7 @@ interface Revised { label: string; period: string; vintages: Vintage[]; }
 
 type Route =
   | { view: "home" }
-  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string; freq: string; agg: string }
+  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string; freq: string; agg: string; lny: string }
   | { view: "search"; q: string; freq: string; cat: string; dataset: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
@@ -181,10 +183,6 @@ function unitLabel(unit: string): string {
 function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 
 function chartColor(index: number): string { return `var(${CHART_TOKENS[index % CHART_TOKENS.length]})`; }
-function resolvedColor(index: number): string {
-  const token = CHART_TOKENS[index % CHART_TOKENS.length] ?? "--chart-1";
-  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || "#2e6da4";
-}
 
 async function json(url: string): Promise<unknown> {
   const response = await fetch(url);
@@ -210,7 +208,7 @@ function parseRoute(hash: string): Route {
   const parts = path.split("/").filter(Boolean);
   const head = parts[0] ?? "";
   if (head === "series" && parts[1]) {
-    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "", freq: query.get("freq") ?? "", agg: query.get("agg") ?? "" };
+    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "", freq: query.get("freq") ?? "", agg: query.get("agg") ?? "", lny: query.get("lny") ?? "" };
   }
   if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "" };
   if (head === "browse") return { view: "browse", cat: "" };
@@ -225,7 +223,7 @@ function routeHash(route: Route): string {
   const qs = (pairs: [string, string][]) => { const query = new URLSearchParams(pairs.filter(([, value]) => value)); const text = query.toString(); return text ? `?${text}` : ""; };
   switch (route.view) {
     case "home": return "#/";
-    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to], ["freq", route.freq], ["agg", route.agg]])}`;
+    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to], ["freq", route.freq], ["agg", route.agg], ["lny", route.lny]])}`;
     case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
@@ -235,7 +233,7 @@ function routeHash(route: Route): string {
   }
 }
 function seriesHash(keys: string[], extra: Partial<{ show: string; range: string; region: string; from: string; to: string }> = {}): string {
-  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "", freq: "", agg: "" });
+  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "", freq: "", agg: "", lny: "" });
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -268,6 +266,9 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
   const tracks: Track[] = [];
   const notes: string[] = [];
   const gaps: { from: string; to: string }[] = [];
+  // A label stands alone on a compare when no other track shares it; otherwise the series title is prefixed.
+  const labelCounts = new Map<string, number>();
+  for (const result of results) for (const one of applyBreaks(result).series) labelCounts.set(one.label, (labelCounts.get(one.label) ?? 0) + 1);
   for (const result of results) {
     const shaped = applyBreaks(result);
     notes.push(...shaped.notes.filter((note) => !notes.includes(note)));
@@ -284,7 +285,7 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
       }
       const slot = colors.get(colorId) ?? 0;
       tracks.push({
-        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
+        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length > 1 && labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
       });
@@ -314,12 +315,8 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }
   );
 }
 
-function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; unit: string; title: string; start?: number; end?: number }) {
-  const last = Math.max(...props.tracks.flatMap((track) => track.points.map((point) => point.t)), 0);
-  // An explicit window wins over the preset; either edge may be open.
-  const start = props.start !== undefined && Number.isFinite(props.start) ? props.start : props.years === null ? -Infinity : last - props.years * 365.25 * 86400000;
-  const end = props.end !== undefined && Number.isFinite(props.end) ? props.end : Infinity;
-  const shown = props.tracks.map((track) => ({ ...track, points: track.points.filter((point) => point.t >= start && point.t <= end) }));
+function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; lunar: boolean; unit: string; title: string; start?: number; end?: number }) {
+  const shown = visibleTracks(props.tracks, props.years, props.start, props.end);
   const times = shown.flatMap((track) => track.points.map((point) => point.t));
   const min = Math.min(...times), max = Math.max(...times);
   const spanYears = (max - min) / (365.25 * 86400000);
@@ -331,10 +328,12 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
     ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => Date.UTC(new Date(min).getUTCFullYear() + index, 0, 1)).filter((value) => value >= min && value <= max)
     : undefined;
   const hasZero = isRate(props.unit) && !props.logScale;
+  const shownValues = shown.flatMap((track) => track.points.map((point) => point.v));
+  const yScale = niceTicks(Math.min(...shownValues), Math.max(...shownValues), 5);
   // Lunar New Year falls in January or February and shifts between them, so
   // monthly comparisons across that window mislead. Shade it, faintly, on
   // monthly charts short enough for the bands to read.
-  const lunar = props.tracks.some((track) => track.frequency === "Monthly") && spanYears <= 12
+  const lunar = props.lunar && props.tracks.some((track) => track.frequency === "Monthly") && spanYears <= 12
     ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => new Date(min).getUTCFullYear() + index)
       .map((year) => ({ year, x1: Date.UTC(year, 0, 1), x2: Date.UTC(year, 2, 1) })).filter((band) => band.x2 >= min && band.x1 <= max)
     : [];
@@ -345,8 +344,8 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
         <LineChart margin={{ top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
-          <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={48} tickMargin={10} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
-          <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={["auto", "auto"]} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
+          <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={48} tickMargin={10} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" tickLine={false} />
+          <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
           {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
           {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
           {lunar.map((band) => <ReferenceArea key={`lny-${band.year}`} x1={Math.max(band.x1, min)} x2={Math.min(band.x2, max)} fill="var(--ink)" fillOpacity={0.035} stroke="none" />)}
@@ -365,12 +364,6 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
 
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-function download(name: string, blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url; link.download = name; link.click();
-  URL.revokeObjectURL(url);
-}
 function csvOf(results: SeriesResult[], tracks: Track[], notes: string[]): string {
   const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
   const head = [
@@ -386,57 +379,6 @@ function csvOf(results: SeriesResult[], tracks: Track[], notes: string[]): strin
     lines.push([period, ...tracks.map((track) => { const found = track.points.find((point) => point.p === period); return found ? String(found.v) : ""; })].map(quote).join(","));
   }
   return [...head, ...lines].join("\n");
-}
-function exportPng(results: SeriesResult[], tracks: Track[], notes: string[], target: SVGSVGElement | null, unit: string): void {
-  if (!target) return;
-  const rect = target.getBoundingClientRect();
-  const width = Math.max(900, Math.round(rect.width));
-  const height = Math.max(400, Math.round(rect.height));
-  const clone = target.cloneNode(true);
-  if (!(clone instanceof SVGSVGElement)) return;
-  const computed = getComputedStyle(document.documentElement);
-  let markup = new XMLSerializer().serializeToString(clone);
-  for (const token of ["--line", "--line-strong", "--muted", "--faint", "--amber", "--panel", "--ink", ...CHART_TOKENS]) {
-    markup = markup.replaceAll(`var(${token})`, computed.getPropertyValue(token).trim() || "#888");
-  }
-  const image = new Image();
-  const source = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
-  image.onload = () => {
-    const legendLines = Math.ceil(tracks.length / 3);
-    const noteLines = notes.length;
-    const total = 70 + height + 24 + legendLines * 18 + noteLines * 16 + 34;
-    const canvas = document.createElement("canvas");
-    canvas.width = width * 2; canvas.height = total * 2;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.scale(2, 2);
-    context.fillStyle = computed.getPropertyValue("--panel").trim() || "#fff";
-    context.fillRect(0, 0, width, total);
-    const ink = computed.getPropertyValue("--ink").trim() || "#1f2933";
-    const muted = computed.getPropertyValue("--muted").trim() || "#5b6b7a";
-    context.fillStyle = ink; context.font = "600 17px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
-    context.fillText(results.map((result) => result.title).join(", "), 20, 28);
-    context.fillStyle = muted; context.font = "12px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
-    context.fillText(`${unit}, ${[...new Set(results.map((result) => result.frequency.toLowerCase()))].join(", ")}`, 20, 48);
-    context.drawImage(image, 0, 62, width, height);
-    let y = 62 + height + 18;
-    tracks.forEach((track, index) => {
-      const x = 20 + (index % 3) * (width / 3);
-      if (index > 0 && index % 3 === 0) y += 18;
-      context.strokeStyle = resolvedColor(CHART_TOKENS.indexOf(track.color.replace(/^var\(|\)$/g, "")));
-      context.lineWidth = 3; context.beginPath(); context.moveTo(x, y - 4); context.lineTo(x + 18, y - 4); context.stroke();
-      context.fillStyle = ink; context.font = "12px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
-      context.fillText(track.name.slice(0, 48), x + 26, y);
-    });
-    y += 22;
-    context.fillStyle = muted; context.font = "11px -apple-system, 'Segoe UI', 'PingFang SC', sans-serif";
-    for (const note of notes) { context.fillText(note.slice(0, 150), 20, y); y += 16; }
-    const via = results.some((result) => result.sourceUrl.includes("eastmoney")) ? " (via Eastmoney datacenter)" : "";
-    context.fillText(`Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}${via}. EconStats China Data, ${new Date().toISOString().slice(0, 10)}`, 20, total - 12);
-    canvas.toBlob((blob) => { if (blob) download(`econstats-china-${results.map((result) => result.key).join("-")}.png`, blob); }, "image/png");
-    URL.revokeObjectURL(source);
-  };
-  image.src = source;
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -809,7 +751,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
         {results.map((entry) => {
           const zhFirst = props.lang === "zh" || !entry.nameEn || entry.datasetCode === 0;
           return (
-            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "" }); }}>
+            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" }); }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
               <span className="meta">{entry.frequency}, {entry.datasetCode === 0 ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}</span>
@@ -834,12 +776,12 @@ function SeriesPage(props: {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("chart");
   const [logScale, setLogScale] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(Boolean(props.route.freq || props.route.show));
+  const [optionsOpen, setOptionsOpen] = useState(Boolean(props.route.freq || props.route.show || props.route.lny));
+  useEffect(() => { void warmShareFonts(); }, []);
   const [customDates, setCustomDates] = useState(Boolean(props.route.from || props.route.to));
   const [revised, setRevised] = useState<Revised[] | null>(null);
   const [firstView, setFirstView] = useState(false);
   const colors = useRef(new Map<string, number>());
-  const chartRef = useRef<HTMLDivElement>(null);
   const show: Show = isShow(props.route.show || "default") ? (isShow(props.route.show) ? props.route.show : "default") : "default";
   const years = props.route.range === "max" ? null : Number(props.route.range.replace("y", "")) || 10;
   const windowStart = props.route.from ? periodTime(props.route.from) : Number.NaN;
@@ -956,19 +898,51 @@ function SeriesPage(props: {
   const downloadItems = [
     {
       label: "Download CSV",
-      onSelect: () => download(`econstats-china-${results.map((result) => result.key).join("-")}.csv`, new Blob([csvOf(results, tracks, built.notes)], { type: "text/csv;charset=utf-8" })),
+      onSelect: () => downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(results, tracks, built.notes)], { type: "text/csv;charset=utf-8" })),
     },
     {
       label: "Download JSON",
-      onSelect: () => download(`econstats-china-${results.map((result) => result.key).join("-")}.json`, new Blob([JSON.stringify(results, null, 2)], { type: "application/json" })),
+      onSelect: () => downloadBlob(shareFileName(props.route.keys, "json"), new Blob([JSON.stringify(results, null, 2)], { type: "application/json" })),
+    },
+  ];
+  const lunar = props.route.lny === "1";
+  const shareInput = (): ShareInput => ({
+    title: results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
+    unit,
+    frequencies: [...new Set(tracks.map((track) => track.frequency))],
+    tracks: visibleTracks(tracks, years, windowStart, windowEnd),
+    gaps: built.gaps,
+    notes: [...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
+    logScale: logScale && canLog,
+    lunar,
+    source: [...new Set(results.map((result) => result.agency))].join(", ") + (results.some((result) => result.sourceUrl.includes("eastmoney")) ? " via Eastmoney" : ""),
+    url: window.location.href,
+    date: fmtDate(new Date().toISOString()),
+  });
+  const noImage = tracks.every((track) => track.points.length === 0);
+  const shareItems = [
+    {
+      label: "Copy image",
+      disabled: noImage,
+      onSelect: () => {
+        const image = renderShareImage(shareInput());
+        if (!canCopyImage()) {
+          image.then((blob) => { downloadBlob(shareFileName(props.route.keys, "png"), blob); props.toast("Image downloaded. Copying is not supported in this browser."); }).catch(() => props.toast("Could not make the image"));
+          return;
+        }
+        copyImage(image).then(() => props.toast("Image copied")).catch(() => {
+          image.then((blob) => { downloadBlob(shareFileName(props.route.keys, "png"), blob); props.toast("Copy was blocked. Image downloaded instead."); }).catch(() => props.toast("Could not make the image"));
+        });
+      },
     },
     {
-      label: "Download chart PNG",
-      disabled: tab !== "chart",
-      onSelect: () => {
-        const svg = chartRef.current?.querySelector("svg.recharts-surface");
-        exportPng(results, tracks, built.notes, svg instanceof SVGSVGElement ? svg : null, unit);
-      },
+      label: "Download image",
+      disabled: noImage,
+      onSelect: () => { renderShareImage(shareInput()).then((blob) => downloadBlob(shareFileName(props.route.keys, "png"), blob)).catch(() => props.toast("Could not make the image")); },
+    },
+    {
+      label: "Copy link",
+      onSelect: () => { navigator.clipboard?.writeText(window.location.href).then(() => props.toast("Link copied")).catch(() => props.toast("Could not copy the link")); },
     },
   ];
 
@@ -985,7 +959,7 @@ function SeriesPage(props: {
         actions={<>
           <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
           <ActionMenu label="Download" items={downloadItems} />
-          <button className="button" onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => props.toast("Link copied")).catch(() => props.toast("Couldn't copy the link")); }}>Share</button>
+          <ActionMenu label="Share" items={shareItems} />
         </>}
       />
       <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
@@ -1027,16 +1001,17 @@ function SeriesPage(props: {
           {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
+          {results.some((result) => result.frequency === "Monthly") && <label><input type="checkbox" checked={lunar} onChange={(event) => set({ lny: event.target.checked ? "1" : "" })} /> Shade Lunar New Year</label>}
         </div>}
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
             <>
               <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => setCustomDates((value) => !value)}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
-              <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
+              <div><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency === "Monthly" && (years === null ? false : years <= 5) ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
             </>
           )}
           {tab === "table" && (
@@ -1066,7 +1041,7 @@ function SeriesPage(props: {
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
             <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${headline.points[0]?.date} → ${headline.points[headline.points.length - 1]?.date}` : "—"}</dd>
             <dt>Updated</dt><dd>{fmtDate(primary.updatedAt) || "—"}</dd>
-            <dt>Series ID</dt><dd><code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{primary.key}</code></dd>
+            <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>
             {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
               ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
               : "Auto-translated from the official Chinese title"}</dd></>}
@@ -1355,7 +1330,7 @@ function App() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>

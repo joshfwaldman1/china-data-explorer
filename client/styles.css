@@ -37,14 +37,14 @@
   --chart-7: #008300;
   --chart-8: #e34948;
 
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
-  --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, ui-monospace, monospace;
+  --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
+  --mono: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif; /* numerals are tabular Plex, not monospace */
   --fs-1: 11px;  --fs-2: 12px;  --fs-3: 13px;  --fs-4: 14px;
   --fs-5: 16px;  --fs-6: 24px;  --fs-7: 40px;
   --lh-tight: 1.2; --lh-body: 1.5; --lh-cjk: 1.6;
 
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
-  --r-1: 4px; --r-2: 8px; --r-pill: 999px;
+  --r-1: 4px; --r-2: 6px; --r-pill: 999px;
   --shadow: 0 1px 2px rgba(18, 57, 92, .04);
   --sidebar: 264px;
   --topbar: 56px;
@@ -91,7 +91,7 @@ a:hover { text-decoration: underline; }
 .topbar :focus-visible { outline-color: var(--on-navy); }
 [lang="zh-Hans"], :lang(zh) { letter-spacing: 0; line-height: var(--lh-cjk); }
 h1:lang(zh), h1 [lang="zh-Hans"] { letter-spacing: 0; font-weight: 600; }
-.num, .latest-value, .tile-value, th, td, .count, .stat-value, time { font-variant-numeric: tabular-nums; }
+.num, .latest-value, .tile-value, th, td, .count, .stat-value, time, .row .value, .ranked .val, .ptile b, .ramp .ticks, .chart-tip .v, .chart-tip b { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .skip-link { position: absolute; left: var(--s-3); top: -60px; z-index: 10; padding: var(--s-2) var(--s-3); background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-1); }
 .skip-link:focus { top: var(--s-3); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -171,7 +171,7 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 .section-head h2 { margin: 0; }
 .section-head span { color: var(--muted); font-size: var(--fs-2); }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--s-3); }
-.tile { display: grid; gap: var(--s-1); padding: var(--s-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); box-shadow: var(--shadow); color: var(--ink); }
+.tile { display: grid; gap: var(--s-1); padding: var(--s-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); color: var(--ink); }
 .tile:hover { text-decoration: none; border-color: var(--line-strong); }
 .tile .label { color: var(--muted); font-size: var(--fs-2); font-weight: 600; }
 .tile-value { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
@@ -179,7 +179,8 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 .tile svg { width: 100%; height: 28px; display: block; }
 .tile small { color: var(--faint); font-size: var(--fs-1); }
 .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: var(--s-4); }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); box-shadow: var(--shadow); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); }
+.data-card { box-shadow: var(--shadow); }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); }
 .card-head h2, .card-head h3 { margin: 0; font-size: var(--fs-4); }
 .card-head span { color: var(--muted); font-size: var(--fs-2); }
@@ -468,3 +469,4 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .chart-options input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--blue); }
 .readout .delta { color: var(--muted); font-size: var(--fs-3); }
 .chart-panel-controls .button[aria-expanded="true"] { background: var(--blue-soft); color: var(--accent-text); border-color: var(--blue-soft); }
+.series-id { font-size: var(--fs-2); }
