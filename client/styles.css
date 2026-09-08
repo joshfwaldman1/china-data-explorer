@@ -242,7 +242,7 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 .chip .swatch { width: 14px; height: 3px; border-radius: 2px; }
 .chip button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--panel-2); color: var(--muted); font-size: 14px; }
 .chip button:hover { background: var(--line); }
-.add-series { width: 100%; display: grid; gap: var(--s-2); padding: var(--s-3); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow); }
+.add-series { position: absolute; right: var(--s-3); top: calc(100% - 4px); z-index: 16; width: min(640px, calc(100% - var(--s-3) * 2)); display: grid; gap: var(--s-2); padding: var(--s-3); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow); }
 .add-series .global-search { background: var(--panel-2); border-color: var(--line); color: var(--ink); height: 40px; }
 .add-series .global-search input::placeholder { color: var(--faint); }
 .add-series-results { display: grid; max-height: 320px; overflow: auto; }
@@ -260,10 +260,9 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 .notice.error { border-left-color: var(--red); background: var(--red-soft); }
 
 .data-card { overflow: hidden; }
-.chart-panel-header { min-height: 56px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); background: var(--panel-2); }
+.chart-panel-header { position: relative; min-height: 56px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); background: var(--panel-2); }
 .chart-panel-views { min-width: 0; }
 .chart-panel-controls { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-2) var(--s-3); }
-.chart-panel-controls > .add-series { flex: 1 0 100%; }
 .chart-panel-controls .add-series-note { max-width: 300px; }
 .segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-1); overflow: hidden; }
 .segmented button { min-height: 32px; border: 0; border-right: 1px solid var(--line-strong); background: var(--panel); padding: 0 var(--s-3); color: var(--muted); font-size: var(--fs-2); font-weight: 600; }
@@ -359,7 +358,7 @@ th:first-child, td:first-child { text-align: left; font-family: var(--mono); }
 .ptile b { font-family: var(--mono); font-size: var(--fs-2); font-weight: 700; }
 .ptile[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
 .ptile.dark { color: #fff; }
-.ptile.light { color: var(--ink); }
+.ptile.light { color: #1f2933; }
 .ramp { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-2); }
 .ramp .steps { display: flex; }
 .ramp .steps i { width: 40px; height: 12px; display: block; }
@@ -401,7 +400,7 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 @media (max-width: 820px) {
   .topbar { grid-template-columns: 1fr auto; grid-template-areas: "brand tools" "search search"; padding: var(--s-2) var(--s-3); gap: var(--s-2); }
   .brand { grid-area: brand; }
-  .global-search { grid-area: search; }
+  .topbar > .global-search { grid-area: search; }
   .topbar-tools { grid-area: tools; }
   .brand small { display: none; }
   .body-grid { display: block; }
@@ -426,7 +425,8 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
   .details a, .cite a { display: inline-block; padding: var(--s-2) 0; }
   .segmented { width: 100%; }
   .segmented button { flex: 1; }
-  .chart-panel-controls { display: grid; grid-template-columns: 1fr; }
+  .chart-panel-controls { display: grid; grid-template-columns: 1fr 1fr; }
+  .chart-panel-controls > label { grid-column: 1 / -1; }
   .chart-panel-controls label, .chart-panel-controls select, .chart-panel-controls > .button { width: 100%; }
   .chart-panel-controls select { max-width: none; }
   .chart-wrap { height: 340px !important; }

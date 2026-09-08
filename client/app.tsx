@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodOf, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -178,13 +178,8 @@ function Zh(props: { children: string; className?: string }) {
   return CJK.test(props.children) ? <span lang="zh-Hans" className={props.className}>{props.children}</span> : <span className={props.className}>{props.children}</span>;
 }
 function unitEn(unit: string): string { return UNIT_EN[unit] ?? ""; }
-/** An observation date as the reader expects for the frequency: "Q1 2006" for quarterly, "Mar 2006" for monthly, "2006" for annual. */
-function prettyObservation(date: string, frequency: string): string {
-  if (!date) return "";
-  if (frequency === "Quarterly") { const t = periodTime(date); return Number.isFinite(t) ? periodPretty(periodOf(t, "Quarterly")) : periodPretty(date); }
-  if (frequency === "Annual") return date.slice(0, 4);
-  return periodPretty(date);
-}
+/** "A", "A and B", "A, B and C". */
+function listWords(items: string[]): string { return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`; }
 function unitLabel(unit: string): string {
   if (!unit) return "Unit not stated";
   const en = unitEn(unit);
@@ -511,7 +506,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span className="tile-unit">{unitSuffix(entry.unit)}</span></span>
                 {first && <Sparkline points={first.points} />}
-                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{latest ? periodPretty(latest.date) : entry.frequency}{latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
+                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
               </a>
             );
           })}
@@ -530,7 +525,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                     <span className="name">{entry.title}<small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
                     <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
-                    <span className="period">{latest ? periodPretty(latest.date) : entry.frequency}</span>
+                    <span className="period">{latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} />}</span>
                   </a>
                 );
@@ -610,6 +605,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
     setMore(true);
     json(`/api/search?${params(response.results.length)}`).then((body) => { if (isSearchResponse(body)) setResponse({ ...body, results: [...response.results, ...body.results] }); }).catch(() => undefined).finally(() => setMore(false));
   };
+  const catEn = props.route.cat ? (categoryEn(props.route.cat) || (() => { const hit = response?.results.find((entry) => entry.categories.includes(props.route.cat)); return hit?.categoriesEn?.[hit.categories.indexOf(props.route.cat)] ?? ""; })()) : "";
   const title = props.route.q ? `Results for “${props.route.q}”` : props.route.cat ? props.route.cat : props.route.dataset ? (props.stats?.datasets.find((dataset) => String(dataset.code) === props.route.dataset)?.name ?? "Dataset") : "All series";
   const freqs = (props.stats?.datasets ?? []).map((dataset) => dataset.frequency).filter((value, index, list) => list.indexOf(value) === index);
   const geos = (props.stats?.datasets ?? []).map((dataset) => dataset.geography).filter((value, index, list) => list.indexOf(value) === index);
@@ -617,7 +613,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span>{props.route.cat ? <><a href="#/browse">Categories</a><span aria-hidden="true">›</span><span><Zh>{props.route.cat}</Zh></span></> : <span>Search</span>}</div>
-      <h1>{CJK.test(title) ? <Zh>{title}</Zh> : title}{props.route.cat && categoryEn(props.route.cat) && <span className="gloss">{categoryEn(props.route.cat)}</span>}</h1>
+      <h1>{props.route.cat && catEn ? <>{catEn}<Zh className="gloss">{props.route.cat}</Zh></> : CJK.test(title) ? <Zh>{title}</Zh> : title}</h1>
       <div className="facets">
         <select aria-label="Frequency" value={props.route.freq} onChange={(event) => set({ freq: event.target.value })}><option value="">All frequencies</option>{freqs.map((freq) => <option key={freq} value={freq}>{freq} ({(props.stats?.datasets.filter((dataset) => dataset.frequency === freq).reduce((sum, dataset) => sum + dataset.count, 0) ?? 0).toLocaleString("en-US")})</option>)}</select>
         {geos.length > 1 && <select aria-label="Region" value="" onChange={() => undefined}>{geos.map((geo) => <option key={geo}>{geo}</option>)}</select>}
@@ -630,7 +626,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
         <div className="state">
           <b>No series match {props.route.q ? `“${props.route.q}”` : "these filters"}</b>
           <p>This catalog holds national monthly and quarterly NBS series ({(props.stats?.seriesCount ?? 0).toLocaleString("en-US")}). It does not yet include 70-city house prices, annual, provincial or city data.</p>
-          <p>Try a Chinese term — <a href={routeHash({ view: "search", q: "失业率", freq: "", cat: "", dataset: "" })}>失业率</a>, <a href={routeHash({ view: "search", q: "居民消费价格", freq: "", cat: "", dataset: "" })}>居民消费价格</a> — or <a href="#/browse">browse the categories</a>. English matches common terms (GDP, CPI, PPI, exports, steel) and the headline indicators.</p>
+          <p>Try a Chinese term such as <a href={routeHash({ view: "search", q: "失业率", freq: "", cat: "", dataset: "" })}>失业率</a> or <a href={routeHash({ view: "search", q: "居民消费价格", freq: "", cat: "", dataset: "" })}>居民消费价格</a>, or <a href="#/browse">browse the categories</a>. English matches common terms (GDP, CPI, PPI, exports, steel) and the headline indicators.</p>
         </div>
       )}
       {status !== "error" && response && response.results.length > 0 && (
@@ -789,8 +785,10 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
   if (props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
   if (!open) return <button className="button" onClick={() => setOpen(true)} aria-expanded={false}>Add series</button>;
   return (
+    <>
+    <button className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>Add series</button>
     <div className="add-series" role="search">
-      <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese — GDP, 工业增加值, steel output…" /></div>
+      <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese: GDP, 工业增加值, steel output" /></div>
       <div className="add-series-results" role="listbox" aria-label="Matching series" aria-busy={busy}>
         {draft.trim() && !busy && results.length === 0 && <p className="add-series-note">No series match “{draft.trim()}”. The catalog holds national monthly and quarterly NBS series.</p>}
         {results.map((entry) => {
@@ -806,6 +804,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
       </div>
       <button className="button" onClick={() => { setOpen(false); setDraft(""); }}>Cancel</button>
     </div>
+    </>
   );
 }
 
@@ -938,7 +937,8 @@ function SeriesPage(props: {
     return periods.map((period) => ({ period, cells: tracks.map((track) => track.points.find((point) => point.p === period)?.v ?? null) }));
   })();
   const shownRows = tableRows.slice(0, 500);
-  const delta = deltaText(latest, previous, primary.unit);
+  const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
+  const delta = deltaText(latest, previous, primary.unit, "long", primary.frequency);
   const downloadItems = [
     {
       label: "Download CSV",
@@ -999,7 +999,7 @@ function SeriesPage(props: {
       </div>
       <PageHeader
         title={<>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
-        subtitle={results.length > 1 ? <p className="lede">Compared with {results.slice(1).map((result) => displayTitle(result, results)).join(", ")}</p> : undefined}
+        subtitle={results.length > 1 ? <p className="lede">{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, compared with ` : "Compared with "}{listWords(results.slice(1).map((result) => displayTitle(result, results)))}</p> : undefined}
         actions={<>
           <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
           <ActionMenu label="Download" items={downloadItems} />
@@ -1011,7 +1011,7 @@ function SeriesPage(props: {
       {latest && (
         <p className="stat-line" aria-label="Latest observation">
           <span className="stat-value">{fmt(latest.value, primary.unit)}</span>
-          <span className="stat-text">{unitLabel(primary.unit)}, {headline?.label !== primary.title ? `${primary.region && headline?.label === primary.region.text ? regionLabel(primary.region) : headline?.label}, ` : ""}{periodPretty(latest.date)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
+          <span className="stat-text">{unitLabel(primary.unit)}, {primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${headline.label}, ` : ""}{observationLabel(latest.date, primary.frequency)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
       )}
 
@@ -1054,7 +1054,7 @@ function SeriesPage(props: {
           )}
           {tab === "table" && (
             <>
-              <div className="table-scroll"><table><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{row.period}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
+              <div className="table-scroll"><table><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{observationLabel(row.period, tableFrequency)}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
               <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods. The CSV download has all of them.` : `${tableRows.length} periods`}</span></div>
             </>
           )}
@@ -1078,7 +1078,7 @@ function SeriesPage(props: {
             <dt>Region</dt><dd>{primary.region ? <>{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</> : "China, national"}</dd>
             <dt>Frequency</dt><dd>{primary.frequency}</dd>
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
-            <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${prettyObservation(headline.points[0]?.date ?? "", primary.frequency)} to ${prettyObservation(headline.points[headline.points.length - 1]?.date ?? "", primary.frequency)}` : "—"}</dd>
+            <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${observationLabel(headline.points[0]?.date ?? "", primary.frequency)} to ${observationLabel(headline.points[headline.points.length - 1]?.date ?? "", primary.frequency)}` : "—"}</dd>
             <dt>Updated</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
             <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}` : "Not scheduled this month"}</dd>
             <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>

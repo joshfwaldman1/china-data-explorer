@@ -94,13 +94,22 @@ export function rebase(tracks: Track[], start: number): Track[] {
  * The change from the prior observation, in words ("Down 0.3 pp from Mar 2026")
  * or compact ("-0.3 pp"). Rates change in percentage points; levels in their unit.
  */
-export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: string, style: "long" | "short" = "long"): string {
+/** An observation date as the reader expects for the frequency: "Q1 2006" for quarterly, "Mar 2006" for monthly, "2006" for annual. */
+export function observationLabel(date: string, frequency: string): string {
+  if (!date) return "";
+  if (/^\d{4}-Q[1-4]$/.test(date)) return periodPretty(date);
+  if (frequency === "Quarterly") { const t = periodTime(date); return Number.isFinite(t) ? periodPretty(periodOf(t, "Quarterly")) : periodPretty(date); }
+  if (frequency === "Annual") return date.slice(0, 4);
+  return periodPretty(date);
+}
+
+export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: string, style: "long" | "short" = "long", frequency = "Monthly"): string {
   if (!latest || !previous) return "";
   const difference = latest.value - previous.value;
   const points = isRate(unit) ? " pp" : "";
-  if (Math.abs(difference) < 0.000001) return style === "long" ? `Unchanged from ${periodPretty(previous.date)}` : "0.0";
+  if (Math.abs(difference) < 0.000001) return style === "long" ? `Unchanged from ${observationLabel(previous.date, frequency)}` : "0.0";
   // Levels in the thousands change by whole units; anything finer is noise at that scale.
   const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);
   if (style === "short") return `${difference > 0 ? "+" : "-"}${magnitude}${points}`;
-  return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${periodPretty(previous.date)}`;
+  return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${observationLabel(previous.date, frequency)}`;
 }
