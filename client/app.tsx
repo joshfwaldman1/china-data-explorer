@@ -195,6 +195,7 @@ function unitEn(unit: string): string { return UNIT_EN[unit] ?? ""; }
 function listWords(items: string[]): string { return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`; }
 function unitLabel(unit: string): string {
   if (!unit) return "Unit not stated";
+  if (unit === "%") return "Percent";
   const en = unitEn(unit);
   return en && en !== unit ? `${unit} (${en})` : unit;
 }
@@ -969,7 +970,7 @@ function SeriesPage(props: {
   const lunar = props.route.lny === "1";
   const shareInput = (): ShareInput => ({
     title: results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
-    unit,
+    unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
     gaps: built.gaps,
@@ -1076,7 +1077,7 @@ function SeriesPage(props: {
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
             </>
           )}
           {tab === "table" && (
