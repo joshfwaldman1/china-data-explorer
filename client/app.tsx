@@ -33,7 +33,7 @@ interface Revised { label: string; period: string; vintages: Vintage[]; }
 
 type Route =
   | { view: "home" }
-  | { view: "series"; keys: string[]; show: string; range: string; region: string }
+  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string }
   | { view: "search"; q: string; freq: string; cat: string; dataset: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
@@ -223,7 +223,7 @@ function parseRoute(hash: string): Route {
   const parts = path.split("/").filter(Boolean);
   const head = parts[0] ?? "";
   if (head === "series" && parts[1]) {
-    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "" };
+    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "" };
   }
   if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "" };
   if (head === "browse") return { view: "browse", cat: "" };
@@ -238,7 +238,7 @@ function routeHash(route: Route): string {
   const qs = (pairs: [string, string][]) => { const query = new URLSearchParams(pairs.filter(([, value]) => value)); const text = query.toString(); return text ? `?${text}` : ""; };
   switch (route.view) {
     case "home": return "#/";
-    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region]])}`;
+    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to]])}`;
     case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
@@ -247,8 +247,8 @@ function routeHash(route: Route): string {
     case "recent": return "#/recent";
   }
 }
-function seriesHash(keys: string[], extra: Partial<{ show: string; range: string; region: string }> = {}): string {
-  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "" });
+function seriesHash(keys: string[], extra: Partial<{ show: string; range: string; region: string; from: string; to: string }> = {}): string {
+  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "" });
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -333,10 +333,12 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }
   );
 }
 
-function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; unit: string; title: string }) {
+function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; unit: string; title: string; start?: number; end?: number }) {
   const last = Math.max(...props.tracks.flatMap((track) => track.points.map((point) => point.t)), 0);
-  const start = props.years === null ? -Infinity : last - props.years * 365.25 * 86400000;
-  const shown = props.tracks.map((track) => ({ ...track, points: track.points.filter((point) => point.t >= start) }));
+  // An explicit window wins over the preset; either edge may be open.
+  const start = props.start !== undefined && Number.isFinite(props.start) ? props.start : props.years === null ? -Infinity : last - props.years * 365.25 * 86400000;
+  const end = props.end !== undefined && Number.isFinite(props.end) ? props.end : Infinity;
+  const shown = props.tracks.map((track) => ({ ...track, points: track.points.filter((point) => point.t >= start && point.t <= end) }));
   const times = shown.flatMap((track) => track.points.map((point) => point.t));
   const min = Math.min(...times), max = Math.max(...times);
   const spanYears = (max - min) / (365.25 * 86400000);
@@ -827,7 +829,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
         {results.map((entry) => {
           const zhFirst = props.lang === "zh" || !entry.nameEn || entry.datasetCode === 0;
           return (
-            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "" }); }}>
+            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "" }); }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
               <span className="meta">{entry.frequency} · {entry.datasetCode === 0 ? entry.dataset : "NBS"} · {unitLabel(entry.unit)}</span>
@@ -858,6 +860,9 @@ function SeriesPage(props: {
   const chartRef = useRef<HTMLDivElement>(null);
   const show: Show = isShow(props.route.show || "default") ? (isShow(props.route.show) ? props.route.show : "default") : "default";
   const years = props.route.range === "max" ? null : Number(props.route.range.replace("y", "")) || 10;
+  const windowStart = props.route.from ? periodTime(props.route.from) : Number.NaN;
+  const windowEnd = props.route.to ? periodTime(props.route.to) + 31 * 86400000 : Number.NaN;
+  const windowed = Number.isFinite(windowStart) || Number.isFinite(windowEnd);
   const keysText = props.route.keys.join(",");
 
   useEffect(() => {
@@ -983,7 +988,7 @@ function SeriesPage(props: {
           <button className="button" onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => props.toast("Link copied")).catch(() => props.toast("Couldn't copy the link")); }}>Share</button>
         </>}
       />
-      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{primary.region && primary.region.value !== "000000000000" && <span>Region: <Zh>{primary.region.text}</Zh></span>}</div>
+      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: <Zh>{primary.region.text}</Zh></span>}</div>
 
       {latest && (
         <section className="readout" aria-label="Latest observation">
@@ -1019,8 +1024,8 @@ function SeriesPage(props: {
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
             <>
-              <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={years === item.years} onClick={() => set({ range: item.years === null ? "max" : `${item.years}y` })}>{item.label}</button>)}</div>
-              <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
+              <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" })}>{item.label}</button>)}<label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></div>
+              <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}{primary.frequency === "Monthly" && (years === null ? false : years <= 5) ? " · January–February shaded: Lunar New Year shifts between the two months and distorts both" : ""}</p>}
@@ -1335,7 +1340,7 @@ function App() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>

@@ -1,9 +1,8 @@
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
-import { Database } from "bun:sqlite";
 import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
-import { db, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
+import { catalogDb, db, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss } from "./gloss";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
@@ -157,7 +156,7 @@ type NbsSeriesResult = SeriesResult & {
   source: "store" | "live" | "stale";
 };
 
-let snapshotCache: { modifiedAt: number; snapshot: CatalogSnapshot } | undefined;
+let snapshotCache: { version: string; snapshot: CatalogSnapshot } | undefined;
 let snapshotPromise: Promise<CatalogSnapshot> | undefined;
 const dimensionsCache = new Map<string, { at: number; data: NbsRegionOption[] }>();
 
@@ -213,11 +212,77 @@ function parseEntry(value: unknown): NbsCatalogEntry | null {
   };
 }
 
+const GLOSS_FILE = resolve(import.meta.dir, "../catalog/gloss-en.json");
+const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
+
+/** A version for the stored catalog: the snapshot and the two label files. */
+async function catalogVersion(): Promise<string> {
+  const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE].map(async (path) => {
+    try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
+  }));
+  return parts.join("|");
+}
+
+function isLabelSource(value: unknown): value is EnglishLabelSource {
+  return value === "nbs-official" || value === "generated" || value === "unavailable";
+}
+
+/** Rebuild a stored entry: validate the fixed fields, then carry the derived ones. */
+function reviveEntry(raw: unknown): NbsCatalogEntry | null {
+  const base = parseEntry(raw);
+  if (!base) return null;
+  const source = objectValue(raw, "nameEnSource");
+  return {
+    ...base,
+    nameEn: stringValue(raw, "nameEn") || undefined,
+    nameEnSource: isLabelSource(source) ? source : undefined,
+    nameEnSourceUrl: stringValue(raw, "nameEnSourceUrl") || undefined,
+    pinyin: stringValue(raw, "pinyin") || undefined,
+  };
+}
+
+function readStoredCatalog(version: string): CatalogSnapshot | null {
+  const meta = catalogDb().query<{ version: string; generatedAt: string; source: string }, []>(
+    "SELECT version, generated_at AS generatedAt, source FROM catalog_meta WHERE id = 1",
+  ).get();
+  if (!meta || meta.version !== version) return null;
+  const rows = catalogDb().query<{ entry: string }, []>("SELECT entry FROM catalog").all();
+  const entries: NbsCatalogEntry[] = [];
+  for (const row of rows) {
+    try { const entry = reviveEntry(JSON.parse(row.entry)); if (entry) entries.push(entry); } catch { /* skip a corrupt row */ }
+  }
+  if (entries.length === 0) return null;
+  return { generatedAt: meta.generatedAt, source: meta.source, entries };
+}
+
+function writeStoredCatalog(snapshot: CatalogSnapshot, version: string): void {
+  const database = catalogDb();
+  const insertEntry = database.prepare("INSERT INTO catalog (key, entry) VALUES (?, ?)");
+  const insertText = database.prepare("INSERT INTO catalog_fts (key, name, name_en, short, path, py) VALUES (?, ?, ?, ?, ?, ?)");
+  database.transaction((entries: NbsCatalogEntry[]) => {
+    database.exec("DELETE FROM catalog");
+    database.exec("DELETE FROM catalog_fts");
+    for (const entry of entries) {
+      insertEntry.run(entry.key, JSON.stringify(entry));
+      insertText.run(entry.key, entry.name, entry.nameEn ?? "", entry.shortName, entry.categories.join(" "), entry.pinyin ?? "");
+    }
+    database.query("INSERT OR REPLACE INTO catalog_meta (id, version, generated_at, source, loaded_at) VALUES (1, ?, ?, ?, ?)")
+      .run(version, snapshot.generatedAt, snapshot.source, new Date().toISOString());
+  })(snapshot.entries);
+}
+
 async function loadSnapshot(): Promise<CatalogSnapshot> {
-  const modifiedAt = (await stat(CATALOG_PATH)).mtimeMs;
-  if (snapshotCache?.modifiedAt === modifiedAt) return snapshotCache.snapshot;
+  const version = await catalogVersion();
+  if (snapshotCache?.version === version) return snapshotCache.snapshot;
   if (!snapshotPromise) {
     snapshotPromise = (async () => {
+      // Fast path: the database already holds this version of the catalog.
+      const stored = readStoredCatalog(version);
+      if (stored) {
+        snapshotCache = { version, snapshot: stored };
+        return stored;
+      }
+      // Slow path: parse the snapshot, gloss it, and store the result.
       const raw: unknown = await Bun.file(CATALOG_PATH).json();
       const entriesRaw = objectValue(raw, "entries");
       if (!Array.isArray(entriesRaw)) throw new Error("NBS catalog is missing; run the catalog sync script");
@@ -233,8 +298,8 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
         source: stringValue(raw, "source"),
         entries,
       };
-      buildSearchIndex(entries);
-      snapshotCache = { modifiedAt, snapshot };
+      writeStoredCatalog(snapshot, version);
+      snapshotCache = { version, snapshot };
       return snapshot;
     })();
   }
@@ -283,26 +348,14 @@ export async function nbsCatalogStats() {
 // characters, so two-character Chinese terms fall through to the substring
 // scorer below — which is why both exist.
 
-let searchIndex: Database | null = null;
-
-function buildSearchIndex(entries: NbsCatalogEntry[]): void {
-  const index = new Database(":memory:");
-  index.exec("CREATE VIRTUAL TABLE catalog USING fts5(key UNINDEXED, name, name_en, short, path, py, tokenize = 'trigram')");
-  const insert = index.prepare("INSERT INTO catalog (key, name, name_en, short, path, py) VALUES (?, ?, ?, ?, ?, ?)");
-  index.transaction((rows: NbsCatalogEntry[]) => {
-    for (const entry of rows) insert.run(entry.key, entry.name, entry.nameEn ?? "", entry.shortName, entry.categories.join(" "), entry.pinyin ?? "");
-  })(entries);
-  searchIndex = index;
-}
-
 /** Keys matching any of the terms, with a 0–10 relevance from bm25. */
 function fullTextCandidates(terms: string[]): Map<string, number> {
   const usable = terms.map((term) => term.trim()).filter((term) => term.length >= 3 && !term.includes('"'));
   const out = new Map<string, number>();
-  if (!searchIndex || usable.length === 0) return out;
+  if (usable.length === 0) return out;
   const match = usable.map((term) => `"${term}"`).join(" OR ");
   try {
-    const rows = searchIndex.query<{ key: string; rank: number }, string>("SELECT key, bm25(catalog, 0, 3, 2, 2, 1, 2) AS rank FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT 2000").all(match);
+    const rows = catalogDb().query<{ key: string; rank: number }, string>("SELECT key, bm25(catalog_fts, 0, 3, 2, 2, 1, 2) AS rank FROM catalog_fts WHERE catalog_fts MATCH ? ORDER BY rank LIMIT 2000").all(match);
     for (const row of rows) out.set(row.key, Math.min(10, Math.max(0, -row.rank)));
   } catch {
     // A malformed MATCH expression is not worth failing a search over.

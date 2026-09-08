@@ -92,6 +92,13 @@ export function db(): Database {
     database.exec("ALTER TABLE fetch_log ADD COLUMN region TEXT NOT NULL DEFAULT ''");
   }
 
+  // The catalog briefly lived in this file; it belongs in catalog.db (a
+  // rebuildable cache), not beside the observations that get backed up.
+  const stray = database.query<{ name: string }, []>("SELECT name FROM sqlite_master WHERE name IN ('catalog', 'catalog_fts', 'catalog_meta')").all();
+  if (stray.length > 0) {
+    database.exec("DROP TABLE IF EXISTS catalog_fts; DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_meta; VACUUM");
+  }
+
   // Series order is meaningful — the first series of a curated key is its
   // headline. Stored as a position so reads return the declared order rather
   // than alphabetical.
@@ -102,6 +109,35 @@ export function db(): Database {
 
   handle = database;
   return handle;
+}
+
+const CATALOG_DB_PATH = process.env.CHINA_CATALOG_DB_PATH ?? `${import.meta.dir}/../catalog.db`;
+let catalogHandle: Database | null = null;
+
+/**
+ * The catalog cache: one JSON document per series plus a persistent full-text
+ * index, keyed by a version derived from the snapshot files. It is a separate
+ * file from the observations because it is derived — rebuilt from the JSON
+ * snapshot in under a second whenever it is missing or stale — and 36 MB of
+ * trigrams has no business in the file the daily workflow commits.
+ */
+export function catalogDb(): Database {
+  if (catalogHandle) return catalogHandle;
+  const database = new Database(CATALOG_DB_PATH, { create: true });
+  database.exec("PRAGMA journal_mode = WAL");
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS catalog_meta (
+      id            INTEGER PRIMARY KEY CHECK (id = 1),
+      version       TEXT NOT NULL,
+      generated_at  TEXT NOT NULL,
+      source        TEXT NOT NULL,
+      loaded_at     TEXT NOT NULL
+    )
+  `);
+  database.exec("CREATE TABLE IF NOT EXISTS catalog (key TEXT PRIMARY KEY, entry TEXT NOT NULL)");
+  database.exec("CREATE VIRTUAL TABLE IF NOT EXISTS catalog_fts USING fts5(key UNINDEXED, name, name_en, short, path, py, tokenize = 'trigram')");
+  catalogHandle = database;
+  return catalogHandle;
 }
 
 export interface WriteSummary {
