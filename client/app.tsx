@@ -1209,7 +1209,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, "%")}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>%, {shownPeriod ? periodPretty(shownPeriod) : ""}, year to date</span></div>
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
-                  <a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open the full series</a>
+                  <a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open series</a>
                   {picked.includes(current.province.code)
                     ? <button className="button" onClick={() => setPicked(picked.filter((code) => code !== current.province?.code))}>Remove from comparison</button>
                     : <button className="button" disabled={picked.length >= 4} onClick={() => setPicked([...picked, current.province?.code ?? ""].filter(Boolean))}>{picked.length >= 4 ? "Comparison is full" : "Add to comparison"}</button>}
@@ -1226,13 +1226,12 @@ function RegionsPage(props: { toast: (text: string) => void }) {
             <section className="card">
               <div className="card-head"><h2>Provinces Ranked by Real GDP Growth</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, % change, year to date</span></div>
               <div className="ranked">
-                {ranked.map((item, index) => {
+                {ranked.map((item) => {
                   const province = item.province;
                   if (!province) return null;
                   const step = stepFor(item.value ?? 0, breaks);
                   return (
                     <button key={province.code} className={`r${selected === province.code ? " selected" : ""}`} style={{ border: 0, background: selected === province.code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === province.code ? "" : province.code)} aria-pressed={selected === province.code}>
-                      <span className="rank">{index + 1}</span>
                       <span>{province.en}</span>
                       <span className="bar"><i style={{ width: `${max > 0 ? Math.max(0, (item.value ?? 0) / max) * 100 : 0}%`, background: RAMP[step] }} /></span>
                       <span className="val">{fmt(item.value ?? 0, "%")}</span>
