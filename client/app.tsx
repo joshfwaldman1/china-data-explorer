@@ -140,7 +140,7 @@ const UNIT_EN: Record<string, string> = {
   "亿元": "100 million yuan", "万元": "10,000 yuan", "亿美元": "100 million US dollars", "万美元": "10,000 US dollars",
   "万吨": "10,000 tonnes", "吨": "tonnes", "万吨标准煤": "10,000 t of standard coal", "亿千瓦时": "100 million kWh", "万千瓦时": "10,000 kWh",
   "万人": "10,000 persons", "人": "persons", "万辆": "10,000 vehicles", "辆": "vehicles", "万平方米": "10,000 m²", "万台": "10,000 units",
-  "亿件": "100 million pieces", "万件": "10,000 pieces", "万户": "10,000 households", "个": "count", "%": "%", "无": "ratio (no unit)",
+  "亿件": "100 million pieces", "万件": "10,000 pieces", "万户": "10,000 households", "个": "count", "%": "%", "无": "no unit",
   "上年同期=100": "index, prior-year period = 100", "上年同月=100": "index, prior-year month = 100", "上月=100": "index, prior month = 100",
   "上年=100": "index, prior year = 100", "元": "yuan", "亿": "100 million", "万": "10,000", "百分点": "percentage points", "天": "days", "小时": "hours",
 };
@@ -813,6 +813,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
             <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" }); }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
+              {entry.datasetCode !== 0 && entry.categories.length > 0 && <span className="meta"><Zh>{(entry.categoriesEn?.every(Boolean) ? entry.categoriesEn : entry.categories).slice(-2).join(" › ")}</Zh></span>}
               <span className="meta">{entry.frequency}, {entry.datasetCode === 0 ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}</span>
             </button>
           );
