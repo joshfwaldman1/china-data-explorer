@@ -15,7 +15,7 @@
 import { resolve } from "node:path";
 import { pinyin } from "pinyin-pro";
 
-const GLOSS_PATH = resolve(import.meta.dir, "catalog/gloss-en.json");
+const GLOSS_PATH = resolve(import.meta.dir, "../catalog/gloss-en.json");
 
 /** Measure suffixes, longest first so 累计增长 wins over 增长. */
 export const MEASURES: [string, string][] = [

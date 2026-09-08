@@ -12,7 +12,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { resolve } from "node:path";
-import { baseConcepts } from "../gloss";
+import { baseConcepts } from "../server/gloss";
 
 const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const GLOSS_PATH = resolve(import.meta.dir, "../catalog/gloss-en.json");

@@ -19,7 +19,7 @@
 import { Database } from "bun:sqlite";
 import type { Series, SeriesResult } from "./data.ts";
 
-const DB_PATH = process.env.CHINA_DB_PATH ?? `${import.meta.dir}/china.db`;
+const DB_PATH = process.env.CHINA_DB_PATH ?? `${import.meta.dir}/../china.db`;
 
 let handle: Database | null = null;
 
@@ -87,7 +87,7 @@ export function db(): Database {
   // fetch_log gained a region column after the first schema shipped; add it
   // to databases created before then. A blank region is a national or
   // curated series.
-  const fetchLogColumns = database.query<{ name: string }>("PRAGMA table_info(fetch_log)").all();
+  const fetchLogColumns = database.query<{ name: string }, []>("PRAGMA table_info(fetch_log)").all();
   if (!fetchLogColumns.some((column) => column.name === "region")) {
     database.exec("ALTER TABLE fetch_log ADD COLUMN region TEXT NOT NULL DEFAULT ''");
   }
@@ -95,7 +95,7 @@ export function db(): Database {
   // Series order is meaningful — the first series of a curated key is its
   // headline. Stored as a position so reads return the declared order rather
   // than alphabetical.
-  const seriesColumns = database.query<{ name: string }>("PRAGMA table_info(series)").all();
+  const seriesColumns = database.query<{ name: string }, []>("PRAGMA table_info(series)").all();
   if (!seriesColumns.some((column) => column.name === "position")) {
     database.exec("ALTER TABLE series ADD COLUMN position INTEGER NOT NULL DEFAULT 0");
   }
@@ -238,6 +238,7 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
   });
 
   const first = meta[0];
+  if (!first) return null;
   const updatedAt = meta.map((row) => row.updatedAt).sort().at(-1);
   return {
     key, title: first.title, agency: first.agency, sourceUrl: first.sourceUrl,
@@ -247,7 +248,7 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
 
 /** Every stored value for one period, oldest first — the revision trail. */
 export function readRevisions(key: string, label: string, period: string, region?: string) {
-  return db().prepare(`
+  return db().query<{ region: string; period: string; value: number | null; fetchedAt: string }, Record<string, string | null>>(`
     SELECT region, period, value, fetched_at AS fetchedAt
     FROM observations
     WHERE key = $key AND label = $label AND period = $period
@@ -262,7 +263,7 @@ export function readRevisions(key: string, label: string, period: string, region
  * actually revises something.
  */
 export function readRevisionHistory(key: string, region?: string) {
-  const rows = db().query<{ label: string; period: string; value: number | null; fetchedAt: string }>(`
+  const rows = db().query<{ label: string; period: string; value: number | null; fetchedAt: string }, Record<string, string | null>>(`
     SELECT o.label, o.period, o.value, o.fetched_at AS fetchedAt
     FROM observations o
     JOIN (
@@ -285,7 +286,7 @@ export function readRevisionHistory(key: string, region?: string) {
 
 /** When any series for this key and region was last written, as an ISO stamp. */
 export function seriesFreshness(key: string, region: string): string | null {
-  const row = db().query<{ updatedAt: string | null }>(`
+  const row = db().query<{ updatedAt: string | null }, Record<string, string>>(`
     SELECT MAX(updated_at) AS updatedAt FROM series WHERE key = $key AND region = $region
   `).get({ $key: key, $region: region });
   return row?.updatedAt ?? null;
@@ -293,7 +294,7 @@ export function seriesFreshness(key: string, region: string): string | null {
 
 /** Every distinct (key, region) in the store whose key starts with `prefix`. */
 export function listStoredSeries(prefix: string): { key: string; region: string }[] {
-  return db().query<{ key: string; region: string }>(`
+  return db().query<{ key: string; region: string }, Record<string, string>>(`
     SELECT DISTINCT key, region FROM series WHERE key LIKE $prefix || '%' ORDER BY key, region
   `).all({ $prefix: prefix });
 }

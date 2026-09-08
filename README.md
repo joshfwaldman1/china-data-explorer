@@ -14,7 +14,7 @@ The broader product target and remaining parity work are tracked in
 From the project root:
 
 ```sh
-bun run china-explorer/server.ts
+bun run china-explorer/server/app.ts
 # then open http://localhost:5173   (set PORT=xxxx to change)
 ```
 
@@ -27,16 +27,16 @@ browser ──> Bun.serve ──> local NBS catalog       (tens of thousands of 
                      └──> AKTools (AkShare)        (LPR, Caixin PMI ×2, electricity — optional; see below)
 ```
 
-- **`server.ts`** — Bun.serve serves the page (bundling `frontend.tsx` on the
+- **`server.ts`** — Bun.serve serves the page (bundling `client/app.tsx` on the
   fly) and exposes catalog search, dataset facets, regional dimensions,
   releases, revisions, and series observations as JSON routes.
-- **`nbs-catalog.ts`** — loads the generated NBS catalog, searches it, resolves
+- **`server/nbs-catalog.ts`** — loads the generated NBS catalog, searches it, resolves
   geographic dimensions, retrieves observations, and applies transformations.
-- **`data.ts`** — the featured macro catalog plus three source fetchers
+- **`server/data.ts`** — the featured macro catalog plus three source fetchers
   (Eastmoney, NBS, AKTools) and a 1-hour in-memory cache. All fetching
   is server-side, which is how FRED works and avoids the browser CORS wall
   (Eastmoney/NBS send no CORS headers).
-- **`frontend.tsx`** — responsive FRED-style workspace with global search,
+- **`client/app.tsx`** — responsive FRED-style workspace with global search,
   dataset/frequency/geography filters, comparisons, transformations, region
   selection, charts, tables, metadata, saved series, exports, and releases.
 
@@ -100,7 +100,7 @@ python -m aktools            # serves http://127.0.0.1:8080  (override with AKTO
 
 Without AKTools running, the other 12 indicators still work; the AkShare-backed
 ones just error until it's up. Adding more AkShare series is a one-entry change
-in `data.ts` (function name, date format, and which fields to plot).
+in `server/data.ts` (function name, date format, and which fields to plot).
 
 ## Notes
 

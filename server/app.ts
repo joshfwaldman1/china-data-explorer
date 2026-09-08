@@ -9,7 +9,7 @@
  * Run:  bun run china-explorer/server.ts   (from the project root)
  */
 
-import index from "./index.html";
+import index from "../client/index.html";
 import { catalogList, getSeries, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
 import { readSeries, readRevisions, readRevisionHistory, dbStatus } from "./db";
 import {

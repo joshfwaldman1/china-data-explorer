@@ -335,7 +335,7 @@ export function catalogList(): CatalogEntry[] {
   }));
 }
 
-// ── Fetchers ──────────────────────────────────────────────────────────────────
+// ── Server-side fetchers ──────────────────────────────────────────────────────
 
 function toMonth(reportDate: string): string {
   const m = reportDate.match(/^(\d{4})-(\d{2})/);
@@ -459,12 +459,12 @@ function normalizeAktoolsDate(raw: string, cfg: AktoolsIndicator): string | null
   if (cfg.dateFormat === "cn_dot") {
     // "2026.7" -> "2026-07"
     const m = raw.match(/^(\d{4})\.(\d{1,2})/);
-    return m ? `${m[1]}-${m[2].padStart(2, "0")}` : null;
+    return m ? `${m[1] ?? ""}-${(m[2] ?? "").padStart(2, "0")}` : null;
   }
   if (cfg.dateFormat === "cn_month") {
     // "2026年07月份" -> "2026-07"
     const m = raw.match(/^(\d{4})\D+(\d{1,2})/);
-    return m ? `${m[1]}-${m[2].padStart(2, "0")}` : null;
+    return m ? `${m[1] ?? ""}-${(m[2] ?? "").padStart(2, "0")}` : null;
   }
   return null;
 }

@@ -10,7 +10,7 @@
 
 import { resolve } from "node:path";
 
-const OFFICIAL_PATH = resolve(import.meta.dir, "catalog/nbs-official-en.json");
+const OFFICIAL_PATH = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
 
 export type EnglishLabelSource = "nbs-official" | "generated" | "unavailable";
 

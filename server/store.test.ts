@@ -55,7 +55,7 @@ test("a revised value becomes a second row and an unchanged one writes nothing",
   expect(revised.changed).toBe(1);
 
   const trail = readRevisions("nbs_t", "全国", "2024-02", NATIONAL);
-  expect(trail.map((row) => Reflect.get(row, "value"))).toEqual([2, 2.5]);
+  expect(trail.map((row) => row.value)).toEqual([2, 2.5]);
   expect(readSeries("nbs_t", 600, NATIONAL)?.series[0]?.points).toEqual([
     { date: "2024-01", value: 1 }, { date: "2024-02", value: 2.5 },
   ]);

@@ -8,7 +8,7 @@ import { glossTitle, toPinyin, warmGloss } from "./gloss";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
-const CATALOG_PATH = resolve(import.meta.dir, "catalog/nbs-catalog.json");
+const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const NATIONAL = { text: "全国", value: "000000000000" };
 const HMT_REGIONS = [
   { text: "香港特别行政区", value: "810000000000" },
@@ -302,7 +302,7 @@ function fullTextCandidates(terms: string[]): Map<string, number> {
   if (!searchIndex || usable.length === 0) return out;
   const match = usable.map((term) => `"${term}"`).join(" OR ");
   try {
-    const rows = searchIndex.query<{ key: string; rank: number }>("SELECT key, bm25(catalog, 0, 3, 2, 2, 1, 2) AS rank FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT 2000").all(match);
+    const rows = searchIndex.query<{ key: string; rank: number }, string>("SELECT key, bm25(catalog, 0, 3, 2, 2, 1, 2) AS rank FROM catalog WHERE catalog MATCH ? ORDER BY rank LIMIT 2000").all(match);
     for (const row of rows) out.set(row.key, Math.min(10, Math.max(0, -row.rank)));
   } catch {
     // A malformed MATCH expression is not worth failing a search over.
@@ -322,7 +322,7 @@ const EXPANSION_SYSTEM = "You map English search queries about Chinese official 
 async function expandQuery(query: string): Promise<string[]> {
   const store = db();
   store.exec("CREATE TABLE IF NOT EXISTS query_expansions (query TEXT PRIMARY KEY, terms TEXT NOT NULL, created_at TEXT NOT NULL)");
-  const cached = store.query<{ terms: string }>("SELECT terms FROM query_expansions WHERE query = ?").get(query.toLocaleLowerCase());
+  const cached = store.query<{ terms: string }, string>("SELECT terms FROM query_expansions WHERE query = ?").get(query.toLocaleLowerCase());
   if (cached) {
     try { const parsed: unknown = JSON.parse(cached.terms); if (Array.isArray(parsed)) return parsed.filter((term): term is string => typeof term === "string"); } catch { /* fall through */ }
   }

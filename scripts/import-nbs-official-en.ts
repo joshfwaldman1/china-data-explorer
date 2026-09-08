@@ -10,7 +10,7 @@
 
 import { dirname, resolve } from "node:path";
 import { mkdir, rename } from "node:fs/promises";
-import { parseOfficialEnglishSnapshot } from "../official-english";
+import { parseOfficialEnglishSnapshot } from "../server/official-english";
 
 const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../catalog/nbs-official-en.json");

@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
+import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ type Show = "default" | "raw" | "change" | "percent_change" | "yoy" | "index_gro
 function obj(value: unknown, key: string): unknown { return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined; }
 function str(value: unknown, key: string): string { const found = obj(value, key); return typeof found === "string" ? found : ""; }
 function num(value: unknown, key: string): number | null { const found = obj(value, key); return typeof found === "number" ? found : null; }
+function listOf(value: unknown, key: string): unknown[] { const found = obj(value, key); return Array.isArray(found) ? found : []; }
 function isCurated(value: unknown): value is CuratedEntry {
   return typeof value === "object" && value !== null && typeof obj(value, "key") === "string" && typeof obj(value, "title") === "string" && typeof obj(value, "group") === "string";
 }
@@ -84,6 +86,7 @@ const RANGES: { label: string; years: number | null }[] = [
   { label: "1Y", years: 1 }, { label: "5Y", years: 5 }, { label: "10Y", years: 10 }, { label: "20Y", years: 20 }, { label: "Max", years: null },
 ];
 const CHART_TOKENS = ["--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5", "--chart-6", "--chart-7", "--chart-8"];
+// A dash per slot so identity is never hue alone (a colour-vision requirement).
 const DASHES = ["", "6 3", "2 3", "8 3 2 3", "", "6 3", "2 3", "8 3 2 3"];
 
 /** English for the NBS top-level categories. The Chinese stays authoritative. */
@@ -360,7 +363,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
         <LineChart margin={{ top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
           <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={48} tickMargin={10} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
-          <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={["auto", "auto"]} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)", fontVariantNumeric: "tabular-nums" }} stroke="var(--line-strong)" />
+          <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={["auto", "auto"]} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" />
           {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
           {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
           {lunar.map((band) => <ReferenceArea key={`lny-${band.year}`} x1={Math.max(band.x1, min)} x2={Math.min(band.x2, max)} fill="var(--ink)" fillOpacity={0.035} stroke="none" />)}
@@ -456,15 +459,19 @@ function exportPng(results: SeriesResult[], tracks: Track[], notes: string[], ta
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; route: Route; saved: string[]; recent: string[] }) {
-  const wide = typeof window !== "undefined" && window.innerWidth > 820;
+  const [mobileOpen, setMobileOpen] = useState(false);
   const groups = new Map<string, CuratedEntry[]>();
   for (const entry of props.curated) groups.set(entry.group, [...(groups.get(entry.group) ?? []), entry]);
   const activeKey = props.route.view === "series" ? props.route.keys[0] : "";
   const activeCat = props.route.view === "search" ? props.route.cat : "";
   const activeDataset = props.route.view === "search" ? props.route.dataset : "";
   return (
-    <aside className="sidebar" aria-label="Catalog">
-      <details open={wide}>
+    <aside className={`sidebar${mobileOpen ? " mobile-open" : ""}`} aria-label="Catalog">
+      <button className="catalog-toggle" type="button" aria-expanded={mobileOpen} aria-controls="catalog-navigation" onClick={() => setMobileOpen((open) => !open)}>
+        <span>Browse data</span><span aria-hidden="true">{mobileOpen ? "Close" : "Open"}</span>
+      </button>
+      <div className="sidebar-content" id="catalog-navigation">
+      <details open>
         <summary>Headline indicators</summary>
         <div className="side-list">
           {[...groups.entries()].map(([group, entries]) => (
@@ -472,7 +479,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
               <div className="group-label">{group}</div>
               {entries.map((entry) => (
                 <a key={entry.key} className="nav-row" href={seriesHash([entry.key])} aria-current={activeKey === entry.key ? "page" : undefined}>
-                  <span className="label">{entry.title}<small>{entry.frequency}{entry.agency !== "National Bureau of Statistics" ? ` · ${entry.agency}` : ""}</small></span>
+                  <span className="label"><span className="nav-title">{entry.title}</span><small>{entry.frequency}{entry.agency !== "National Bureau of Statistics" ? ` · ${entry.agency}` : ""}</small></span>
                 </a>
               ))}
             </React.Fragment>
@@ -485,13 +492,13 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
           <div className="group-label">Datasets</div>
           {props.stats?.datasets.map((dataset) => (
             <a key={dataset.code} className="nav-row" href={routeHash({ view: "search", q: "", freq: "", cat: "", dataset: String(dataset.code) })} aria-current={activeDataset === String(dataset.code) ? "page" : undefined} aria-label={`${dataset.geography} ${dataset.frequency.toLowerCase()} dataset, ${dataset.count.toLocaleString("en-US")} series`}>
-              <span className="label">{dataset.geography} {dataset.frequency.toLowerCase()}<small>{dataset.count.toLocaleString("en-US")} series</small></span>
+              <span className="label"><span className="nav-title">{dataset.geography} {dataset.frequency.toLowerCase()}</span><small>{dataset.count.toLocaleString("en-US")} series</small></span>
             </a>
           ))}
           <div className="group-label">Categories</div>
           {props.stats?.categories.map((category) => (
             <a key={category.name} className="nav-row" href={`#/category/${encodeURIComponent(category.name)}`} aria-current={activeCat === category.name ? "page" : undefined}>
-              <span className="label"><Zh>{category.name}</Zh>{categoryEn(category.name) && <small>{categoryEn(category.name)}</small>}</span>
+              <span className="label"><span className="nav-title"><Zh>{category.name}</Zh></span>{categoryEn(category.name) && <small>{categoryEn(category.name)}</small>}</span>
               <span className="count">{category.count.toLocaleString("en-US")}</span>
             </a>
           ))}
@@ -504,6 +511,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
           <a className="nav-row" href="#/recent" aria-current={props.route.view === "recent" ? "page" : undefined}><span className="label">Recently viewed</span><span className="count">{props.recent.length}</span></a>
         </div>
       </details>
+      </div>
     </aside>
   );
 }
@@ -704,11 +712,11 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
   const [entries, setEntries] = useState<Map<string, { title: string; sub: string }>>(new Map());
   useEffect(() => {
     let cancelled = false;
-    Promise.all(props.keys.map((key) => json(`/api/entry/${key}`).then((body) => {
-      if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency} · ${body.agency}` }] as const;
-      if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency} · ${body.categories.join(" › ")}` }] as const;
+    Promise.all(props.keys.map((key) => json(`/api/entry/${key}`).then((body): [string, { title: string; sub: string }] | null => {
+      if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency} · ${body.agency}` }];
+      if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency} · ${body.categories.join(" › ")}` }];
       return null;
-    }).catch(() => null))).then((pairs) => { if (!cancelled) setEntries(new Map(pairs.filter((pair): pair is readonly [string, { title: string; sub: string }] => pair !== null))); });
+    }).catch(() => null))).then((pairs) => { if (!cancelled) setEntries(new Map(pairs.filter((pair): pair is [string, { title: string; sub: string }] => pair !== null))); });
     return () => { cancelled = true; };
   }, [props.keys.join(",")]);
   return (
@@ -742,7 +750,7 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
       if (cancelled) return;
       const data = obj(body, "data");
       if (!Array.isArray(data)) { setStatus("error"); return; }
-      setItems(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: (Array.isArray(obj(item, "keys")) ? obj(item, "keys") : []).filter((key): key is string => typeof key === "string") })).filter((item) => item.id && item.title));
+      setItems(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string") })).filter((item) => item.id && item.title));
       setStatus("ok");
     }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
@@ -899,7 +907,7 @@ function SeriesPage(props: {
     json(`/api/revisions/${primary.key}?${query}`).then((body) => {
       const list = obj(body, "revised");
       if (!Array.isArray(list)) { setRevised([]); return; }
-      setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: (Array.isArray(obj(item, "vintages")) ? obj(item, "vintages") : []).map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
+      setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: listOf(item, "vintages").map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
     }).catch(() => setRevised([]));
   }, [tab, results.map((result) => result.key).join(",")]);
 
@@ -936,6 +944,28 @@ function SeriesPage(props: {
     return periods.map((period) => ({ period, cells: tracks.map((track) => track.points.find((point) => point.p === period)?.v ?? null) }));
   })();
   const shownRows = tableRows.slice(0, 500);
+  const difference = latest && previous ? latest.value - previous.value : null;
+  const delta = difference === null ? "" : Math.abs(difference) < 0.000001
+    ? `Unchanged from ${periodPretty(previous?.date ?? "")}`
+    : `${difference > 0 ? "Up" : "Down"} ${fmt(Math.abs(difference), primary.unit)}${isRate(primary.unit) ? " pp" : ""} from ${periodPretty(previous?.date ?? "")}`;
+  const downloadItems = [
+    {
+      label: "Download CSV",
+      onSelect: () => download(`econstats-china-${results.map((result) => result.key).join("-")}.csv`, new Blob([csvOf(results, tracks, built.notes)], { type: "text/csv;charset=utf-8" })),
+    },
+    {
+      label: "Download JSON",
+      onSelect: () => download(`econstats-china-${results.map((result) => result.key).join("-")}.json`, new Blob([JSON.stringify(results, null, 2)], { type: "application/json" })),
+    },
+    {
+      label: "Download chart PNG",
+      disabled: tab !== "chart",
+      onSelect: () => {
+        const svg = chartRef.current?.querySelector("svg.recharts-surface");
+        exportPng(results, tracks, built.notes, svg instanceof SVGSVGElement ? svg : null, unit);
+      },
+    },
+  ];
 
   return (
     <main id="main" tabIndex={-1} className="page">
@@ -944,51 +974,48 @@ function SeriesPage(props: {
         {meta ? <><a href="#/browse">Categories</a>{meta.categories.slice(0, 2).map((category) => <React.Fragment key={category}><span aria-hidden="true">›</span><a href={`#/category/${encodeURIComponent(category)}`}><Zh>{category}</Zh></a></React.Fragment>)}</>
           : <><span>Headline indicators</span><span aria-hidden="true">›</span><span>{curated?.group ?? primary.agency}</span></>}
       </div>
-      <div className="series-head">
-        <div>
-          <h1>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</h1>
-          {results.length > 1 && <p className="lede">Compared with {results.slice(1).map((result) => result.title).join(", ")}</p>}
-        </div>
-        <div className="actions">
+      <PageHeader
+        title={<>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
+        subtitle={results.length > 1 ? <p className="lede">Compared with {results.slice(1).map((result) => result.title).join(", ")}</p> : undefined}
+        actions={<>
           <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
-          <button className="button" onClick={() => download(`econstats-china-${results.map((result) => result.key).join("-")}.csv`, new Blob([csvOf(results, tracks, built.notes)], { type: "text/csv;charset=utf-8" }))}>CSV</button>
-          <button className="button" onClick={() => download(`econstats-china-${results.map((result) => result.key).join("-")}.json`, new Blob([JSON.stringify(results, null, 2)], { type: "application/json" }))}>JSON</button>
-          <button className="button" onClick={() => { const svg = chartRef.current?.querySelector("svg.recharts-surface"); exportPng(results, tracks, built.notes, svg instanceof SVGSVGElement ? svg : null, unit); }} disabled={tab !== "chart"}>PNG</button>
+          <ActionMenu label="Download" items={downloadItems} />
           <button className="button" onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => props.toast("Link copied")).catch(() => props.toast("Couldn't copy the link")); }}>Share</button>
-        </div>
-      </div>
+        </>}
+      />
       <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{primary.region && primary.region.value !== "000000000000" && <span>Region: <Zh>{primary.region.text}</Zh></span>}</div>
 
       {latest && (
         <section className="readout" aria-label="Latest observation">
           <div className="main">
             <span className="latest-value">{fmt(latest.value, primary.unit)}</span>
-            <span className="unit">{primary.unit}{previous ? ` · ${latest.value - previous.value >= 0 ? "+" : ""}${fmt(latest.value - previous.value, primary.unit)} from ${periodPretty(previous.date)}` : ""}</span>
+            <span className="unit">{primary.unit}{delta ? ` · ${delta}` : ""}</span>
             <span className="which">{headline?.label !== primary.title ? headline?.label : ""}{headline?.label !== primary.title ? " · " : ""}{periodPretty(latest.date)}</span>
           </div>
           <dl><dt>Updated</dt><dd className={stale ? "stale" : ""}>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}{stale && <small>NBS was unreachable today; showing the stored copy</small>}</dd></dl>
-          <dl><dt>Next release</dt><dd>{nextRelease ? <>{fmtDate(nextRelease.date.slice(0, 10))}<small>{nextRelease.date.slice(11, 16)} CST · {nextRelease.en}</small></> : <span style={{ color: "var(--muted)", fontWeight: 400 }}>Not on this month's calendar</span>}</dd></dl>
+          <dl><dt>Next release</dt><dd>{nextRelease ? <>{fmtDate(nextRelease.date.slice(0, 10))}<small>{nextRelease.date.slice(11, 16)} CST · {nextRelease.en}</small></> : <span className="muted-value">Not on this month's calendar</span>}</dd></dl>
         </section>
       )}
 
       <div className="chip-row">
         {results.length > 1 && results.map((result) => { const track = built.tracks.find((item) => item.id.startsWith(`${result.key} `)); return <span className="chip" key={result.key}><i className="swatch" style={{ background: track?.color }} />{result.title}<button onClick={() => set({ keys: props.route.keys.filter((key) => key !== result.key) })} aria-label={`Remove ${result.title} from the chart`}>×</button></span>; })}
-        <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
       </div>
       {mixed && <div className="notice info"><div><b>These series have different units ({units.join(", ")}).</b>They're shown as an index with the first shown period = 100, so the shapes compare. Choose “Show as” for a common transform instead.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div><b>Level series are shown as % change from a year ago</b> so their units match the rates on this chart. Choose “Show as” to change that.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
 
       <section className="card data-card">
-        <div className="toolbar">
-          <div className="segmented" role="tablist" aria-label="View">
+        <ChartPanelHeader
+          views={<div className="segmented" role="tablist" aria-label="View">
             {(["chart", "table", "metadata", "revisions"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
-          </div>
+          </div>}
+          controls={<>
           {regions.length > 1 && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{item.text}</option>)}</select></label>}
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
-          <div className="toolbar-spacer" />
-        </div>
+          <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
+          </>}
+        />
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
             <>
@@ -996,7 +1023,7 @@ function SeriesPage(props: {
               <div ref={chartRef}><SeriesChart tracks={tracks} gaps={built.gaps} years={years} logScale={logScale && canLog} unit={unit} title={results.map((result) => result.title).join(" · ")} /></div>
               {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}{primary.frequency === "Monthly" && (years === null ? false : years <= 12) ? " · January–February shaded: Lunar New Year shifts between the two months and distorts both" : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{unit}{primary.frequency ? ` · ${primary.frequency.toLowerCase()}` : ""}{primary.frequency === "Monthly" && (years === null ? false : years <= 5) ? " · January–February shaded: Lunar New Year shifts between the two months and distorts both" : ""}</p>}
             </>
           )}
           {tab === "table" && (
@@ -1243,7 +1270,7 @@ function App() {
     json("/api/releases").then((body) => {
       const data = obj(body, "data");
       if (!Array.isArray(data)) { setReleaseError("unavailable"); return; }
-      setReleases(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: (Array.isArray(obj(item, "keys")) ? obj(item, "keys") : []).filter((key): key is string => typeof key === "string") })).filter((item) => item.id));
+      setReleases(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string") })).filter((item) => item.id));
     }).catch(() => setReleaseError("unavailable"));
   }, []);
 
