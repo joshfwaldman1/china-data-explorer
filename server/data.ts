@@ -58,6 +58,31 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   caixin_pmi: ["caixin", "caixin pmi", "private pmi", "财新", "财新制造业"],
   caixin_services_pmi: ["caixin services", "services pmi", "财新服务业"],
   electricity_output: ["electricity", "power generation", "electricity output", "energy", "发电量", "电力"],
+  house_prices: ["house prices", "home prices", "property prices", "housing", "70 cities", "70-city", "房价", "住宅销售价格", "70个大中城市"],
+  fx_usdcny: ["exchange rate", "yuan", "renminbi", "rmb", "usdcny", "cny", "fx", "汇率", "人民币"],
+  reer_bis: ["exchange rate", "reer", "effective exchange rate", "汇率"],
+  credit_private_bis: ["credit", "leverage", "debt", "bis", "杠杆率", "信贷"],
+  credit_households_bis: ["household debt", "household credit", "leverage", "居民杠杆"],
+  credit_corporate_bis: ["corporate debt", "corporate credit", "leverage", "企业杠杆"],
+  gov_debt_imf: ["government debt", "public debt", "fiscal", "政府债务"],
+  house_prices_real_bis: ["house prices", "property prices", "real house prices", "房价"],
+  epu: ["uncertainty", "policy uncertainty", "epu", "不确定性"],
+  tpu: ["trade policy uncertainty", "tariffs", "trade war", "贸易政策"],
+  oecd_cli: ["leading indicator", "cli", "oecd", "先行指标"],
+  consumer_confidence_oecd: ["consumer confidence", "sentiment", "消费者信心"],
+  shibor_3m: ["shibor", "interbank", "money market", "同业拆借"],
+  us_imports_from_china: ["us imports", "trade war", "tariffs", "美国进口"],
+  us_exports_to_china: ["us exports", "soybeans", "trade war", "美国出口"],
+  us_treasury_holdings: ["treasuries", "treasury holdings", "us debt", "美债"],
+  us_import_prices_china: ["import prices", "tariffs", "进口价格"],
+  golden_dragon: ["stocks", "adr", "nasdaq", "equities", "中概股"],
+  population: ["population", "demographics", "人口"],
+  fertility: ["fertility", "births", "demographics", "生育率"],
+  population_65: ["ageing", "aging", "elderly", "demographics", "老龄化"],
+  life_expectancy: ["life expectancy", "demographics", "预期寿命"],
+  gdp_usd: ["gdp dollars", "nominal gdp", "world bank", "美元gdp"],
+  gdp_per_capita_usd: ["gdp per capita", "income per head", "人均gdp"],
+  gini: ["inequality", "gini", "基尼系数"],
   lpr: ["lpr", "loan prime rate", "interest rate", "policy rate", "benchmark rate", "贷款市场报价利率", "利率"],
 };
 
@@ -66,6 +91,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
 interface EastmoneyField {
   field: string;
   label: string;
+  /** Added to every value: an index where last year = 100 becomes a % change with -100. */
+  valueOffset?: number;
 }
 interface EastmoneyIndicator {
   kind: "eastmoney";
@@ -74,6 +101,8 @@ interface EastmoneyIndicator {
   /** Set when the source stopped publishing: the last period, and why. */
   ended?: string;
   endedNote?: string;
+  /** false keeps a series off the Home list (still in the sidebar, search and catalog). */
+  home?: boolean;
   agency: string;
   frequency: string;
   unit: string;
@@ -81,6 +110,34 @@ interface EastmoneyIndicator {
   /** The date column; most reports use REPORT_DATE, the LPR report TRADE_DATE. */
   dateField?: string;
   fields: EastmoneyField[];
+  /**
+   * A table with one row per region and month (the 70-city house price
+   * table): the column that names the region, the regions to serve, and an
+   * optional computed average region. The table is downloaded once per
+   * refresh and cached, then split by region.
+   */
+  regionField?: string;
+  regions?: NbsRegion[];
+  regionAverage?: NbsRegion;
+  /** How many 500-row pages to pull for the full history. */
+  pages?: number;
+}
+interface FredIndicator {
+  kind: "fred";
+  group: string;
+  title: string;
+  ended?: string;
+  endedNote?: string;
+  home?: boolean;
+  agency: string;
+  frequency: "Monthly" | "Quarterly" | "Annual";
+  unit: string;
+  seriesId: string;
+  /** For a daily FRED series: how to bring it to the monthly frequency. */
+  aggregate?: "avg" | "eop";
+  /** Multiply every value: 1e-12 turns current dollars into trillions. */
+  scale?: number;
+  label: string;
 }
 interface NbsSeriesId {
   id: string;
@@ -90,6 +147,8 @@ interface NbsSeriesId {
 export interface NbsRegion {
   text: string;
   value: string;
+  /** English name for display; the text stays the source's own label. */
+  en?: string;
 }
 interface NbsIndicator {
   kind: "nbs";
@@ -98,6 +157,7 @@ interface NbsIndicator {
   /** Set when the source stopped publishing: the last period, and why. */
   ended?: string;
   endedNote?: string;
+  home?: boolean;
   agency: string;
   frequency: string;
   unit: string;
@@ -119,6 +179,7 @@ interface AktoolsIndicator {
   /** Set when the source stopped publishing: the last period, and why. */
   ended?: string;
   endedNote?: string;
+  home?: boolean;
   agency: string;
   frequency: string;
   unit: string;
@@ -132,7 +193,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -182,6 +243,80 @@ export const NBS_PROVINCES: NbsRegion[] = [
   nbsProvince("青海省", "630000"),
   nbsProvince("宁夏回族自治区", "640000"),
   nbsProvince("新疆维吾尔自治区", "650000"),
+];
+
+/** The 70 large and medium cities in NBS's monthly sales price survey, in NBS's own order. */
+export const CITIES_70: NbsRegion[] = [
+  { text: "北京", value: "beijing", en: "Beijing" },
+  { text: "天津", value: "tianjin", en: "Tianjin" },
+  { text: "石家庄", value: "shijiazhuang", en: "Shijiazhuang" },
+  { text: "太原", value: "taiyuan", en: "Taiyuan" },
+  { text: "呼和浩特", value: "hohhot", en: "Hohhot" },
+  { text: "沈阳", value: "shenyang", en: "Shenyang" },
+  { text: "大连", value: "dalian", en: "Dalian" },
+  { text: "长春", value: "changchun", en: "Changchun" },
+  { text: "哈尔滨", value: "harbin", en: "Harbin" },
+  { text: "上海", value: "shanghai", en: "Shanghai" },
+  { text: "南京", value: "nanjing", en: "Nanjing" },
+  { text: "杭州", value: "hangzhou", en: "Hangzhou" },
+  { text: "宁波", value: "ningbo", en: "Ningbo" },
+  { text: "合肥", value: "hefei", en: "Hefei" },
+  { text: "福州", value: "fuzhou", en: "Fuzhou" },
+  { text: "厦门", value: "xiamen", en: "Xiamen" },
+  { text: "南昌", value: "nanchang", en: "Nanchang" },
+  { text: "济南", value: "jinan", en: "Jinan" },
+  { text: "青岛", value: "qingdao", en: "Qingdao" },
+  { text: "郑州", value: "zhengzhou", en: "Zhengzhou" },
+  { text: "武汉", value: "wuhan", en: "Wuhan" },
+  { text: "长沙", value: "changsha", en: "Changsha" },
+  { text: "广州", value: "guangzhou", en: "Guangzhou" },
+  { text: "深圳", value: "shenzhen", en: "Shenzhen" },
+  { text: "南宁", value: "nanning", en: "Nanning" },
+  { text: "海口", value: "haikou", en: "Haikou" },
+  { text: "重庆", value: "chongqing", en: "Chongqing" },
+  { text: "成都", value: "chengdu", en: "Chengdu" },
+  { text: "贵阳", value: "guiyang", en: "Guiyang" },
+  { text: "昆明", value: "kunming", en: "Kunming" },
+  { text: "西安", value: "xian", en: "Xi'an" },
+  { text: "兰州", value: "lanzhou", en: "Lanzhou" },
+  { text: "西宁", value: "xining", en: "Xining" },
+  { text: "银川", value: "yinchuan", en: "Yinchuan" },
+  { text: "乌鲁木齐", value: "urumqi", en: "Urumqi" },
+  { text: "唐山", value: "tangshan", en: "Tangshan" },
+  { text: "秦皇岛", value: "qinhuangdao", en: "Qinhuangdao" },
+  { text: "包头", value: "baotou", en: "Baotou" },
+  { text: "丹东", value: "dandong", en: "Dandong" },
+  { text: "锦州", value: "jinzhou", en: "Jinzhou" },
+  { text: "吉林", value: "jilin", en: "Jilin" },
+  { text: "牡丹江", value: "mudanjiang", en: "Mudanjiang" },
+  { text: "无锡", value: "wuxi", en: "Wuxi" },
+  { text: "扬州", value: "yangzhou", en: "Yangzhou" },
+  { text: "徐州", value: "xuzhou", en: "Xuzhou" },
+  { text: "温州", value: "wenzhou", en: "Wenzhou" },
+  { text: "金华", value: "jinhua", en: "Jinhua" },
+  { text: "蚌埠", value: "bengbu", en: "Bengbu" },
+  { text: "安庆", value: "anqing", en: "Anqing" },
+  { text: "泉州", value: "quanzhou", en: "Quanzhou" },
+  { text: "九江", value: "jiujiang", en: "Jiujiang" },
+  { text: "赣州", value: "ganzhou", en: "Ganzhou" },
+  { text: "烟台", value: "yantai", en: "Yantai" },
+  { text: "济宁", value: "jining", en: "Jining" },
+  { text: "洛阳", value: "luoyang", en: "Luoyang" },
+  { text: "平顶山", value: "pingdingshan", en: "Pingdingshan" },
+  { text: "宜昌", value: "yichang", en: "Yichang" },
+  { text: "襄阳", value: "xiangyang", en: "Xiangyang" },
+  { text: "岳阳", value: "yueyang", en: "Yueyang" },
+  { text: "常德", value: "changde", en: "Changde" },
+  { text: "惠州", value: "huizhou", en: "Huizhou" },
+  { text: "湛江", value: "zhanjiang", en: "Zhanjiang" },
+  { text: "韶关", value: "shaoguan", en: "Shaoguan" },
+  { text: "桂林", value: "guilin", en: "Guilin" },
+  { text: "北海", value: "beihai", en: "Beihai" },
+  { text: "三亚", value: "sanya", en: "Sanya" },
+  { text: "泸州", value: "luzhou", en: "Luzhou" },
+  { text: "南充", value: "nanchong", en: "Nanchong" },
+  { text: "遵义", value: "zunyi", en: "Zunyi" },
+  { text: "大理", value: "dali", en: "Dali" },
 ];
 
 export const CATALOG: Record<string, Indicator> = {
@@ -317,6 +452,21 @@ export const CATALOG: Record<string, Indicator> = {
     fn: "macro_china_cx_services_pmi_yearly", dateField: "日期", dateFormat: "iso", dateLen: 7,
     fields: [{ field: "今值", label: "Caixin Services PMI" }],
   },
+  house_prices: {
+    kind: "eastmoney", group: "Property",
+    title: "New Home Prices, 70 Cities", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // NBS's 70-city sales price index, mirrored by Eastmoney: one row per
+    // city and month, "same month last year = 100". The average region is a
+    // simple mean of the 70 cities; NBS publishes no official composite.
+    reportName: "RPT_ECONOMY_HOUSE_PRICE", regionField: "CITY", pages: 30,
+    regions: CITIES_70,
+    regionAverage: { text: "70城平均", value: "avg", en: "70-city average" },
+    fields: [
+      { field: "FIRST_COMHOUSE_SAME", label: "New homes (YoY %)", valueOffset: -100 },
+      { field: "SECOND_HOUSE_SAME", label: "Existing homes (YoY %)", valueOffset: -100 },
+    ],
+  },
   electricity_output: {
     kind: "nbs", group: "Growth & Output",
     title: "Electricity Generation", agency: "National Bureau of Statistics",
@@ -336,6 +486,31 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "LPR5Y", label: "LPR 5-Year (%)" },
     ],
   },
+  // ── International sources via FRED ─────────────────────────────────────
+  fx_usdcny: { kind: "fred", group: "Exchange Rates", home: false, title: "Yuan per US Dollar", agency: "Federal Reserve Board", frequency: "Monthly", unit: "Yuan per US dollar", seriesId: "EXCHUS", label: "CNY per USD, monthly average" },
+  reer_bis: { kind: "fred", group: "Exchange Rates", home: false, title: "Real Effective Exchange Rate", agency: "Bank for International Settlements", frequency: "Monthly", unit: "Index, 2020 = 100", seriesId: "RBCNBIS", label: "Real broad effective exchange rate" },
+  credit_private_bis: { kind: "fred", group: "Money & Credit", home: false, title: "Credit to the Private Non-Financial Sector", agency: "Bank for International Settlements", frequency: "Quarterly", unit: "Percent of GDP", seriesId: "QCNPAM770A", label: "Private non-financial credit (% of GDP)" },
+  credit_households_bis: { kind: "fred", group: "Money & Credit", home: false, title: "Household Credit", agency: "Bank for International Settlements", frequency: "Quarterly", unit: "Percent of GDP", seriesId: "QCNHAM770A", label: "Household credit (% of GDP)" },
+  credit_corporate_bis: { kind: "fred", group: "Money & Credit", home: false, title: "Non-Financial Corporate Credit", agency: "Bank for International Settlements", frequency: "Quarterly", unit: "Percent of GDP", seriesId: "QCNNAM770A", label: "Non-financial corporate credit (% of GDP)" },
+  gov_debt_imf: { kind: "fred", group: "Public Finance", home: false, title: "General Government Gross Debt", agency: "International Monetary Fund", frequency: "Annual", unit: "Percent of GDP", seriesId: "GGGDTACNA188N", label: "General government gross debt (% of GDP)" },
+  house_prices_real_bis: { kind: "fred", group: "Property", home: false, title: "Real Residential Property Prices", agency: "Bank for International Settlements", frequency: "Quarterly", unit: "Index, 2010 = 100", seriesId: "QCNR628BIS", label: "Real residential property price index" },
+  epu: { kind: "fred", group: "Sentiment", home: false, title: "Economic Policy Uncertainty Index", agency: "Baker, Bloom and Davis", frequency: "Monthly", unit: "Index", seriesId: "CHNMAINLANDEPU", label: "Economic policy uncertainty, mainland papers" },
+  tpu: { kind: "fred", group: "Sentiment", home: false, title: "Trade Policy Uncertainty Index", agency: "Baker, Bloom and Davis", frequency: "Monthly", unit: "Index", seriesId: "CHNMAINLANDTPU", label: "Trade policy uncertainty, mainland papers" },
+  oecd_cli: { kind: "fred", group: "Sentiment", home: false, title: "OECD Composite Leading Indicator", agency: "OECD", frequency: "Monthly", unit: "Index, long-term average = 100", seriesId: "CHNLOLITOAASTSAM", label: "Composite leading indicator, amplitude adjusted" },
+  consumer_confidence_oecd: { kind: "fred", group: "Sentiment", home: false, title: "Consumer Confidence (OECD)", agency: "OECD", frequency: "Monthly", unit: "Index, long-term average = 100", seriesId: "CSCICP02CNM460S", label: "Consumer confidence, OECD standardised" },
+  shibor_3m: { kind: "fred", group: "Interest Rates", home: false, title: "3-Month Interbank Rate", agency: "OECD, from the People's Bank of China", frequency: "Monthly", unit: "Percent per annum", seriesId: "IR3TIB01CNM156N", label: "3-month interbank rate" },
+  us_imports_from_china: { kind: "fred", group: "Trade & External", home: false, title: "US Imports from China", agency: "US Census Bureau", frequency: "Monthly", unit: "Millions of US dollars", seriesId: "IMPCH", label: "US goods imports from China, customs basis" },
+  us_exports_to_china: { kind: "fred", group: "Trade & External", home: false, title: "US Exports to China", agency: "US Census Bureau", frequency: "Monthly", unit: "Millions of US dollars", seriesId: "EXPCH", label: "US goods exports to China, FAS basis" },
+  us_treasury_holdings: { kind: "fred", group: "Trade & External", home: false, title: "China's Holdings of US Treasuries", agency: "US Department of the Treasury", frequency: "Monthly", unit: "Millions of US dollars", seriesId: "FORTREASPOS41408", label: "Holdings of US Treasury securities" },
+  us_import_prices_china: { kind: "fred", group: "Prices", home: false, title: "US Import Price Index from China", agency: "US Bureau of Labor Statistics", frequency: "Monthly", unit: "Index, December 2003 = 100", seriesId: "CHNTOT", label: "Import price index, all industries, from China" },
+  golden_dragon: { kind: "fred", group: "Markets", home: false, title: "NASDAQ Golden Dragon China Index", agency: "Nasdaq", frequency: "Monthly", unit: "Index, monthly average", seriesId: "NASDAQHXC", aggregate: "avg", label: "Golden Dragon China index, monthly average" },
+  population: { kind: "fred", group: "Demographics", home: false, title: "Population", agency: "World Bank", frequency: "Annual", unit: "Millions of people", seriesId: "POPTOTCNA647NWDB", scale: 1e-6, label: "Total population" },
+  fertility: { kind: "fred", group: "Demographics", home: false, title: "Fertility Rate", agency: "World Bank", frequency: "Annual", unit: "Births per woman", seriesId: "SPDYNTFRTINCHN", label: "Total fertility rate" },
+  population_65: { kind: "fred", group: "Demographics", home: false, title: "Population Aged 65 and Over", agency: "World Bank", frequency: "Annual", unit: "Percent of total population", seriesId: "SPPOP65UPTOZSCHN", label: "Share aged 65 and over" },
+  life_expectancy: { kind: "fred", group: "Demographics", home: false, title: "Life Expectancy at Birth", agency: "World Bank", frequency: "Annual", unit: "Years", seriesId: "SPDYNLE00INCHN", label: "Life expectancy at birth" },
+  gdp_usd: { kind: "fred", group: "Growth & Output", home: false, title: "GDP in US Dollars", agency: "World Bank", frequency: "Annual", unit: "Trillions of current US dollars", seriesId: "MKTGDPCNA646NWDB", scale: 1e-12, label: "GDP, current US dollars" },
+  gdp_per_capita_usd: { kind: "fred", group: "Growth & Output", home: false, title: "GDP per Capita in US Dollars", agency: "World Bank", frequency: "Annual", unit: "Current US dollars", seriesId: "PCAGDPCNA646NWDB", label: "GDP per capita, current US dollars" },
+  gini: { kind: "fred", group: "Demographics", home: false, title: "Gini Index", agency: "World Bank", frequency: "Annual", unit: "Index, 0 to 100", seriesId: "SIPOVGINICHN", label: "Gini index" },
 };
 
 export interface CatalogEntry {
@@ -347,6 +522,7 @@ export interface CatalogEntry {
   unit: string;
   ended?: string;
   endedNote?: string;
+  home?: boolean;
 }
 
 export function catalogList(): CatalogEntry[] {
@@ -354,6 +530,7 @@ export function catalogList(): CatalogEntry[] {
     key, title: c.title, group: c.group, agency: c.agency,
     frequency: c.frequency, unit: c.unit,
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
+    ...(c.home === false ? { home: false } : {}),
   }));
 }
 
@@ -382,7 +559,7 @@ async function fetchEastmoney(key: string, cfg: EastmoneyIndicator, limit: numbe
       if (typeof rawDate !== "string") continue;
       const num = typeof rawVal === "number" ? rawVal : Number(rawVal);
       if (rawVal === null || rawVal === "" || Number.isNaN(num)) continue;
-      points.push({ date: toMonth(rawDate), value: num });
+      points.push({ date: toMonth(rawDate), value: offsetValue(num, f.valueOffset) });
     }
     points.sort((a, b) => a.date.localeCompare(b.date));
     return { label: f.label, points };
@@ -393,6 +570,130 @@ async function fetchEastmoney(key: string, cfg: EastmoneyIndicator, limit: numbe
     sourceUrl: "https://data.eastmoney.com/cjsj/",
     frequency: cfg.frequency, unit: cfg.unit, series,
   };
+}
+
+function offsetValue(value: number, offset: number | undefined): number {
+  return offset === undefined ? value : Math.round((value + offset) * 10) / 10;
+}
+
+// A regional Eastmoney table is one download per refresh, not one per region:
+// the 70-city table is 13,000 rows, and the ingest asks for 71 regions in a row.
+const eastmoneyTables = new Map<string, { at: number; pages: number; complete: boolean; rows: Record<string, unknown>[] }>();
+const EASTMONEY_TABLE_TTL_MS = 15 * 60 * 1000;
+const EASTMONEY_PAGE_SIZE = 500;
+
+/** The newest `pages` pages of a regional table, fetched in parallel batches and cached. */
+async function loadEastmoneyTable(cfg: EastmoneyIndicator, pages: number): Promise<Record<string, unknown>[]> {
+  const wanted = Math.max(1, Math.min(pages, cfg.pages ?? 1));
+  const cached = eastmoneyTables.get(cfg.reportName);
+  if (cached && Date.now() - cached.at < EASTMONEY_TABLE_TTL_MS && (cached.complete || cached.pages >= wanted)) return cached.rows;
+  const fetchPage = async (page: number): Promise<{ rows: Record<string, unknown>[]; totalPages: number }> => {
+    const params = new URLSearchParams({
+      reportName: cfg.reportName, columns: "ALL", pageNumber: String(page),
+      pageSize: String(EASTMONEY_PAGE_SIZE), sortColumns: cfg.dateField ?? "REPORT_DATE", sortTypes: "-1",
+    });
+    const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?${params.toString()}`;
+    const headers = { "User-Agent": UA, Accept: "application/json, text/plain, */*" };
+    // Eastmoney occasionally stalls a page; one retry covers it.
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(45_000) }).catch(() => fetch(url, { headers, signal: AbortSignal.timeout(45_000) }));
+    const json = await res.json();
+    const data: unknown = json?.result?.data;
+    const rows: Record<string, unknown>[] = [];
+    if (Array.isArray(data)) for (const row of data) if (typeof row === "object" && row !== null) rows.push(row);
+    return { rows, totalPages: typeof json?.result?.pages === "number" ? json.result.pages : wanted };
+  };
+  const first = await fetchPage(1);
+  const last = Math.min(wanted, first.totalPages);
+  const rows = [...first.rows];
+  for (let page = 2; page <= last; page += 9) {
+    const batch = await Promise.all(Array.from({ length: Math.min(9, last - page + 1) }, (_, offset) => fetchPage(page + offset)));
+    for (const part of batch) rows.push(...part.rows);
+  }
+  eastmoneyTables.set(cfg.reportName, { at: Date.now(), pages: last, complete: last >= first.totalPages, rows });
+  return rows;
+}
+
+/** One region of a regional Eastmoney table, or the simple average across regions for the average region. */
+async function fetchEastmoneyRegion(key: string, cfg: EastmoneyIndicator, region: NbsRegion, limit: number): Promise<SeriesResult> {
+  // Enough pages for `limit` months of every region, plus one for the ragged newest month.
+  const regionCount = cfg.regions?.length ?? 1;
+  const rows = await loadEastmoneyTable(cfg, Math.ceil((limit * regionCount) / EASTMONEY_PAGE_SIZE) + 1);
+  const dateField = cfg.dateField ?? "REPORT_DATE";
+  const regionField = cfg.regionField ?? "CITY";
+  const isAverage = cfg.regionAverage !== undefined && region.value === cfg.regionAverage.value;
+  const series: Series[] = cfg.fields.map((f) => {
+    // month -> values across the rows that belong to this region (or all regions for the average)
+    const byMonth = new Map<string, number[]>();
+    for (const row of rows) {
+      const rawDate = row[dateField];
+      if (typeof rawDate !== "string") continue;
+      if (!isAverage && row[regionField] !== region.text) continue;
+      const rawVal = row[f.field];
+      const num = typeof rawVal === "number" ? rawVal : Number(rawVal);
+      if (rawVal === null || rawVal === "" || Number.isNaN(num)) continue;
+      const month = toMonth(rawDate);
+      byMonth.set(month, [...(byMonth.get(month) ?? []), num]);
+    }
+    const points: SeriesPoint[] = [...byMonth.entries()].map(([date, values]) => {
+      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+      return { date, value: offsetValue(isAverage ? Math.round(mean * 100) / 100 : mean, f.valueOffset) };
+    });
+    points.sort((a, b) => a.date.localeCompare(b.date));
+    return { label: f.label, points: points.slice(-limit) };
+  });
+  return {
+    key, title: cfg.title, agency: cfg.agency,
+    sourceUrl: "https://data.eastmoney.com/cjsj/newhouse.html",
+    frequency: cfg.frequency, unit: cfg.unit, series,
+  };
+}
+
+// ── FRED ──────────────────────────────────────────────────────────────────────
+//
+// The St. Louis Fed's FRED mirrors series from the BIS, OECD, IMF, World Bank
+// and US agencies that NBS does not publish. Needs FRED_API_KEY.
+
+async function fetchFred(key: string, cfg: FredIndicator, limit: number): Promise<SeriesResult> {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) throw new Error("FRED_API_KEY is not configured on this deployment; this series serves from the store only.");
+  const monthsPerPeriod = cfg.frequency === "Monthly" ? 1 : cfg.frequency === "Quarterly" ? 3 : 12;
+  const start = new Date();
+  start.setUTCMonth(start.getUTCMonth() - limit * monthsPerPeriod);
+  const params = new URLSearchParams({ series_id: cfg.seriesId, api_key: apiKey, file_type: "json" });
+  // Annual series are short and sometimes sparse (a Gini survey every few years): always take the full history.
+  if (cfg.frequency !== "Annual") params.set("observation_start", start.toISOString().slice(0, 10));
+  if (cfg.aggregate) {
+    params.set("frequency", cfg.frequency === "Monthly" ? "m" : cfg.frequency === "Quarterly" ? "q" : "a");
+    params.set("aggregation_method", cfg.aggregate);
+  }
+  const res = await fetch(`https://api.stlouisfed.org/fred/series/observations?${params.toString()}`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) throw new Error(`FRED ${cfg.seriesId} -> HTTP ${res.status}`);
+  const json: unknown = await res.json();
+  const observations: unknown = typeof json === "object" && json !== null ? Reflect.get(json, "observations") : undefined;
+  if (!Array.isArray(observations)) throw new Error(`FRED ${cfg.seriesId} returned no observations`);
+  const points: SeriesPoint[] = [];
+  for (const row of observations) {
+    if (typeof row !== "object" || row === null) continue;
+    const date = Reflect.get(row, "date"), raw = Reflect.get(row, "value");
+    if (typeof date !== "string" || typeof raw !== "string" || raw === ".") continue;
+    const value = Number(raw) * (cfg.scale ?? 1);
+    if (!Number.isFinite(value)) continue;
+    points.push({ date: fredPeriod(date, cfg.frequency), value: Math.round(value * 10000) / 10000 });
+  }
+  points.sort((a, b) => a.date.localeCompare(b.date));
+  return {
+    key, title: cfg.title, agency: cfg.agency,
+    sourceUrl: `https://fred.stlouisfed.org/series/${cfg.seriesId}`,
+    frequency: cfg.frequency, unit: cfg.unit, series: [{ label: cfg.label, points }],
+  };
+}
+
+/** FRED dates a quarter by its first day; the store dates it by its last month, as NBS does. Years are "YYYY". */
+function fredPeriod(date: string, frequency: FredIndicator["frequency"]): string {
+  const year = date.slice(0, 4), month = Number(date.slice(5, 7));
+  if (frequency === "Annual") return year;
+  if (frequency === "Quarterly") return `${year}-${String(month + 2).padStart(2, "0")}`;
+  return date.slice(0, 7);
 }
 
 function nbsMonthlyRange(limit: number): string {
@@ -557,6 +858,8 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   let data: SeriesResult;
   if (cfg.kind === "nbs") data = await fetchNbs(key, cfg, limit);
   else if (cfg.kind === "aktools") data = await fetchAktools(key, cfg, limit);
+  else if (cfg.kind === "fred") data = await fetchFred(key, cfg, limit);
+  else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
   cache.set(cacheKey, { at: Date.now(), data });
@@ -571,13 +874,22 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
 export function seriesRegion(key: string): string {
   const cfg = CATALOG[key];
   if (cfg && cfg.kind === "nbs" && cfg.region) return cfg.regions ? cfg.region.value : cfg.region.text;
+  if (cfg && cfg.kind === "eastmoney" && cfg.regions) return (cfg.regionAverage ?? cfg.regions[0])?.value ?? "";
   return "";
+}
+
+/** What kind of place a regional series is split by. */
+export function seriesGeography(key: string): "Province" | "City" {
+  const cfg = CATALOG[key];
+  return cfg && cfg.kind === "eastmoney" && cfg.regions ? "City" : "Province";
 }
 
 /** The regions a curated series is published for, or an empty list. */
 export function seriesRegions(key: string): NbsRegion[] {
   const cfg = CATALOG[key];
-  return cfg && cfg.kind === "nbs" && cfg.regions ? cfg.regions : [];
+  if (cfg && cfg.kind === "nbs" && cfg.regions) return cfg.regions;
+  if (cfg && cfg.kind === "eastmoney" && cfg.regions) return cfg.regionAverage ? [cfg.regionAverage, ...cfg.regions] : cfg.regions;
+  return [];
 }
 
 /**
@@ -586,8 +898,10 @@ export function seriesRegions(key: string): NbsRegion[] {
  */
 export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 120): Promise<SeriesResult | null> {
   const cfg = CATALOG[key];
-  if (!cfg || cfg.kind !== "nbs") return null;
-  return fetchNbs(key, { ...cfg, region }, limit);
+  if (!cfg) return null;
+  if (cfg.kind === "nbs") return fetchNbs(key, { ...cfg, region }, limit);
+  if (cfg.kind === "eastmoney" && cfg.regions) return fetchEastmoneyRegion(key, cfg, region, limit);
+  return null;
 }
 
 /**
@@ -599,5 +913,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (!cfg) return null;
   if (cfg.kind === "nbs") return fetchNbs(key, cfg, limit);
   if (cfg.kind === "aktools") return fetchAktools(key, cfg, limit);
+  if (cfg.kind === "fred") return fetchFred(key, cfg, limit);
+  if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }

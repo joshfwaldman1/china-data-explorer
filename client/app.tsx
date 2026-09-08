@@ -12,7 +12,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -22,7 +22,7 @@ interface NbsCatalogEntry {
   legacyDatabase?: string; legacyIndicatorCode?: string;
 }
 interface Series { label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
-interface Region { text: string; value: string; }
+interface Region { text: string; value: string; en?: string; }
 interface SeriesResult {
   key: string; title: string; agency: string; sourceUrl: string; frequency: string; unit: string;
   series: Series[]; metadata?: NbsCatalogEntry; region?: Region; transform?: string;
@@ -38,6 +38,7 @@ function splitSpec(spec: string): { key: string; region: string } {
 }
 /** A region's name for the UI: the English name where we have one, else what NBS sent. */
 function regionLabel(region: Region): string {
+  if (region.en) return region.en;
   if (region.value === "000000000000" || region.text === "全国") return "China, national";
   return PROVINCES.find((province) => province.code === region.value)?.en ?? region.text;
 }
@@ -55,10 +56,15 @@ function monthsOld(period: string): number {
   const now = new Date();
   return (now.getUTCFullYear() - new Date(t).getUTCFullYear()) * 12 + (now.getUTCMonth() - new Date(t).getUTCMonth());
 }
-/** A monthly series more than four months behind, or a quarterly one more than two quarters, has stopped arriving. */
+/**
+ * A series whose latest observation is older than its source's normal lag has
+ * stopped arriving: four months for monthly data, ten for quarterly (the BIS
+ * publishes a quarter about six months after it ends), two years for annual
+ * (World Bank estimates for a year appear the following summer).
+ */
 function isBehind(period: string, frequency: string): boolean {
   const months = monthsOld(period);
-  return frequency === "Monthly" ? months > 4 : frequency === "Quarterly" ? months > 7 : months > 15;
+  return frequency === "Monthly" ? months > 4 : frequency === "Quarterly" ? months > 10 : months > 24;
 }
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
@@ -162,6 +168,31 @@ const ABOUT: Record<string, string> = {
   pmi: "The official NBS manufacturing purchasing managers' index, a diffusion index where 50 separates expansion from contraction. Weighted toward large state-owned firms.",
   caixin_pmi: "The Caixin/S&P Global manufacturing PMI, a private survey weighted toward smaller, export-oriented private firms. Often diverges from the official PMI.",
   caixin_services_pmi: "The Caixin/S&P Global services PMI, covering private service-sector firms. 50 separates expansion from contraction.",
+  house_prices: "NBS surveys sales prices of newly built and existing commercial residential buildings in 70 large and medium cities each month. Values here are the index against the same month a year earlier, minus 100, so they read as a percentage change. The 70-city average is a simple mean of the city figures; NBS publishes no official composite.",
+  fx_usdcny: "The onshore yuan against the US dollar, monthly average of daily fixings, from the Federal Reserve Board via FRED.",
+  reer_bis: "The BIS real broad effective exchange rate: the yuan against a trade-weighted basket of 60 currencies, adjusted for relative consumer prices. A rise means the yuan is stronger in real terms.",
+  credit_private_bis: "BIS credit to the private non-financial sector, households plus non-financial corporations, from banks and all other lenders, as a share of GDP. The standard measure of economy-wide leverage.",
+  credit_households_bis: "BIS credit to households and non-profit institutions serving households, as a share of GDP.",
+  credit_corporate_bis: "BIS credit to non-financial corporations, including state-owned enterprises, as a share of GDP.",
+  gov_debt_imf: "IMF World Economic Outlook estimate of general government gross debt as a share of GDP. Excludes local government financing vehicles, which is why it reads lower than broader measures.",
+  house_prices_real_bis: "BIS residential property price index for China, deflated by consumer prices, 2010 = 100.",
+  epu: "The Economic Policy Uncertainty index built from the frequency of policy-uncertainty terms in mainland Chinese newspapers, by Baker, Bloom and Davis.",
+  tpu: "The Trade Policy Uncertainty index built from mainland Chinese newspapers, by Baker, Bloom and Davis.",
+  oecd_cli: "The OECD composite leading indicator for China, amplitude adjusted, designed to signal turning points in activity about six months ahead.",
+  consumer_confidence_oecd: "OECD standardised consumer confidence for China, long-term average = 100.",
+  shibor_3m: "The 3-month interbank offered rate, from the People's Bank of China via the OECD.",
+  us_imports_from_china: "US goods imports from China on a customs basis, not seasonally adjusted, from the US Census Bureau.",
+  us_exports_to_china: "US goods exports to mainland China on a free-alongside-ship basis, not seasonally adjusted, from the US Census Bureau.",
+  us_treasury_holdings: "China's holdings of US Treasury securities, long- and short-term, from the Treasury International Capital system.",
+  us_import_prices_china: "The US Bureau of Labor Statistics import price index for goods from China, all industries, December 2003 = 100.",
+  golden_dragon: "The NASDAQ Golden Dragon China index of US-listed Chinese companies, shown as a monthly average of daily closes.",
+  population: "World Bank total population estimate, in millions.",
+  fertility: "World Bank total fertility rate, births per woman.",
+  population_65: "World Bank estimate of the share of the population aged 65 and over.",
+  life_expectancy: "World Bank life expectancy at birth, both sexes.",
+  gdp_usd: "World Bank GDP at current US dollars, in trillions.",
+  gdp_per_capita_usd: "World Bank GDP per capita at current US dollars.",
+  gini: "World Bank Gini index of income inequality, 0 (perfect equality) to 100. Published for survey years only.",
   electricity_output: "Electricity output of industrial enterprises above designated size, year over year, from the NBS monthly energy production release. Watched as a proxy for industrial activity because generation is hard to smooth.",
   lpr: "The loan prime rate, the benchmark for new bank lending, set monthly by the PBOC from quotes by 18 banks. The 1-year rate anchors corporate loans; the 5-year rate anchors mortgages.",
 };
@@ -477,7 +508,8 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
 // ── Home ──────────────────────────────────────────────────────────────────────
 
 const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
-const GROUP_ORDER = ["Growth & Output", "Prices", "Labor", "Consumption", "Money & Credit", "Interest Rates", "Trade & External", "Property", "Sentiment", "Regional"];
+const GROUP_ORDER = ["Growth & Output", "Prices", "Labor", "Consumption", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Property", "Sentiment", "Markets", "Public Finance", "Demographics", "Regional"];
+const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
 function unitSuffix(unit: string): string { return isRate(unit) && unit !== "%" && !/index/i.test(unit) ? "%" : ""; }
 function shortAgency(agency: string): string { return agency === "National Bureau of Statistics" ? "NBS" : agency === "People's Bank of China" ? "PBOC" : agency; }
 function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
@@ -494,8 +526,13 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   const [draft, setDraft] = useState("");
   useEffect(() => {
     let cancelled = false;
-    Promise.all(props.curated.map((entry) => json(`/api/series/${entry.key}?limit=24`).then((body) => isSeriesResult(body) ? [entry.key, body] as const : null).catch(() => null)))
-      .then((pairs) => { if (!cancelled) setHeadline(new Map(pairs.filter((pair): pair is readonly [string, SeriesResult] => pair !== null))); });
+    // Each indicator lands as it arrives; one slow source must not hold the whole page blank.
+    for (const entry of props.curated.filter((entry) => entry.home !== false)) {
+      json(`/api/series/${entry.key}?limit=24`).then((body) => {
+        if (cancelled || !isSeriesResult(body)) return;
+        setHeadline((current) => new Map(current).set(entry.key, body));
+      }).catch(() => undefined);
+    }
     return () => { cancelled = true; };
   }, [props.curated.map((entry) => entry.key).join(",")]);
   const today = new Date().toISOString().slice(0, 10);
@@ -506,7 +543,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.length} headline indicators from NBS, the People's Bank of China, Customs and Caixin.</p>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.filter((entry) => entry.home !== false).length} headline indicators from NBS, the People's Bank of China, Customs and Caixin, and {props.curated.filter((entry) => entry.home === false).length} international series via FRED.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
@@ -532,10 +569,10 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
           })}
         </div>
         <div className="indicator-list">
-          {[...new Set(props.curated.filter((entry) => !HERO_KEYS.includes(entry.key)).map((entry) => entry.group))].sort((a, b) => GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b)).map((group) => (
+          {[...new Set(props.curated.filter((entry) => !HERO_KEYS.includes(entry.key) && entry.home !== false).map((entry) => entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
             <section key={group} aria-label={group}>
               <h3>{group}</h3>
-              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key)).map((entry) => {
+              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key) && entry.home !== false).map((entry) => {
                 const result = headline.get(entry.key);
                 const first = result?.series[0];
                 const latest = first?.points[first.points.length - 1];
@@ -577,8 +614,8 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="card">
           <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li></ul></div>
-            <div><h3>Not included</h3><ul><li>70-city house prices</li><li>Provincial series beyond GDP, and city series</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.filter((entry) => entry.home !== false).length} headline indicators from NBS, PBOC, Customs and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.home === false).length} international series via FRED: BIS, OECD, IMF, World Bank, US Census</li></ul></div>
+            <div><h3>Not included</h3><ul><li>Provincial series beyond GDP, and city series beyond home prices</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
           </div>
         </div>
       </section>
@@ -959,7 +996,7 @@ function SeriesPage(props: {
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
   const stale = primary.source === "stale";
   const zhFirst = props.lang === "zh" || !meta?.nameEn;
-  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : "the NBS data portal";
+  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : "the NBS data portal";
   const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
   const citation = `${primary.agency}, "${primary.title}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key])}`;
   const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
@@ -1115,7 +1152,7 @@ function SeriesPage(props: {
       <section className="details">
         <div className="card about">
           <h2>Notes</h2>
-          {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">NBS publishes no definition or methodology note for this series.</p> : null}
+          {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">The source publishes no definition or methodology note for this series.</p> : null}
           {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
           {readingNotesZh && <p><Zh className="gloss block">{readingNotesZh}</Zh></p>}
         </div>

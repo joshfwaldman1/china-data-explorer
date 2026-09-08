@@ -10,7 +10,7 @@
  */
 
 import index from "../client/index.html";
-import { catalogList, getSeries, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
+import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
 import { readSeries, readRevisions, readRevisionHistory, dbStatus } from "./db";
 import {
   getNbsCatalogSeries,
@@ -218,7 +218,7 @@ const routes = {
       const key = req.params.key;
       if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
       const curatedRegions = seriesRegions(key);
-      if (curatedRegions.length > 0) return Response.json({ key, geography: "Province", regions: curatedRegions });
+      if (curatedRegions.length > 0) return Response.json({ key, geography: seriesGeography(key), regions: curatedRegions });
       const entry = await getNbsCatalogEntry(key);
       if (!entry) return Response.json({ error: "Unknown NBS series" }, { status: 404 });
       return Response.json({
@@ -273,9 +273,9 @@ const routes = {
         if (!SERVE_LIVE_FALLBACK) {
           return Response.json({ error: "Not yet ingested" }, { status: 503 });
         }
-        const data = await getSeries(key, Number.isFinite(limit) ? limit : 120);
+        const data = region ? await fetchLiveRegion(key, region, Number.isFinite(limit) ? limit : 120) : await getSeries(key, Number.isFinite(limit) ? limit : 120);
         if (!data) return Response.json({ error: "Unknown series" }, { status: 404 });
-        return Response.json({ ...applyTransform(data, transform), source: "live", transform: transform ?? "raw" });
+        return Response.json({ ...applyTransform(data, transform), region, source: "live", transform: transform ?? "raw" });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Upstream fetch failed";
         return Response.json({ error: message }, { status: 502 });
@@ -289,7 +289,7 @@ const dev = process.env.NODE_ENV === "production" ? false : { hmr: true, console
 
 // AkShare calls (via AKTools) can take 15-25s; Bun's default 10s idle timeout
 // would kill those connections mid-fetch. Give slow upstreams room.
-const idleTimeout = 60;
+const idleTimeout = 120;
 
 let server;
 try {

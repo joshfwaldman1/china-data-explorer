@@ -18,7 +18,7 @@ export interface ReleaseMapping {
 export const RELEASE_MAP: ReleaseMapping[] = [
   { match: "居民消费价格指数", en: "Consumer price index (CPI), monthly", keys: ["cpi"] },
   { match: "工业生产者价格指数", en: "Producer price index (PPI), monthly", keys: ["ppi"] },
-  { match: "商品住宅销售价格", en: "70-city new home prices, monthly", keys: [] },
+  { match: "商品住宅销售价格", en: "70-city new home prices, monthly", keys: ["house_prices"] },
   { match: "国民经济运行情况", en: "National economy monthly bundle: industrial output, retail sales, investment, unemployment", keys: ["industrial_production", "retail_sales", "unemployment"] },
   { match: "规模以上工业生产", en: "Industrial production (large firms), monthly", keys: ["industrial_production"] },
   { match: "能源生产情况", en: "Energy production, monthly", keys: ["electricity_output"] },
