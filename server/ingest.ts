@@ -16,8 +16,9 @@
  */
 
 import { CATALOG, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus, listStoredSeries } from "./db.ts";
-import { getNbsCatalogEntry, refreshNbsCatalogSeries } from "./nbs-catalog.ts";
+import { db, writeSeries, logFetch, dbStatus, listStoredSeries, storedLatest } from "./db.ts";
+import { getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, type NbsCatalogEntry } from "./nbs-catalog.ts";
+import { isDue } from "./due.ts";
 
 // Upstream sources are public and unauthenticated, so we stay well-mannered:
 // one series at a time with a pause between, rather than a burst of parallel
@@ -109,6 +110,65 @@ async function refreshOne(key: string, region: string): Promise<"ok" | "error" |
   }
 }
 
+/** Stored catalog series whose next period should be out, or that have not been checked in 45 days. */
+async function dueCatalogTargets(now = new Date()): Promise<{ key: string; region: string }[]> {
+  const rows = storedLatest("nbs_");
+  const targets: { key: string; region: string }[] = [];
+  for (const row of rows) {
+    const entry = await getNbsCatalogEntry(row.key);
+    if (!entry) continue;
+    if (isDue(entry.frequency, row.lastPeriod, row.updatedAt, now)) targets.push({ key: row.key, region: row.region });
+  }
+  return targets;
+}
+
+const CRAWL_PAUSE_MS = Number(process.env.CRAWL_PAUSE_MS ?? 1200);
+
+/**
+ * Fill the store with catalog series nobody has opened yet: up to `budget`
+ * series per run, in catalog order, paced. Five failures in a row pause the
+ * run for ten minutes; twenty end it, so an NBS outage costs a run, not a day
+ * of hammering. Returns what was done and how many remain.
+ */
+export async function runCatalogCrawl(budget: number): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
+  db();
+  const stored = new Set(listStoredSeries("nbs_").map((row) => row.key));
+  const entries = (await listNbsCatalogEntries()).filter((entry) => !stored.has(entry.key));
+  const tally = { ok: 0, error: 0, empty: 0, remaining: entries.length };
+  if (entries.length === 0) return tally;
+  console.log(`\nCrawling ${Math.min(budget, entries.length)} of ${entries.length} catalog series not yet stored\n`);
+  let consecutiveFailures = 0;
+  for (const entry of entries.slice(0, budget)) {
+    const outcome = await crawlOne(entry);
+    tally[outcome] += 1;
+    tally.remaining -= 1;
+    consecutiveFailures = outcome === "error" ? consecutiveFailures + 1 : 0;
+    if (consecutiveFailures >= 20) { console.log("  Twenty failures in a row; ending this crawl run."); break; }
+    if (consecutiveFailures === 5) { console.log("  Five failures in a row; pausing ten minutes."); await sleep(10 * 60 * 1000); }
+    await sleep(CRAWL_PAUSE_MS);
+  }
+  console.log(`\nCrawl: ${tally.ok} ok, ${tally.empty} empty, ${tally.error} failed, ${tally.remaining} still to fetch`);
+  return tally;
+}
+
+async function crawlOne(entry: NbsCatalogEntry): Promise<"ok" | "error" | "empty"> {
+  const startedAt = new Date().toISOString();
+  try {
+    const result = await refreshNbsCatalogSeries(entry);
+    const finishedAt = new Date().toISOString();
+    if (result.points.length === 0) {
+      logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt, status: "empty", points: 0, changed: 0, message: "source returned no points" });
+      return "empty";
+    }
+    return "ok";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+    console.log(`  ${entry.key.padEnd(40)} FAILED  ${message.slice(0, 80)}`);
+    return "error";
+  }
+}
+
 /** One full ingest pass. `requested` is the CLI argument list; empty means everything. */
 export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
   const curatedKeys = requested.length > 0
@@ -121,7 +181,7 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
         const [key = "", region = ""] = spec.split("@");
         return { key, region };
       })
-    : listStoredSeries("nbs_");
+    : await dueCatalogTargets();
 
   const unknown = curatedKeys.filter((k) => !CATALOG[k]);
   if (unknown.length > 0) {
@@ -150,10 +210,11 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
     }
   }
 
-  // This is how the store grows: by what people look at, not by crawling the
-  // whole catalog. Each viewed series gets a daily revision check.
+  // Stored catalog series are re-checked when the NBS calendar says a new
+  // period should be out, or after 45 days for revisions (see due.ts), not
+  // all 15,000 every day.
   if (catalogTargets.length > 0) {
-    console.log(`\nRefreshing ${catalogTargets.length} stored catalog series\n`);
+    console.log(`\nRefreshing ${catalogTargets.length} stored catalog series that are due\n`);
     for (const [index, target] of catalogTargets.entries()) {
       tally[await refreshOne(target.key, target.region)] += 1;
       if (index < catalogTargets.length - 1) await sleep(PAUSE_MS);
@@ -171,6 +232,12 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
 }
 
 if (import.meta.main) {
+  const crawlFlag = process.argv.indexOf("--crawl");
+  if (crawlFlag >= 0) {
+    const tally = await runCatalogCrawl(Number(process.argv[crawlFlag + 1] ?? 3000));
+    if (tally.ok === 0 && tally.remaining > 0) process.exit(1);
+    process.exit(0);
+  }
   const tally = await runIngest(process.argv.slice(2));
   // A run where nothing at all landed is worth a non-zero exit so a scheduler
   // surfaces it. Partial failure is normal and stays quiet.

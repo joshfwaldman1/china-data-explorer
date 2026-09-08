@@ -68,7 +68,7 @@ function isBehind(period: string, frequency: string): boolean {
 }
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
-interface CatalogStats { generatedAt: string; seriesCount: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
+interface CatalogStats { generatedAt: string; seriesCount: number; storedCount?: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
 interface Release { id: string; date: string; title: string; en: string; keys: string[]; }
 interface Vintage { value: number | null; fetchedAt: string; }
 interface Revised { label: string; period: string; vintages: Vintage[]; }
@@ -614,7 +614,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="card">
           <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.filter((entry) => entry.home !== false).length} headline indicators from NBS, PBOC, Customs and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.home === false).length} international series via FRED: BIS, OECD, IMF, World Bank, US Census</li></ul></div>
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li>{props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} of them stored locally so far, the rest fetched on first view while the crawl fills in</li>}<li>{props.curated.filter((entry) => entry.home !== false).length} headline indicators from NBS, PBOC, Customs and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.home === false).length} international series via FRED: BIS, OECD, IMF, World Bank, US Census</li></ul></div>
             <div><h3>Not included</h3><ul><li>Provincial series beyond GDP, and city series beyond home prices</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
           </div>
         </div>

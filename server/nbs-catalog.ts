@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
-import { catalogDb, db, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
+import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss } from "./gloss";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
@@ -449,9 +449,11 @@ export async function nbsCatalogStats() {
       count: 1,
     });
   }
+  const storedKeys = new Set(listStoredSeries("nbs_").map((row) => row.key));
   return {
     generatedAt: snapshot.generatedAt,
     seriesCount: visible.length,
+    storedCount: snapshot.entries.filter((entry) => storedKeys.has(entry.key)).length,
     categoryCount: categories.size,
     categories: [...categoryCounts.entries()]
       .map(([name, count]) => ({ name, count }))
@@ -649,6 +651,12 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
     limit,
     results: scored.slice(offset, offset + limit).map((item) => item.entry),
   };
+}
+
+/** Every catalog entry, in catalog order. The crawl walks this. */
+export async function listNbsCatalogEntries(): Promise<NbsCatalogEntry[]> {
+  const snapshot = await loadSnapshot();
+  return snapshot.entries;
 }
 
 export async function getNbsCatalogEntry(key: string): Promise<NbsCatalogEntry | null> {

@@ -24,7 +24,7 @@ import {
   type NbsTransform,
 } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease } from "./releases";
-import { runIngest } from "./ingest";
+import { runCatalogCrawl, runIngest } from "./ingest";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -332,4 +332,28 @@ if (ingestEveryHours > 0) {
   setTimeout(tick, 2 * 60 * 1000);
   setInterval(tick, ingestEveryHours * 60 * 60 * 1000);
   console.log(`  Ingest scheduled every ${ingestEveryHours}h (first run in 2 minutes)`);
+
+  // The catalog crawl fills in series nobody has opened: a budget of series
+  // every few hours until the whole catalog is stored, then a no-op. It
+  // shares the running flag with the ingest so the two never overlap.
+  const crawlBudget = Number(process.env.CRAWL_PER_RUN ?? 3000);
+  const crawlEveryHours = Number(process.env.CRAWL_EVERY_HOURS ?? 6);
+  if (process.env.CATALOG_CRAWL !== "off" && crawlBudget > 0) {
+    const crawl = async () => {
+      if (running) return;
+      running = true;
+      const started = Date.now();
+      try {
+        const tally = await runCatalogCrawl(crawlBudget);
+        if (tally.ok + tally.error + tally.empty > 0) console.log(`  Catalog crawl: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty, ${tally.remaining} remaining, ${Math.round((Date.now() - started) / 1000)}s`);
+      } catch (error) {
+        console.error("  Catalog crawl failed:", error instanceof Error ? error.message : String(error));
+      } finally {
+        running = false;
+      }
+    };
+    setTimeout(crawl, 10 * 60 * 1000);
+    setInterval(crawl, crawlEveryHours * 60 * 60 * 1000);
+    console.log(`  Catalog crawl scheduled: ${crawlBudget} series every ${crawlEveryHours}h (first run in 10 minutes)`);
+  }
 }
