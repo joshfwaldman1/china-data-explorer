@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodOf, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -16,6 +16,7 @@ interface CuratedEntry { key: string; title: string; group: string; agency: stri
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
+  noteEn?: string; annotationEn?: string; datasetEn?: string; categoriesEn?: string[];
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
 }
@@ -36,6 +37,7 @@ function splitSpec(spec: string): { key: string; region: string } {
 }
 /** A region's name for the UI: the English name where we have one, else what NBS sent. */
 function regionLabel(region: Region): string {
+  if (region.value === "000000000000" || region.text === "全国") return "China, national";
   return PROVINCES.find((province) => province.code === region.value)?.en ?? region.text;
 }
 /** What to call a result on a chart shared with others: the province when the key repeats. */
@@ -176,12 +178,27 @@ function Zh(props: { children: string; className?: string }) {
   return CJK.test(props.children) ? <span lang="zh-Hans" className={props.className}>{props.children}</span> : <span className={props.className}>{props.children}</span>;
 }
 function unitEn(unit: string): string { return UNIT_EN[unit] ?? ""; }
+/** An observation date as the reader expects for the frequency: "Q1 2006" for quarterly, "Mar 2006" for monthly, "2006" for annual. */
+function prettyObservation(date: string, frequency: string): string {
+  if (!date) return "";
+  if (frequency === "Quarterly") { const t = periodTime(date); return Number.isFinite(t) ? periodPretty(periodOf(t, "Quarterly")) : periodPretty(date); }
+  if (frequency === "Annual") return date.slice(0, 4);
+  return periodPretty(date);
+}
 function unitLabel(unit: string): string {
   if (!unit) return "Unit not stated";
   const en = unitEn(unit);
   return en && en !== unit ? `${unit} (${en})` : unit;
 }
 function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
+/** A category path in English where the translation table has it, otherwise the Chinese, never a middle dot. */
+function categoryPath(entry: { categories: string[]; categoriesEn?: string[] }): React.ReactNode {
+  const english = entry.categories.map((category, index) => entry.categoriesEn?.[index] || categoryEn(category) || category);
+  const chinese = entry.categories.join(" › ");
+  const englishPath = english.join(" › ");
+  if (englishPath === chinese) return <Zh>{chinese}</Zh>;
+  return <><Zh>{englishPath}</Zh><Zh className="gloss block">{chinese}</Zh></>;
+}
 
 function chartColor(index: number): string { return `var(${CHART_TOKENS[index % CHART_TOKENS.length]})`; }
 
@@ -259,7 +276,7 @@ function applyBreaks(result: SeriesResult): { series: Series[]; notes: string[];
     notes.push(rule.note);
     gaps.push({ from: rule.from, to: rule.to });
   }
-  if (result.metadata?.annotation) notes.push(result.metadata.annotation);
+  // The NBS annotation is shown in the Notes card below the chart, in both languages, not as a caption.
   return { series, notes, gaps };
 }
 
@@ -626,7 +643,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
                 <a className="main" href={seriesHash([entry.key])}>
                   <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
                   {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
-                  {!curated && <span className="path"><Zh>{entry.categories.join(" › ")}</Zh></span>}
+                  {!curated && <span className="path">{categoryPath(entry)}</span>}
                   <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
@@ -904,8 +921,10 @@ function SeriesPage(props: {
   const previous = headline?.points[headline.points.length - 2];
   const saved = props.saved.includes(primary.key);
   const meta = primary.metadata;
-  const definition = meta?.note || ABOUT[primary.key] || "";
-  const readingNotes = READING[primary.key] ?? (meta?.annotation ? [meta.annotation] : built.notes);
+  const definition = meta?.noteEn || meta?.note || ABOUT[primary.key] || "";
+  const definitionZh = meta?.noteEn && meta.note ? meta.note : "";
+  const readingNotes = READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes);
+  const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
   const curated = props.curated.find((entry) => entry.key === primary.key);
   const today = new Date().toISOString().slice(0, 10);
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
@@ -975,7 +994,7 @@ function SeriesPage(props: {
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs">
         <a href="#/">Home</a><span aria-hidden="true">›</span>
-        {meta ? <><a href="#/browse">Categories</a>{meta.categories.slice(0, 2).map((category) => <React.Fragment key={category}><span aria-hidden="true">›</span><a href={`#/category/${encodeURIComponent(category)}`}><Zh>{category}</Zh></a></React.Fragment>)}</>
+        {meta ? <><a href="#/browse">Categories</a>{meta.categories.slice(0, 2).map((category, index) => <React.Fragment key={category}><span aria-hidden="true">›</span><a href={`#/category/${encodeURIComponent(category)}`}><Zh>{meta.categoriesEn?.[index] || categoryEn(category) || category}</Zh></a></React.Fragment>)}</>
           : <><span>Headline Indicators</span><span aria-hidden="true">›</span><span>{curated?.group ?? primary.agency}</span></>}
       </div>
       <PageHeader
@@ -992,7 +1011,7 @@ function SeriesPage(props: {
       {latest && (
         <p className="stat-line" aria-label="Latest observation">
           <span className="stat-value">{fmt(latest.value, primary.unit)}</span>
-          <span className="stat-text">{primary.unit}, {headline?.label !== primary.title ? `${headline?.label}, ` : ""}{periodPretty(latest.date)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
+          <span className="stat-text">{unitLabel(primary.unit)}, {headline?.label !== primary.title ? `${primary.region && headline?.label === primary.region.text ? regionLabel(primary.region) : headline?.label}, ` : ""}{periodPretty(latest.date)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
       )}
 
@@ -1045,22 +1064,23 @@ function SeriesPage(props: {
       <section className="details">
         <div className="card about">
           <h2>Notes</h2>
-          {definition ? <p><Zh>{definition}</Zh></p> : readingNotes.length === 0 ? <p className="muted">NBS publishes no definition or methodology note for this series.</p> : null}
+          {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">NBS publishes no definition or methodology note for this series.</p> : null}
           {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
+          {readingNotesZh && <p><Zh className="gloss block">{readingNotesZh}</Zh></p>}
         </div>
         <div className="card">
           <h2>Series Details</h2>
           <dl>
             <dt>Source</dt><dd>{primary.agency}</dd>
-            <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"} ↗</a></dd>
-            <dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline Indicators"}</dd>
-            <dt>Category</dt><dd>{meta ? <Zh>{meta.categories.join(" › ")}</Zh> : curated?.group ?? "—"}</dd>
-            <dt>Region</dt><dd>{primary.region ? <Zh>{primary.region.text}</Zh> : "China, national"}</dd>
+            <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"}</a></dd>
+            {meta && <><dt>Dataset</dt><dd>{meta.datasetEn ? <>{meta.datasetEn} <Zh className="gloss">{meta.dataset}</Zh></> : <Zh>{meta.dataset}</Zh>}</dd></>}
+            <dt>Category</dt><dd>{meta ? categoryPath(meta) : curated?.group ?? "—"}</dd>
+            <dt>Region</dt><dd>{primary.region ? <>{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</> : "China, national"}</dd>
             <dt>Frequency</dt><dd>{primary.frequency}</dd>
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
-            <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${headline.points[0]?.date} → ${headline.points[headline.points.length - 1]?.date}` : "—"}</dd>
+            <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${prettyObservation(headline.points[0]?.date ?? "", primary.frequency)} to ${prettyObservation(headline.points[headline.points.length - 1]?.date ?? "", primary.frequency)}` : "—"}</dd>
             <dt>Updated</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
-            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}` : "Not on this month's calendar"}</dd>
+            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}` : "Not scheduled this month"}</dd>
             <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>
             {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
               ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>

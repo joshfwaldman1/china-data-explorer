@@ -122,6 +122,11 @@ export interface NbsCatalogEntry {
   nameEnSource?: EnglishLabelSource;
   nameEnSourceUrl?: string;
   nameEnCapturedAt?: string;
+  /** English for the prose fields, from catalog/notes-en.json (translate-notes.ts). */
+  noteEn?: string;
+  annotationEn?: string;
+  datasetEn?: string;
+  categoriesEn?: string[];
   legacyDatabase?: string;
   legacyIndicatorCode?: string;
   /** Toneless pinyin of the short name, for search. */
@@ -214,11 +219,12 @@ function parseEntry(value: unknown): NbsCatalogEntry | null {
 
 const GLOSS_FILE = resolve(import.meta.dir, "../catalog/gloss-en.json");
 const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
+const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
 const GLOSS_FORMAT = 2;
 async function catalogVersion(): Promise<string> {
-  const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE].map(async (path) => {
+  const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
   }));
   // GLOSS_FORMAT bumps when glossTitle's output shape changes, so stored glosses rebuild.
@@ -239,7 +245,36 @@ function reviveEntry(raw: unknown): NbsCatalogEntry | null {
     nameEn: stringValue(raw, "nameEn") || undefined,
     nameEnSource: isLabelSource(source) ? source : undefined,
     nameEnSourceUrl: stringValue(raw, "nameEnSourceUrl") || undefined,
+    noteEn: stringValue(raw, "noteEn") || undefined,
+    annotationEn: stringValue(raw, "annotationEn") || undefined,
+    datasetEn: stringValue(raw, "datasetEn") || undefined,
+    categoriesEn: Array.isArray(objectValue(raw, "categoriesEn")) ? listOfStrings(objectValue(raw, "categoriesEn")) : undefined,
     pinyin: stringValue(raw, "pinyin") || undefined,
+  };
+}
+
+function listOfStrings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+/** The prose translation table; absent until translate-notes.ts has run. */
+async function readNotesTable(): Promise<Record<string, string>> {
+  try {
+    const raw: unknown = await Bun.file(NOTES_FILE).json();
+    if (typeof raw !== "object" || raw === null) return {};
+    return Object.fromEntries(Object.entries(raw).filter((pair): pair is [string, string] => typeof pair[1] === "string"));
+  } catch { return {}; }
+}
+
+/** Attach English prose to an entry where the table has it. Categories are translated segment by segment. */
+function withProseEnglish(entry: NbsCatalogEntry, table: Record<string, string>): NbsCatalogEntry {
+  const categoriesEn = entry.categories.map((category) => table[category.trim()] ?? "");
+  return {
+    ...entry,
+    noteEn: table[entry.note.trim()] || undefined,
+    annotationEn: table[entry.annotation.trim()] || undefined,
+    datasetEn: table[entry.dataset.trim()] || undefined,
+    categoriesEn: categoriesEn.some(Boolean) ? categoriesEn : undefined,
   };
 }
 
@@ -288,12 +323,12 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
       const raw: unknown = await Bun.file(CATALOG_PATH).json();
       const entriesRaw = objectValue(raw, "entries");
       if (!Array.isArray(entriesRaw)) throw new Error("NBS catalog is missing; run the catalog sync script");
-      await Promise.all([warmGloss(), warmOfficialEnglish()]);
+      const [, , notesTable] = await Promise.all([warmGloss(), warmOfficialEnglish(), readNotesTable()]);
       const entries = entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null)
         .map((entry) => {
           const spaced = toPinyin(entry.shortName);
           const english = resolveEnglishLabel(entry.key, entry.name, glossTitle(entry.name));
-          return { ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
+          return withProseEnglish({ ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` }, notesTable);
         });
       const snapshot = {
         generatedAt: stringValue(raw, "generatedAt"),
