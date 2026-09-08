@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -87,4 +87,10 @@ test("stitchPoints joins slices oldest to newest, newer winning on overlap", () 
     [{ date: "2015-12", value: 3 }, { date: "2016-01", value: 4 }],
   ]);
   expect(joined.map((point) => `${point.date}:${point.value}`)).toEqual(["2015-11:1", "2015-12:3", "2016-01:4"]);
+});
+
+test("an index table labelled 无 gets its base as the unit", () => {
+  expect(rawUnitOf({ unit: "无", name: "居民消费价格指数 (上月=100)" })).toBe("Index, previous month = 100");
+  expect(rawUnitOf({ unit: "无", name: "居民消费价格指数 (上年同月=100)" })).toBe("Index, same month a year earlier = 100");
+  expect(rawUnitOf({ unit: "万吨", name: "粗钢产量当期值 (万吨)" })).toBe("万吨");
 });

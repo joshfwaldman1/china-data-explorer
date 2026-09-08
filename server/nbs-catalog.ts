@@ -937,7 +937,7 @@ export async function getNbsCatalogSeries(options: {
   // Transform over the full history, then slice, so lagged transforms keep
   // their first year instead of losing it to the limit.
   const transformed = transformPoints(points, transform, options.entry.frequency).slice(-limit);
-  const unit = transform === "raw" ? options.entry.unit || "Value" : transformLabel(transform);
+  const unit = transform === "raw" ? rawUnitOf(options.entry) : transformLabel(transform);
   return {
     ...rawResult(options.entry, region, transformed),
     unit,
@@ -947,6 +947,22 @@ export async function getNbsCatalogSeries(options: {
     source,
     updatedAt: memberEntries.map((member) => seriesFreshness(member.key, region.value)).filter((value): value is string => typeof value === "string").sort().at(-1) ?? new Date().toISOString(),
   };
+}
+
+/**
+ * NBS labels index tables "无" (none) for a unit and puts the base in the
+ * title: 居民消费价格指数 (上月=100). The base is the unit a reader needs.
+ */
+export function rawUnitOf(entry: Pick<NbsCatalogEntry, "unit" | "name">): string {
+  const unit = entry.unit.trim();
+  if (unit && unit !== "无") return unit;
+  const name = entry.name;
+  if (/上年同月\s*=\s*100/.test(name)) return "Index, same month a year earlier = 100";
+  if (/上年同期\s*=\s*100/.test(name)) return "Index, same period a year earlier = 100";
+  if (/上月\s*=\s*100/.test(name)) return "Index, previous month = 100";
+  if (/上年\s*=\s*100/.test(name)) return "Index, previous year = 100";
+  if (/=\s*100/.test(name)) return "Index, base period = 100";
+  return unit || "Value";
 }
 
 /** Stored points if fresh, otherwise a refresh; a stale copy beats an error page, a missing copy does not. */
