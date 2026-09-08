@@ -119,7 +119,8 @@ export function observationLabel(date: string, frequency: string): string {
 export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: string, style: "long" | "short" = "long", frequency = "Monthly"): string {
   if (!latest || !previous) return "";
   const difference = latest.value - previous.value;
-  const points = isRate(unit) ? " pp" : "";
+  // Percentage points for a percentage; an index or a level changes in its own units.
+  const points = /%|percent/i.test(unit) && !/index/i.test(unit) ? " pp" : "";
   if (Math.abs(difference) < 0.000001) return style === "long" ? `Unchanged from ${observationLabel(previous.date, frequency)}` : "0.0";
   // Levels in the thousands change by whole units; anything finer is noise at that scale.
   const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);

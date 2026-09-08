@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { canonicalPeriod, convertTrack, coarsestFrequency, fmt, fmtTick, periodPretty, periodTime, rebase, type Track } from "./lib.ts";
+import { canonicalPeriod, convertTrack, deltaText, coarsestFrequency, fmt, fmtTick, periodPretty, periodTime, rebase, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -54,4 +54,9 @@ test("fmt never shows a negative zero", () => {
   expect(fmt(-0.03, "%")).toBe("0.0");
   expect(fmt(-0.001, "Hundred million yuan")).toBe("0.00");
   expect(fmt(-0.06, "%")).toBe("-0.1");
+});
+
+test("deltaText says pp for percentages only", () => {
+  expect(deltaText({ date: "2026-07", value: 0.5 }, { date: "2026-06", value: 1.0 }, "Percent change from year ago")).toBe("Down 0.5 pp from Jun 2026");
+  expect(deltaText({ date: "2026-07", value: 99.9 }, { date: "2026-06", value: 99.7 }, "Index, previous month = 100")).toBe("Up 0.2 from Jun 2026");
 });
