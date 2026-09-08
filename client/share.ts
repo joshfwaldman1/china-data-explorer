@@ -97,6 +97,7 @@ export function drawShareImage(context: CanvasRenderingContext2D, layout: ShareL
   text(context, { text: "数", x: mark.x + mark.size / 2, y: mark.y + mark.size - 6, font: `700 15px ${FONT_SANS}`, color: "#ffffff", align: "center" });
   text(context, layout.footer.brand);
   text(context, layout.footer.source);
+  text(context, layout.footer.url);
   text(context, layout.footer.date);
 }
 

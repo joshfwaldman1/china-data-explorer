@@ -12,7 +12,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -42,9 +42,22 @@ function regionLabel(region: Region): string {
 }
 /** What to call a result on a chart shared with others: the province when the key repeats. */
 function displayTitle(result: SeriesResult, all: SeriesResult[]): string {
+  const title = result.metadata?.nameEn || result.title;
   const sameKey = all.filter((other) => other.key === result.key);
-  if (sameKey.length > 1 && result.region) return all.every((other) => other.key === result.key) ? regionLabel(result.region) : `${result.title} (${regionLabel(result.region)})`;
-  return result.title;
+  if (sameKey.length > 1 && result.region) return all.every((other) => other.key === result.key) ? regionLabel(result.region) : `${title} (${regionLabel(result.region)})`;
+  return title;
+}
+/** Months between an observation's period and today; 0 for the current month. */
+function monthsOld(period: string): number {
+  const t = periodTime(period);
+  if (!Number.isFinite(t)) return 0;
+  const now = new Date();
+  return (now.getUTCFullYear() - new Date(t).getUTCFullYear()) * 12 + (now.getUTCMonth() - new Date(t).getUTCMonth());
+}
+/** A monthly series more than four months behind, or a quarterly one more than two quarters, has stopped arriving. */
+function isBehind(period: string, frequency: string): boolean {
+  const months = monthsOld(period);
+  return frequency === "Monthly" ? months > 4 : frequency === "Quarterly" ? months > 7 : months > 15;
 }
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
@@ -506,7 +519,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span className="tile-unit">{unitSuffix(entry.unit)}</span></span>
                 {first && <Sparkline points={first.points} />}
-                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
+                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
               </a>
             );
           })}
@@ -525,7 +538,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                     <span className="name">{entry.title}<small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
                     <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
-                    <span className="period">{latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
+                    <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} />}</span>
                   </a>
                 );
@@ -923,11 +936,11 @@ function SeriesPage(props: {
   const previous = headline?.points[headline.points.length - 2];
   const saved = props.saved.includes(primary.key);
   const meta = primary.metadata;
+  const curated = props.curated.find((entry) => entry.key === primary.key);
   const definition = meta?.noteEn || meta?.note || ABOUT[primary.key] || "";
   const definitionZh = meta?.noteEn && meta.note ? meta.note : "";
-  const readingNotes = READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes);
+  const readingNotes = [...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)), ...(curated?.endedNote ? [curated.endedNote] : [])];
   const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
-  const curated = props.curated.find((entry) => entry.key === primary.key);
   const today = new Date().toISOString().slice(0, 10);
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
   const stale = primary.source === "stale";
@@ -1025,6 +1038,8 @@ function SeriesPage(props: {
       {rebased && <div className="notice info"><div>These series have different units ({units.join("; ")}), so each is shown as an index with the first period = 100. Choose a common transform under Options.</div></div>}
       {mixed && !rebased && <div className="notice"><div>These series have different units ({units.join("; ")}) and share one axis, so compare their shapes, not their levels. Choose a common transform under Options.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div>Level series are shown as % change from a year ago so their units match the rates on this chart. Change this under Options.</div></div>}
+      {curated?.ended && <div className="notice"><div><b>This series ended in {periodPretty(curated.ended)}.</b>{curated.endedNote}</div></div>}
+      {!curated?.ended && latest && isBehind(latest.date, primary.frequency) && <div className="notice"><div><b>Latest available observation is {observationLabel(latest.date, primary.frequency)}.</b>The source has published nothing newer; the store was last checked {fmtDate(primary.updatedAt) || "today"}.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
 
       <section className="card data-card">

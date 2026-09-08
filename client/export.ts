@@ -68,7 +68,7 @@ export interface ShareLayout {
   lines: { color: string; dash: number[]; width: number; points: [number, number][] }[];
   endLabels: Text[];
   notes: Text[];
-  footer: { mark: { x: number; y: number; size: number }; brand: Text; source: Text; date: Text };
+  footer: { mark: { x: number; y: number; size: number }; brand: Text; source: Text; url: Text; date: Text };
 }
 
 const YEAR = 365.25 * 86400000;
@@ -239,7 +239,7 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   const notes = input.notes.slice(0, 2);
   const noteHeight = notes.length * 22;
   const plotTop = cursor + 28;
-  const plotBottom = footerY - 40 - noteHeight - 36;
+  const plotBottom = footerY - 66 - noteHeight - 36;
 
   // Scales.
   const times = tracks.flatMap((track) => track.points.map((point) => point.t));
@@ -300,17 +300,19 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
     x: margin, y: plot.y + plot.h + 36 + 22 + index * 22, font: noteFont, color: LIGHT.muted, align: "left",
   }));
 
-  const brand: Text = { text: "EconStats China Data", x: margin + 34, y: footerY, font: brandFont, color: LIGHT.navy, align: "left" };
+  // Two footer lines: brand and source on the first, the page URL and retrieval date on the second.
+  const brand: Text = { text: "EconStats China Data", x: margin + 34, y: footerY - 26, font: brandFont, color: LIGHT.navy, align: "left" };
   const dateText: Text = { text: `Retrieved ${input.date}`, x: width - margin, y: footerY, font: footerFont, color: LIGHT.muted, align: "right" };
   const sourceX = brand.x + measure(brand.text, brandFont) + 28;
-  const sourceMax = dateText.x - measure(dateText.text, footerFont) - 24 - sourceX;
-  const sourceText = wrapText(`Source: ${input.source}. ${trimUrl(input.url)}`, sourceMax, footerFont, measure, 1)[0] ?? "";
-  const source: Text = { text: sourceText, x: sourceX, y: footerY, font: footerFont, color: LIGHT.muted, align: "left" };
+  const sourceText = wrapText(`Source: ${input.source}`, width - margin - sourceX, footerFont, measure, 1)[0] ?? "";
+  const source: Text = { text: sourceText, x: sourceX, y: footerY - 26, font: footerFont, color: LIGHT.muted, align: "left" };
+  const urlMax = dateText.x - measure(dateText.text, footerFont) - 24 - margin;
+  const urlText: Text = { text: wrapText(trimUrl(input.url), urlMax, footerFont, measure, 1)[0] ?? "", x: margin, y: footerY, font: footerFont, color: LIGHT.muted, align: "left" };
 
   return {
     width, height, background: LIGHT.panel,
     title: { lines: titleLines, x: margin, y: titleTop + 26, lineHeight: titleLineHeight, font: titleFont, color: LIGHT.ink },
     subtitle, legend, plot, yTicks, xTicks, refLines, bands, lines, endLabels, notes: noteTexts,
-    footer: { mark: { x: margin, y: footerY - 18, size: 24 }, brand, source, date: dateText },
+    footer: { mark: { x: margin, y: footerY - 44, size: 24 }, brand, source, url: urlText, date: dateText },
   };
 }

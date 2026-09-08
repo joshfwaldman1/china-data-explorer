@@ -118,8 +118,9 @@ describe("layoutShareImage", () => {
     expect(layout.legend.length).toBe(2);
     expect(layoutShareImage({ ...input, tracks: input.tracks.slice(0, 1) }, measure).legend.length).toBe(0);
     expect(layout.bands.length).toBe(1);
-    expect(layout.footer.source.text).toContain("example.org/#/series/lpr");
-    expect(layout.footer.source.text).not.toContain("https://");
+    expect(layout.footer.url.text).toContain("example.org/#/series/lpr");
+    expect(layout.footer.url.text).not.toContain("https://");
+    expect(layout.footer.source.text).toBe("Source: People's Bank of China");
   });
   test("log scale maps 10 below 100", () => {
     const log = layoutShareImage({ ...input, logScale: true, tracks: [track("a", [10, 100, 1000])] }, measure);

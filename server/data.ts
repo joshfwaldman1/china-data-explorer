@@ -71,6 +71,9 @@ interface EastmoneyIndicator {
   kind: "eastmoney";
   group: string;
   title: string;
+  /** Set when the source stopped publishing: the last period, and why. */
+  ended?: string;
+  endedNote?: string;
   agency: string;
   frequency: string;
   unit: string;
@@ -90,6 +93,9 @@ interface NbsIndicator {
   kind: "nbs";
   group: string;
   title: string;
+  /** Set when the source stopped publishing: the last period, and why. */
+  ended?: string;
+  endedNote?: string;
   agency: string;
   frequency: string;
   unit: string;
@@ -108,6 +114,9 @@ interface AktoolsIndicator {
   kind: "aktools";
   group: string;
   title: string;
+  /** Set when the source stopped publishing: the last period, and why. */
+  ended?: string;
+  endedNote?: string;
   agency: string;
   frequency: string;
   unit: string;
@@ -294,6 +303,7 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "aktools", group: "Sentiment",
     title: "Caixin Manufacturing PMI", agency: "Caixin / S&P Global",
     frequency: "Monthly", unit: "Diffusion index (50 = neutral)",
+    ended: "2025-09", endedNote: "Caixin ended its sponsorship of the S&P Global China PMI in 2025. From October 2025 the same survey is published as the RatingDog China General PMI, which no free source carries yet. This series stops at September 2025.",
     fn: "macro_china_cx_pmi_yearly", dateField: "日期", dateFormat: "iso", dateLen: 7,
     fields: [{ field: "今值", label: "Caixin Manufacturing PMI" }],
   },
@@ -301,6 +311,7 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "aktools", group: "Sentiment",
     title: "Caixin Services PMI", agency: "Caixin / S&P Global",
     frequency: "Monthly", unit: "Diffusion index (50 = neutral)",
+    ended: "2025-09", endedNote: "Caixin ended its sponsorship of the S&P Global China PMI in 2025. From October 2025 the same survey is published as the RatingDog China General PMI, which no free source carries yet. This series stops at September 2025.",
     fn: "macro_china_cx_services_pmi_yearly", dateField: "日期", dateFormat: "iso", dateLen: 7,
     fields: [{ field: "今值", label: "Caixin Services PMI" }],
   },
@@ -330,12 +341,15 @@ export interface CatalogEntry {
   agency: string;
   frequency: string;
   unit: string;
+  ended?: string;
+  endedNote?: string;
 }
 
 export function catalogList(): CatalogEntry[] {
   return Object.entries(CATALOG).map(([key, c]) => ({
     key, title: c.title, group: c.group, agency: c.agency,
     frequency: c.frequency, unit: c.unit,
+    ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
   }));
 }
 
