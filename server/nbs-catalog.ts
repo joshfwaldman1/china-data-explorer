@@ -465,6 +465,11 @@ export function indexHitIsReal(entry: NbsCatalogEntry, query: string): boolean {
   return queryVariants(query).some((variant) => variant.split(/\s+/).filter(Boolean).every((term) => latinTermHit(haystack, pinyinJoined, term)));
 }
 
+/** Tie-break length: the English title when there is one, since units inflate the Chinese one ("(万吨)" vs "(%)"). */
+function titleLength(entry: NbsCatalogEntry): number {
+  return (entry.nameEn ?? entry.name).length;
+}
+
 export function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (!query) return 1;
   const name = entry.name.toLocaleLowerCase();
@@ -539,7 +544,7 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       const text = fullText.has(entry.key) && (base > 0 || indexHitIsReal(entry, query)) ? Math.min(2, (fullText.get(entry.key) ?? 0) / 5) : undefined;
       const score = base > 0 ? base + (text ?? 0) : text !== undefined ? 5 + text + extra : extra;
       return { entry, score };
-    }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score || a.entry.name.length - b.entry.name.length || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+    }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score || titleLength(a.entry) - titleLength(b.entry) || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
   };
 
   let scored = rank([]);

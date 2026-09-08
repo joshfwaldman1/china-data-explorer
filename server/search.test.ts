@@ -62,3 +62,12 @@ test("every entry carries an English gloss and pinyin", async () => {
   const result = await searchNbsCatalog({ query: "", limit: 100 });
   expect(result.results.every((entry) => (entry.nameEn ?? "").length > 0 && (entry.pinyin ?? "").length > 0)).toBe(true);
 });
+
+test("a plain output series outranks a ratio of it on a bare noun", async () => {
+  const result = await searchNbsCatalog({ query: "steel", limit: 5 });
+  const names = result.results.map((entry) => entry.nameEn ?? entry.name);
+  const output = names.findIndex((name) => /crude steel output/i.test(name));
+  const ratio = names.findIndex((name) => /ratio/i.test(name));
+  expect(output).toBeGreaterThanOrEqual(0);
+  if (ratio >= 0) expect(output).toBeLessThan(ratio);
+});
