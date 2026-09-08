@@ -478,8 +478,13 @@ async function fetchAktools(key: string, cfg: AktoolsIndicator, _limit: number):
     res = await fetch(`${AKTOOLS_URL}/api/public/${cfg.fn}`, {
       signal: AbortSignal.timeout(45000),
     });
-  } catch {
-    throw new Error(`AKTools is not running at ${AKTOOLS_URL}. This series comes from AkShare through a local AKTools service: start it with 'python -m aktools' and try again.`);
+  } catch (error) {
+    // A timeout is AKTools being slow (some AkShare functions scrape for 20s+);
+    // anything else is the service not being there at all.
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    throw new Error(timedOut
+      ? `AKTools did not answer within 45s for ${cfg.fn}. The upstream AkShare call is slow or blocked; try again later.`
+      : `AKTools is not running at ${AKTOOLS_URL}. This series comes from AkShare through a local AKTools service: start it with 'python -m aktools' and try again.`);
   }
   if (!res.ok) {
     throw new Error(`AKTools ${cfg.fn} -> HTTP ${res.status} (is 'python -m aktools' running on ${AKTOOLS_URL}?)`);
