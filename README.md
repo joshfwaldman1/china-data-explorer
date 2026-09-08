@@ -148,11 +148,17 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
   healthcheck (`railway.toml` already points at `/health`).
 - `ANTHROPIC_API_KEY` is optional: without it, search still works but English
   queries that miss are not expanded.
+- Set `AKTOOLS_URL=off` on a deployment without AKTools so those refreshes are
+  skipped with a clear message instead of probing localhost.
 - The five AkShare-backed series need AKTools (`python -m aktools` on :8080,
   `AKTOOLS_URL` to point elsewhere). Without it they serve from the store and
   their refresh is logged as a failure rather than breaking anything.
 
 ### Railway, specifically
+
+Live: https://econstats-china-production.up.railway.app (project
+`econstats-china` in the EconStats workspace; redeploy with `railway up --detach`
+from the repository root, where the CLI is linked to it).
 
 1. `railway login`, then in this repository `railway init` (new project) or
    `railway link` (existing). Create a service from the GitHub repo, branch

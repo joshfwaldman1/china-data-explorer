@@ -123,6 +123,10 @@ interface AktoolsIndicator {
 }
 type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator;
 
+// AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
+// series serve from the store and their refresh is skipped with a plain
+// message — rather than probing localhost, which on a platform that puts
+// this very app on :8080 answers 404 and reads like a mystery.
 const AKTOOLS_URL = process.env.AKTOOLS_URL ?? "http://127.0.0.1:8080";
 
 function nbsProvince(text: string, gbt2260: string): NbsRegion {
@@ -473,6 +477,9 @@ async function fetchAktools(key: string, cfg: AktoolsIndicator, _limit: number):
   // AkShare functions can take 15-25s, so give them a generous timeout.
   // AKTools is a local Python service, not a remote portal. Say so when it is
   // down, or the page blames NBS for a service that was never started.
+  if (AKTOOLS_URL === "off") {
+    throw new Error(`AKTools is not configured on this deployment; ${cfg.fn} serves from the stored copy until it is.`);
+  }
   let res: Response;
   try {
     res = await fetch(`${AKTOOLS_URL}/api/public/${cfg.fn}`, {
