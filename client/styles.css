@@ -370,8 +370,9 @@ th:first-child, td:first-child { text-align: left; white-space: nowrap; }
 .ranked .r { display: grid; grid-template-columns: 1fr 90px 48px; gap: var(--s-2); align-items: center; padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
 .ranked .r:last-child { border-bottom: 0; }
 .ranked .r.selected { border-left-color: var(--ink); background: var(--panel-2); }
-.ranked .bar { height: 8px; background: var(--blue-soft); border-radius: 4px; overflow: hidden; }
-.ranked .bar i { display: block; height: 100%; }
+.ranked .bar { position: relative; height: 8px; background: var(--blue-soft); border-radius: 4px; overflow: hidden; }
+.ranked .bar i { position: absolute; top: 0; height: 100%; }
+.ranked .bar b { position: absolute; top: 0; width: 1px; height: 100%; background: var(--line-strong); }
 .ranked .val { font-weight: 600; text-align: right; font-size: var(--fs-2); }
 
 /* ── States ───────────────────────────────────────────────────────────────── */

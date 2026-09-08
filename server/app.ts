@@ -135,7 +135,7 @@ const routes = {
       const period = new URL(req.url).searchParams.get("period") ?? "";
       const periods = new Set<string>();
       const values = regions.map((region) => {
-        const stored = readSeries(key, 40, region.value);
+        const stored = readSeries(key, 120, region.value);
         const points = stored?.series[0]?.points ?? [];
         for (const point of points) periods.add(point.date);
         const chosen = period ? points.find((point) => point.date === period) : points[points.length - 1];

@@ -1221,6 +1221,10 @@ function RegionsPage(props: { toast: (text: string) => void }) {
   const values = rows.map((item) => item.value ?? 0);
   const breaks = breaksFor(values);
   const max = Math.max(0, ...values);
+  // Bars anchor at zero: a contraction extends left of the zero line, an expansion right.
+  const low = Math.min(0, ...values);
+  const span = max - low || 1;
+  const zeroPct = ((0 - low) / span) * 100;
   const ranked = [...rows].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   const shownPeriod = rows[0]?.period ?? period;
   const current = rows.find((item) => item.province?.code === selected);
@@ -1234,7 +1238,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
           <p className="lede">Year-to-date real GDP, % change from the same period a year earlier: Q2 is first-half growth, Q4 is full-year growth. Source: provincial statistical bureaus, via NBS.</p>
         </div>
         <div className="actions">
-          <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).slice(0, 24).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
+          <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
         </div>
       </div>
 
@@ -1295,7 +1299,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
                   return (
                     <button key={province.code} className={`r${selected === province.code ? " selected" : ""}`} style={{ border: 0, background: selected === province.code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === province.code ? "" : province.code)} aria-pressed={selected === province.code}>
                       <span>{province.en}</span>
-                      <span className="bar"><i style={{ width: `${max > 0 ? Math.max(0, (item.value ?? 0) / max) * 100 : 0}%`, background: RAMP[step] }} /></span>
+                      <span className="bar">{zeroPct > 0 && zeroPct < 100 && <b style={{ left: `${zeroPct}%` }} />}<i style={{ left: `${Math.min(zeroPct, ((item.value ?? 0) - low) / span * 100)}%`, width: `${Math.abs((item.value ?? 0) / span) * 100}%`, background: RAMP[step] }} /></span>
                       <span className="val">{fmt(item.value ?? 0, "%")}</span>
                     </button>
                   );
