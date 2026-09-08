@@ -455,7 +455,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
       </button>
       <div className="sidebar-content" id="catalog-navigation">
       <details open>
-        <summary>Headline indicators</summary>
+        <summary>Headline Indicators</summary>
         <div className="side-list">
           {[...groups.entries()].map(([group, entries]) => (
             <React.Fragment key={group}>
@@ -488,7 +488,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
         </div>
       </details>
       <details>
-        <summary>My data</summary>
+        <summary>Saved and Recent</summary>
         <div className="side-list">
           <a className="nav-row" href="#/saved" aria-current={props.route.view === "saved" ? "page" : undefined}><span className="label">Saved series</span><span className="count">{props.saved.length}</span></a>
           <a className="nav-row" href="#/recent" aria-current={props.route.view === "recent" ? "page" : undefined}><span className="label">Recently viewed</span><span className="count">{props.recent.length}</span></a>
@@ -526,16 +526,16 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   return (
     <main id="main" tabIndex={-1} className="page">
       <section className="hero">
-        <h1>China's economy, in official numbers</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.length} headline indicators from NBS, the People's Bank of China, Customs and Caixin. Charted, documented, downloadable, with every revision kept.</p>
+        <h1>China Economic Data</h1>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.length} headline indicators from NBS, the People's Bank of China, Customs and Caixin.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input aria-label="Search series" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
-        <div className="chips">Popular:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "" })}>{term}</a>)}</div>
+        <div className="chips">Common searches:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "" })}>{term}</a>)}</div>
       </section>
 
       <section className="section" aria-labelledby="h-headline">
-        <div className="section-head"><h2 id="h-headline">Headline indicators</h2><span>latest print for each, year over year unless noted</span></div>
+        <div className="section-head"><h2 id="h-headline">Headline Indicators</h2><span>Latest value, % change from a year ago unless noted</span></div>
         <div className="tiles">
           {props.curated.map((entry) => {
             const result = headline.get(entry.key);
@@ -555,7 +555,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
 
       <section className="section two-col">
         <div className="card">
-          <div className="card-head"><h2>Coming up</h2><span>official NBS schedule, China Standard Time</span></div>
+          <div className="card-head"><h2>Upcoming NBS Releases</h2><span>China Standard Time</span></div>
           {props.releaseError ? <div className="state"><p>The NBS release calendar didn't respond. The schedule is also published at stats.gov.cn.</p></div>
             : upcoming.length === 0 ? <div className="state"><p>No further releases scheduled this month. <a href="#/releases">See the calendar</a>.</p></div>
             : <div className="cal">{upcoming.map((release) => {
@@ -573,16 +573,16 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             })}</div>}
         </div>
         <div className="card">
-          <div className="card-head"><h2>What's in here</h2><span>and what isn't yet</span></div>
+          <div className="card-head"><h2>Coverage</h2><span>What this site includes</span></div>
           <div className="coverage">
             <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li><li>{props.curated.length} headline indicators from NBS, PBOC, Customs, NEA and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>Every revision, from the day a series was first viewed</li></ul></div>
-            <div><h3>Not yet</h3><ul><li>70-city house prices</li><li>Provincial series beyond GDP, and city series</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li><li>English titles for most NBS series are machine glosses</li></ul></div>
+            <div><h3>Not included</h3><ul><li>70-city house prices</li><li>Provincial series beyond GDP, and city series</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li><li>English titles for most NBS series are machine glosses</li></ul></div>
           </div>
         </div>
       </section>
 
       <section className="section" aria-labelledby="h-cats">
-        <div className="section-head"><h2 id="h-cats">Browse by category</h2><span>the NBS top-level groups, by size</span></div>
+        <div className="section-head"><h2 id="h-cats">NBS Categories</h2><span>Top-level groups, by number of series</span></div>
         <div className="cats">
           {props.stats?.categories.slice(0, 12).map((category) => (
             <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
@@ -638,7 +638,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
         {(props.route.freq || props.route.cat || props.route.dataset) && <button className="button" onClick={() => props.navigate({ view: "search", q: props.route.q, freq: "", cat: "", dataset: "" })}>Clear filters</button>}
       </div>
       <p className="result-count" role="status" aria-live="polite">{status === "loading" ? "Searching…" : status === "error" ? "" : response ? `Showing ${response.results.length.toLocaleString("en-US")} of ${response.total.toLocaleString("en-US")} series` : ""}</p>
-      {status === "error" && <div className="state"><b>Search isn't available right now</b><p>The catalog didn't respond. Nothing is wrong with your query.</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button></div></div>}
+      {status === "error" && <div className="state"><b>Search unavailable</b><p>The catalog did not respond. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button></div></div>}
       {status === "ok" && response && response.results.length === 0 && (
         <div className="state">
           <b>No series match {props.route.q ? `“${props.route.q}”` : "these filters"}</b>
@@ -675,8 +675,8 @@ function BrowsePage(props: { stats: CatalogStats | null }) {
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Categories</span></div>
-      <h1>Browse by category</h1>
-      <p className="lede">The {props.stats?.categoryCount ?? 0} NBS categories, grouped by their top-level heading. Chinese names are the official ones; the English is a gloss.</p>
+      <h1>NBS Categories</h1>
+      <p className="lede">The {props.stats?.categoryCount ?? 0} NBS categories, grouped by top-level heading. Chinese names are official; English names are glosses.</p>
       <div className="cats" style={{ marginTop: 20 }}>
         {props.stats?.categories.map((category) => (
           <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
@@ -703,7 +703,7 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
   }, [props.keys.join(",")]);
   return (
     <main id="main" tabIndex={-1} className="page">
-      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>My data</span></div>
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Saved and Recent</span></div>
       <h1>{props.title}</h1>
       {props.keys.length === 0 ? <div className="state"><b>{props.empty}</b><p>Saved series and recently viewed series live in this browser only.</p></div> : (
         <div className="result-list" style={{ marginTop: 20 }}>
@@ -743,8 +743,8 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Releases</span></div>
-      <h1>NBS release calendar</h1>
-      <p className="lede">The official publication schedule, in China Standard Time. Each release links to the series it updates.</p>
+      <h1>NBS Release Calendar</h1>
+      <p className="lede">Official publication schedule, China Standard Time. Each release links to the series it updates.</p>
       <div className="month-nav"><button className="button" onClick={() => shift(-1)} aria-label="Previous month">‹</button><b>{new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button className="button" onClick={() => shift(1)} aria-label="Next month">›</button></div>
       {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading the calendar…</div>}
       {status === "error" && <div className="state"><b>Release calendar unavailable</b><p>NBS didn't respond. The schedule is also published at <a href="https://www.stats.gov.cn/sj/fbrc/" target="_blank" rel="noreferrer">stats.gov.cn</a>.</p><div className="actions"><button className="button" onClick={() => shift(0)}>Try again</button></div></div>}
@@ -924,7 +924,7 @@ function SeriesPage(props: {
   const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
 
   if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time — this takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
-  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Couldn't load this series</b><p>{/AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
+  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
 
   const firstSeries = built.tracks[0];
   const headline = primary.series[0];
@@ -975,7 +975,7 @@ function SeriesPage(props: {
       <div className="breadcrumbs">
         <a href="#/">Home</a><span aria-hidden="true">›</span>
         {meta ? <><a href="#/browse">Categories</a>{meta.categories.slice(0, 2).map((category) => <React.Fragment key={category}><span aria-hidden="true">›</span><a href={`#/category/${encodeURIComponent(category)}`}><Zh>{category}</Zh></a></React.Fragment>)}</>
-          : <><span>Headline indicators</span><span aria-hidden="true">›</span><span>{curated?.group ?? primary.agency}</span></>}
+          : <><span>Headline Indicators</span><span aria-hidden="true">›</span><span>{curated?.group ?? primary.agency}</span></>}
       </div>
       <PageHeader
         title={<>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
@@ -1044,16 +1044,16 @@ function SeriesPage(props: {
 
       <section className="details">
         <div className="card about">
-          <h2>About this series</h2>
+          <h2>Notes</h2>
           {definition ? <p><Zh>{definition}</Zh></p> : readingNotes.length === 0 ? <p className="muted">NBS publishes no definition or methodology note for this series.</p> : null}
           {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
         </div>
         <div className="card">
-          <h2>Details</h2>
+          <h2>Series Details</h2>
           <dl>
             <dt>Source</dt><dd>{primary.agency}</dd>
             <dt>Retrieved via</dt><dd>{via} · <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"} ↗</a></dd>
-            <dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline indicators"}</dd>
+            <dt>Dataset</dt><dd>{meta ? <Zh>{meta.dataset}</Zh> : "Headline Indicators"}</dd>
             <dt>Category</dt><dd>{meta ? <Zh>{meta.categories.join(" › ")}</Zh> : curated?.group ?? "—"}</dd>
             <dt>Region</dt><dd>{primary.region ? <Zh>{primary.region.text}</Zh> : "China, national"}</dd>
             <dt>Frequency</dt><dd>{primary.frequency}</dd>
@@ -1069,13 +1069,13 @@ function SeriesPage(props: {
       </section>
 
       <section className="card revisions">
-        <div className="revisions-head"><h2>Revisions</h2><span>{revised === null ? "Checking the store…" : revised.length === 0 ? "None recorded" : `${revised.length} restated ${revised.length === 1 ? "value" : "values"}`}</span></div>
-        {revised !== null && revised.length === 0 && <p>Every value stored so far has matched the one before it. When the source restates a number, the earlier value stays here.</p>}
+        <div className="revisions-head"><h2>Revisions</h2><span>{revised === null ? "Loading…" : revised.length === 0 ? "None recorded" : `${revised.length} restated ${revised.length === 1 ? "value" : "values"}`}</span></div>
+        {revised !== null && revised.length === 0 && <p>No stored value for this series has been revised by the source. Revised values are kept alongside the original.</p>}
         {revised !== null && revised.length > 0 && <div className="table-scroll"><table><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{row.period}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "—" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>}
       </section>
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 
-      {curated && <section className="related"><div className="section-head"><h2>Related</h2><span>other headline indicators in {curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency} · {entry.agency}</small></a>)}</div></section>}
+      {curated && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency} · {entry.agency}</small></a>)}</div></section>}
     </main>
   );
 }
@@ -1164,24 +1164,24 @@ function RegionsPage(props: { toast: (text: string) => void }) {
 
   return (
     <main id="main" tabIndex={-1} className="page">
-      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Regions</span></div>
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Provinces</span></div>
       <div className="series-head">
         <div>
-          <h1>Regional GDP growth by province</h1>
-          <p className="lede">Real GDP, cumulative year to date, % change from the same period a year earlier. From the provincial statistical bureaus via NBS; every province's full history is stored.</p>
+          <h1>Real GDP Growth by Province</h1>
+          <p className="lede">Real GDP, year to date, % change from the same period a year earlier. Source: provincial statistical bureaus, via NBS.</p>
         </div>
         <div className="actions">
           <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).slice(0, 24).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
         </div>
       </div>
-      <div className="notice info"><div><b>Cumulative, not quarterly.</b>NBS publishes provincial GDP growth as 本期累计 — the year to date. Q2 is first-half growth, Q4 is the full year. Provincial figures have historically summed to more than the national total, so treat rankings as indicative.</div></div>
+      <div className="notice info"><div><b>Year-to-date growth, not quarterly growth.</b>NBS publishes provincial GDP growth as 本期累计 (cumulative for the year). Q2 is first-half growth; Q4 is full-year growth. Provincial figures have historically summed to more than the national total.</div></div>
 
       {status === "loading" && <div className="state" role="status"><span className="loader" aria-hidden="true" />Loading provinces…</div>}
-      {status === "error" && <div className="state" role="alert"><b>Couldn't load the provincial data</b><p>The store has no provincial rows yet. Run the ingest and try again.</p></div>}
+      {status === "error" && <div className="state" role="alert"><b>Provincial data unavailable</b><p>The store has no provincial rows yet. Run the ingest and try again.</p></div>}
       {status === "ok" && data && (
         <div className="regional-grid">
           <section className="card" aria-label="Map of provinces">
-            <div className="card-head"><h2>31 province-level units</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""} · schematic tile grid, arranged roughly by geography</span></div>
+            <div className="card-head"><h2>Real GDP Growth by Province, {shownPeriod ? periodPretty(shownPeriod) : ""}</h2><span>% change from a year earlier, year to date · tile map, approximate geography</span></div>
             <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
               {rows.map((item) => {
                 const province = item.province;
@@ -1218,13 +1218,13 @@ function RegionsPage(props: { toast: (text: string) => void }) {
             )}
             {picked.length > 0 && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
-                <div className="section-head" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Compare provinces</h2><span>{picked.length} of 4</span></div>
+                <div className="section-head" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Compare Provinces</h2><span>{picked.length} of 4</span></div>
                 <div className="chip-row" style={{ margin: "0 0 10px" }}>{picked.map((code) => { const province = PROVINCES.find((item) => item.code === code); return <span className="chip" key={code}>{province?.en ?? code}<button onClick={() => setPicked(picked.filter((item) => item !== code))} aria-label={`Remove ${province?.en ?? code}`}>×</button></span>; })}</div>
                 <a className="button" href={seriesHash(picked.map((code) => `provincial_gdp@${code}`), { range: "10y" })} aria-disabled={picked.length < 2}>{picked.length < 2 ? "Pick at least two" : `Chart ${picked.length} provinces together`}</a>
               </section>
             )}
             <section className="card">
-              <div className="card-head"><h2>Ranked</h2><span>31 units · {shownPeriod ? periodPretty(shownPeriod) : ""}</span></div>
+              <div className="card-head"><h2>Provinces Ranked by Real GDP Growth</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""} · % change, year to date</span></div>
               <div className="ranked">
                 {ranked.map((item, index) => {
                   const province = item.province;
@@ -1242,7 +1242,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
               </div>
             </section>
             <section className="card" style={{ padding: 16 }}>
-              <h2>Reading provincial data</h2>
+              <h2>Notes on Provincial Data</h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 <li>Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total; treat cross-province ranking as indicative.</li>
                 <li>Growth in small western provinces moves on a low base — a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>
@@ -1353,7 +1353,7 @@ function App() {
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
-          <a href="#/regions" aria-current={current("regions")}>Regions</a>
+          <a href="#/regions" aria-current={current("regions")}>Provinces</a>
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
         </nav>
         <div className="topbar-tools">
@@ -1369,10 +1369,10 @@ function App() {
         {route.view === "browse" && <BrowsePage stats={stats} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
         {route.view === "regions" && <RegionsPage toast={setToast} />}
-        {route.view === "saved" && <KeyListPage title="Saved series" keys={saved} empty="Nothing saved yet" />}
-        {route.view === "recent" && <KeyListPage title="Recently viewed" keys={recent} empty="Nothing viewed yet" />}
+        {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
+        {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
-      <footer>Official statistics, charted with their methodology notes · Revisions kept from first view · An independent project, not affiliated with any statistical agency</footer>
+      <footer>Official statistics from NBS, PBOC, Customs and Caixin. Independent project, not affiliated with any statistical agency.</footer>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
