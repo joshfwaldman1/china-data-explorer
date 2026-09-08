@@ -19,7 +19,7 @@ const { searchNbsCatalog, nbsCatalogStats, stitchPoints } = await import("./nbs-
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
-  expect(stats.seriesCount).toBeGreaterThan(15000);
+  expect(stats.seriesCount).toBeGreaterThan(14000);
   expect(stats.datasets.map((dataset) => dataset.code)).toEqual([1, 2]);
 }, 30000);
 

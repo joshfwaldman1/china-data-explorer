@@ -431,7 +431,9 @@ export async function nbsCatalogStats() {
   const categories = new Set<string>();
   const categoryCounts = new Map<string, number>();
   const datasets = new Map<number, { code: number; name: string; frequency: string; geography: string; count: number }>();
-  for (const entry of snapshot.entries) {
+  // Counts describe what a visitor can reach: one series per family, not one per year-range slice.
+  const visible = snapshot.entries.filter((entry) => !entry.family || entry.family.head === entry.key);
+  for (const entry of visible) {
     for (const category of entry.categories) categories.add(category);
     const topCategory = entry.categories[0];
     if (topCategory) categoryCounts.set(topCategory, (categoryCounts.get(topCategory) ?? 0) + 1);
@@ -447,7 +449,7 @@ export async function nbsCatalogStats() {
   }
   return {
     generatedAt: snapshot.generatedAt,
-    seriesCount: snapshot.entries.length,
+    seriesCount: visible.length,
     categoryCount: categories.size,
     categories: [...categoryCounts.entries()]
       .map(([name, count]) => ({ name, count }))
