@@ -89,3 +89,18 @@ export function rebase(tracks: Track[], start: number): Track[] {
     return { ...track, unit: "Index, first shown period = 100", points: track.points.map((point) => ({ ...point, v: (point.v / first.v) * 100 })) };
   });
 }
+
+/**
+ * The change from the prior observation, in words ("Down 0.3 pp from Mar 2026")
+ * or compact ("-0.3 pp"). Rates change in percentage points; levels in their unit.
+ */
+export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: string, style: "long" | "short" = "long"): string {
+  if (!latest || !previous) return "";
+  const difference = latest.value - previous.value;
+  const points = isRate(unit) ? " pp" : "";
+  if (Math.abs(difference) < 0.000001) return style === "long" ? `Unchanged from ${periodPretty(previous.date)}` : "0.0";
+  // Levels in the thousands change by whole units; anything finer is noise at that scale.
+  const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);
+  if (style === "short") return `${difference > 0 ? "+" : "-"}${magnitude}${points}`;
+  return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${periodPretty(previous.date)}`;
+}

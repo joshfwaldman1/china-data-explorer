@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, isAggregation, isRate, isTargetFrequency, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -340,7 +340,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
   const description = `${props.title}. ${shown.length} series, ${props.unit}. Use the Table tab for the values.`;
   return (
-    <div className="chart-wrap" style={{ width: "100%", height: 420 }}>
+    <div className="chart-wrap" style={{ width: "100%", height: 460 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
         <LineChart margin={{ top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
@@ -443,6 +443,10 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
 
 // ── Home ──────────────────────────────────────────────────────────────────────
 
+const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
+const GROUP_ORDER = ["Growth & Output", "Prices", "Labor", "Consumption", "Money & Credit", "Interest Rates", "Trade & External", "Property", "Sentiment", "Regional"];
+function unitSuffix(unit: string): string { return isRate(unit) && unit !== "%" && !/index/i.test(unit) ? "%" : ""; }
+function shortAgency(agency: string): string { return agency === "National Bureau of Statistics" ? "NBS" : agency === "People's Bank of China" ? "PBOC" : agency; }
 function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
   const values = props.points.map((point) => point.value);
   if (values.length < 2) return <svg viewBox="0 0 160 28" aria-hidden="true" />;
@@ -466,7 +470,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   const monthly = props.stats?.datasets.find((dataset) => dataset.frequency === "Monthly")?.count ?? 0;
   const quarterly = props.stats?.datasets.find((dataset) => dataset.frequency === "Quarterly")?.count ?? 0;
   return (
-    <main id="main" tabIndex={-1} className="page">
+    <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
         <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.length} headline indicators from NBS, the People's Bank of China, Customs and Caixin.</p>
@@ -478,20 +482,43 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
 
       <section className="section" aria-labelledby="h-headline">
         <div className="section-head"><h2 id="h-headline">Headline Indicators</h2><span>Latest value, % change from a year ago unless noted</span></div>
-        <div className="tiles">
-          {props.curated.map((entry) => {
+        <div className="hero-tiles">
+          {HERO_KEYS.map((key) => props.curated.find((entry) => entry.key === key)).filter((entry): entry is CuratedEntry => entry !== undefined).map((entry) => {
             const result = headline.get(entry.key);
             const first = result?.series[0];
             const latest = first?.points[first.points.length - 1];
+            const previous = first?.points[first.points.length - 2];
             return (
               <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
                 <span className="label">{entry.title}</span>
-                <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>{isRate(entry.unit) && entry.unit !== "%" && !/index/i.test(entry.unit) ? "%" : ""}</span></span>
+                <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span className="tile-unit">{unitSuffix(entry.unit)}</span></span>
                 {first && <Sparkline points={first.points} />}
-                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{latest ? periodPretty(latest.date) : entry.frequency}, {entry.agency === "National Bureau of Statistics" ? "NBS" : entry.agency === "People's Bank of China" ? "PBOC" : entry.agency}</small>
+                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{latest ? periodPretty(latest.date) : entry.frequency}{latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
               </a>
             );
           })}
+        </div>
+        <div className="indicator-list">
+          {[...new Set(props.curated.filter((entry) => !HERO_KEYS.includes(entry.key)).map((entry) => entry.group))].sort((a, b) => GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b)).map((group) => (
+            <section key={group} aria-label={group}>
+              <h3>{group}</h3>
+              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key)).map((entry) => {
+                const result = headline.get(entry.key);
+                const first = result?.series[0];
+                const latest = first?.points[first.points.length - 1];
+                const previous = first?.points[first.points.length - 2];
+                return (
+                  <a key={entry.key} className="indicator-row" href={seriesHash([entry.key])}>
+                    <span className="name">{entry.title}<small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
+                    <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
+                    <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
+                    <span className="period">{latest ? periodPretty(latest.date) : entry.frequency}</span>
+                    <span className="spark">{first && <Sparkline points={first.points} />}</span>
+                  </a>
+                );
+              })}
+            </section>
+          ))}
         </div>
       </section>
 
@@ -891,10 +918,7 @@ function SeriesPage(props: {
     return periods.map((period) => ({ period, cells: tracks.map((track) => track.points.find((point) => point.p === period)?.v ?? null) }));
   })();
   const shownRows = tableRows.slice(0, 500);
-  const difference = latest && previous ? latest.value - previous.value : null;
-  const delta = difference === null ? "" : Math.abs(difference) < 0.000001
-    ? `Unchanged from ${periodPretty(previous?.date ?? "")}`
-    : `${difference > 0 ? "Up" : "Down"} ${fmt(Math.abs(difference), primary.unit)}${isRate(primary.unit) ? " pp" : ""} from ${periodPretty(previous?.date ?? "")}`;
+  const delta = deltaText(latest, previous, primary.unit);
   const downloadItems = [
     {
       label: "Download CSV",
@@ -965,16 +989,10 @@ function SeriesPage(props: {
       <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
       {latest && (
-        <section className="readout" aria-label="Latest observation">
-          <div className="main">
-            <span className="latest-value">{fmt(latest.value, primary.unit)}</span>
-            <span className="unit">{primary.unit}</span>
-            {delta && <span className="delta">{delta}</span>}
-            <span className="which">{headline?.label !== primary.title ? `${headline?.label}, ` : ""}{periodPretty(latest.date)}</span>
-          </div>
-          <dl><dt>Updated</dt><dd className={stale ? "stale" : ""}>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}{stale && <small>NBS was unreachable today; showing the stored copy</small>}</dd></dl>
-          <dl><dt>Next release</dt><dd>{nextRelease ? <>{fmtDate(nextRelease.date.slice(0, 10))}<small>{nextRelease.date.slice(11, 16)} CST, {nextRelease.en}</small></> : <span className="muted-value">Not on this month's calendar</span>}</dd></dl>
-        </section>
+        <p className="stat-line" aria-label="Latest observation">
+          <span className="stat-value">{fmt(latest.value, primary.unit)}</span>
+          <span className="stat-text">{primary.unit}, {headline?.label !== primary.title ? `${headline?.label}, ` : ""}{periodPretty(latest.date)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
+        </p>
       )}
 
       <div className="chip-row">
@@ -1040,7 +1058,8 @@ function SeriesPage(props: {
             <dt>Frequency</dt><dd>{primary.frequency}</dd>
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
             <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${headline.points[0]?.date} → ${headline.points[headline.points.length - 1]?.date}` : "—"}</dd>
-            <dt>Updated</dt><dd>{fmtDate(primary.updatedAt) || "—"}</dd>
+            <dt>Updated</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
+            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}` : "Not on this month's calendar"}</dd>
             <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>
             {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
               ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
@@ -1342,8 +1361,8 @@ function App() {
           <button className="icon-button" onClick={cycleTheme} aria-label="Switch theme"><ThemeIcon /></button>
         </div>
       </header>
-      <div className="body-grid">
-        <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />
+      <div className={route.view === "home" ? "body-grid no-sidebar" : "body-grid"}>
+        {route.view !== "home" && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
         {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "" })} />}
         {route.view === "series" && <SeriesPage route={route} curated={curated} saved={saved} releases={releases} lang={lang} onToggleSaved={toggleSaved} navigate={navigate} toast={setToast} />}
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
