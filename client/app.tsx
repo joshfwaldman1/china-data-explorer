@@ -475,7 +475,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <h1>China Economic Data</h1>
         <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.length} headline indicators from NBS, the People's Bank of China, Customs and Caixin.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
-          <div className="global-search"><SearchIcon /><input aria-label="Search series" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
+          <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
         <div className="chips">Common searches:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "" })}>{term}</a>)}</div>
       </section>
@@ -1315,7 +1315,7 @@ function App() {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
-      const input = document.getElementById("global-series-search");
+      const input = document.getElementById(route.view === "home" ? "home-series-search" : "global-series-search");
       if (input instanceof HTMLInputElement) { event.preventDefault(); input.focus(); }
     };
     window.addEventListener("keydown", onKey);
@@ -1346,7 +1346,7 @@ function App() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to content</a>
-      <header className="topbar">
+      <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
         <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
         <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
         <nav className="tab-nav" aria-label="Primary">

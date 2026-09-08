@@ -489,3 +489,6 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
   .indicator-row { grid-template-columns: minmax(0, 1fr) 80px 70px; }
   .indicator-row .period, .indicator-row .spark { display: none; }
 }
+
+/* Home has its own search in the hero; the topbar keeps its layout but not a second box. */
+.topbar-home .global-search { visibility: hidden; }
