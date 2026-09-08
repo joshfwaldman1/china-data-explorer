@@ -67,6 +67,8 @@ function nbsDate(date: Date, endOfDay = false): string {
 
 const routes = {
     "/": index,
+    // The default link-preview image (a real chart) for X, Slack and the like.
+    "/og.png": () => new Response(Bun.file(new URL("../client/og.png", import.meta.url)), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } }),
     // Liveness for a platform healthcheck: the store opens and answers.
     "/health": () => {
       try { const totals = dbStatus().totals; return Response.json({ ok: true, observations: totals.observations, lastFetch: totals.lastFetch }); }
