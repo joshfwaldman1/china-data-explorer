@@ -24,7 +24,7 @@ bun run china-explorer/server/app.ts
 browser ──> Bun.serve ──> local NBS catalog       (tens of thousands of searchable series)
                      ├──> NBS esData portal       (observations and regional dimensions)
                      ├──> Eastmoney datacenter    (featured macro series)
-                     └──> AKTools (AkShare)        (LPR, Caixin PMI ×2, electricity — optional; see below)
+                     └──> AKTools (AkShare)        (Caixin PMI x2, real estate climate; optional, see below)
 ```
 
 - **`server.ts`** — Bun.serve serves the page (bundling `client/app.tsx` on the
