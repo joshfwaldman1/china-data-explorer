@@ -137,3 +137,8 @@ test("LIGHT palette matches the light tokens in styles.css", async () => {
   expect(token("line-strong")).toBe(LIGHT.lineStrong); expect(token("amber")).toBe(LIGHT.amber); expect(token("navy")).toBe(LIGHT.navy);
   LIGHT.chart.forEach((hex, index) => expect(token(`chart-${index + 1}`)).toBe(hex));
 });
+
+test("subtitle on a quarterly compare uses quarter labels even for month-dated points", () => {
+  const quarterly: Track = { id: "q", name: "q", unit: "%", frequency: "Quarterly", color: "var(--chart-1)", dash: "", points: [{ t: Date.UTC(2016, 5, 1), v: 1, p: "2016-06" }, { t: Date.UTC(2026, 5, 1), v: 2, p: "2026-06" }] };
+  expect(subtitleOf("Percent", ["Quarterly"], [quarterly])).toBe("Percent, quarterly, Q2 2016 to Q2 2026");
+});

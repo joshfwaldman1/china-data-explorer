@@ -8,7 +8,7 @@
  * DOM.
  */
 
-import { fmt, fmtTick, isRate, periodPretty, periodTime, type Track } from "./lib";
+import { canonicalPeriod, fmt, fmtTick, isRate, periodPretty, periodTime, type Track } from "./lib";
 
 export const IMAGE = { width: 1600, height: 900 };
 
@@ -189,7 +189,10 @@ export function wrapText(text: string, maxWidth: number, font: string, measure: 
 }
 
 export function subtitleOf(unit: string, frequencies: string[], tracks: Track[]): string {
-  const periods = tracks.flatMap((track) => track.points.map((point) => point.p)).sort();
+  // One frequency on the chart means one period vocabulary: a quarterly compare reads "Q2 2016 to Q2 2026"
+  // even where a native quarterly point is dated by its last month.
+  const frequency = frequencies.length === 1 ? (frequencies[0] ?? "Mixed") : "Mixed";
+  const periods = tracks.flatMap((track) => track.points.map((point) => canonicalPeriod(point.p, frequency))).sort((a, b) => periodTime(a) - periodTime(b));
   const first = periods[0], last = periods.at(-1);
   const range = first && last ? (first === last ? periodPretty(first) : `${periodPretty(first)} to ${periodPretty(last)}`) : "";
   return [unit, frequencies.map((item) => item.toLowerCase()).join(" and "), range].filter(Boolean).join(", ");

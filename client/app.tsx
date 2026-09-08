@@ -980,7 +980,10 @@ function SeriesPage(props: {
   ];
   const lunar = props.route.lny === "1";
   const shareInput = (): ShareInput => ({
-    title: results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
+    // A compare of one series across provinces keeps the measure in the title: "Provincial Real GDP Growth: Guangdong, Shanghai".
+    title: results.length > 1 && results.every((result) => result.key === primary.key && result.region)
+      ? `${primary.title}: ${results.map((result) => displayTitle(result, results)).join(", ")}`
+      : results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
     unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
