@@ -32,6 +32,9 @@ export const RELEASE_MAP: ReleaseMapping[] = [
   { match: "国内生产总值", en: "Gross domestic product (GDP), quarterly", keys: ["gdp", "provincial_gdp"], categories: ["国民经济核算"] },
   { match: "居民收支", en: "Household income and expenditure, quarterly", keys: [], categories: ["人民生活"] },
   { match: "服务业生产指数", en: "Index of services production, monthly", keys: [], categories: ["服务业生产指数"] },
+  { match: "季度主要行业增加值", en: "Value added by major industry, preliminary quarterly estimate", keys: [], categories: ["国民经济核算"] },
+  { match: "工业产能利用率", en: "Industrial capacity utilisation, quarterly", keys: [], categories: ["工业"] },
+  { match: "文化及相关产业", en: "Culture and related industries (large firms), quarterly", keys: [], categories: ["文化"] },
 ];
 
 /** Months whose "national economy" briefing also announces the previous quarter's GDP. */

@@ -383,7 +383,7 @@ if (ingestEveryHours > 0) {
   };
   const releaseRefresh = async (item: AgendaItem, attempt: number) => {
     const at = cstToDate(item.fb_time) ?? new Date();
-    const quarterly = /国内生产总值|居民收支/.test(item.content);
+    const quarterly = /国内生产总值|居民收支|季度/.test(item.content);
     const target = releaseTarget(at, quarterly);
     const before = new Map(storedLatest("").filter((row) => item.keys.includes(row.key)).map((row) => [`${row.key}@${row.region}`, row.lastPeriod ?? ""]));
     await runWhenFree(async () => {

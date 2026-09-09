@@ -14,3 +14,9 @@ test("titles match on their stem without the time suffix", () => {
   expect(describeRelease("居民消费价格指数月度报告(09:30)")?.keys).toEqual(["cpi"]);
   expect(describeRelease("规模以上文化及相关产业生产经营季度报告(09:30)")).toBeNull();
 });
+
+test("the quarterly reports NBS lists beside the monthly ones have English names", () => {
+  expect(describeRelease("季度主要行业增加值初步核算报告(09:30)")?.en).toContain("Value added by major industry");
+  expect(describeRelease("全国工业产能利用率季度报告(10:00)")?.en).toContain("capacity utilisation");
+  expect(describeRelease("规模以上文化及相关产业生产经营季度报告(09:30)")?.en).toContain("Culture and related industries");
+});
