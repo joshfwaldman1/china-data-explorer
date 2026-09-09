@@ -383,3 +383,12 @@ not from scratch. Rounds are small on purpose.
   release updates ("Real estate series"), on Home and on the Releases
   page. Verified live: the Sep 15 rows carry category links, including
   fixed-asset investment.
+- 2026-09-09 round 44: followed the Provinces page's outbound links on the
+  live site. "Open series" for Hainan and "Chart 2 provinces together"
+  both open the right pages with the right region, legend and range.
+  Defect: a single province's page named the province nowhere in its
+  header (only in the stat line and the region picker), while the compare
+  page already had "Tibet, compared with Hainan" under the title. A single
+  regional series now carries the place under the title, "Hainan 海南省",
+  except for the national and 70-city-average views. Verified live on the
+  Hainan, Beijing home prices, 70-city default and compare pages.
