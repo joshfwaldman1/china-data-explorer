@@ -345,3 +345,11 @@ not from scratch. Rounds are small on purpose.
   with focus in the Home search box. It now moves focus to the main
   region without touching the hash. Verified live: on the CPI page the
   hash stays "#/series/cpi", the heading stays, and focus lands on main.
+- 2026-09-09 round 40: audited the docs' numbers and scheduling claims
+  against the code and the live counts. Every count quoted matches today's
+  live numbers (9,569 visible series, 42 curated of which 24 from FRED).
+  Defect: AGENTS.md's "Keeping the store current" described two
+  schedulers and omitted the two that matter most on release days, the
+  agenda-driven release-day refresh with its retry rule and the fixed
+  headline sweeps. Both are now documented, with `/api/schedule` named as
+  the place to see the plan. Docs only, no deploy.
