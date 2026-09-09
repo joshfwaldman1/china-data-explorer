@@ -26,9 +26,6 @@ not from scratch. Rounds are small on purpose.
   tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
-- README: an environment variable table. Six variables the server reads are
-  documented nowhere (CHINA_DB_PATH, CHINA_CATALOG_DB_PATH, CHINA_LIVE_FALLBACK,
-  INGEST_LIMIT, INGEST_PAUSE_MS, NBS_QUERY_EXPANSION).
 
 ## Log
 
@@ -134,3 +131,9 @@ not from scratch. Rounds are small on purpose.
   from Eastmoney and NBS and only the Caixin PMIs and the Real Estate
   Climate Index remain. Both corrected; the undocumented environment
   variables are queued. Docs only, no deploy.
+- 2026-09-09 round 15: queue item. The README now has a table of all
+  seventeen environment variables the server reads, each with its default
+  and effect, checked against the code. The Deploying section also said
+  "five AkShare-backed series" (three) and called it unverified whether NBS
+  answers cloud IPs, which the full crawl from Railway settled. Docs only,
+  no deploy.

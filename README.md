@@ -165,9 +165,32 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
   queries that miss are not expanded.
 - Set `AKTOOLS_URL=off` on a deployment without AKTools so those refreshes are
   skipped with a clear message instead of probing localhost.
-- The five AkShare-backed series need AKTools (`python -m aktools` on :8080,
-  `AKTOOLS_URL` to point elsewhere). Without it they serve from the store and
-  their refresh is logged as a failure rather than breaking anything.
+- The three AkShare-backed series need AKTools (`python -m aktools` on :8080,
+  `AKTOOLS_URL` to point elsewhere). Without it they serve from the store.
+
+### Environment variables
+
+None is required. Every one the server reads, with its default:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `PORT` | `5173` | Port the web process listens on. |
+| `CHINA_DB_PATH` | `china-explorer/china.db` | The store: observations, revisions, fetch log. `/data/china.db` in the container. |
+| `CHINA_CATALOG_DB_PATH` | `china-explorer/catalog.db` | The derived catalog cache, rebuilt from `catalog/*.json`. |
+| `CHINA_SEED` | on | `off` stops an empty store being seeded from `seed/china.db` (the tests set it). |
+| `CHINA_LIVE_FALLBACK` | `1` | `0` answers 503 for a series not yet stored instead of fetching it from the portal on view. |
+| `FRED_API_KEY` | unset | Needed for the international series from FRED to refresh. |
+| `ANTHROPIC_API_KEY` | unset | Expands English search queries that miss into Chinese terms. Without it search still works. |
+| `NBS_QUERY_EXPANSION` | on | `off` disables that expansion (the tests set it). |
+| `AKTOOLS_URL` | `http://127.0.0.1:8080` | Where AKTools runs. `off` says the deployment has none, so the ingest skips the AkShare series. |
+| `INGEST_EVERY_HOURS` | `24` in production, `0` otherwise | How often the due-check refresh of stored series runs. `0` disables it. |
+| `INGEST_LIMIT` | `240` | Points requested per headline series per refresh. |
+| `INGEST_PAUSE_MS` | `1500` | Pause between headline requests. |
+| `NBS_STORE_TTL_HOURS` | `24` | Age after which a stored catalog series is checked upstream when viewed. |
+| `CATALOG_CRAWL` | on | `off` disables the crawl that stores catalog series nobody has opened. |
+| `CRAWL_PER_RUN` | `20000` | Indicators per crawl run. |
+| `CRAWL_EVERY_HOURS` | `6` | Hours between crawl runs. |
+| `CRAWL_PAUSE_MS` | `1200` | Pause between crawl requests. |
 
 ### Railway, specifically
 
@@ -185,13 +208,11 @@ from the repository root, where the CLI is linked to it).
    from `china-explorer/seed/china.db` (committed; refresh it with
    `bun run china:seed` after a good ingest), so the site has data before the
    first refresh.
-4. Variables: none required. Optional: `ANTHROPIC_API_KEY` (search query
-   expansion), `INGEST_EVERY_HOURS` (default 24 in production; the refresh
-   runs inside the web process because a volume attaches to one service),
-   `AKTOOLS_URL` if you run AKTools somewhere reachable.
-5. Deploy. Watch the first scheduled ingest in the logs two minutes after
-   boot — that is the moment you learn whether NBS answers Railway's IPs.
+4. Variables: none required. The live service sets `FRED_API_KEY` and
+   `AKTOOLS_URL=off`; see the table above for the rest. The refresh runs
+   inside the web process because a volume attaches to one service.
+5. Deploy. The first ingest runs two minutes after boot and the first catalog
+   crawl ten minutes after; both show in the logs.
 
-Unverified: whether the NBS portal answers requests from cloud IP ranges. All
-testing so far was from a residential US connection. Check the fetch log after
-the first scheduled ingest.
+The NBS portal does answer Railway's IPs: the full catalog crawl completed
+from the live service on 2026-09-09.
