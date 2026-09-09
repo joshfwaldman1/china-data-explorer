@@ -235,3 +235,9 @@ not from scratch. Rounds are small on purpose.
   view with the Share menu open. Day column, links, the auto-translated
   badge, category paths, table rows and the menu all read correctly on the
   dark panels. Nothing to fix.
+- 2026-09-09 round 28: audited keyboard and screen-reader labels on Browse,
+  search results and Provinces with the DOM probe. Static checks clean on
+  all three. One defect: each ranking row on Provinces was announced as
+  "Tibet6.3", name and value run together, and the list had no group label
+  while the tile map did. Rows now carry "Tibet, 6.3%" and the list is a
+  labelled group. Verified live.
