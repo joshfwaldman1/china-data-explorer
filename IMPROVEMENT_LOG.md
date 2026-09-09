@@ -313,3 +313,11 @@ not from scratch. Rounds are small on purpose.
   attempt inserted the import inside a synonym string, which the typecheck
   gate caught before any commit. Verified live: the boot ingest after the
   deploy ran with every run ok and no failure, and all source kinds serve.
+- 2026-09-09 round 36: audited the share image with two live renders not
+  yet covered: a one-year window with the Lunar New Year band on, and the
+  ended Caixin PMI. The band, month ticks and end label render right.
+  Defect: the image of a discontinued series said nothing about it having
+  ended, while the page carries an amber notice; anyone seeing the picture
+  alone would read September 2025 as current. Share images now carry
+  "<series> ended in <period>; the last value shown is the final one
+  published" in the notes line. Verified live on the Caixin image.
