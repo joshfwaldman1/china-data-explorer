@@ -1054,7 +1054,10 @@ function SeriesPage(props: {
     // A compare of one series across provinces keeps the measure in the title: "Provincial Real GDP Growth: Guangdong, Shanghai".
     title: results.length > 1 && results.every((result) => result.key === primary.key && result.region)
       ? `${primary.title}: ${results.map((result) => displayTitle(result, results)).join(", ")}`
-      : results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
+      // One province or city: the picture must name it, as the page's lede does ("Provincial Real GDP Growth: Hainan").
+      : results.length === 1 && primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg"
+        ? `${(props.lang !== "zh" && primary.metadata?.nameEn) || primary.title}: ${regionLabel(primary.region)}`
+        : results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
     unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
