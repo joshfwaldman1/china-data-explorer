@@ -597,9 +597,10 @@ async function loadEastmoneyTable(cfg: EastmoneyIndicator, pages: number): Promi
     });
     const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?${params.toString()}`;
     const headers = { "User-Agent": UA, Accept: "application/json, text/plain, */*" };
-    // Eastmoney occasionally stalls a page; one retry covers it.
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(45_000) }).catch(() => fetch(url, { headers, signal: AbortSignal.timeout(45_000) }));
-    const json = await res.json();
+    // Eastmoney occasionally stalls a page or closes the socket mid-body; one retry of the
+    // whole request, body included, covers it.
+    const load = async () => (await fetch(url, { headers, signal: AbortSignal.timeout(45_000) })).json();
+    const json = await load().catch(() => load());
     const data: unknown = json?.result?.data;
     const rows: Record<string, unknown>[] = [];
     if (Array.isArray(data)) for (const row of data) if (typeof row === "object" && row !== null) rows.push(row);
