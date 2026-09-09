@@ -941,7 +941,7 @@ function storedPoints(entry: NbsCatalogEntry, region: NbsRegionOption): SeriesPo
 function isFresh(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[]): boolean {
   const updatedAt = seriesFreshness(entry.key, region.value);
   const lastPeriod = points[points.length - 1]?.date ?? null;
-  return !isDue(entry.frequency, lastPeriod, updatedAt);
+  return !isDue(entry.frequency, lastPeriod, updatedAt, new Date());
 }
 
 /**
