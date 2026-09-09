@@ -374,6 +374,7 @@ export function listStoredSeries(prefix: string): { key: string; region: string 
 /** Coverage summary, for the /api/status route and for eyeballing an ingest. */
 export function dbStatus() {
   const database = db();
+  const sizeBytes = (() => { try { return Bun.file(DB_PATH).size; } catch { return 0; } })();
   const totals = database.prepare(`
     SELECT COUNT(*) AS observations,
            COUNT(DISTINCT key) AS keys,
@@ -400,5 +401,6 @@ export function dbStatus() {
     LIMIT 20
   `).all();
 
-  return { path: DB_PATH, totals, perSeries, recentRuns };
+  return { sizeBytes,
+    path: DB_PATH, totals, perSeries, recentRuns };
 }

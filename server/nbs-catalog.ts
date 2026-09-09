@@ -453,7 +453,7 @@ export async function nbsCatalogStats() {
   return {
     generatedAt: snapshot.generatedAt,
     seriesCount: visible.length,
-    storedCount: snapshot.entries.filter((entry) => storedKeys.has(entry.key)).length,
+    storedCount: visible.filter((entry) => storedKeys.has(entry.key)).length,
     categoryCount: categories.size,
     categories: [...categoryCounts.entries()]
       .map(([name, count]) => ({ name, count }))
