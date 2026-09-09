@@ -442,6 +442,8 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
   .release-day { grid-template-columns: 76px 1fr; }
   .release-date { padding: var(--s-3) var(--s-2); }
   .release-date b { white-space: nowrap; }
+  /* A result's category path is one truncated line on a desktop; on a phone it would lose its most specific segment, so it wraps. */
+  .result .path { white-space: normal; overflow: visible; display: block; }
   .release { grid-template-columns: 48px 1fr; }
   .row { grid-template-columns: 1fr auto; }
   .row .date { display: none; }
