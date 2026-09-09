@@ -26,6 +26,9 @@ not from scratch. Rounds are small on purpose.
   tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
+- Home, Upcoming NBS Releases: releases already published earlier today
+  still show as upcoming until midnight. Drop an item once its time has
+  passed.
 
 ## Log
 

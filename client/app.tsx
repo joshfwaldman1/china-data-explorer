@@ -527,6 +527,8 @@ function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
 function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
   const [headline, setHeadline] = useState<Map<string, SeriesResult>>(new Map());
   const [draft, setDraft] = useState("");
+  const headlineEntries = props.curated.filter((entry) => entry.home !== false);
+  const byAgency = (agency: string) => headlineEntries.filter((entry) => entry.agency.includes(agency)).length;
   useEffect(() => {
     let cancelled = false;
     // Each indicator lands as it arrives; one slow source must not hold the whole page blank.
@@ -602,7 +604,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             : upcoming.length === 0 ? <div className="state"><p>No further releases scheduled this month. <a href="#/releases">See the calendar</a>.</p></div>
             : <div className="cal">{upcoming.map((release) => {
               const date = new Date(`${release.date.slice(0, 10)}T00:00:00`);
-              return (
+  return (
                 <div className="cal-row" key={release.id}>
                   <div className="cal-date"><span>{date.toLocaleDateString("en-US", { month: "short" })}</span><b>{date.getDate()}</b></div>
                   <div>
@@ -617,7 +619,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="card">
           <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li>{props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} of them stored locally so far, the rest fetched on first view while the crawl fills in</li>}<li>{props.curated.filter((entry) => entry.home !== false).length} headline indicators from NBS, PBOC, Customs and Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.home === false).length} international series via FRED: BIS, OECD, IMF, World Bank, US Census</li></ul></div>
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li>{props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} of them stored locally; the rest came back empty from NBS and are retried monthly, or are fetched on first view</li>}<li>{headlineEntries.length} headline indicators with notes and revision history: {byAgency("National Bureau of Statistics")} of the NBS series above, plus {byAgency("People's Bank of China")} from the People's Bank of China, {byAgency("Customs")} from Customs and {byAgency("Caixin")} from Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.home === false).length} international series via FRED: BIS, OECD, IMF, World Bank, US Census</li></ul></div>
             <div><h3>Not included</h3><ul><li>Provincial series beyond GDP, and city series beyond home prices</li><li>Annual series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
           </div>
         </div>
