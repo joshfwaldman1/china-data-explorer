@@ -426,3 +426,9 @@ not from scratch. Rounds are small on purpose.
   segment was the part cut off. The path now wraps at phone width.
   Verified live: both pages measure with no element past the screen and
   the paths read in full.
+- 2026-09-09 round 49: re-checked dark mode after the week's CSS edits.
+  All 27 colour tokens are still defined in the light palette and both
+  dark blocks; the literal colours outside the token blocks are the same
+  white-on-navy topbar and tile-map ones as before. Live dark renders of
+  search results with ended flags and of the empty Saved page read
+  correctly. Nothing to fix.
