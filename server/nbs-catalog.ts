@@ -258,7 +258,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 8; // 8: sub-industry PPI slices join across the trailing-业 rename
+const GLOSS_FORMAT = 9; // 9: PMI sub-index titles carry their table
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -307,6 +307,21 @@ function sliceRange(category: string): { base: string; start: number; end: numbe
   const start = a ? Number(a) : onlyStart ? Number(onlyStart) : Number.NEGATIVE_INFINITY;
   const end = b ? Number(b) : onlyEnd ? Number(onlyEnd) : Number.POSITIVE_INFINITY;
   return { base: category.replace(SLICE_SUFFIX, "").trim(), start, end };
+}
+
+/**
+ * The PMI sub-indexes have the same name in the manufacturing and the
+ * non-manufacturing table ("New orders index" twice) and one of them,
+ * "Producer price index", reads as the PPI. Their English titles carry the
+ * table, the way CPI components read "CPI: pork".
+ */
+const PMI_TABLES: Record<string, string> = { "制造业采购经理指数": "Manufacturing PMI", "非制造业采购经理指数": "Non-manufacturing PMI" };
+export function tableQualifiedTitle(entry: Pick<NbsCatalogEntry, "categories" | "nameEn">): string | undefined {
+  const title = entry.nameEn;
+  if (!title || entry.categories[0] !== "采购经理指数") return title;
+  const table = PMI_TABLES[entry.categories[1] ?? ""];
+  if (!table || /\bPMI\b/.test(title)) return title;
+  return `${table}: ${title.charAt(0).toLocaleLowerCase()}${title.slice(1)}`;
 }
 
 /** Group year-range slices of the same table into families; returns the entries with `family` set on members. */
@@ -430,7 +445,8 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
         .map((entry) => {
           const spaced = toPinyin(entry.shortName);
           const english = resolveEnglishLabel(entry.key, entry.name, glossTitle(entry.name));
-          return withProseEnglish({ ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` }, notesTable);
+          const labelled = { ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
+          return withProseEnglish({ ...labelled, nameEn: tableQualifiedTitle(labelled) }, notesTable);
         });
       const stitched = attachFamilies(entries);
       const snapshot = {

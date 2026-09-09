@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -151,4 +151,14 @@ test("industry vocabulary: auto exports, semiconductor output and solar panels r
   expect(chips.results[0]?.name.startsWith("集成电路产量")).toBe(true);
   const solar = await searchNbsCatalog({ query: "solar panels", limit: 3 });
   expect(solar.results[0]?.name.startsWith("太阳能电池")).toBe(true);
+});
+
+test("PMI sub-indexes carry their table in the English title", async () => {
+  expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
+  expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");
+  expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "Manufacturing PMI" })).toBe("Manufacturing PMI");
+  expect(tableQualifiedTitle({ categories: ["价格指数", "居民消费价格指数"], nameEn: "Consumer price index" })).toBe("Consumer price index");
+  const result = await searchNbsCatalog({ query: "新订单指数", limit: 5 });
+  const titles = result.results.filter((entry) => entry.name.startsWith("新订单指数")).map((entry) => entry.nameEn);
+  expect(new Set(titles).size).toBe(titles.length);
 });
