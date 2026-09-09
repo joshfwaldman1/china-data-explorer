@@ -374,3 +374,12 @@ not from scratch. Rounds are small on purpose.
   it was. Titles in those two tables now carry the table, "Manufacturing
   PMI: new orders index", the way CPI components read "CPI: pork". Cache
   format bumped, test added. Verified live: all 27 PMI titles distinct.
+- 2026-09-09 round 43: audited Home's hero tiles and Upcoming NBS Releases
+  card on the live site. Hero links, sparkline windows and search chips
+  are right. Defect: a release row linked only to headline series, so the
+  real estate release led solely to the Real Estate Climate Index, whose
+  mirror stopped in December 2025, and the fixed-asset investment release
+  had no link at all. Every row now also links to the NBS category the
+  release updates ("Real estate series"), on Home and on the Releases
+  page. Verified live: the Sep 15 rows carry category links, including
+  fixed-asset investment.
