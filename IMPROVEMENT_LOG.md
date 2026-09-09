@@ -26,10 +26,6 @@ not from scratch. Rounds are small on purpose.
   tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
-- The three AkShare-backed series (Caixin PMI x2, Real Estate Climate
-  Index) log an error on every boot ingest because AKTools is not configured
-  on Railway. Skip them in the ingest when the source is unconfigured so the
-  failure list only shows real failures.
 
 ## Log
 
@@ -88,3 +84,10 @@ not from scratch. Rounds are small on purpose.
   Verified live: it shows the AkShare "not configured" errors on each boot
   ingest and one transient Eastmoney socket close that succeeded on retry;
   the AkShare noise is queued.
+- 2026-09-09 round 9: queue item. Every boot ingest on Railway logged three
+  failures for the AkShare-backed series (Caixin PMI x2, Real Estate Climate
+  Index) because AKTOOLS_URL=off there, so the new failure list was mostly
+  noise. The ingest now skips those series on such a deployment with one
+  console line and no fetch_log rows. Verified: the redeployed instance logs
+  "Skipping 3 AkShare series" and `/api/status` shows no failures after the
+  cutover.
