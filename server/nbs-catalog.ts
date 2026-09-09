@@ -111,8 +111,10 @@ Object.assign(SEARCH_ALIASES, {
   solar: ["太阳能", "光伏"], wind: ["风电"], nuclear: ["核电"], hydro: ["水电"], "power generation": ["发电量"], smartphones: ["手机"], phones: ["手机"],
   income: ["收入"], "disposable income": ["可支配收入"], spending: ["支出", "消费"], "industrial profits": ["工业企业利润"], inventories: ["库存", "产成品"],
   "floor space": ["面积"], "housing starts": ["新开工面积"], completions: ["竣工面积"], "home sales": ["商品房销售"],
+  united: ["us", "美国"], states: ["us", "美国"], usa: ["us", "美国"], america: ["us", "美国"], american: ["us", "美国"],
 });
-const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series"]);
+// Words that carry no signal for a series: the country itself and English function words ("exports to the united states").
+export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from"]);
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
 

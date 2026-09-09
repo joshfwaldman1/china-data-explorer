@@ -110,3 +110,11 @@ test("every year-on-year index base defaults to the index-minus-100 view; a prev
   expect(defaultNbsTransform(entry("居民消费价格指数 (上年=100)"))).toBe("index_growth");
   expect(defaultNbsTransform(entry("居民消费价格指数 (上月=100)"))).toBe("raw");
 });
+
+test("the country's names and English function words do not block a match", () => {
+  const variants = queryVariants("exports to the united states");
+  expect(variants).toContain("us");
+  expect(variants).toContain("美国");
+  expect(variants).not.toContain("to");
+  expect(variants).not.toContain("the");
+});
