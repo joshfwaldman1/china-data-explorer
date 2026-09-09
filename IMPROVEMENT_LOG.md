@@ -108,3 +108,10 @@ not from scratch. Rounds are small on purpose.
   the list, tile map fits). One defect: Home's topbar kept an empty dark row
   where the search box sits at phone width, since Home hides that box in
   favour of the hero's. The row is now dropped on Home. Verified live.
+- 2026-09-09 round 12: audited dark mode on the live site (Home, the 70-city
+  house prices page, Provinces) and the tokens in styles.css. Every one of
+  the 27 colour tokens in the light palette is redefined in both the
+  system-preference and the toggled dark blocks, with no token that exists
+  only in a dark block. The only literal colours are white-on-navy in the
+  topbar and the tile map's fixed blue ramp with its own text colours, both
+  intended to hold in either theme. Nothing to fix.
