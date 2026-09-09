@@ -16,7 +16,7 @@
  */
 
 import { CATALOG, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus, listStoredSeries, storedLatest } from "./db.ts";
+import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyKeys, storedLatest } from "./db.ts";
 import { getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { isDue } from "./due.ts";
 
@@ -133,7 +133,11 @@ const CRAWL_PAUSE_MS = Number(process.env.CRAWL_PAUSE_MS ?? 1200);
 export async function runCatalogCrawl(budget: number): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
   db();
   const stored = new Set(listStoredSeries("nbs_").map((row) => row.key));
-  const entries = (await listNbsCatalogEntries()).filter((entry) => !stored.has(entry.key));
+  // NBS's index tree lists indicators it no longer publishes (whole blocks of
+  // tax lines by industry return nothing). Once an entry has come back empty
+  // it waits a month before another try, instead of blocking every run.
+  const empty = recentlyEmptyKeys("nbs_", 30);
+  const entries = (await listNbsCatalogEntries()).filter((entry) => !stored.has(entry.key) && !empty.has(entry.key));
   const tally = { ok: 0, error: 0, empty: 0, remaining: entries.length };
   if (entries.length === 0) return tally;
   console.log(`\nCrawling ${Math.min(budget, entries.length)} of ${entries.length} catalog series not yet stored\n`);
@@ -163,6 +167,11 @@ async function crawlOne(entry: NbsCatalogEntry): Promise<"ok" | "error" | "empty
     return "ok";
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // An empty answer is the source's verdict on the series, not a failure of the run.
+    if (/no observations|no values/i.test(message)) {
+      logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt: new Date().toISOString(), status: "empty", points: 0, changed: 0, message });
+      return "empty";
+    }
     logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
     console.log(`  ${entry.key.padEnd(40)} FAILED  ${message.slice(0, 80)}`);
     return "error";

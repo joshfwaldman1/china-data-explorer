@@ -355,6 +355,15 @@ export function storedLatest(prefix: string): { key: string; region: string; las
   `).all({ $prefix: prefix });
 }
 
+/** Keys whose most recent fetch attempts came back empty within `days`: discontinued NBS indicators the crawl should not retry daily. */
+export function recentlyEmptyKeys(prefix: string, days: number): Set<string> {
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+  const rows = db().query<{ key: string }, Record<string, string>>(`
+    SELECT DISTINCT key FROM fetch_log WHERE status = 'empty' AND key LIKE $prefix || '%' AND finished_at > $cutoff
+  `).all({ $prefix: prefix, $cutoff: cutoff });
+  return new Set(rows.map((row) => row.key));
+}
+
 /** Every distinct (key, region) in the store whose key starts with `prefix`. */
 export function listStoredSeries(prefix: string): { key: string; region: string }[] {
   return db().query<{ key: string; region: string }, Record<string, string>>(`
