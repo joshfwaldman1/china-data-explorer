@@ -252,7 +252,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 7; // 7: families formed across sliced parent categories
+const GLOSS_FORMAT = 8; // 8: sub-industry PPI slices join across the trailing-业 rename
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -319,7 +319,10 @@ export function attachFamilies(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
     if (!range) continue;
     // The unit is left out: an older slice sometimes carries "无" where the newer says "%".
     const path = entry.categories.map((category, index) => (index === depth ? range?.base ?? category : category));
-    const key = JSON.stringify([entry.name, entry.frequency, entry.geography, path]);
+    // NBS renamed the sub-industry PPI lines between slices, dropping the trailing 业 of the
+    // industry ("焙烤食品制造业" became "焙烤食品制造"); the two spellings are one series.
+    const name = entry.name.replace("业工业生产者", "工业生产者");
+    const key = JSON.stringify([name, entry.frequency, entry.geography, path]);
     groups.set(key, [...(groups.get(key) ?? []), { entry, start: range.start, end: range.end }]);
   }
   const families = new Map<string, NbsFamily>();

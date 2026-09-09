@@ -93,6 +93,14 @@ test("slices carried by a parent category form a family too", async () => {
   expect(same[0]?.family?.span).toBe("2001 to present");
 });
 
+test("sub-industry PPI slices join across NBS's trailing-业 rename", async () => {
+  // 2014-2017: 褐煤开采洗选业工业生产者出厂价格指数; 2018 on: 褐煤开采洗选工业生产者出厂价格指数.
+  const result = await searchNbsCatalog({ query: "褐煤开采洗选工业生产者出厂价格指数", limit: 20 });
+  const same = result.results.filter((entry) => entry.name.includes("褐煤开采洗选") && entry.name.includes("上年同月"));
+  expect(same.length).toBe(1);
+  expect(same[0]?.family?.span).toBe("2014 to present");
+});
+
 test("stitchPoints joins slices oldest to newest, newer winning on overlap", () => {
   const joined = stitchPoints([
     [{ date: "2015-11", value: 1 }, { date: "2015-12", value: 2 }],
