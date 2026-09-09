@@ -22,8 +22,6 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
-- Lone year-range slices under a different parent (seven PPI-by-industry
-  tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
 
@@ -187,3 +185,12 @@ not from scratch. Rounds are small on purpose.
   through the end of next month, matching the scheduler's own horizon.
   Verified live: the agenda returns 26 items to 31 October and the CPI page
   shows "Oct 14, 2026, 09:30 CST" as its next release.
+- 2026-09-09 round 21: queue item, the lone PPI slices. Round 17 had
+  already stitched the main PPI-by-industry tables. What was left was the
+  sub-industry table, where NBS dropped the trailing 业 of every industry
+  name between the 2014-2017 and 2018-on slices ("褐煤开采洗选业" became
+  "褐煤开采洗选"), so 167 pairs stayed apart. The family key now ignores
+  that rename; a local check found no case where it merges two entries of
+  one slice. Cache format bumped, test added. Verified live: the lignite
+  PPI is one result spanning 2014 to present with 151 points. Visible
+  series 9,569.
