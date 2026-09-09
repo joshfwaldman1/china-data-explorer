@@ -102,3 +102,9 @@ not from scratch. Rounds are small on purpose.
   People's Bank of China, Customs and Caixin", counting NBS twice. It now
   counts only the non-NBS indicators as additional and says the FRED series
   are about China.
+- 2026-09-09 round 11: audited Home, a series page, Provinces and search at
+  390 px on the live site. Series page, Provinces and results all lay out
+  cleanly (two-column hero tiles, period and sparkline columns dropped from
+  the list, tile map fits). One defect: Home's topbar kept an empty dark row
+  where the search box sits at phone width, since Home hides that box in
+  favour of the hero's. The row is now dropped on Home. Verified live.
