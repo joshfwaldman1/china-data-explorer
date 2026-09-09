@@ -1483,7 +1483,8 @@ function App() {
 
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main">Skip to content</a>
+      {/* Routes live in the hash, so a plain #main link would navigate to Home; move focus instead. */}
+      <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); if (main) { main.focus(); main.scrollIntoView(); } }}>Skip to content</a>
       <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
         <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
         <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
