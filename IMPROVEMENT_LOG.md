@@ -249,3 +249,15 @@ not from scratch. Rounds are small on purpose.
   AGENTS.md said the catalog was stored "by use" (the crawl stores it) and
   described families only for a slice on the last category. All rewritten
   to match the code. Docs only, no deploy.
+- 2026-09-09 round 30: audited search for ten more researcher queries on
+  the live site (trade balance, fixed asset investment, rail freight,
+  electricity consumption, housing completions, core inflation, mortgage
+  rate, foreign direct investment, 工业增加值, a pinyin phrase). Seven led
+  with the right series; FDI is a MOFCOM series NBS stopped in 2019, and
+  the pinyin phrase did not match an interior segment, both honest. Two
+  vocabulary gaps fixed: "core inflation" and "core cpi" now lead with
+  CPI excluding food and energy (they led with PMI price indexes), and
+  "mortgage rate" finds the loan prime rate (it found nothing). Verified
+  live. Noted, not changed: two NBS tables share the indicator name "Fixed
+  asset investment, year-to-date growth" (the overview and the by-registration
+  table), so two results carry the same English title.
