@@ -39,3 +39,11 @@ not from scratch. Rounds are small on purpose.
   series came from. A Related Series section now lists up to six siblings
   from the same category (English title, Chinese, frequency, unit) with a
   link to the whole category. One search request, family members excluded.
+- 2026-09-09 round 3: audited search for twelve researcher queries on the
+  live site (inflation, unemployment, industrial profits, fixed asset
+  investment, retail sales, money supply, trade surplus, housing starts,
+  coal output, wages, population, electricity). All led with the right
+  series. One defect: a year-range family head showed only its own slice's
+  range in results ("2024 to Jul 2026" for a table whose stitched history
+  runs from 1998), because the range came from the head key alone. Results
+  now take the earliest first period across the family's members.

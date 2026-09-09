@@ -638,8 +638,15 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
   const snapshot = await loadSnapshot();
   const ranges = storedRanges();
   const withRange = (entry: NbsCatalogEntry): NbsCatalogEntry => {
-    const range = ranges.get(entry.key);
-    return range ? { ...entry, firstPeriod: range.first, lastPeriod: range.last } : entry;
+    const own = ranges.get(entry.key);
+    if (!own) return entry;
+    // A family head is served stitched with its older slices, so its range starts where the oldest slice starts.
+    let first = own.first;
+    for (const member of entry.family?.members ?? []) {
+      const range = ranges.get(member);
+      if (range && range.first < first) first = range.first;
+    }
+    return { ...entry, firstPeriod: first, lastPeriod: own.last };
   };
   const query = (filters.query ?? "").trim();
   const passes = (entry: NbsCatalogEntry) =>
