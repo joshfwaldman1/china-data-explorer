@@ -497,3 +497,5 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .gloss.block { display: block; margin-top: var(--s-1); color: var(--muted); font-size: var(--fs-2); }
 
 .indicator-row .period.behind { color: var(--amber); }
+
+.result .meta .ended { color: var(--amber); font-weight: 600; }

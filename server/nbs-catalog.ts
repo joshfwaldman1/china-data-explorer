@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
-import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, writeSeries } from "./db";
+import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, storedLatest, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss } from "./gloss";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
@@ -147,6 +147,9 @@ export interface NbsCatalogEntry {
    * for any member returns the slices stitched together.
    */
   family?: NbsFamily;
+  /** The stored history's first and last periods, attached at search time; absent until the series is stored. */
+  firstPeriod?: string;
+  lastPeriod?: string;
   /** English for the prose fields, from catalog/notes-en.json (translate-notes.ts). */
   noteEn?: string;
   annotationEn?: string;
@@ -610,8 +613,34 @@ export function queryVariants(query: string): string[] {
   return [...new Set([lower, ...direct, ...perWord])];
 }
 
+// The stored range per series, refreshed every ten minutes: search ranks
+// current series above discontinued ones and shows each result's span.
+let rangeCache: { at: number; ranges: Map<string, { first: string; last: string }> } | null = null;
+function storedRanges(): Map<string, { first: string; last: string }> {
+  if (rangeCache && Date.now() - rangeCache.at < 10 * 60 * 1000) return rangeCache.ranges;
+  const ranges = new Map<string, { first: string; last: string }>();
+  for (const row of storedLatest("nbs_")) {
+    if (row.region !== "000000000000" || !row.firstPeriod || !row.lastPeriod) continue;
+    ranges.set(row.key, { first: row.firstPeriod, last: row.lastPeriod });
+  }
+  rangeCache = { at: Date.now(), ranges };
+  return ranges;
+}
+
+/** A series whose last stored period is within two years of today still publishes. */
+export function isCurrent(lastPeriod: string | undefined, now = new Date()): boolean {
+  if (!lastPeriod) return false;
+  const year = Number(lastPeriod.slice(0, 4));
+  return Number.isFinite(year) && now.getUTCFullYear() - year <= 2;
+}
+
 export async function searchNbsCatalog(filters: NbsSearchFilters) {
   const snapshot = await loadSnapshot();
+  const ranges = storedRanges();
+  const withRange = (entry: NbsCatalogEntry): NbsCatalogEntry => {
+    const range = ranges.get(entry.key);
+    return range ? { ...entry, firstPeriod: range.first, lastPeriod: range.last } : entry;
+  };
   const query = (filters.query ?? "").trim();
   const passes = (entry: NbsCatalogEntry) =>
     (!filters.frequency || entry.frequency === filters.frequency) &&
@@ -633,8 +662,8 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       return { entry, score };
     }).filter((item) => item.score > 0).sort((a, b) =>
       // Keyword score decides in bands of five (the full-text tiebreak is worth at most two points),
-      // then the shorter English title, then the full-text score itself.
-      band(b.score) - band(a.score) || titleLength(a.entry) - titleLength(b.entry) || b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+      // then a series that still publishes beats one that stopped, then the shorter English title.
+      band(b.score) - band(a.score) || Number(isCurrent(ranges.get(b.entry.key)?.last)) - Number(isCurrent(ranges.get(a.entry.key)?.last)) || titleLength(a.entry) - titleLength(b.entry) || b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
   };
 
   let scored = rank([]);
@@ -649,7 +678,7 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
     total: scored.length,
     offset,
     limit,
-    results: scored.slice(offset, offset + limit).map((item) => item.entry),
+    results: scored.slice(offset, offset + limit).map((item) => withRange(item.entry)),
   };
 }
 

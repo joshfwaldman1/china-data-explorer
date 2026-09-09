@@ -346,9 +346,9 @@ export function seriesFreshness(key: string, region: string): string | null {
 }
 
 /** For each stored series with the prefix: its latest period and when it was last written. */
-export function storedLatest(prefix: string): { key: string; region: string; lastPeriod: string | null; updatedAt: string | null }[] {
-  return db().query<{ key: string; region: string; lastPeriod: string | null; updatedAt: string | null }, Record<string, string>>(`
-    SELECT s.key AS key, s.region AS region, MAX(o.period) AS lastPeriod, MAX(s.updated_at) AS updatedAt
+export function storedLatest(prefix: string): { key: string; region: string; firstPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }[] {
+  return db().query<{ key: string; region: string; firstPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }, Record<string, string>>(`
+    SELECT s.key AS key, s.region AS region, MIN(o.period) AS firstPeriod, MAX(o.period) AS lastPeriod, MAX(s.updated_at) AS updatedAt
     FROM series s LEFT JOIN observations o ON o.key = s.key AND o.region = s.region
     WHERE s.key LIKE $prefix || '%'
     GROUP BY s.key, s.region

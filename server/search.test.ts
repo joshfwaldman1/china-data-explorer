@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -93,4 +93,12 @@ test("an index table labelled 无 gets its base as the unit", () => {
   expect(rawUnitOf({ unit: "无", name: "居民消费价格指数 (上月=100)" })).toBe("Index, previous month = 100");
   expect(rawUnitOf({ unit: "无", name: "居民消费价格指数 (上年同月=100)" })).toBe("Index, same month a year earlier = 100");
   expect(rawUnitOf({ unit: "万吨", name: "粗钢产量当期值 (万吨)" })).toBe("万吨");
+});
+
+test("isCurrent: within two years of today publishes, older has stopped", () => {
+  const now = new Date("2026-09-09T00:00:00Z");
+  expect(isCurrent("2026-07", now)).toBe(true);
+  expect(isCurrent("2024-12", now)).toBe(true);
+  expect(isCurrent("2019-Q4", now)).toBe(false);
+  expect(isCurrent(undefined, now)).toBe(false);
 });

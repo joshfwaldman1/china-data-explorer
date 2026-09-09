@@ -18,6 +18,7 @@ interface NbsCatalogEntry {
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
   noteEn?: string; annotationEn?: string; datasetEn?: string; categoriesEn?: string[];
   family?: { head: string; members: string[]; span: string };
+  firstPeriod?: string; lastPeriod?: string;
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
 }
@@ -223,6 +224,8 @@ function Zh(props: { children: string; className?: string }) {
   return CJK.test(props.children) ? <span lang="zh-Hans" className={props.className}>{props.children}</span> : <span className={props.className}>{props.children}</span>;
 }
 function unitEn(unit: string): string { return UNIT_EN[unit] ?? ""; }
+/** A stored series whose last period is more than two years old has stopped publishing. */
+function isEndedPeriod(lastPeriod: string): boolean { const year = Number(lastPeriod.slice(0, 4)); return Number.isFinite(year) && new Date().getUTCFullYear() - year > 2; }
 /** "A", "A and B", "A, B and C". */
 function listWords(items: string[]): string { return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`; }
 function unitLabel(unit: string): string {
@@ -697,7 +700,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
                   <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
                   {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
                   {!curated && <span className="path">{categoryPath(entry)}</span>}
-                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}</span>
+                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : null}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
                   && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>}
