@@ -137,3 +137,14 @@ not from scratch. Rounds are small on purpose.
   "five AkShare-backed series" (three) and called it unverified whether NBS
   answers cloud IPs, which the full crawl from Railway settled. Docs only,
   no deploy.
+- 2026-09-09 round 16: audited search for ten researcher queries on the
+  live site (car sales, youth unemployment, pork price, exports to the
+  United States, local government revenue, cement output, birth rate,
+  disposable income, GDP deflator, property investment). Eight led with the
+  right series; local budget revenue and a deflator are not NBS monthly
+  series. One defect: "exports to the united states" found nothing because
+  the matcher wanted every word, including "to" and "the", at a word start
+  in a title. English function words now drop out of both matchers, the
+  country's names alias to "US", and the three US trade series carry the
+  synonyms. Verified live for three phrasings. A follow-up commit fixed the
+  test file's import, which the first commit had missed.
