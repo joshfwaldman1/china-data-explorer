@@ -336,7 +336,8 @@ if (ingestEveryHours > 0) {
   // The catalog crawl fills in series nobody has opened: a budget of series
   // every few hours until the whole catalog is stored, then a no-op. It
   // shares the running flag with the ingest so the two never overlap.
-  const crawlBudget = Number(process.env.CRAWL_PER_RUN ?? 3000);
+  // Batched by table, a whole-catalog run is a few hundred requests spread over a couple of hours.
+  const crawlBudget = Number(process.env.CRAWL_PER_RUN ?? 20000);
   const crawlEveryHours = Number(process.env.CRAWL_EVERY_HOURS ?? 6);
   if (process.env.CATALOG_CRAWL !== "off" && crawlBudget > 0) {
     const crawl = async () => {

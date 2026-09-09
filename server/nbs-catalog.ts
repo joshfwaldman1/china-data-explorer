@@ -919,6 +919,52 @@ export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValu
   return { region, points, changed: summary.changed };
 }
 
+/**
+ * One esData request for up to `NBS_BATCH_SIZE` indicators of the same table
+ * (same cid, rootId and frequency). NBS answers with every indicator's full
+ * history in one grid, so the catalog crawl needs a few hundred requests
+ * rather than fifteen thousand.
+ */
+export const NBS_BATCH_SIZE = 40;
+export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: NbsRegionOption = NATIONAL): Promise<Map<string, SeriesPoint[]>> {
+  const first = entries[0];
+  if (!first) return new Map();
+  const payload = {
+    cid: first.cid,
+    indicatorIds: entries.map((entry) => entry.id),
+    daCatalogId: "",
+    das: [region],
+    showType: "1",
+    dts: [periodRange(first.frequency, historyLimit(first.frequency))],
+    rootId: first.rootId,
+  };
+  const response = await fetch(`${API}/stream/esData`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json;charset=UTF-8",
+      Origin: "https://data.stats.gov.cn",
+      Referer: "https://data.stats.gov.cn/dg/website/page.html",
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!response.ok) throw new Error(`NBS esData -> HTTP ${response.status}`);
+  const raw: unknown = await response.json();
+  return new Map(entries.map((entry) => [entry.id, parseEsDataPoints(raw, entry.id, region.value)]));
+}
+
+/** Store one indicator's fetched points and log the outcome. */
+export function storeNbsPoints(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[], startedAt: string): "ok" | "empty" {
+  const finishedAt = new Date().toISOString();
+  if (points.length === 0) {
+    logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "empty", points: 0, changed: 0, message: "source returned a grid with no values" });
+    return "empty";
+  }
+  const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt);
+  logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed });
+  return "ok";
+}
+
 /** The store-first read that every page view goes through. */
 export async function getNbsCatalogSeries(options: {
   entry: NbsCatalogEntry;

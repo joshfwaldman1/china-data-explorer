@@ -17,7 +17,7 @@
 
 import { CATALOG, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
 import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyKeys, storedLatest } from "./db.ts";
-import { getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, type NbsCatalogEntry } from "./nbs-catalog.ts";
+import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { isDue } from "./due.ts";
 
 // Upstream sources are public and unauthenticated, so we stay well-mannered:
@@ -123,59 +123,63 @@ async function dueCatalogTargets(now = new Date()): Promise<{ key: string; regio
 }
 
 const CRAWL_PAUSE_MS = Number(process.env.CRAWL_PAUSE_MS ?? 1200);
+const NATIONAL_REGION = { text: "全国", value: "000000000000" };
 
 /**
- * Fill the store with catalog series nobody has opened yet: up to `budget`
- * series per run, in catalog order, paced. Five failures in a row pause the
- * run for ten minutes; twenty end it, so an NBS outage costs a run, not a day
- * of hammering. Returns what was done and how many remain.
+ * Fill the store with catalog series nobody has opened yet. Indicators are
+ * grouped by table and fetched `NBS_BATCH_SIZE` at a time in one request
+ * each, paced, up to `budget` indicators per run. Five failed requests in a
+ * row pause the run for ten minutes; twenty end it. Returns what was done
+ * and how many indicators remain.
  */
 export async function runCatalogCrawl(budget: number): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
   db();
   const stored = new Set(listStoredSeries("nbs_").map((row) => row.key));
   // NBS's index tree lists indicators it no longer publishes (whole blocks of
   // tax lines by industry return nothing). Once an entry has come back empty
-  // it waits a month before another try, instead of blocking every run.
+  // it waits a month before another try.
   const empty = recentlyEmptyKeys("nbs_", 30);
   const entries = (await listNbsCatalogEntries()).filter((entry) => !stored.has(entry.key) && !empty.has(entry.key));
   const tally = { ok: 0, error: 0, empty: 0, remaining: entries.length };
   if (entries.length === 0) return tally;
-  console.log(`\nCrawling ${Math.min(budget, entries.length)} of ${entries.length} catalog series not yet stored\n`);
-  let consecutiveFailures = 0;
+
+  // Same table, same frequency: one request per chunk.
+  const tables = new Map<string, NbsCatalogEntry[]>();
   for (const entry of entries.slice(0, budget)) {
-    const outcome = await crawlOne(entry);
-    tally[outcome] += 1;
-    tally.remaining -= 1;
-    consecutiveFailures = outcome === "error" ? consecutiveFailures + 1 : 0;
-    if (consecutiveFailures >= 20) { console.log("  Twenty failures in a row; ending this crawl run."); break; }
-    if (consecutiveFailures === 5) { console.log("  Five failures in a row; pausing ten minutes."); await sleep(10 * 60 * 1000); }
-    await sleep(CRAWL_PAUSE_MS);
+    const tableKey = `${entry.cid}|${entry.rootId}|${entry.frequency}`;
+    tables.set(tableKey, [...(tables.get(tableKey) ?? []), entry]);
+  }
+  const chunks: NbsCatalogEntry[][] = [];
+  for (const group of tables.values()) for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) chunks.push(group.slice(at, at + NBS_BATCH_SIZE));
+  console.log(`\nCrawling ${Math.min(budget, entries.length)} of ${entries.length} catalog series not yet stored, in ${chunks.length} table requests\n`);
+
+  let consecutiveFailures = 0;
+  for (const [index, chunk] of chunks.entries()) {
+    const startedAt = new Date().toISOString();
+    try {
+      const points = await fetchNbsTableBatch(chunk, NATIONAL_REGION);
+      let okHere = 0;
+      for (const entry of chunk) {
+        const outcome = storeNbsPoints(entry, NATIONAL_REGION, points.get(entry.id) ?? [], startedAt);
+        tally[outcome] += 1;
+        tally.remaining -= 1;
+        if (outcome === "ok") okHere += 1;
+      }
+      consecutiveFailures = 0;
+      console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  ${(chunk[0]?.categories.slice(-1)[0] ?? "").slice(0, 40).padEnd(40)} ${okHere}/${chunk.length} with data`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      for (const entry of chunk) logFetch({ key: entry.key, region: NATIONAL_REGION.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+      tally.error += chunk.length;
+      consecutiveFailures += 1;
+      console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  FAILED  ${message.slice(0, 80)}`);
+      if (consecutiveFailures >= 20) { console.log("  Twenty failed requests in a row; ending this crawl run."); break; }
+      if (consecutiveFailures === 5) { console.log("  Five failed requests in a row; pausing ten minutes."); await sleep(10 * 60 * 1000); }
+    }
+    if (index < chunks.length - 1) await sleep(CRAWL_PAUSE_MS);
   }
   console.log(`\nCrawl: ${tally.ok} ok, ${tally.empty} empty, ${tally.error} failed, ${tally.remaining} still to fetch`);
   return tally;
-}
-
-async function crawlOne(entry: NbsCatalogEntry): Promise<"ok" | "error" | "empty"> {
-  const startedAt = new Date().toISOString();
-  try {
-    const result = await refreshNbsCatalogSeries(entry);
-    const finishedAt = new Date().toISOString();
-    if (result.points.length === 0) {
-      logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt, status: "empty", points: 0, changed: 0, message: "source returned no points" });
-      return "empty";
-    }
-    return "ok";
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    // An empty answer is the source's verdict on the series, not a failure of the run.
-    if (/no observations|no values/i.test(message)) {
-      logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt: new Date().toISOString(), status: "empty", points: 0, changed: 0, message });
-      return "empty";
-    }
-    logFetch({ key: entry.key, region: "000000000000", startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
-    console.log(`  ${entry.key.padEnd(40)} FAILED  ${message.slice(0, 80)}`);
-    return "error";
-  }
 }
 
 /** One full ingest pass. `requested` is the CLI argument list; empty means everything. */
