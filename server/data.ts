@@ -10,6 +10,8 @@
  * browser CORS restrictions that would block a pure client-side page.
  */
 
+import { fetchJson } from "./http";
+
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
   "(KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
@@ -550,9 +552,11 @@ async function fetchEastmoney(key: string, cfg: EastmoneyIndicator, limit: numbe
     pageSize: String(limit), sortColumns: cfg.dateField ?? "REPORT_DATE", sortTypes: "-1",
   });
   const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?${params.toString()}`;
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json, text/plain, */*" } });
-  const json = await res.json();
-  const rows: Record<string, unknown>[] = json?.result?.data ?? [];
+  const { json } = await fetchJson(url, { headers: { "User-Agent": UA, Accept: "application/json, text/plain, */*" } });
+  const result: unknown = typeof json === "object" && json !== null ? Reflect.get(json, "result") : undefined;
+  const data: unknown = typeof result === "object" && result !== null ? Reflect.get(result, "data") : undefined;
+  const rows: Record<string, unknown>[] = [];
+  if (Array.isArray(data)) for (const row of data) if (typeof row === "object" && row !== null) rows.push(row);
 
   const series: Series[] = cfg.fields.map((f) => {
     const points: SeriesPoint[] = [];
@@ -668,9 +672,8 @@ async function fetchFred(key: string, cfg: FredIndicator, limit: number): Promis
     params.set("frequency", cfg.frequency === "Monthly" ? "m" : cfg.frequency === "Quarterly" ? "q" : "a");
     params.set("aggregation_method", cfg.aggregate);
   }
-  const res = await fetch(`https://api.stlouisfed.org/fred/series/observations?${params.toString()}`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) throw new Error(`FRED ${cfg.seriesId} -> HTTP ${res.status}`);
-  const json: unknown = await res.json();
+  const { ok, status, json } = await fetchJson(`https://api.stlouisfed.org/fred/series/observations?${params.toString()}`, { headers: { Accept: "application/json" } }, { timeoutMs: 30_000 });
+  if (!ok) throw new Error(`FRED ${cfg.seriesId} -> HTTP ${status}`);
   const observations: unknown = typeof json === "object" && json !== null ? Reflect.get(json, "observations") : undefined;
   if (!Array.isArray(observations)) throw new Error(`FRED ${cfg.seriesId} returned no observations`);
   const points: SeriesPoint[] = [];
@@ -736,7 +739,7 @@ async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<
     das: [region], showType: "1",
     dts: [nbsRange(cfg, limit)], rootId: cfg.rootId,
   };
-  const res = await fetch(
+  const { json } = await fetchJson(
     "https://data.stats.gov.cn/dg/website/publicrelease/web/external/stream/esData",
     {
       method: "POST",
@@ -749,9 +752,9 @@ async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<
       body: JSON.stringify(payload),
     },
   );
-  const json = await res.json();
+  const rawData: unknown = typeof json === "object" && json !== null ? Reflect.get(json, "data") : undefined;
   const periods: { code?: string; name?: string; values?: { _id?: string; da?: string; value?: unknown }[] }[] =
-    json?.data ?? [];
+    Array.isArray(rawData) ? rawData : [];
 
   const series: Series[] = cfg.ids.map((idcfg) => {
     const points: SeriesPoint[] = [];

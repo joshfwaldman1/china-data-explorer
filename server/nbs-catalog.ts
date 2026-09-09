@@ -1,4 +1,5 @@
 import { isDue } from "./due";
+import { fetchJson } from "./http";
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
@@ -895,7 +896,7 @@ async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption
     dts: [periodRange(entry.frequency, historyLimit(entry.frequency))],
     rootId: entry.rootId,
   };
-  const response = await fetch(`${API}/stream/esData`, {
+  const response = await fetchJson(`${API}/stream/esData`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json;charset=UTF-8",
@@ -903,11 +904,9 @@ async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption
       Referer: "https://data.stats.gov.cn/dg/website/page.html",
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(60_000),
-  });
+  }, { timeoutMs: 60_000 });
   if (!response.ok) throw new Error(`NBS esData -> HTTP ${response.status}`);
-  const raw: unknown = await response.json();
-  return parseEsDataPoints(raw, entry.id, region.value);
+  return parseEsDataPoints(response.json, entry.id, region.value);
 }
 
 async function resolveNbsRegion(entry: NbsCatalogEntry, regionValue?: string): Promise<NbsRegionOption> {
@@ -997,7 +996,7 @@ export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: Nbs
     dts: [periodRange(first.frequency, historyLimit(first.frequency))],
     rootId: first.rootId,
   };
-  const response = await fetch(`${API}/stream/esData`, {
+  const response = await fetchJson(`${API}/stream/esData`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json;charset=UTF-8",
@@ -1005,10 +1004,9 @@ export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: Nbs
       Referer: "https://data.stats.gov.cn/dg/website/page.html",
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(120_000),
-  });
+  }, { timeoutMs: 120_000 });
   if (!response.ok) throw new Error(`NBS esData -> HTTP ${response.status}`);
-  const raw: unknown = await response.json();
+  const raw = response.json;
   return new Map(entries.map((entry) => [entry.id, parseEsDataPoints(raw, entry.id, region.value)]));
 }
 
