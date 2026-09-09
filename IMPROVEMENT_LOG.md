@@ -418,3 +418,11 @@ not from scratch. Rounds are small on purpose.
   image is now titled "Provincial Real GDP Growth: Hainan", matching the
   compare style; national and 70-city-average views are unchanged.
   Verified live on the Hainan and Beijing home price images.
+- 2026-09-09 round 48: measured the layout width at 390 px on eight live
+  page types (Home, Browse, a category listing, search results, Provinces,
+  Releases, Saved, a four-province compare). None scrolled sideways.
+  Defect: in search results and category listings the category path was
+  one no-wrap line, up to 620 px wide, so on a phone its most specific
+  segment was the part cut off. The path now wraps at phone width.
+  Verified live: both pages measure with no element past the screen and
+  the paths read in full.
