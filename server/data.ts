@@ -201,6 +201,9 @@ type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndi
 // this very app on :8080 answers 404 and reads like a mystery.
 const AKTOOLS_URL = process.env.AKTOOLS_URL ?? "http://127.0.0.1:8080";
 
+/** False when the deployment has said it has no AKTools, so callers can skip AkShare series instead of failing on them. */
+export function aktoolsConfigured(): boolean { return AKTOOLS_URL !== "off"; }
+
 function nbsProvince(text: string, gbt2260: string): NbsRegion {
   return { text, value: gbt2260.padEnd(12, "0") };
 }

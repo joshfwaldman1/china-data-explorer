@@ -11,11 +11,11 @@
  *   bun run china-explorer/ingest.ts nbs_<id>@440000000000  # one catalog series, one region
  *
  * Failures are per-series and recorded, not fatal. If AKTools is not running,
- * four series fail and the other thirteen still land — that is the intended
- * behaviour, not a broken run.
+ * the AkShare series fail and the rest still land. A deployment that has said
+ * it has none (AKTOOLS_URL=off) skips them instead of logging a failure.
  */
 
-import { CATALOG, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
+import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
 import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyKeys, storedLatest } from "./db.ts";
 import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { isDue } from "./due.ts";
@@ -228,7 +228,7 @@ export async function refreshCatalogForRelease(categories: string[], targetPerio
 
 /** One full ingest pass. `requested` is the CLI argument list; empty means everything. */
 export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
-  const curatedKeys = requested.length > 0
+  let curatedKeys = requested.length > 0
     ? requested.filter((spec) => !spec.startsWith("nbs_"))
     : Object.keys(CATALOG);
   // Catalog series are named nbs_<id>, with an optional @<region code>. With
@@ -244,6 +244,14 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
   if (unknown.length > 0) {
     console.error(`Unknown series: ${unknown.join(", ")}`);
     process.exit(1);
+  }
+
+  // A deployment without AKTools cannot refresh the AkShare series; they serve
+  // from the store. Skipping them here keeps the fetch log to real failures.
+  const skipped = aktoolsConfigured() ? [] : curatedKeys.filter((key) => CATALOG[key]?.kind === "aktools");
+  if (skipped.length > 0) {
+    console.log(`Skipping ${skipped.length} AkShare series (AKTOOLS_URL=off): ${skipped.join(", ")}`);
+    curatedKeys = curatedKeys.filter((key) => !skipped.includes(key));
   }
 
   db(); // create and migrate before the first write
