@@ -138,3 +138,8 @@ test("the country's names and English function words do not block a match", () =
   expect(variants).not.toContain("to");
   expect(variants).not.toContain("the");
 });
+
+test("core inflation reaches the CPI excluding food and energy", async () => {
+  const result = await searchNbsCatalog({ query: "core inflation", limit: 3 });
+  expect(result.results[0]?.name.startsWith("不包括食品和能源居民消费价格指数")).toBe(true);
+});

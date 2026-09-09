@@ -83,7 +83,7 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   gdp_usd: ["gdp dollars", "nominal gdp", "world bank", "美元gdp"],
   gdp_per_capita_usd: ["gdp per capita", "income per head", "人均gdp"],
   gini: ["inequality", "gini", "基尼系数"],
-  lpr: ["lpr", "loan prime rate", "interest rate", "policy rate", "benchmark rate", "贷款市场报价利率", "利率"],
+  lpr: ["lpr", "loan prime rate", "interest rate", "policy rate", "benchmark rate", "mortgage rate", "mortgage", "贷款市场报价利率", "利率", "房贷利率"],
 };
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
