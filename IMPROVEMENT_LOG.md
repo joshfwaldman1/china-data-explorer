@@ -148,3 +148,16 @@ not from scratch. Rounds are small on purpose.
   country's names alias to "US", and the three US trade series carry the
   synonyms. Verified live for three phrasings. A follow-up commit fixed the
   test file's import, which the first commit had missed.
+- 2026-09-09 round 17: audited ten random stored catalog series on the live
+  site. All served from the store with the right units; nine of ten were
+  industrial-enterprise finance lines, which is what three quarters of the
+  catalog is. Defect: those tables are split by year range at the parent
+  category ("按行业分工业企业主要经济指标 (2003-2011)"), not on the series
+  name, and families were only formed for a slice on the last category.
+  So one series appeared up to four times in search and each page showed
+  one slice. Families now form on a slice at any depth of the path
+  (11,395 entries affected); the catalog cache format was bumped so the
+  cache rebuilt. Verified live: the coal-mining total-assets series is one
+  result spanning 2001 to present and its page has 253 points from 2001.
+  The visible count is now 9,736 distinct series rather than 14,886 slices,
+  and the home tagline follows the count.
