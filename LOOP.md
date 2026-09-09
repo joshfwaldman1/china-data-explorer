@@ -44,7 +44,9 @@ until he stops the loop. Read this whole file before doing anything.
 4. Make the change. Then, from the repo root:
    `bunx tsc --noEmit -p tsconfig.json | grep china-explorer` must print
    nothing, and `bun test` must pass. Add or extend a test when the change
-   is logic.
+   is logic. Gate the commit on that output rather than piping it into
+   `grep` and carrying on: a chain that did not stop shipped a broken build
+   once (round 31).
 5. Commit with a message that states the defect and the fix in plain words
    (see `git log` for the voice), and push to `china-data-explorer`.
    Pushing deploys the live site if the Railway service is linked to GitHub;

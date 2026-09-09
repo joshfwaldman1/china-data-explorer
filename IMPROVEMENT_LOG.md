@@ -440,3 +440,13 @@ not from scratch. Rounds are small on purpose.
   (Escape, the button, or picking a series) now returns focus to the Add
   series button. Verified live: after Escape the button is focused and
   reports collapsed.
+- 2026-09-10 round 51: audited the docs against the code. Five mechanisms
+  added this week were described nowhere: the shared upstream fetch and
+  its retry rule (server/http.ts), the release-refresh record kept in the
+  fetch log, the table-qualified PMI titles, the release-time helpers on
+  the client, and the loop's rule of gating a commit on the typecheck.
+  All five are now in AGENTS.md or LOOP.md, across two commits: the first
+  shipped only the AGENTS.md part because the edit script stopped on a
+  wording mismatch, and the second carried LOOP.md and this entry. Docs
+  only, no deploy. The round-50 push turned out to have landed before it
+  stalled; the retry reported the remote up to date.
