@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { canonicalPeriod, convertTrack, deltaText, coarsestFrequency, fmt, fmtTick, periodPretty, periodTime, rebase, type Track } from "./lib.ts";
+import { canonicalPeriod, convertTrack, deltaText, coarsestFrequency, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -59,4 +59,15 @@ test("fmt never shows a negative zero", () => {
 test("deltaText says pp for percentages only", () => {
   expect(deltaText({ date: "2026-07", value: 0.5 }, { date: "2026-06", value: 1.0 }, "Percent change from year ago")).toBe("Down 0.5 pp from Jun 2026");
   expect(deltaText({ date: "2026-07", value: 99.9 }, { date: "2026-06", value: 99.7 }, "Index, previous month = 100")).toBe("Up 0.2 from Jun 2026");
+});
+
+test("a release is upcoming until its China Standard Time instant has passed", () => {
+  // 09:30 CST is 01:30 UTC.
+  expect(releaseTime("2026-09-09 09:30:00")).toBe(Date.UTC(2026, 8, 9, 1, 30));
+  expect(releaseTime("2026-09-09")).toBe(Date.UTC(2026, 8, 9, 1, 30));
+  const morning = Date.UTC(2026, 8, 9, 0, 0);   // 08:00 CST, before the release
+  const evening = Date.UTC(2026, 8, 9, 11, 45); // 19:45 CST, after it
+  expect(isUpcoming("2026-09-09 09:30:00", morning)).toBe(true);
+  expect(isUpcoming("2026-09-09 09:30:00", evening)).toBe(false);
+  expect(isUpcoming("not a date", morning)).toBe(false);
 });

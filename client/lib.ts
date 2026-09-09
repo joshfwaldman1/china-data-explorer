@@ -127,3 +127,20 @@ export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint
   if (style === "short") return `${difference > 0 ? "+" : "-"}${magnitude}${points}`;
   return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${observationLabel(previous.date, frequency)}`;
 }
+
+/**
+ * When an NBS release happens, as a Unix time. NBS writes "2026-09-09 09:30:00"
+ * in China Standard Time (UTC+8); a date alone means the usual 09:30 slot.
+ */
+export function releaseTime(text: string): number {
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+  if (!match) return Number.NaN;
+  const [, year, month, day, hour = "09", minute = "30"] = match;
+  return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour) - 8, Number(minute));
+}
+
+/** A release still to come: its instant is after now. */
+export function isUpcoming(text: string, now = Date.now()): boolean {
+  const at = releaseTime(text);
+  return Number.isFinite(at) && at > now;
+}

@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -540,8 +540,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     }
     return () => { cancelled = true; };
   }, [props.curated.map((entry) => entry.key).join(",")]);
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = props.releases.filter((release) => release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
+  const upcoming = props.releases.filter((release) => isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
   const monthly = props.stats?.datasets.find((dataset) => dataset.frequency === "Monthly")?.count ?? 0;
   const quarterly = props.stats?.datasets.find((dataset) => dataset.frequency === "Quarterly")?.count ?? 0;
   return (
@@ -1011,8 +1010,7 @@ function SeriesPage(props: {
     ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces; they are joined here into one series covering ${meta.family.span}. Where two pieces overlap, the newer one is used.`] : []),
   ];
   const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
-  const today = new Date().toISOString().slice(0, 10);
-  const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && release.date.slice(0, 10) >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date))[0];
   const stale = primary.source === "stale";
   const zhFirst = props.lang === "zh" || !meta?.nameEn;
   const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : "the NBS data portal";
