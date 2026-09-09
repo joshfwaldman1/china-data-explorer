@@ -410,3 +410,11 @@ not from scratch. Rounds are small on purpose.
   accounting terms (cost of principal business and the like) that NBS
   replaced with operating cost and revenue in 2019. Those show as ended,
   which is right. No failed fetch since 14:00Z. Nothing to fix.
+- 2026-09-09 round 47: audited the share image with two live renders: a
+  single-province GDP page and a PMI sub-index. The PMI image carries its
+  new qualified title. Defect: the Hainan image was titled "Provincial
+  Real GDP Growth" and named the province nowhere, so the picture alone
+  could not say which province it showed. A single province's or city's
+  image is now titled "Provincial Real GDP Growth: Hainan", matching the
+  compare style; national and 70-city-average views are unchanged.
+  Verified live on the Hainan and Beijing home price images.
