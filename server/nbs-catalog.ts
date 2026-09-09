@@ -252,7 +252,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 6; // 6: index base period kept in English titles
+const GLOSS_FORMAT = 7; // 7: families formed across sliced parent categories
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -307,11 +307,19 @@ function sliceRange(category: string): { base: string; start: number; end: numbe
 export function attachFamilies(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
   const groups = new Map<string, { entry: NbsCatalogEntry; start: number; end: number }[]>();
   for (const entry of entries) {
-    const last = entry.categories[entry.categories.length - 1];
-    const range = last ? sliceRange(last) : null;
+    // The slice can sit on any level of the path: "CPI (2016-2020)" on the table itself, or
+    // "Industrial enterprises by industry (2003-2011) > Net interest expenditure" one level up.
+    // The deepest sliced level is the one that splits the table.
+    let depth = -1, range: ReturnType<typeof sliceRange> = null;
+    for (let index = entry.categories.length - 1; index >= 0 && !range; index -= 1) {
+      const candidate = entry.categories[index];
+      range = candidate ? sliceRange(candidate) : null;
+      if (range) depth = index;
+    }
     if (!range) continue;
     // The unit is left out: an older slice sometimes carries "无" where the newer says "%".
-    const key = JSON.stringify([entry.name, entry.frequency, entry.geography, entry.categories.slice(0, -1), range.base]);
+    const path = entry.categories.map((category, index) => (index === depth ? range?.base ?? category : category));
+    const key = JSON.stringify([entry.name, entry.frequency, entry.geography, path]);
     groups.set(key, [...(groups.get(key) ?? []), { entry, start: range.start, end: range.end }]);
   }
   const families = new Map<string, NbsFamily>();

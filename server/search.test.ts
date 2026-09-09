@@ -19,7 +19,9 @@ const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, d
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
-  expect(stats.seriesCount).toBeGreaterThan(14000);
+  // 15,403 entries collapse to about 9,700 once year-range slices of one series count as one.
+  expect(stats.seriesCount).toBeGreaterThan(9000);
+  expect(stats.seriesCount).toBeLessThan(11000);
   expect(stats.datasets.map((dataset) => dataset.code)).toEqual([1, 2]);
 }, 30000);
 
@@ -79,6 +81,16 @@ test("year-range slices of one NBS table form a family and search shows only the
   const head = same[0];
   expect(head?.family?.members.length).toBeGreaterThan(1);
   expect(head?.family?.head).toBe(head?.key ?? "");
+});
+
+test("slices carried by a parent category form a family too", async () => {
+  // Industrial enterprise finance tables are split at the parent level:
+  // "按行业分工业企业主要经济指标 (2003-2011)" > "工业企业资产总计" > the same series name in each.
+  const result = await searchNbsCatalog({ query: "煤炭开采和洗选业资产总计上年同期", limit: 20 });
+  const same = result.results.filter((entry) => entry.name.startsWith("煤炭开采和洗选业资产总计上年同期"));
+  expect(same.length).toBe(1);
+  expect(same[0]?.family?.members.length).toBe(4);
+  expect(same[0]?.family?.span).toBe("2001 to present");
 });
 
 test("stitchPoints joins slices oldest to newest, newer winning on overlap", () => {
