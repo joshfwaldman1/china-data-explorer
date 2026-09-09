@@ -22,8 +22,6 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
-- Provinces page: a period selector that also drives the province detail
-  sparkline window.
 
 ## Log
 
@@ -194,3 +192,10 @@ not from scratch. Rounds are small on purpose.
   one slice. Cache format bumped, test added. Verified live: the lignite
   PPI is one result spanning 2014 to present with 151 points. Visible
   series 9,569.
+- 2026-09-09 round 22: queue item. On the Provinces page, picking an older
+  period changed the map and ranking but the detail panel's sparkline
+  still drew the latest two years. The regional API now windows each
+  province's sparkline to the eight quarters ending at the chosen period.
+  Verified live: Guangdong at 2020-Q2 shows 2018-Q3 to 2020-Q2, the latest
+  period is unchanged, and the earliest period shows the two points that
+  exist.
