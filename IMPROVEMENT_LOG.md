@@ -91,3 +91,14 @@ not from scratch. Rounds are small on purpose.
   console line and no fetch_log rows. Verified: the redeployed instance logs
   "Skipping 3 AkShare series" and `/api/status` shows no failures after the
   cutover.
+- 2026-09-09 round 10: audited the share image with live renders of CPI, a
+  three-province compare and the 70-city house prices. Title, subtitle,
+  quarter labels, end labels, legend and footer all as designed. One defect:
+  a four-province compare's URL was cut with an ellipsis in the footer, a
+  link nobody can type. A URL that does not fit now gives way to the site
+  host alone; test added.
+- 2026-09-09 (owner report): the home tagline read "series from the National
+  Bureau of Statistics ... plus 18 headline indicators from NBS, the
+  People's Bank of China, Customs and Caixin", counting NBS twice. It now
+  counts only the non-NBS indicators as additional and says the FRED series
+  are about China.

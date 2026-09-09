@@ -546,7 +546,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.filter((entry) => entry.home !== false).length} headline indicators from NBS, the People's Bank of China, Customs and Caixin, and {props.curated.filter((entry) => entry.home === false).length} international series via FRED.</p>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.filter((entry) => entry.home !== false && !entry.agency.includes("National Bureau of Statistics")).length} indicators from the People's Bank of China, Customs and Caixin, and {props.curated.filter((entry) => entry.home === false).length} international series on China via FRED.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
