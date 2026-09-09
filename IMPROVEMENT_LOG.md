@@ -19,7 +19,6 @@ not from scratch. Rounds are small on purpose.
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
-- Related series on NBS pages: siblings in the same category, one query.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
@@ -36,3 +35,7 @@ not from scratch. Rounds are small on purpose.
   result now carries its stored date range; ranking prefers series with a
   period in the last two years; results show "1998 to 2019 ended" or
   "1989 to Jul 2026".
+- 2026-09-09 round 2: NBS series pages had no way to browse the table a
+  series came from. A Related Series section now lists up to six siblings
+  from the same category (English title, Chinese, frequency, unit) with a
+  link to the whole category. One search request, family members excluded.

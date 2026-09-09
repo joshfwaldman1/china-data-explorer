@@ -499,3 +499,6 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .indicator-row .period.behind { color: var(--amber); }
 
 .result .meta .ended { color: var(--amber); font-weight: 600; }
+
+.section-head .more { margin-left: auto; font-size: var(--fs-2); }
+.section-head .gloss.block { display: inline; margin: 0 0 0 6px; }

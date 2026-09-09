@@ -885,6 +885,7 @@ function SeriesPage(props: {
   useEffect(() => { void warmShareFonts(); }, []);
   const [customDates, setCustomDates] = useState(Boolean(props.route.from || props.route.to));
   const [revised, setRevised] = useState<Revised[] | null>(null);
+  const [related, setRelated] = useState<NbsCatalogEntry[]>([]);
   const [firstView, setFirstView] = useState(false);
   const colors = useRef(new Map<string, number>());
   const show: Show = isShow(props.route.show || "default") ? (isShow(props.route.show) ? props.route.show : "default") : "default";
@@ -950,6 +951,19 @@ function SeriesPage(props: {
       if (!Array.isArray(list)) { setRevised([]); return; }
       setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: listOf(item, "vintages").map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
     }).catch(() => setRevised([]));
+  }, [results.map((result) => result.key).join(",")]);
+
+  useEffect(() => {
+    // Siblings in the same NBS category, for a single catalog series: the cheapest way to browse a table.
+    const first = results[0];
+    const category = first?.metadata?.categories.at(-1);
+    if (results.length !== 1 || !first?.metadata || !category) { setRelated([]); return; }
+    const query = new URLSearchParams({ category, limit: "12" });
+    json(`/api/search?${query}`).then((body) => {
+      if (!isSearchResponse(body)) { setRelated([]); return; }
+      const family = new Set(first.metadata?.family?.members ?? []);
+      setRelated(body.results.filter((entry) => entry.key !== first.key && !family.has(entry.key)).slice(0, 6));
+    }).catch(() => setRelated([]));
   }, [results.map((result) => result.key).join(",")]);
 
   const primary = results[0];
@@ -1187,6 +1201,7 @@ function SeriesPage(props: {
       </section>
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 
+      {!curated && meta && related.length > 0 && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{categoryPath({ categories: meta.categories.slice(-1), categoriesEn: meta.categoriesEn?.slice(-1), family: meta.family })}</span><a className="more" href={`#/category/${encodeURIComponent(meta.categories.at(-1) ?? "")}`}>All in this category</a></div><div className="tiles">{related.map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.nameEn || entry.name}</span>{entry.nameEn && <small><Zh>{entry.name}</Zh></small>}<small>{entry.frequency}, {unitLabel(entry.unit)}</small></a>)}</div></section>}
       {curated && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency}, {entry.agency}</small></a>)}</div></section>}
     </main>
   );
