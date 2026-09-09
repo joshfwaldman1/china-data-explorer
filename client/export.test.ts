@@ -122,6 +122,12 @@ describe("layoutShareImage", () => {
     expect(layout.footer.url.text).not.toContain("https://");
     expect(layout.footer.source.text).toBe("Source: People's Bank of China");
   });
+  test("a page URL too long for the footer gives way to the host alone, never an ellipsis", () => {
+    const keys = ["440000000000", "310000000000", "540000000000", "110000000000"].map((code) => `provincial_gdp@${code}`).join(",");
+    const long = layoutShareImage({ ...input, url: `https://econstats-china-production.up.railway.app/#/series/${keys}?range=10y` }, measure);
+    expect(long.footer.url.text).toBe("econstats-china-production.up.railway.app");
+    expect(long.footer.url.text).not.toContain("…");
+  });
   test("log scale maps 10 below 100", () => {
     const log = layoutShareImage({ ...input, logScale: true, tracks: [track("a", [10, 100, 1000])] }, measure);
     const [p10, p100] = log.lines[0]?.points ?? [];

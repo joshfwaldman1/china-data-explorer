@@ -310,7 +310,12 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   const sourceText = wrapText(`Source: ${input.source}`, width - margin - sourceX, footerFont, measure, 1)[0] ?? "";
   const source: Text = { text: sourceText, x: sourceX, y: footerY - 26, font: footerFont, color: LIGHT.muted, align: "left" };
   const urlMax = dateText.x - measure(dateText.text, footerFont) - 24 - margin;
-  const urlText: Text = { text: wrapText(trimUrl(input.url), urlMax, footerFont, measure, 1)[0] ?? "", x: margin, y: footerY, font: footerFont, color: LIGHT.muted, align: "left" };
+  // A long compare URL cannot be shortened with an ellipsis and still typed, so a URL that
+  // does not fit gives way to the site's host alone.
+  const fullUrl = trimUrl(input.url);
+  const host = fullUrl.split("/")[0] ?? fullUrl;
+  const shownUrl = measure(fullUrl, footerFont) <= urlMax ? fullUrl : host;
+  const urlText: Text = { text: wrapText(shownUrl, urlMax, footerFont, measure, 1)[0] ?? "", x: margin, y: footerY, font: footerFont, color: LIGHT.muted, align: "left" };
 
   return {
     width, height, background: LIGHT.panel,
