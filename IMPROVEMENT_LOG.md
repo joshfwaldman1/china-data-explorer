@@ -392,3 +392,13 @@ not from scratch. Rounds are small on purpose.
   regional series now carries the place under the title, "Hainan 海南省",
   except for the national and 70-city-average views. Verified live on the
   Hainan, Beijing home prices, 70-city default and compare pages.
+- 2026-09-09 round 45: audited the release calendar and `/api/schedule`
+  after a day of some thirty deploys. The plan rebuilds correctly on every
+  boot (24 upcoming, the seven 15 September timers set). Defect: the
+  "last release-day refresh" field lived in memory, so every deploy reset
+  it to null and the audit surface could never show what the last release
+  did. Each refresh is now recorded in the fetch log under the key
+  release_refresh (series advanced, attempt number, release name) and read
+  back at boot; a store test covers the round trip. Verified live: the new
+  build plans 24 releases and reports health. The field will first show a
+  value after the 15 September releases.
