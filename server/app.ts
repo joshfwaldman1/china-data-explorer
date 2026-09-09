@@ -340,7 +340,8 @@ if (ingestEveryHours > 0) {
   const crawlEveryHours = Number(process.env.CRAWL_EVERY_HOURS ?? 6);
   if (process.env.CATALOG_CRAWL !== "off" && crawlBudget > 0) {
     const crawl = async () => {
-      if (running) return;
+      // The boot-time ingest may still be running at the ten-minute mark; try again shortly rather than in six hours.
+      if (running) { setTimeout(crawl, 5 * 60 * 1000); return; }
       running = true;
       const started = Date.now();
       try {
