@@ -165,8 +165,11 @@ const routes = {
         const stored = readSeries(key, 120, region.value);
         const points = stored?.series[0]?.points ?? [];
         for (const point of points) periods.add(point.date);
-        const chosen = period ? points.find((point) => point.date === period) : points[points.length - 1];
-        return { region, value: chosen?.value ?? null, period: chosen?.date ?? null, points: points.slice(-8) };
+        const chosenIndex = period ? points.findIndex((point) => point.date === period) : points.length - 1;
+        const chosen = chosenIndex >= 0 ? points[chosenIndex] : undefined;
+        // The sparkline is the two years up to the chosen period, so picking 2020 shows the run into 2020.
+        const window = chosenIndex >= 0 ? points.slice(0, chosenIndex + 1).slice(-8) : points.slice(-8);
+        return { region, value: chosen?.value ?? null, period: chosen?.date ?? null, points: window };
       });
       const meta = readSeries(key, 1, regions[0]?.value);
       return Response.json({ key, title: meta?.title ?? key, unit: meta?.unit ?? "", frequency: meta?.frequency ?? "", agency: meta?.agency ?? "",
