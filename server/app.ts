@@ -384,7 +384,9 @@ if (ingestEveryHours > 0) {
       const catalog = item.categories.length > 0 ? await refreshCatalogForRelease(item.categories, target, quarterly ? "Quarterly" : "Monthly") : { advanced: 0, checked: 0, requests: 0 };
       const after = storedLatest("").filter((row) => item.keys.includes(row.key));
       const headlineAdvanced = after.filter((row) => (row.lastPeriod ?? "") > (before.get(`${row.key}@${row.region}`) ?? "")).length;
-      const advanced = headlineAdvanced + catalog.advanced;
+      // Already holding the period (a sweep or a page view got there first) counts as done, not as "nothing new".
+      const alreadyThere = after.length > 0 && after.every((row) => (row.lastPeriod ?? "") >= target);
+      const advanced = headlineAdvanced + catalog.advanced + (alreadyThere ? 1 : 0);
       status.lastReleaseRefresh = { en: item.en || item.content, at: new Date().toISOString(), attempts: attempt, advanced };
       console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${headlineAdvanced} headline and ${catalog.advanced} of ${catalog.checked} catalog series gained ${target}`);
       // Nothing new yet: the portal or its mirrors lag the announcement. Try again shortly, for up to three hours.
