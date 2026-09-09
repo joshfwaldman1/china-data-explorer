@@ -10,7 +10,7 @@
  */
 
 import index from "../client/index.html";
-import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
+import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult, seriesRegion } from "./data";
 import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest } from "./db";
 import {
   getNbsCatalogSeries,
@@ -298,7 +298,10 @@ const routes = {
         const transformParam = params.get("transform");
         const transform = isTransform(transformParam) ? transformParam : null;
         const regions = seriesRegions(key);
-        const region = regions.length > 0 ? (regions.find((item) => item.value === params.get("region")) ?? regions[0]) : undefined;
+        // No region asked for: the entry's configured default (Guangdong for provincial GDP, the
+        // 70-city average for home prices), not whichever region happens to be listed first.
+        const requested = params.get("region") ?? seriesRegion(key);
+        const region = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
         const stored = readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value);
         if (stored && stored.series.some((s) => s.points.length > 0)) {
           return Response.json({ ...applyTransform(stored, transform), region, source: "store", transform: transform ?? "raw" });
