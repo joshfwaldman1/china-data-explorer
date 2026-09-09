@@ -11,7 +11,7 @@
 
 import index from "../client/index.html";
 import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult, seriesRegion } from "./data";
-import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -378,13 +378,14 @@ if (ingestEveryHours > 0) {
   // due-check above as the backstop.
   const headlineKeys = catalogList().map((entry) => entry.key);
   const scheduled = new Set<string>();
-  const status = { nextReleases: [] as { en: string; at: string; keys: string[] }[], lastReleaseRefresh: null as null | { en: string; at: string; attempts: number; advanced: number } };
+  const status = { nextReleases: [] as { en: string; at: string; keys: string[] }[], lastReleaseRefresh: lastReleaseRefresh() };
   const runWhenFree = async (job: () => Promise<void>, label: string): Promise<void> => {
     if (running) { setTimeout(() => { void runWhenFree(job, label); }, 2 * 60 * 1000); return; }
     running = true;
     try { await job(); } catch (error) { console.error(`  ${label} failed:`, error instanceof Error ? error.message : String(error)); } finally { running = false; }
   };
   const releaseRefresh = async (item: AgendaItem, attempt: number) => {
+    const startedAt = new Date().toISOString();
     const at = cstToDate(item.fb_time) ?? new Date();
     const quarterly = /国内生产总值|居民收支|季度/.test(item.content);
     const target = releaseTarget(at, quarterly);
@@ -398,6 +399,7 @@ if (ingestEveryHours > 0) {
       const alreadyThere = after.length > 0 && after.every((row) => (row.lastPeriod ?? "") >= target);
       const advanced = headlineAdvanced + catalog.advanced + (alreadyThere ? 1 : 0);
       status.lastReleaseRefresh = { en: item.en || item.content, at: new Date().toISOString(), attempts: attempt, advanced };
+      logFetch({ key: "release_refresh", region: "", startedAt, finishedAt: status.lastReleaseRefresh.at, status: "ok", points: advanced, changed: attempt, message: item.en || item.content });
       console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${headlineAdvanced} headline and ${catalog.advanced} of ${catalog.checked} catalog series gained ${target}`);
       // Nothing new yet: the portal or its mirrors lag the announcement. Try again shortly, for up to three hours.
       if (advanced === 0 && attempt < 12) setTimeout(() => { void releaseRefresh(item, attempt + 1); }, 15 * 60 * 1000);

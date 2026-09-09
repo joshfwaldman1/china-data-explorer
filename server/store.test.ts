@@ -12,7 +12,7 @@ import { join } from "node:path";
 process.env.CHINA_DB_PATH = join(mkdtempSync(join(tmpdir(), "china-store-")), "test.db");
 process.env.CHINA_SEED = "off"; // start from an empty store, not the seed
 
-const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness } = await import("./db.ts");
+const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh } = await import("./db.ts");
 const { parseEsDataPoints } = await import("./nbs-catalog.ts");
 
 const NATIONAL = "000000000000";
@@ -84,4 +84,11 @@ test("esData parser skips blank cells and other regions, and labels quarters", (
   // A province asked of a national section comes back as a grid of blanks:
   // that must parse to nothing, so the caller can treat it as a failure.
   expect(parseEsDataPoints(raw, "X", "310000000000")).toEqual([]);
+});
+
+test("the last release-day refresh is read back from the fetch log", () => {
+  expect(lastReleaseRefresh()).toBeNull();
+  logFetch({ key: "release_refresh", region: "", startedAt: "2026-09-15T01:40:00.000Z", finishedAt: "2026-09-15T01:41:00.000Z", status: "ok", points: 3, changed: 1, message: "70-city new home prices, monthly" });
+  logFetch({ key: "release_refresh", region: "", startedAt: "2026-09-15T02:10:00.000Z", finishedAt: "2026-09-15T02:12:00.000Z", status: "ok", points: 0, changed: 2, message: "National economy monthly bundle" });
+  expect(lastReleaseRefresh()).toEqual({ en: "National economy monthly bundle", at: "2026-09-15T02:12:00.000Z", attempts: 2, advanced: 0 });
 });

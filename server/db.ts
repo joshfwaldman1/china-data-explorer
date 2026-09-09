@@ -356,6 +356,19 @@ export function storedLatest(prefix: string): { key: string; region: string; fir
 }
 
 /** Keys whose most recent fetch attempts came back empty within `days`: discontinued NBS indicators the crawl should not retry daily. */
+/**
+ * The last release-day refresh, read back from fetch_log where each one is
+ * recorded under the key "release_refresh" (points = series that gained the
+ * new period, changed = the attempt number). In memory it would reset on
+ * every deploy, and there are many.
+ */
+export function lastReleaseRefresh(): { en: string; at: string; attempts: number; advanced: number } | null {
+  const row = db().query<{ message: string; finishedAt: string; attempts: number; advanced: number }, []>(
+    "SELECT message, finished_at AS finishedAt, changed_count AS attempts, point_count AS advanced FROM fetch_log WHERE key = 'release_refresh' ORDER BY id DESC LIMIT 1",
+  ).get();
+  return row ? { en: row.message, at: row.finishedAt, attempts: row.attempts, advanced: row.advanced } : null;
+}
+
 export function recentlyEmptyKeys(prefix: string, days: number): Set<string> {
   const cutoff = new Date(Date.now() - days * 86400000).toISOString();
   const rows = db().query<{ key: string }, Record<string, string>>(`
