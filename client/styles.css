@@ -300,11 +300,12 @@ th:first-child, td:first-child { text-align: left; white-space: nowrap; }
 .meta-grid dd { margin: 4px 0 0; font-size: var(--fs-3); }
 .meta-grid dd p { margin: 0; max-width: 78ch; }
 .meta-wide { grid-column: 1 / -1; }
-.details { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-top: var(--s-4); }
-.details .card { padding: var(--s-4); }
-.details dl { margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: var(--s-2) var(--s-3); font-size: var(--fs-3); }
+/* Columns floor at zero, not at their content's width: a long unbreakable category path must not push a card past the screen. */
+.details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin-top: var(--s-4); }
+.details .card { padding: var(--s-4); min-width: 0; }
+.details dl { margin: 0; display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: var(--s-2) var(--s-3); font-size: var(--fs-3); }
 .details dt { color: var(--faint); }
-.details dd { margin: 0; }
+.details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .details p { margin: 0 0 var(--s-2); max-width: 70ch; }
 .details ul { margin: 0; padding-left: 18px; }
 .details li { margin: 4px 0; }
@@ -396,7 +397,8 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
   .page-actions { justify-content: flex-start; }
   .chart-panel-header { grid-template-columns: 1fr; }
   .chart-panel-controls { justify-content: flex-start; }
-  .two-col, .details, .regional-grid, .coverage { grid-template-columns: 1fr; }
+  .two-col, .regional-grid, .coverage { grid-template-columns: 1fr; }
+  .details { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 820px) {
   .topbar { grid-template-columns: 1fr auto; grid-template-areas: "brand tools" "search search"; padding: var(--s-2) var(--s-3); gap: var(--s-2); }
