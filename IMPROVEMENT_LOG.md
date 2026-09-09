@@ -321,3 +321,12 @@ not from scratch. Rounds are small on purpose.
   alone would read September 2025 as current. Share images now carry
   "<series> ended in <period>; the last value shown is the final one
   published" in the notes line. Verified live on the Caixin image.
+- 2026-09-09 round 37: audited a catalog series page, the Options panel and
+  the Add series popover at 390 px on the live site. The panel and popover
+  lay out cleanly. Two overflow defects on the series page, both from text
+  with no break points: the Series Details card's Chinese category path
+  widened the grid column past the screen, and the citation's URL pushed
+  the Copy button off it, so the page scrolled sideways (layout viewport
+  524 px). Grid columns now floor at zero and both values wrap. Verified
+  live with a DOM measure: the catalog page, CPI and a two-province
+  compare all lay out at exactly 390 px with no element past the edge.
