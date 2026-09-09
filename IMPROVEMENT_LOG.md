@@ -275,3 +275,12 @@ not from scratch. Rounds are small on purpose.
   Latency note: every endpoint answers in about a second from here, of
   which the server's share is under 0.2 s; the rest is the distance to
   Railway's region.
+- 2026-09-09 round 32: audited Home and the hero tiles on the live site.
+  Hero values and deltas match the store, and the NBS Categories grid
+  counts equal the search totals per category. One defect: the Provincial
+  Real GDP Growth row (and its series page with no region chosen) showed
+  Beijing's 5.4 under a note that describes Guangdong, because the series
+  route fell back to the first province listed rather than the entry's
+  configured default. It now serves the configured default. Verified live:
+  Guangdong 4.5 by default, Beijing on request, and the 70-city average
+  still the default for home prices.
