@@ -72,8 +72,11 @@ families already present in the published snapshot.
 - **Saved series and releases** — favorites persist locally and the Releases
   view uses the current official NBS publication schedule.
 - **CSV and JSON export** — downloads the observations behind the current view.
-- **PNG export** — renders the chart to a titled, 2x-resolution image with
-  agency/frequency/unit and a source line baked in, ready to paste into a doc.
+- **Share image** — Copy image, Download image or Copy link from the series
+  page. The image is drawn from the data on a canvas at 1600 x 900 (2x),
+  always in the light palette, with title, unit and range, end labels, a
+  legend when there is more than one line, and the source and page URL in
+  the footer, ready to paste into a tweet or a doc.
 
 ## Local JSON API
 
@@ -120,8 +123,9 @@ which fields to plot).
 ## Notes
 
 - Sources: mostly Eastmoney (mirrors NBS/PBOC/Customs), NBS-direct for
-  unemployment, and AkShare for the four extras above. Attribute to the
-  originating agency, not the aggregator.
+  unemployment and electricity, FRED for the international series, and
+  AkShare for the three extras above. Attribute to the originating agency,
+  not the aggregator.
 - Chinese conventions are respected: YoY % for most series, PMI as a diffusion
   index (50 = neutral), reserves/new-loans as levels.
 - Freshness varies: Eastmoney/NBS/LPR/electricity are current; the Caixin
@@ -154,9 +158,11 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
 ```
 
 - `/data/china.db` is the store — observations, revisions, fetch log. Mount a
-  persistent volume; it is the only state that matters. Seed it by running
-  `bun run china-explorer/server/ingest.ts` inside the container, and schedule
-  the same command daily (a Railway cron, a systemd timer, anything).
+  persistent volume; it is the only state that matters. On first boot it is
+  seeded with the headline series, the catalog crawl fills in the rest over
+  the first day, and the refresh runs inside the web process: a due check
+  daily, release-day refreshes ten minutes after each NBS release, and
+  headline sweeps at the usual publication hours. No external cron is needed.
 - `/data/catalog.db` is a cache rebuilt from `china-explorer/catalog/*.json`
   whenever those files change. Losing it costs half a second.
 - `GET /health` returns `{ ok: true, observations, lastFetch }` for a platform

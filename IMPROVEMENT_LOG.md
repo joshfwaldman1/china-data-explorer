@@ -241,3 +241,11 @@ not from scratch. Rounds are small on purpose.
   "Tibet6.3", name and value run together, and the list had no group label
   while the tile map did. Rows now carry "Tibet, 6.3%" and the list is a
   labelled group. Verified live.
+- 2026-09-09 round 29: audited the README and AGENTS.md against the code
+  after this week's changes. Five stale passages: the README still described
+  the old SVG "PNG export" rather than the share image, said AkShare covered
+  four extras (three), and told deployers to seed and cron the ingest by
+  hand (the boot seed, the crawl and the in-process schedulers do it);
+  AGENTS.md said the catalog was stored "by use" (the crawl stores it) and
+  described families only for a slice on the last category. All rewritten
+  to match the code. Docs only, no deploy.
