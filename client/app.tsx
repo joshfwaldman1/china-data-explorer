@@ -70,7 +70,7 @@ function isBehind(period: string, frequency: string): boolean {
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
 interface CatalogStats { generatedAt: string; seriesCount: number; storedCount?: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
-interface Release { id: string; date: string; title: string; en: string; keys: string[]; }
+interface Release { id: string; date: string; title: string; en: string; keys: string[]; categories: string[]; }
 interface Vintage { value: number | null; fetchedAt: string; }
 interface Revised { label: string; period: string; vintages: Vintage[]; }
 
@@ -610,7 +610,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                   <div>
                     <div className="what">{release.en || <Zh>{release.title}</Zh>}</div>
                     {release.en && <small><Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh>, {release.date.slice(11, 16)} CST</small>}
-                    {release.keys.length > 0 && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}</div>}
+                    {(release.keys.length > 0 || release.categories.length > 0) && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}{release.categories.map((name) => <a key={name} href={`#/category/${encodeURIComponent(name)}`}>{categoryEn(name) || name} series</a>)}</div>}
                   </div>
                 </div>
               );
@@ -777,7 +777,7 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
       if (cancelled) return;
       const data = obj(body, "data");
       if (!Array.isArray(data)) { setStatus("error"); return; }
-      setItems(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string") })).filter((item) => item.id && item.title));
+      setItems(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string"), categories: listOf(item, "categories").filter((name): name is string => typeof name === "string") })).filter((item) => item.id && item.title));
       setStatus("ok");
     }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
@@ -809,7 +809,7 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
                     <div>
                       <div className="en">{release.en || <Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh>}</div>
                       {release.en && <div className="zh"><Zh>{release.title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "")}</Zh></div>}
-                      {release.keys.length > 0 && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}</div>}
+                      {(release.keys.length > 0 || release.categories.length > 0) && <div className="links">{release.keys.map((key) => { const entry = props.curated.find((item) => item.key === key); return entry ? <a key={key} href={seriesHash([key])}>{entry.title}</a> : null; })}{release.categories.map((name) => <a key={name} href={`#/category/${encodeURIComponent(name)}`}>{categoryEn(name) || name} series</a>)}</div>}
                     </div>
                   </article>
                 ))}</div>
@@ -1422,7 +1422,7 @@ function App() {
     json("/api/releases").then((body) => {
       const data = obj(body, "data");
       if (!Array.isArray(data)) { setReleaseError("unavailable"); return; }
-      setReleases(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string") })).filter((item) => item.id));
+      setReleases(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string"), categories: listOf(item, "categories").filter((name): name is string => typeof name === "string") })).filter((item) => item.id));
     }).catch(() => setReleaseError("unavailable"));
   }, []);
 
