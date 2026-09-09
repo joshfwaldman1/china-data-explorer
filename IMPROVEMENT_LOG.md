@@ -199,3 +199,12 @@ not from scratch. Rounds are small on purpose.
   Verified live: Guangdong at 2020-Q2 shows 2018-Q3 to 2020-Q2, the latest
   period is unchanged, and the earliest period shows the two points that
   exist.
+- 2026-09-09 round 23: audited the release calendar and `/api/schedule` on
+  the live site. Twenty-one mapped releases through October; the scheduler
+  is idle until 15 September as expected. Defect: three October items
+  showed Chinese only, since the map did not know NBS's quarterly reports
+  on value added by industry, industrial capacity utilisation and the
+  culture industries. All three now have English names and catalog
+  categories, and titles containing 季度 are refreshed as quarterly. The
+  first commit shipped with one stale test expectation, fixed in a
+  follow-up. Verified live: 26 agenda items, none unmapped.
