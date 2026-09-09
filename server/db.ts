@@ -426,6 +426,18 @@ function computeStatus() {
     LIMIT 20
   `).all();
 
+  // The last twenty runs are usually one regional table's seventy cities, so
+  // failures get their own list: every error from the past seven days, newest first.
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const recentFailures = database.prepare(`
+    SELECT key, region, status, point_count AS points, changed_count AS changed,
+           finished_at AS finishedAt, message
+    FROM fetch_log
+    WHERE status = 'error' AND finished_at > $weekAgo
+    ORDER BY id DESC
+    LIMIT 50
+  `).all({ $weekAgo: weekAgo });
+
   return { sizeBytes,
-    path: DB_PATH, totals, perSeries, recentRuns };
+    path: DB_PATH, totals, perSeries, recentRuns, recentFailures };
 }
