@@ -199,7 +199,7 @@ const ABOUT: Record<string, string> = {
 };
 const READING: Record<string, string[]> = {
   unemployment: [
-    "The youth rate rises every summer as graduates enter the labour market — compare July with July, not with June.",
+    "The youth rate rises every summer as graduates enter the labour market, so compare July with July, not with June.",
     "The urban survey excludes most rural migrant workers who return home when work ends, so it understates slack relative to a total-labour-force measure.",
     "Figures are not seasonally adjusted; Lunar New Year shifts between January and February and distorts both months.",
   ],
@@ -991,7 +991,7 @@ function SeriesPage(props: {
   const canLog = tracks.every((track) => track.points.every((point) => point.v > 0));
   const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
 
-  if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time — this takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
+  if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time. This takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
   if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/Unknown/.test(error) ? "There is no series with this ID. Check the link, or search for the series by name." : /AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
 
   const firstSeries = built.tracks[0];
@@ -1374,7 +1374,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
               <h2>Notes on Provincial Data</h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 <li>NBS publishes provincial GDP growth as 本期累计, cumulative for the year. Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total, so treat the ranking as indicative.</li>
-                <li>Growth in small western provinces moves on a low base — a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>
+                <li>Growth in small western provinces moves on a low base, so a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>
                 <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are not in this series.</li>
               </ul>
             </section>
