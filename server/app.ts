@@ -140,8 +140,10 @@ const routes = {
     "/api/releases": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
       const now = new Date();
+      // Default window: this month and next, so a series' next release is still in scope after
+      // its last release of the month (CPI on the 9th has nothing left this month).
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
       try {
         return Response.json(await fetchAgenda(params.get("start") ?? nbsDate(monthStart), params.get("end") ?? nbsDate(monthEnd, true)));
       } catch (error) {
