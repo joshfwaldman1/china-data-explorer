@@ -1045,6 +1045,11 @@ function SeriesPage(props: {
     },
   ];
   const lunar = props.route.lny === "1";
+  // A shared image of a discontinued series says so; the page's amber notice does not travel with the picture.
+  const endedNotes = results.flatMap((result) => {
+    const entry = props.curated.find((item) => item.key === result.key);
+    return entry?.ended ? [`${result.title} ended in ${periodPretty(entry.ended)}; the last value shown is the final one published.`] : [];
+  });
   const shareInput = (): ShareInput => ({
     // A compare of one series across provinces keeps the measure in the title: "Provincial Real GDP Growth: Guangdong, Shanghai".
     title: results.length > 1 && results.every((result) => result.key === primary.key && result.region)
@@ -1054,7 +1059,7 @@ function SeriesPage(props: {
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
     gaps: built.gaps,
-    notes: [...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
+    notes: [...endedNotes, ...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
     logScale: logScale && canLog,
     lunar,
     source: [...new Set(results.map((result) => result.agency))].join(", ") + (results.some((result) => result.sourceUrl.includes("eastmoney")) ? " via Eastmoney" : ""),
