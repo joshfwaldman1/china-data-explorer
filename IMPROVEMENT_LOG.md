@@ -26,6 +26,10 @@ not from scratch. Rounds are small on purpose.
   tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
+- The three AkShare-backed series (Caixin PMI x2, Real Estate Climate
+  Index) log an error on every boot ingest because AKTools is not configured
+  on Railway. Skip them in the ingest when the source is unconfigured so the
+  failure list only shows real failures.
 
 ## Log
 
@@ -76,3 +80,11 @@ not from scratch. Rounds are small on purpose.
   That briefing now carries the `gdp` key and a "quarterly bundle" label in
   those months; a new releases.test.ts covers both cases. Verified on the
   live calendar and schedule for 19 October.
+- 2026-09-09 round 8: audited `/api/status` on the live site. Coverage and
+  totals are right (1.32M observations, 15,077 keys), but the "last twenty
+  runs" list was twenty rows of one regional table's cities, so a failed
+  fetch could never be seen there. The status now also returns every error
+  from the past seven days (`recentFailures`, newest first, up to 50).
+  Verified live: it shows the AkShare "not configured" errors on each boot
+  ingest and one transient Eastmoney socket close that succeeded on retry;
+  the AkShare noise is queued.
