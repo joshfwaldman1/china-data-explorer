@@ -330,3 +330,9 @@ not from scratch. Rounds are small on purpose.
   524 px). Grid columns now floor at zero and both values wrap. Verified
   live with a DOM measure: the catalog page, CPI and a two-province
   compare all lay out at exactly 390 px with no element past the edge.
+- 2026-09-09 round 38: audited dark mode on Browse, the Provinces page with
+  a province selected and a comparison started, and the chart tooltip's
+  styles. Category cards, the selected tile's ring, the detail panel, chips
+  and ranking all read correctly on the dark panels, and the tooltip
+  draws only from theme tokens (panel, line, muted, shadow). Nothing to
+  fix.
