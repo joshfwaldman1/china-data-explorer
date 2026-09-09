@@ -363,3 +363,14 @@ not from scratch. Rounds are small on purpose.
   led with solar power generation (now solar cell output). Test added.
   Verified live. Noted: "vehicle output" leads with truck output, which
   shares the alias and has the shorter title.
+- 2026-09-09 round 42: audited one random stored series from each of ten
+  further categories on the live site (external trade, finance, fiscal,
+  agriculture, services, PMI, unemployment, fixed-asset investment, price
+  indices, industry). Units, ranges, transforms and sources all sound.
+  Defect: the PMI sub-indexes carry the same English title in the
+  manufacturing and the non-manufacturing tables ("New orders index"
+  twice, "Employment index" twice), and the PMI "Producer price index"
+  reads as the PPI, so a series page or share image could not say which
+  it was. Titles in those two tables now carry the table, "Manufacturing
+  PMI: new orders index", the way CPI components read "CPI: pork". Cache
+  format bumped, test added. Verified live: all 27 PMI titles distinct.
