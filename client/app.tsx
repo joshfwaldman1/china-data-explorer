@@ -231,8 +231,9 @@ function listWords(items: string[]): string { return items.length <= 1 ? items.j
 function unitLabel(unit: string): string {
   if (!unit) return "Unit not stated";
   if (unit === "%") return "Percent";
+  // English first, the Chinese alongside: "100 million yuan (亿元)".
   const en = unitEn(unit);
-  return en && en !== unit ? `${unit} (${en})` : unit;
+  return en && en !== unit ? `${en} (${unit})` : unit;
 }
 function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 /** A category path in English where the translation table has it, otherwise the Chinese, never a middle dot. */
