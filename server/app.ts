@@ -11,7 +11,7 @@
 
 import index from "../client/index.html";
 import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
-import { readSeries, readRevisions, readRevisionHistory, dbStatus } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbStatus, storedLatest } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -24,7 +24,7 @@ import {
   type NbsTransform,
 } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease } from "./releases";
-import { runCatalogCrawl, runIngest } from "./ingest";
+import { refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -35,7 +35,7 @@ const SERVE_LIVE_FALLBACK = process.env.CHINA_LIVE_FALLBACK !== "0";
 const port = Number(process.env.PORT ?? 5173);
 
 const RELEASE_TTL_MS = 6 * 60 * 60 * 1000;
-const releaseCache = new Map<string, { at: number; body: unknown }>();
+const releaseCache = new Map<string, { at: number; body: { data: AgendaItem[] } }>();
 
 interface RouteRequest extends Request {
   params: Record<string, string>;
@@ -60,10 +60,72 @@ function applyTransform(result: SeriesResult, transform: NbsTransform | null): S
   };
 }
 
+interface AgendaItem { _id: string; fb_time: string; content: string; en: string; keys: string[]; categories: string[]; }
+
+/**
+ * The NBS publication agenda for a date window, each item carrying its
+ * English name and the series it updates. One NBS call per six hours per
+ * window; the home page asks on every load and the scheduler every few hours.
+ */
+async function fetchAgenda(startDate: string, endDate: string): Promise<{ data: AgendaItem[] }> {
+  const cacheKey = `${startDate}|${endDate}`;
+  const hit = releaseCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < RELEASE_TTL_MS) return hit.body;
+  const query = new URLSearchParams({ startDate, endDate });
+  const response = await fetch(
+    `https://data.stats.gov.cn/dg/website/publicrelease/web/external/queryAgendaByDate?${query}`,
+    {
+      headers: {
+        Accept: "application/json",
+        Referer: "https://data.stats.gov.cn/dg/website/page.html",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/152 Safari/537.36",
+      },
+      signal: AbortSignal.timeout(30_000),
+    },
+  );
+  const text = await response.text();
+  if (!response.ok) throw new Error(`NBS releases -> HTTP ${response.status}`);
+  if (!text.trimStart().startsWith("{")) throw new Error("NBS release calendar is temporarily rate-limited");
+  const body: unknown = JSON.parse(text);
+  const data = typeof body === "object" && body !== null ? Reflect.get(body, "data") : undefined;
+  const items: AgendaItem[] = [];
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      if (typeof item !== "object" || item === null) continue;
+      const content = Reflect.get(item, "content"), when = Reflect.get(item, "fb_time"), id = Reflect.get(item, "_id");
+      if (typeof content !== "string" || typeof when !== "string") continue;
+      const described = describeRelease(content);
+      items.push({ _id: typeof id === "string" ? id : `${when} ${content}`, fb_time: when, content, en: described?.en ?? "", keys: described?.keys ?? [], categories: described?.categories ?? [] });
+    }
+  }
+  const payload = { data: items };
+  releaseCache.set(cacheKey, { at: Date.now(), body: payload });
+  return payload;
+}
+
+/** "2026-09-09 09:30:00" in China Standard Time to a Date. */
+function cstToDate(text: string): Date | null {
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?/);
+  if (!match) return null;
+  const [, y, mo, d, h = "9", mi = "30"] = match;
+  return new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h) - 8, Number(mi)));
+}
+
+/** The period a release publishes: the previous month, or the quarter that ended before it. */
+function releaseTarget(at: Date, quarterly: boolean): string {
+  const first = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
+  if (!quarterly) { const m = new Date(first.getTime() - 1); return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, "0")}`; }
+  let m = new Date(first.getTime() - 1);
+  while ((m.getUTCMonth() + 1) % 3 !== 0) m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth(), 1) - 1);
+  return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function nbsDate(date: Date, endOfDay = false): string {
   const day = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
   return `${day} ${endOfDay ? "23:59:59" : "00:00:00"}`;
 }
+
+let scheduleStatus: () => { nextReleases: { en: string; at: string; keys: string[] }[]; lastReleaseRefresh: null | { en: string; at: string; attempts: number; advanced: number } } = () => ({ nextReleases: [], lastReleaseRefresh: null });
 
 const routes = {
     "/": index,
@@ -78,54 +140,18 @@ const routes = {
     "/api/catalog/stats": async () => Response.json(await nbsCatalogStats()),
     "/api/releases": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
-      // The agenda changes monthly; the home page asks for it on every load.
-      // One NBS call per six hours per month window, not one per visit.
-      const cacheKey = `${params.get("start") ?? ""}|${params.get("end") ?? ""}`;
-      const hit = releaseCache.get(cacheKey);
-      if (hit && Date.now() - hit.at < RELEASE_TTL_MS) return Response.json(hit.body);
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const startDate = params.get("start") ?? nbsDate(monthStart);
-      const endDate = params.get("end") ?? nbsDate(monthEnd, true);
-      const query = new URLSearchParams({ startDate, endDate });
       try {
-        const response = await fetch(
-          `https://data.stats.gov.cn/dg/website/publicrelease/web/external/queryAgendaByDate?${query}`,
-          {
-            headers: {
-              Accept: "application/json",
-              Referer: "https://data.stats.gov.cn/dg/website/page.html",
-              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/152 Safari/537.36",
-            },
-            signal: AbortSignal.timeout(30_000),
-          },
-        );
-        const text = await response.text();
-        if (!response.ok) return Response.json({ error: `NBS releases -> HTTP ${response.status}` }, { status: 502 });
-        if (!text.trimStart().startsWith("{")) return Response.json({ error: "NBS release calendar is temporarily rate-limited" }, { status: 502 });
-        const body: unknown = JSON.parse(text);
-        // Attach the English name and linked series to each release so the
-        // calendar can point at what it updates.
-        const data = typeof body === "object" && body !== null ? Reflect.get(body, "data") : undefined;
-        if (Array.isArray(data)) {
-          const enriched = data.map((item) => {
-            const content = typeof item === "object" && item !== null && typeof Reflect.get(item, "content") === "string"
-              ? Reflect.get(item, "content") : "";
-            const described = describeRelease(content);
-            return { ...(typeof item === "object" && item !== null ? item : {}), en: described?.en ?? "", keys: described?.keys ?? [] };
-          });
-          const payload = { ...(typeof body === "object" && body !== null ? body : {}), data: enriched };
-          releaseCache.set(cacheKey, { at: Date.now(), body: payload });
-          return Response.json(payload);
-        }
-        return Response.json(body);
+        return Response.json(await fetchAgenda(params.get("start") ?? nbsDate(monthStart), params.get("end") ?? nbsDate(monthEnd, true)));
       } catch (error) {
         const message = error instanceof Error ? error.message : "NBS release calendar failed";
         return Response.json({ error: message }, { status: 502 });
       }
     },
     "/api/release-map": () => Response.json(RELEASE_MAP),
+    "/api/schedule": () => Response.json(scheduleStatus()),
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
     "/api/regional/:key": (req: RouteRequest) => {
@@ -332,6 +358,75 @@ if (ingestEveryHours > 0) {
   setTimeout(tick, 2 * 60 * 1000);
   setInterval(tick, ingestEveryHours * 60 * 60 * 1000);
   console.log(`  Ingest scheduled every ${ingestEveryHours}h (first run in 2 minutes)`);
+
+  // Release days. NBS publishes on a fixed agenda (09:30 and 10:00 CST, mostly),
+  // PBOC and Customs in the afternoon. Three things make the site current
+  // within minutes rather than a day: a refresh ten minutes after each
+  // scheduled NBS release, aimed at the series that release updates and
+  // retried every fifteen minutes until the new period shows; fixed sweeps
+  // of the headline series at the usual publication hours; and the daily
+  // due-check above as the backstop.
+  const headlineKeys = catalogList().map((entry) => entry.key);
+  const scheduled = new Set<string>();
+  const status = { nextReleases: [] as { en: string; at: string; keys: string[] }[], lastReleaseRefresh: null as null | { en: string; at: string; attempts: number; advanced: number } };
+  const runWhenFree = async (job: () => Promise<void>, label: string): Promise<void> => {
+    if (running) { setTimeout(() => { void runWhenFree(job, label); }, 2 * 60 * 1000); return; }
+    running = true;
+    try { await job(); } catch (error) { console.error(`  ${label} failed:`, error instanceof Error ? error.message : String(error)); } finally { running = false; }
+  };
+  const releaseRefresh = async (item: AgendaItem, attempt: number) => {
+    const at = cstToDate(item.fb_time) ?? new Date();
+    const quarterly = /国内生产总值|居民收支/.test(item.content);
+    const target = releaseTarget(at, quarterly);
+    const before = new Map(storedLatest("").filter((row) => item.keys.includes(row.key)).map((row) => [`${row.key}@${row.region}`, row.lastPeriod ?? ""]));
+    await runWhenFree(async () => {
+      if (item.keys.length > 0) await runIngest(item.keys);
+      const catalog = item.categories.length > 0 ? await refreshCatalogForRelease(item.categories, target, quarterly ? "Quarterly" : "Monthly") : { advanced: 0, checked: 0, requests: 0 };
+      const after = storedLatest("").filter((row) => item.keys.includes(row.key));
+      const headlineAdvanced = after.filter((row) => (row.lastPeriod ?? "") > (before.get(`${row.key}@${row.region}`) ?? "")).length;
+      const advanced = headlineAdvanced + catalog.advanced;
+      status.lastReleaseRefresh = { en: item.en || item.content, at: new Date().toISOString(), attempts: attempt, advanced };
+      console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${headlineAdvanced} headline and ${catalog.advanced} of ${catalog.checked} catalog series gained ${target}`);
+      // Nothing new yet: the portal or its mirrors lag the announcement. Try again shortly, for up to three hours.
+      if (advanced === 0 && attempt < 12) setTimeout(() => { void releaseRefresh(item, attempt + 1); }, 15 * 60 * 1000);
+    }, "Release refresh");
+  };
+  const planReleases = async () => {
+    try {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      const agenda = await fetchAgenda(nbsDate(start), nbsDate(end, true));
+      status.nextReleases = [];
+      for (const item of agenda.data) {
+        const at = cstToDate(item.fb_time);
+        if (!at || (item.keys.length === 0 && item.categories.length === 0)) continue;
+        const fireAt = at.getTime() + 10 * 60 * 1000;
+        if (fireAt < Date.now() - 60 * 60 * 1000) continue; // already past
+        status.nextReleases.push({ en: item.en || item.content, at: at.toISOString(), keys: item.keys });
+        if (scheduled.has(item._id) || fireAt - Date.now() > 8 * 24 * 60 * 60 * 1000) continue;
+        scheduled.add(item._id);
+        setTimeout(() => { void releaseRefresh(item, 1); }, Math.max(0, fireAt - Date.now()));
+      }
+      status.nextReleases.sort((a, b) => a.at.localeCompare(b.at));
+      console.log(`  Release plan: ${status.nextReleases.length} upcoming releases, ${scheduled.size} scheduled`);
+    } catch (error) {
+      console.error("  Release plan failed:", error instanceof Error ? error.message : String(error));
+    }
+  };
+  setTimeout(() => { void planReleases(); }, 60 * 1000);
+  setInterval(() => { void planReleases(); }, 6 * 60 * 60 * 1000);
+
+  // Fixed sweeps of the headline series at the usual publication hours (UTC).
+  const sweepHours = [2, 3, 8];
+  const scheduleSweep = () => {
+    const now = new Date();
+    const candidates = sweepHours.map((hour) => Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + (hour <= now.getUTCHours() ? 1 : 0), hour, 10));
+    const next = Math.min(...candidates.filter((t) => t > now.getTime()), Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, sweepHours[0] ?? 2, 10));
+    setTimeout(() => { void runWhenFree(async () => { const tally = await runIngest(headlineKeys); console.log(`  Headline sweep: ${tally.ok} ok, ${tally.error} failed`); }, "Headline sweep").then(scheduleSweep); }, next - now.getTime());
+  };
+  scheduleSweep();
+  scheduleStatus = () => status;
 
   // The catalog crawl fills in series nobody has opened: a budget of series
   // every few hours until the whole catalog is stored, then a no-op. It

@@ -23,11 +23,19 @@ describe("isDue", () => {
   const now = on("2026-09-08T00:00:00Z");
   test("never stored is due", () => { expect(isDue("Monthly", null, null, now)).toBe(true); });
   test("current and recently checked is not due", () => { expect(isDue("Monthly", "2026-07", "2026-09-07T00:00:00Z", now)).toBe(false); });
-  test("a month behind the release calendar is due", () => { expect(isDue("Monthly", "2026-06", "2026-09-07T00:00:00Z", now)).toBe(true); });
+  test("a month behind the calendar is due until it has been checked after the window closed", () => {
+    expect(isDue("Monthly", "2026-06", "2026-08-10T00:00:00Z", now)).toBe(true);
+    expect(isDue("Monthly", "2026-06", "2026-09-07T00:00:00Z", now)).toBe(false);
+  });
+  test("a discontinued series checked yesterday is not due again today", () => {
+    expect(isDue("Monthly", "2019-12", "2026-09-07T00:00:00Z", now)).toBe(false);
+    expect(isDue("Quarterly", "2023-Q2", "2026-09-07T00:00:00Z", now)).toBe(false);
+  });
   test("quarter labels compare as their last month", () => {
     expect(comparablePeriod("2026-Q2")).toBe("2026-06");
     expect(isDue("Quarterly", "2026-Q2", "2026-09-07T00:00:00Z", now)).toBe(false);
-    expect(isDue("Quarterly", "2026-Q1", "2026-09-07T00:00:00Z", now)).toBe(true);
+    expect(isDue("Quarterly", "2026-Q1", "2026-07-10T00:00:00Z", now)).toBe(true);
+    expect(isDue("Quarterly", "2026-Q1", "2026-09-07T00:00:00Z", now)).toBe(false);
   });
   test("a current series unchecked for 45 days is due for a revision check", () => {
     expect(isDue("Monthly", "2026-07", "2026-07-01T00:00:00Z", now)).toBe(true);

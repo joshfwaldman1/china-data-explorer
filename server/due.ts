@@ -53,9 +53,24 @@ export function comparablePeriod(period: string): string {
  * should have published by `now`, or when it has not been checked for a while.
  */
 export function isDue(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date): boolean {
-  if (!lastPeriod) return true;
-  if (comparablePeriod(lastPeriod) < expectedPeriod(frequency, now)) return true;
-  if (!lastChecked) return true;
+  if (!lastPeriod || !lastChecked) return true;
   const checked = new Date(lastChecked).getTime();
-  return !Number.isFinite(checked) || now.getTime() - checked > REVISION_CHECK_DAYS * 86400000;
+  if (!Number.isFinite(checked)) return true;
+  if (now.getTime() - checked > REVISION_CHECK_DAYS * 86400000) return true;
+  const expected = expectedPeriod(frequency, now);
+  if (comparablePeriod(lastPeriod) >= expected) return false;
+  // Behind the calendar. Worth a check once the window for the expected
+  // period has closed, but not every day after: thousands of catalog series
+  // are discontinued or are year-range slices that will never gain a period,
+  // and checking those daily is the whole crawl's cost for nothing. After a
+  // check made since the window closed, wait for the revision interval.
+  return checked < windowClosedAt(frequency, expected).getTime();
+}
+
+/** When the release window for `period` closed: the 20th of the month after its last month (the next spring for a year). */
+export function windowClosedAt(frequency: string, period: string): Date {
+  if (frequency === "Annual") return new Date(Date.UTC(Number(period) + 1, 2, RELEASE_DAY));
+  const last = comparablePeriod(period);
+  const year = Number(last.slice(0, 4)), month = Number(last.slice(5, 7));
+  return new Date(Date.UTC(year, month, RELEASE_DAY)); // month index = last month + 1
 }

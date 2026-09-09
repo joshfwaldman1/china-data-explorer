@@ -182,6 +182,50 @@ export async function runCatalogCrawl(budget: number): Promise<{ ok: number; err
   return tally;
 }
 
+/**
+ * After an NBS release: re-fetch the stored catalog series in the categories
+ * that release covers and that still lack `targetPeriod`, batched by table.
+ * Returns how many series gained a period, so the caller knows whether the
+ * portal has the new numbers yet.
+ */
+export async function refreshCatalogForRelease(categories: string[], targetPeriod: string, frequency: "Monthly" | "Quarterly"): Promise<{ advanced: number; checked: number; requests: number }> {
+  db();
+  const latest = new Map(storedLatest("nbs_").map((row) => [row.key, row.lastPeriod ?? ""]));
+  const wanted: NbsCatalogEntry[] = [];
+  for (const entry of await listNbsCatalogEntries()) {
+    if (entry.frequency !== frequency || !latest.has(entry.key)) continue;
+    if (!categories.includes(entry.categories[0] ?? "")) continue;
+    if ((latest.get(entry.key) ?? "") >= targetPeriod) continue;
+    wanted.push(entry);
+  }
+  const tables = new Map<string, NbsCatalogEntry[]>();
+  for (const entry of wanted) {
+    const tableKey = `${entry.cid}|${entry.rootId}`;
+    tables.set(tableKey, [...(tables.get(tableKey) ?? []), entry]);
+  }
+  const result = { advanced: 0, checked: wanted.length, requests: 0 };
+  for (const group of tables.values()) {
+    for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) {
+      const chunk = group.slice(at, at + NBS_BATCH_SIZE);
+      const startedAt = new Date().toISOString();
+      try {
+        const points = await fetchNbsTableBatch(chunk, NATIONAL_REGION);
+        result.requests += 1;
+        for (const entry of chunk) {
+          const fetched = points.get(entry.id) ?? [];
+          storeNbsPoints(entry, NATIONAL_REGION, fetched, startedAt);
+          if ((fetched.at(-1)?.date ?? "") >= targetPeriod) result.advanced += 1;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        for (const entry of chunk) logFetch({ key: entry.key, region: NATIONAL_REGION.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+      }
+      await sleep(CRAWL_PAUSE_MS);
+    }
+  }
+  return result;
+}
+
 /** One full ingest pass. `requested` is the CLI argument list; empty means everything. */
 export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
   const curatedKeys = requested.length > 0
