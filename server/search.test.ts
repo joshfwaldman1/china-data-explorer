@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -101,4 +101,12 @@ test("isCurrent: within two years of today publishes, older has stopped", () => 
   expect(isCurrent("2024-12", now)).toBe(true);
   expect(isCurrent("2019-Q4", now)).toBe(false);
   expect(isCurrent(undefined, now)).toBe(false);
+});
+
+test("every year-on-year index base defaults to the index-minus-100 view; a previous-month base stays raw", () => {
+  const entry = (name: string) => ({ name, shortName: name });
+  expect(defaultNbsTransform(entry("服装类商品零售价格指数 (上年同月=100)"))).toBe("index_growth");
+  expect(defaultNbsTransform(entry("服装类商品零售价格指数 (上年同期=100)"))).toBe("index_growth");
+  expect(defaultNbsTransform(entry("居民消费价格指数 (上年=100)"))).toBe("index_growth");
+  expect(defaultNbsTransform(entry("居民消费价格指数 (上月=100)"))).toBe("raw");
 });

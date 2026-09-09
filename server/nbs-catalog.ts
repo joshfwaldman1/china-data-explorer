@@ -813,8 +813,9 @@ export function transformLabel(transform: NbsTransform): string {
   return "Raw value";
 }
 
-export function defaultNbsTransform(entry: NbsCatalogEntry): NbsTransform {
-  return /上年(?:同期)?\s*=\s*100/.test(`${entry.name} ${entry.shortName}`) ? "index_growth" : "raw";
+export function defaultNbsTransform(entry: Pick<NbsCatalogEntry, "name" | "shortName">): NbsTransform {
+  // Any year-on-year base (上年=100, 上年同期=100, 上年同月=100) reads as a % change by default; a previous-month base stays an index.
+  return /上年(?:同期|同月)?\s*=\s*100/.test(`${entry.name} ${entry.shortName}`) ? "index_growth" : "raw";
 }
 
 // ── Observations ──────────────────────────────────────────────────────────────

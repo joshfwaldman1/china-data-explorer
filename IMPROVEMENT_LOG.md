@@ -47,3 +47,10 @@ not from scratch. Rounds are small on purpose.
   range in results ("2024 to Jul 2026" for a table whose stitched history
   runs from 1998), because the range came from the head key alone. Results
   now take the earliest first period across the family's members.
+- 2026-09-09 round 4: audited ten random catalog series pages on the live
+  site (units, English titles, ranges, stitching, notes). All served from the
+  store with sensible ranges; ended sub-series carry the amber notice. One
+  inconsistency: index tables based on "same month a year earlier = 100"
+  were served raw (99.7) while "same period a year earlier = 100" tables
+  defaulted to the percent-change view (-0.3). The default now treats every
+  year-on-year base the same; previous-month bases stay an index.
