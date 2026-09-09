@@ -216,3 +216,11 @@ not from scratch. Rounds are small on purpose.
   boot ingest after the deploy ran the 70-city table with no failure
   logged. The failure list otherwise holds only pre-fix AkShare rows that
   age out within the week.
+- 2026-09-09 round 25: audited the share image with live renders of a
+  stitched catalog series over its full 2001-2026 history and a two-line
+  money supply chart. Layout, ticks, end labels and footer all right. One
+  wording defect: unit labels read Chinese first, "亿元 (100 million
+  yuan)", against the rule of English first with the Chinese alongside.
+  The shared label now reads "100 million yuan (亿元)" in results, the
+  series header, Series Details, the chart caption and the share image
+  subtitle. Verified live on the page and in a re-rendered image.
