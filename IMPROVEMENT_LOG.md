@@ -164,3 +164,14 @@ not from scratch. Rounds are small on purpose.
   result spanning 2001 to present and its page has 253 points from 2001.
   The visible count is now 9,736 distinct series rather than 14,886 slices,
   and the home tagline follows the count.
+- 2026-09-09 round 18: audited Home and the hero tiles on the live site.
+  The four hero values match the store (GDP 4.7, CPI 0.8, unemployment
+  5.2, PMI 49.8) and the tagline follows the new 9,736 count. Defect: the
+  Coverage card had the same wording the owner flagged in the tagline, "18
+  headline indicators from NBS, PBOC, Customs and Caixin", reading as
+  series on top of the NBS count, and its stored-count line still said the
+  crawl was filling in. It now says 11 of the 18 are NBS series already
+  counted, plus 4 from the People's Bank of China, 1 from Customs and 2
+  from Caixin (computed from the catalog), and that the unstored remainder
+  came back empty from NBS. Verified live. Queued: today's already-published
+  releases still listed as upcoming.
