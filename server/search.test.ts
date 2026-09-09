@@ -143,3 +143,12 @@ test("core inflation reaches the CPI excluding food and energy", async () => {
   const result = await searchNbsCatalog({ query: "core inflation", limit: 3 });
   expect(result.results[0]?.name.startsWith("不包括食品和能源居民消费价格指数")).toBe(true);
 });
+
+test("industry vocabulary: auto exports, semiconductor output and solar panels reach their NBS tables", async () => {
+  const auto = await searchNbsCatalog({ query: "auto exports", limit: 3 });
+  expect(auto.results[0]?.name.startsWith("汽车制造业出口交货值")).toBe(true);
+  const chips = await searchNbsCatalog({ query: "semiconductor output", limit: 3 });
+  expect(chips.results[0]?.name.startsWith("集成电路产量")).toBe(true);
+  const solar = await searchNbsCatalog({ query: "solar panels", limit: 3 });
+  expect(solar.results[0]?.name.startsWith("太阳能电池")).toBe(true);
+});

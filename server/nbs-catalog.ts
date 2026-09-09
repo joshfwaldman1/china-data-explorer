@@ -116,6 +116,8 @@ Object.assign(SEARCH_ALIASES, {
   united: ["us", "美国"], states: ["us", "美国"], usa: ["us", "美国"], america: ["us", "美国"], american: ["us", "美国"],
   // Core CPI is published as "CPI excluding food and energy".
   "core inflation": ["不包括食品和能源"], "core cpi": ["不包括食品和能源"], core: ["不包括食品和能源"],
+  auto: ["汽车"], autos: ["汽车"], automobile: ["汽车"], automobiles: ["汽车"], vehicle: ["汽车"], vehicles: ["汽车"],
+  semiconductor: ["集成电路"], "solar panels": ["太阳能电池"], "solar panel": ["太阳能电池"], "solar cells": ["太阳能电池"], pv: ["光伏"],
 });
 // Words that carry no signal for a series: the country itself and English function words ("exports to the united states").
 export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from"]);
