@@ -1,3 +1,4 @@
+import { isDue } from "./due";
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
@@ -845,7 +846,6 @@ export function defaultNbsTransform(entry: Pick<NbsCatalogEntry, "name" | "short
 // Only raw values are stored. Transforms are applied on the way out, so a
 // series has one revision history rather than one per transform.
 
-const STORE_TTL_MS = Number(process.env.NBS_STORE_TTL_HOURS ?? 24) * 60 * 60 * 1000;
 // Fetch fifty years, which is effectively "everything" NBS has, so that any
 // requested limit is then a slice of the stored copy. It has to be expressed
 // per frequency: 600 periods is fifty years of months, but asked of a
@@ -932,9 +932,16 @@ function storedPoints(entry: NbsCatalogEntry, region: NbsRegionOption): SeriesPo
   return stored?.series[0]?.points ?? [];
 }
 
-function isFresh(entry: NbsCatalogEntry, region: NbsRegionOption): boolean {
+/**
+ * A stored copy is served as is unless the series is due: its next period
+ * should be out and it has not been checked since, or 45 days have passed
+ * (server/due.ts). The same rule drives the scheduled refresh, so a view
+ * costs a trip to NBS only when there is something to gain.
+ */
+function isFresh(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[]): boolean {
   const updatedAt = seriesFreshness(entry.key, region.value);
-  return updatedAt !== null && Date.now() - Date.parse(updatedAt) < STORE_TTL_MS;
+  const lastPeriod = points[points.length - 1]?.date ?? null;
+  return !isDue(entry.frequency, lastPeriod, updatedAt);
 }
 
 /**
@@ -1076,7 +1083,7 @@ export function rawUnitOf(entry: Pick<NbsCatalogEntry, "unit" | "name">): string
 /** Stored points if fresh, otherwise a refresh; a stale copy beats an error page, a missing copy does not. */
 async function pointsFor(entry: NbsCatalogEntry, region: NbsRegionOption): Promise<{ points: SeriesPoint[]; source: NbsSeriesResult["source"] }> {
   const points = storedPoints(entry, region);
-  if (points.length > 0 && isFresh(entry, region)) return { points, source: "store" };
+  if (points.length > 0 && isFresh(entry, region, points)) return { points, source: "store" };
   try {
     const refreshed = await refreshNbsCatalogSeries(entry, region.value);
     return { points: refreshed.points, source: "live" };

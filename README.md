@@ -192,7 +192,6 @@ None is required. Every one the server reads, with its default:
 | `INGEST_EVERY_HOURS` | `24` in production, `0` otherwise | How often the due-check refresh of stored series runs. `0` disables it. |
 | `INGEST_LIMIT` | `240` | Points requested per headline series per refresh. |
 | `INGEST_PAUSE_MS` | `1500` | Pause between headline requests. |
-| `NBS_STORE_TTL_HOURS` | `24` | Age after which a stored catalog series is checked upstream when viewed. |
 | `CATALOG_CRAWL` | on | `off` disables the crawl that stores catalog series nobody has opened. |
 | `CRAWL_PER_RUN` | `20000` | Indicators per crawl run. |
 | `CRAWL_EVERY_HOURS` | `6` | Hours between crawl runs. |
