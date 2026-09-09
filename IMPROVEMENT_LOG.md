@@ -432,3 +432,11 @@ not from scratch. Rounds are small on purpose.
   white-on-navy topbar and tile-map ones as before. Live dark renders of
   search results with ended flags and of the empty Saved page read
   correctly. Nothing to fix.
+- 2026-09-10 round 50: probed the chart controls by keyboard on the live
+  CPI page. The Chart/Table tablist moves focus with the arrow keys, and
+  Add series moves focus into its search box on open. Defect: pressing
+  Escape closed the popover but dropped focus to the document body, so a
+  keyboard user landed back at the top of the page. Closing the popover
+  (Escape, the button, or picking a series) now returns focus to the Add
+  series button. Verified live: after Escape the button is focused and
+  reports collapsed.
