@@ -353,3 +353,13 @@ not from scratch. Rounds are small on purpose.
   agenda-driven release-day refresh with its retry rule and the fixed
   headline sweeps. Both are now documented, with `/api/schedule` named as
   the place to see the plan. Docs only, no deploy.
+- 2026-09-09 round 41: audited search for ten fresh researcher queries on
+  the live site (steel production, auto exports, consumer confidence,
+  wages, renminbi, reserves, solar panels, semiconductor output, online
+  retail sales, government spending). Seven led with the right series.
+  Three vocabulary gaps fixed: "auto exports" found nothing (now the
+  automobile export delivery table), "semiconductor output" led with
+  generic value added (now integrated circuit output), and "solar panels"
+  led with solar power generation (now solar cell output). Test added.
+  Verified live. Noted: "vehicle output" leads with truck output, which
+  shares the alias and has the shorter title.
