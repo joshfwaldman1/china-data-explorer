@@ -26,9 +26,9 @@ not from scratch. Rounds are small on purpose.
   tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
-- Home, Upcoming NBS Releases: releases already published earlier today
-  still show as upcoming until midnight. Drop an item once its time has
-  passed.
+- Series page, Next release: the site loads only the current month's NBS
+  agenda, so once a series' last release of the month has passed the row
+  disappears (CPI after the 9th). Load the following month too.
 
 ## Log
 
@@ -175,3 +175,12 @@ not from scratch. Rounds are small on purpose.
   from Caixin (computed from the catalog), and that the unstored remainder
   came back empty from NBS. Verified live. Queued: today's already-published
   releases still listed as upcoming.
+- 2026-09-09 round 19: queue item. Home's Upcoming NBS Releases and the
+  series page's Next release compared a UTC date to the release's China
+  Standard Time date and ignored the time of day, so the morning's CPI and
+  PPI still showed as upcoming in the evening. Both now compare against the
+  release's actual instant (lib.ts releaseTime and isUpcoming, tested).
+  Verified live: Home's first upcoming item is 15 September. Surfaced and
+  queued: the series page loads only the current month's agenda, so CPI's
+  Next release row is empty until October's calendar is in scope. The push
+  for this round hung for fifteen minutes and had to be killed and retried.
