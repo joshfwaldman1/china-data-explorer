@@ -301,3 +301,15 @@ not from scratch. Rounds are small on purpose.
   wording. Verified live for February 2027. (An earlier check in this
   round returned "rate-limited" errors, which were my own malformed date
   parameters, not the server.)
+- 2026-09-09 round 35: audited `/api/status` coverage on the live site. All
+  43 headline keys are stored with sensible first and last periods (SHIBOR
+  ends May 2026, where FRED's OECD series stops). Since 13:00Z the sweep had
+  logged three transient failures: two dropped sockets (new loans,
+  unemployment) and one FRED 502, none costing data since the stored copies
+  were current. Only the 70-city loader retried. Every upstream request
+  (Eastmoney, NBS headline and catalog, FRED) now goes through one
+  fetchJson helper in server/http.ts that retries once on a dropped socket,
+  timeout or 5xx and passes 4xx through; three tests cover it. The first
+  attempt inserted the import inside a synonym string, which the typecheck
+  gate caught before any commit. Verified live: the boot ingest after the
+  deploy ran with every run ok and no failure, and all source kinds serve.
