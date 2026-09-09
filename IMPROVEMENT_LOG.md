@@ -230,3 +230,8 @@ not from scratch. Rounds are small on purpose.
   calendar's day column was 72 px with 16 px padding each side, so "Sep
   15" broke onto two lines while "Sep 9" fit. The column is 76 px with
   tighter padding and the label never wraps. Verified live.
+- 2026-09-09 round 27: audited dark mode on the surfaces round 12 did not
+  cover: the Releases calendar, search results, and a series page's Table
+  view with the Share menu open. Day column, links, the auto-translated
+  badge, category paths, table rows and the menu all read correctly on the
+  dark panels. Nothing to fix.
