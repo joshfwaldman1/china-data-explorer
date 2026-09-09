@@ -290,3 +290,14 @@ not from scratch. Rounds are small on purpose.
   ramp breaks, ranking with its zero anchor (Hubei at -19.5 that quarter),
   the detail panel and its sparkline window, and the comparison chips all
   updated together. Nothing to fix.
+- 2026-09-09 round 34: audited the release calendar and `/api/schedule` on
+  the live site across months. The schedule holds 24 releases from 15
+  September; the calendar returns distinct, fully mapped agendas for
+  August, November and December, and empty ones for 2027, which NBS has not
+  published. Defect: an unpublished future month read "NBS lists no
+  releases for this month", as if none were planned. It now says the
+  calendar is not published yet and that the coming year's schedule
+  appears each December; a past or current empty month keeps the old
+  wording. Verified live for February 2027. (An earlier check in this
+  round returned "rate-limited" errors, which were my own malformed date
+  parameters, not the server.)
