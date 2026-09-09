@@ -493,6 +493,11 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 
 /* Home has its own search in the hero; the topbar keeps its layout but not a second box. */
 .topbar-home .global-search { visibility: hidden; }
+/* At phone width the topbar search has its own row, so on Home the row goes too. */
+@media (max-width: 820px) {
+  .topbar-home { grid-template-areas: "brand tools"; }
+  .topbar-home > .global-search { display: none; }
+}
 
 .gloss.block { display: block; margin-top: var(--s-1); color: var(--muted); font-size: var(--fs-2); }
 
