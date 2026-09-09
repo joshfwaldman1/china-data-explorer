@@ -1501,7 +1501,8 @@ function App() {
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
       <footer>Official statistics from NBS, PBOC, Customs and Caixin. Independent project, not affiliated with any statistical agency.</footer>
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {/* The status region is always present so assistive tech announces the text when it changes; a live region inserted with its text already in it is often missed. */}
+      <div role="status" aria-live="polite">{toast && <div className="toast">{toast}</div>}</div>
     </div>
   );
 }
