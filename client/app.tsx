@@ -833,7 +833,15 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
   const [results, setResults] = useState<NbsCatalogEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  // Opening moves focus into the search box; closing (Escape, the button, a pick) returns it to
+  // the button, so a keyboard user is not dropped at the top of the document.
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+    else if (wasOpen.current) buttonRef.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
   useEffect(() => {
     if (!draft.trim()) { setResults([]); return; }
     let cancelled = false;
@@ -847,10 +855,10 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [draft, props.keys.join(",")]);
   if (props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
-  if (!open) return <button className="button" onClick={() => setOpen(true)} aria-expanded={false}>Add series</button>;
+  if (!open) return <button ref={buttonRef} className="button" onClick={() => setOpen(true)} aria-expanded={false}>Add series</button>;
   return (
     <>
-    <button className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>Add series</button>
+    <button ref={buttonRef} className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>Add series</button>
     <div className="add-series" role="search">
       <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese: GDP, 工业增加值, steel output" /></div>
       <div className="add-series-results" role="listbox" aria-label="Matching series" aria-busy={busy}>
