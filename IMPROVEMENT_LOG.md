@@ -67,3 +67,12 @@ not from scratch. Rounds are small on purpose.
   the top), and three UI strings still used em dashes (Provinces note, youth
   unemployment note, first-view loading text), now plain sentences.
   Verified on the live URL after deploy.
+- 2026-09-09 round 7: audited the release calendar and `/api/schedule` on
+  the live site. Twenty-one upcoming releases through October, all mapped
+  to the right series, and this morning's CPI, PPI and home-price refreshes
+  ran. One defect: the GDP mapping matched a title NBS never uses, so the
+  quarterly GDP announcement (given inside the "national economy" briefing in
+  January, April, July and October) would not have triggered a GDP refresh.
+  That briefing now carries the `gdp` key and a "quarterly bundle" label in
+  those months; a new releases.test.ts covers both cases. Verified on the
+  live calendar and schedule for 19 October.
