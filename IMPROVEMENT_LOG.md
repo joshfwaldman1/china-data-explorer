@@ -59,3 +59,11 @@ not from scratch. Rounds are small on purpose.
   5.2, PMI 49.8); this morning's CPI, PPI and home-price releases are on the
   page. One defect: "Ended Sep 2025" wrapped onto two lines in the list's
   period column. Column widened and periods never wrap.
+- 2026-09-09 round 6: audited the live Provinces page and
+  `/api/regional/provincial_gdp`. All 31 provinces carry Q2 2026, 86 periods
+  back to 2005, and the ranking, tile map and detail panel agree. Two
+  defects: the tile map card stretched to the ranking column's height,
+  leaving a blank half-card under the colour ramp (grid now aligns cards to
+  the top), and three UI strings still used em dashes (Provinces note, youth
+  unemployment note, first-view loading text), now plain sentences.
+  Verified on the live URL after deploy.
