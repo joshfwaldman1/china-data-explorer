@@ -208,3 +208,11 @@ not from scratch. Rounds are small on purpose.
   categories, and titles containing 季度 are refreshed as quarterly. The
   first commit shipped with one stale test expectation, fixed in a
   follow-up. Verified live: 26 agenda items, none unmapped.
+- 2026-09-09 round 24: audited `/api/status` failures on the live site.
+  Since the AkShare skip the only failures were the 70-city average region
+  on most boot ingests: Eastmoney closes the socket while a page body is
+  being read, and the page retry only covered a failed connection. The
+  retry now repeats the whole request, body included. Verified live: the
+  boot ingest after the deploy ran the 70-city table with no failure
+  logged. The failure list otherwise holds only pre-fix AkShare rows that
+  age out within the week.
