@@ -26,9 +26,6 @@ not from scratch. Rounds are small on purpose.
   tables) stay unstitched; decide whether to merge by name.
 - Provinces page: a period selector that also drives the province detail
   sparkline window.
-- Series page, Next release: the site loads only the current month's NBS
-  agenda, so once a series' last release of the month has passed the row
-  disappears (CPI after the 9th). Load the following month too.
 
 ## Log
 
@@ -184,3 +181,9 @@ not from scratch. Rounds are small on purpose.
   queued: the series page loads only the current month's agenda, so CPI's
   Next release row is empty until October's calendar is in scope. The push
   for this round hung for fifteen minutes and had to be killed and retried.
+- 2026-09-09 round 20: queue item. The default `/api/releases` window was
+  the current month only, so after a series' last release of the month its
+  Next release row vanished (CPI after the 9th). The default now runs
+  through the end of next month, matching the scheduler's own horizon.
+  Verified live: the agenda returns 26 items to 31 October and the CPI page
+  shows "Oct 14, 2026, 09:30 CST" as its next release.
