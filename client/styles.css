@@ -310,7 +310,8 @@ th:first-child, td:first-child { text-align: left; white-space: nowrap; }
 .details ul { margin: 0; padding-left: 18px; }
 .details li { margin: 4px 0; }
 .cite { display: flex; gap: var(--s-3); align-items: flex-start; margin-top: var(--s-4); padding: var(--s-3) var(--s-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); color: var(--muted); font-size: var(--fs-2); }
-.cite p { margin: 0; flex: 1; }
+/* The citation carries the page URL, which has no break points; it must wrap rather than push the Copy button off screen. */
+.cite p { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .related { margin-top: var(--s-5); }
 .related .tiles { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 
