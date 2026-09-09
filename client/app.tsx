@@ -793,7 +793,9 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
       <div className="month-nav"><button className="button" onClick={() => shift(-1)} aria-label="Previous month">‹</button><b>{new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button className="button" onClick={() => shift(1)} aria-label="Next month">›</button></div>
       {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading the calendar…</div>}
       {status === "error" && <div className="state"><b>Release calendar unavailable</b><p>NBS didn't respond. The schedule is also published at <a href="https://www.stats.gov.cn/sj/fbrc/" target="_blank" rel="noreferrer">stats.gov.cn</a>.</p><div className="actions"><button className="button" onClick={() => shift(0)}>Try again</button></div></div>}
-      {status === "ok" && grouped.size === 0 && <div className="state"><b>Nothing scheduled</b><p>NBS lists no releases for this month.</p></div>}
+      {status === "ok" && grouped.size === 0 && (month > `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+        ? <div className="state"><b>Calendar not published yet</b><p>NBS has not released its schedule for this month. The coming year's calendar appears each December.</p></div>
+        : <div className="state"><b>Nothing scheduled</b><p>NBS lists no releases for this month.</p></div>)}
       {status === "ok" && grouped.size > 0 && (
         <div className="release-list">
           {[...grouped.entries()].map(([date, releases]) => {
