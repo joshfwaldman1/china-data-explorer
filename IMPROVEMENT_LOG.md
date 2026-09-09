@@ -224,3 +224,9 @@ not from scratch. Rounds are small on purpose.
   The shared label now reads "100 million yuan (亿元)" in results, the
   series header, Series Details, the chart caption and the share image
   subtitle. Verified live on the page and in a re-rendered image.
+- 2026-09-09 round 26: audited the Releases calendar, Browse and a series
+  page's Table view with the Share menu open at 390 px on the live site.
+  Browse, the table and the menu lay out cleanly. One defect: the
+  calendar's day column was 72 px with 16 px padding each side, so "Sep
+  15" broke onto two lines while "Sep 9" fit. The column is 76 px with
+  tighter padding and the label never wraps. Verified live.
