@@ -402,3 +402,11 @@ not from scratch. Rounds are small on purpose.
   back at boot; a store test covers the round trip. Verified live: the new
   build plans 24 releases and reports health. The field will first show a
   value after the 15 September releases.
+- 2026-09-09 round 46: audited `/api/status` for the catalog's currency.
+  Of 15,034 stored national series, 4,904 monthly ones stand at July 2026
+  and 370 quarterly ones at Q2 2026; the rest end at slice boundaries
+  (2002, 2011, 2017) as family members, or are discontinued heads: 371 in
+  the "by registration type" table whose slice ends in 2023, and 590 old
+  accounting terms (cost of principal business and the like) that NBS
+  replaced with operating cost and revenue in 2019. Those show as ended,
+  which is right. No failed fetch since 14:00Z. Nothing to fix.
