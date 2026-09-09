@@ -336,3 +336,12 @@ not from scratch. Rounds are small on purpose.
   and ranking all read correctly on the dark panels, and the tooltip
   draws only from theme tokens (panel, line, muted, shadow). Nothing to
   fix.
+- 2026-09-09 round 39: walked the keyboard path on the live series page.
+  Focus rings are visible (2 px solid), and the tab order runs skip link,
+  brand, search, nav, theme, then the 43 sidebar links before the page's
+  own controls, which is what the skip link is for. Defect: the skip link
+  was a plain "#main" anchor, and routes live in the hash, so activating
+  it changed the hash to "#main" and the router sent the user to Home
+  with focus in the Home search box. It now moves focus to the main
+  region without touching the hash. Verified live: on the CPI page the
+  hash stays "#/series/cpi", the heading stays, and focus lands on main.
