@@ -372,7 +372,32 @@ export function listStoredSeries(prefix: string): { key: string; region: string 
 }
 
 /** Coverage summary, for the /api/status route and for eyeballing an ingest. */
+/**
+ * A liveness check must not scan the store: with a million rows the status
+ * summary takes seconds and a platform healthcheck runs it every few seconds,
+ * stalling every other request behind it. This answers from one indexed
+ * read and a cached summary.
+ */
+export function dbHealth(): { ok: boolean; observations: number; lastFetch: string | null } {
+  const database = db();
+  database.query("SELECT 1").get();
+  const last = database.query<{ finishedAt: string | null }, []>("SELECT MAX(finished_at) AS finishedAt FROM fetch_log WHERE status = 'ok'").get();
+  return { ok: true, observations: cachedStatus?.totals.observations ?? 0, lastFetch: last?.finishedAt ?? null };
+}
+
+let cachedStatus: ReturnType<typeof computeStatus> | null = null;
+let cachedStatusAt = 0;
+const STATUS_TTL_MS = 5 * 60 * 1000;
+
+/** Coverage summary, cached for five minutes: the group-by over the whole store is the expensive part. */
 export function dbStatus() {
+  if (cachedStatus && Date.now() - cachedStatusAt < STATUS_TTL_MS) return cachedStatus;
+  cachedStatus = computeStatus();
+  cachedStatusAt = Date.now();
+  return cachedStatus;
+}
+
+function computeStatus() {
   const database = db();
   const sizeBytes = (() => { try { return Bun.file(DB_PATH).size; } catch { return 0; } })();
   const totals = database.prepare(`

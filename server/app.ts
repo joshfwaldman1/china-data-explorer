@@ -11,7 +11,7 @@
 
 import index from "../client/index.html";
 import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult } from "./data";
-import { readSeries, readRevisions, readRevisionHistory, dbStatus, storedLatest } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -133,7 +133,7 @@ const routes = {
     "/og.png": () => new Response(Bun.file(new URL("../client/og.png", import.meta.url)), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } }),
     // Liveness for a platform healthcheck: the store opens and answers.
     "/health": () => {
-      try { const totals = dbStatus().totals; return Response.json({ ok: true, observations: totals.observations, lastFetch: totals.lastFetch }); }
+      try { return Response.json(dbHealth()); }
       catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 503 }); }
     },
     "/api/catalog": () => Response.json(catalogList()),
