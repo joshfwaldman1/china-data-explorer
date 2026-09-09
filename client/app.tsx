@@ -1356,13 +1356,13 @@ function RegionsPage(props: { toast: (text: string) => void }) {
             )}
             <section className="card">
               <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, highest to lowest</span></div>
-              <div className="ranked">
+              <div className="ranked" role="group" aria-label="Provinces ranked highest to lowest; select one to see its series">
                 {ranked.map((item) => {
                   const province = item.province;
                   if (!province) return null;
                   const step = stepFor(item.value ?? 0, breaks);
                   return (
-                    <button key={province.code} className={`r${selected === province.code ? " selected" : ""}`} style={{ border: 0, background: selected === province.code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === province.code ? "" : province.code)} aria-pressed={selected === province.code}>
+                    <button key={province.code} className={`r${selected === province.code ? " selected" : ""}`} aria-label={`${province.en}, ${fmt(item.value ?? 0, "%")}%`} style={{ border: 0, background: selected === province.code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === province.code ? "" : province.code)} aria-pressed={selected === province.code}>
                       <span>{province.en}</span>
                       <span className="bar">{zeroPct > 0 && zeroPct < 100 && <b style={{ left: `${zeroPct}%` }} />}<i style={{ left: `${Math.min(zeroPct, ((item.value ?? 0) - low) / span * 100)}%`, width: `${Math.abs((item.value ?? 0) / span) * 100}%`, background: RAMP[step] }} /></span>
                       <span className="val">{fmt(item.value ?? 0, "%")}</span>
