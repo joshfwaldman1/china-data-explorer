@@ -261,3 +261,17 @@ not from scratch. Rounds are small on purpose.
   live. Noted, not changed: two NBS tables share the indicator name "Fixed
   asset investment, year-to-date growth" (the overview and the by-registration
   table), so two results carry the same English title.
+- 2026-09-09 round 31: audited ten random stored series from ten
+  non-industry categories on the live site. Units, English titles, ranges
+  and values all sound. One of the ten was served "live" although stored:
+  the on-view path re-fetched any stored copy older than 24 hours, even
+  with no new period due, costing the viewer an NBS round trip and NBS a
+  request for nothing. The view now uses the scheduler's own due rule
+  (server/due.ts), and the NBS_STORE_TTL_HOURS variable is gone from code
+  and docs. The first commit shipped without the due check's time
+  argument, which the typecheck flagged but the chain did not gate on; the
+  corrected build replaced it 25 seconds after it went live. Verified live:
+  five stored series untouched since 8 September all come from the store.
+  Latency note: every endpoint answers in about a second from here, of
+  which the server's share is under 0.2 s; the rest is the distance to
+  Railway's region.
