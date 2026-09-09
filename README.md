@@ -77,21 +77,33 @@ families already present in the published snapshot.
 
 ## Local JSON API
 
+- `GET /api/catalog` — the headline indicators (key, title, agency, unit, group).
 - `GET /api/catalog/stats` — coverage and dataset/category facets.
 - `GET /api/search?q=&frequency=&geography=&dataset=&category=&limit=&offset=`
-  — paginated catalog search.
+  — paginated catalog search; results carry their stored date range.
+- `GET /api/entry/:key` — one headline or catalog entry by key, for pages that
+  hold only keys.
 - `GET /api/dimensions/:key` — valid geographic selections for an NBS series.
 - `GET /api/series/:key?region=&transform=&limit=` — observations and metadata.
-- `GET /api/releases?start=&end=` — the NBS publication calendar.
+- `GET /api/regional/:key?period=` — every region's value for one period, for
+  the Provinces map.
+- `GET /api/releases?start=&end=` — the NBS publication calendar, each item
+  mapped to the series it updates.
+- `GET /api/release-map` — the title-to-series mapping behind that calendar.
+- `GET /api/schedule` — upcoming mapped releases and the last release-day
+  refresh.
 - `GET /api/revisions/:key?label=&period=` — locally stored revision history.
+- `GET /api/status` — store size, coverage per series, the last runs and the
+  failed fetches of the past week.
 
 ## Optional: AKTools (AkShare) for extra breadth
 
-Four indicators — **LPR** (interest rates), **Caixin Manufacturing/Services PMI**,
-and **Electricity Consumption** — are pulled from [AkShare](https://github.com/akfamily/akshare)
-via its HTTP wrapper [AKTools](https://github.com/akfamily/aktools). AkShare
-maintains *hundreds* of `macro_china_*` series, so this is how the explorer
-grows beyond what we hand-wire. To enable them, run AKTools alongside the app:
+Three indicators — the **Caixin Manufacturing and Services PMI** (ended
+September 2025) and the **Real Estate Climate Index** — are pulled from
+[AkShare](https://github.com/akfamily/akshare) via its HTTP wrapper
+[AKTools](https://github.com/akfamily/aktools). AkShare maintains *hundreds* of
+`macro_china_*` series, so this is one way the explorer can grow beyond what
+we hand-wire. To refresh them locally, run AKTools alongside the app:
 
 ```sh
 python -m venv venv && source venv/bin/activate
@@ -99,9 +111,11 @@ pip install aktools
 python -m aktools            # serves http://127.0.0.1:8080  (override with AKTOOLS_URL)
 ```
 
-Without AKTools running, the other 12 indicators still work; the AkShare-backed
-ones just error until it's up. Adding more AkShare series is a one-entry change
-in `server/data.ts` (function name, date format, and which fields to plot).
+Without AKTools running, every other indicator still works and the AkShare-backed
+ones serve from the store. Set `AKTOOLS_URL=off` on a deployment without it so
+the ingest skips them instead of logging a failure. Adding more AkShare series
+is a one-entry change in `server/data.ts` (function name, date format, and
+which fields to plot).
 
 ## Notes
 
