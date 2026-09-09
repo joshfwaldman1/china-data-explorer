@@ -284,3 +284,9 @@ not from scratch. Rounds are small on purpose.
   configured default. It now serves the configured default. Verified live:
   Guangdong 4.5 by default, Beijing on request, and the 70-city average
   still the default for home prices.
+- 2026-09-09 round 33: audited the Provinces page's interactions on the
+  live site: selected Guangdong and Shanghai from the tile map, added both
+  to the comparison, and switched the period to Q2 2020. Map colours,
+  ramp breaks, ranking with its zero anchor (Hubei at -19.5 that quarter),
+  the detail panel and its sparkline window, and the comparison chips all
+  updated together. Nothing to fix.
