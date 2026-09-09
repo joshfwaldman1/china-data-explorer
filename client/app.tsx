@@ -1102,7 +1102,12 @@ function SeriesPage(props: {
       </div>
       <PageHeader
         title={<>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
-        subtitle={results.length > 1 ? <p className="lede">{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, compared with ` : "Compared with "}{listWords(results.slice(1).map((result) => displayTitle(result, results)))}</p> : undefined}
+        subtitle={results.length > 1
+          ? <p className="lede">{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, compared with ` : "Compared with "}{listWords(results.slice(1).map((result) => displayTitle(result, results)))}</p>
+          // One regional series: the heading names the measure, so the lede names the place (not for the national or the 70-city average views).
+          : primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg"
+            ? <p className="lede">{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</p>
+            : undefined}
         actions={<>
           <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
           <ActionMenu label="Download" items={downloadItems} />
