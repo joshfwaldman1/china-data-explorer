@@ -12,7 +12,7 @@ test("the national economy bundle refreshes GDP only in the months that announce
 
 test("titles match on their stem without the time suffix", () => {
   expect(describeRelease("居民消费价格指数月度报告(09:30)")?.keys).toEqual(["cpi"]);
-  expect(describeRelease("规模以上文化及相关产业生产经营季度报告(09:30)")).toBeNull();
+  expect(describeRelease("不存在的报告(09:30)")).toBeNull();
 });
 
 test("the quarterly reports NBS lists beside the monthly ones have English names", () => {
