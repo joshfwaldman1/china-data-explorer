@@ -115,3 +115,12 @@ not from scratch. Rounds are small on purpose.
   only in a dark block. The only literal colours are white-on-navy in the
   topbar and the tile map's fixed blue ramp with its own text colours, both
   intended to hold in either theme. Nothing to fix.
+- 2026-09-09 round 13: audited keyboard and screen-reader labels on the
+  live series page, Home, Provinces and Releases with a DOM probe. Every
+  control has an accessible name, every input a label, no duplicate ids, one
+  h1 per page, tabs use role=tab with aria-selected, range buttons use
+  aria-pressed in a labelled group, menus use menuitem and close on Escape,
+  a skip link exists. One defect: the toast carried role=status but was
+  only inserted into the page when it fired, which screen readers often
+  miss. The live region is now always present and only its text changes.
+  Verified live: the region is in the page at rest.
