@@ -54,3 +54,8 @@ not from scratch. Rounds are small on purpose.
   were served raw (99.7) while "same period a year earlier = 100" tables
   defaulted to the percent-change view (-0.3). The default now treats every
   year-on-year base the same; previous-month bases stay an index.
+- 2026-09-09 round 5: audited the live home page and hero tiles. All four
+  hero values match the store (GDP 4.7, CPI 0.8 for August, unemployment
+  5.2, PMI 49.8); this morning's CPI, PPI and home-price releases are on the
+  page. One defect: "Ended Sep 2025" wrapped onto two lines in the list's
+  period column. Column widened and periods never wrap.
