@@ -34,7 +34,18 @@ export const RELEASE_MAP: ReleaseMapping[] = [
   { match: "服务业生产指数", en: "Index of services production, monthly", keys: [], categories: ["服务业生产指数"] },
 ];
 
-export function describeRelease(title: string): ReleaseMapping | null {
+/** Months whose "national economy" briefing also announces the previous quarter's GDP. */
+const QUARTERLY_BUNDLE_MONTHS = new Set([1, 4, 7, 10]);
+
+/**
+ * The mapping for an agenda title. NBS never lists GDP as its own release:
+ * the quarterly figure is announced inside the "national economy" bundle in
+ * January, April, July and October, so in those months the bundle also
+ * refreshes the GDP series. `when` is the release time, "YYYY-MM-DD HH:MM:SS".
+ */
+export function describeRelease(title: string, when = ""): ReleaseMapping | null {
   const stem = title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "");
-  return RELEASE_MAP.find((entry) => stem.includes(entry.match)) ?? null;
+  const entry = RELEASE_MAP.find((candidate) => stem.includes(candidate.match)) ?? null;
+  if (!entry || entry.match !== "国民经济运行情况" || !QUARTERLY_BUNDLE_MONTHS.has(Number(when.slice(5, 7)))) return entry;
+  return { ...entry, en: "National economy quarterly bundle: GDP, industrial output, retail sales, investment, unemployment", keys: ["gdp", ...entry.keys] };
 }

@@ -94,7 +94,7 @@ async function fetchAgenda(startDate: string, endDate: string): Promise<{ data: 
       if (typeof item !== "object" || item === null) continue;
       const content = Reflect.get(item, "content"), when = Reflect.get(item, "fb_time"), id = Reflect.get(item, "_id");
       if (typeof content !== "string" || typeof when !== "string") continue;
-      const described = describeRelease(content);
+      const described = describeRelease(content, when);
       items.push({ _id: typeof id === "string" ? id : `${when} ${content}`, fb_time: when, content, en: described?.en ?? "", keys: described?.keys ?? [], categories: described?.categories ?? [] });
     }
   }
