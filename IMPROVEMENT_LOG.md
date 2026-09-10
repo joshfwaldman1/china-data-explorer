@@ -450,3 +450,18 @@ not from scratch. Rounds are small on purpose.
   wording mismatch, and the second carried LOOP.md and this entry. Docs
   only, no deploy. The round-50 push turned out to have landed before it
   stalled; the retry reported the remote up to date.
+- 2026-09-10 round 52: audited search for ten Chinese-language and
+  abbreviated queries on the live site. Seven were right. Defects: a
+  Chinese phrase had to appear whole, so "猪肉价格" found nothing although
+  猪肉 and 价格 both sit in the CPI pork titles, and the abbreviations 固投,
+  社融 and 规上 were unknown. A phrase that appears nowhere whole now
+  matches by its two-character pieces, and the abbreviations expand. The
+  first commit scored that fallback above whole-phrase hits and shipped
+  with a failing test, because the chain gated only on the typecheck; the
+  corrected build replaced it after 45 minutes, most of that a hung push.
+  The chain now stops on a failing test too. Verified live: 猪肉价格 leads
+  with CPI pork, 固投 with fixed asset investment, and an exact Chinese
+  title keeps the top. 社融 still finds nothing, honestly: social
+  financing is not in the store. Two search requests stalled for over two
+  minutes from here during the nightly ingest while health answered in
+  two seconds; not reproduced afterwards.
