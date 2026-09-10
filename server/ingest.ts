@@ -114,7 +114,11 @@ async function refreshOne(key: string, region: string): Promise<"ok" | "error" |
 async function dueCatalogTargets(now = new Date()): Promise<{ key: string; region: string }[]> {
   const rows = storedLatest("nbs_");
   const targets: { key: string; region: string }[] = [];
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
+    // Fifteen thousand rows of synchronous lookups held the event loop for
+    // about eight seconds at the start of every ingest, so page requests
+    // stalled; yielding every few hundred rows lets them interleave.
+    if (index > 0 && index % 500 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     const entry = await getNbsCatalogEntry(row.key);
     if (!entry) continue;
     if (isDue(entry.frequency, row.lastPeriod, row.updatedAt, now)) targets.push({ key: row.key, region: row.region });
