@@ -1140,3 +1140,11 @@ not from scratch. Rounds are small on purpose.
   2027 shows the "Calendar not published yet" state with its note that
   the coming year's schedule appears each December. `/api/schedule` is
   unchanged since round 104. Nothing to fix.
+- 2026-09-10 round 118: audited `/api/status` on the live site. The light
+  summary answers in a second at 15 KB; no failures today; the store
+  holds 1,315,258 observations. Rounds 81 and 105 had noted the fetch
+  log growing by about 140 rows per boot ingest without a way to measure
+  it, and today has had some thirty-five deploys, so the summary now
+  reports the log's row count and oldest entry; docs and test updated.
+  Verified live: 29,346 rows since 7 September, three days of heavy
+  deploying, a few megabytes beside a 454 MB store; no pruning needed.
