@@ -742,3 +742,14 @@ not from scratch. Rounds are small on purpose.
   cells take the card's own dark panel colour (#161f2b, the same as the
   card) and the header cell the darker header tone, in both the system
   and the explicit dark blocks. Nothing to fix.
+- 2026-09-10 round 85: probed accessible names on surfaces the earlier
+  rounds had not: the series page's Download and Share menus ("Download",
+  "Share", disclosure), the theme button ("Switch theme"), the skip link,
+  the Save button with its pressed state, the Home indicator rows (each a
+  single link naming the series, measure, value, change and period) and
+  the release calendar. One defect: the calendar's date block joined the
+  day and weekday with nothing between them, so a screen reader read
+  "Sep 15Tue", the run-together defect round 28 fixed on the Provinces
+  ranking. A visually hidden comma now separates them. Verified live: the
+  blocks read "Sep 9, Wed", "Sep 15, Tue", "Sep 28, Mon". The bare "10:00"
+  on each release is fine, since the lede states China Standard Time.
