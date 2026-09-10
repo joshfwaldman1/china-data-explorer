@@ -734,3 +734,11 @@ not from scratch. Rounds are small on purpose.
   header row too. The Notes card's "16–24" en dash now matches the
   hyphen used by the legend and table headers. Verified live: with the
   table scrolled to its limit the Period cells stay at the card's edge.
+- 2026-09-10 round 84: dark mode. Eight stylesheet commits since round 72,
+  seven of them phone-width layout changes with no colour in them; the
+  eighth, round 83's sticky period column, paints its cells with the panel
+  token so the scrolled columns do not show through. Rendered the
+  unemployment table in dark at 390 px scrolled to its limit: the pinned
+  cells take the card's own dark panel colour (#161f2b, the same as the
+  card) and the header cell the darker header tone, in both the system
+  and the explicit dark blocks. Nothing to fix.
