@@ -1169,3 +1169,9 @@ not from scratch. Rounds are small on purpose.
   empty state said where saved series live but not how to save one; it
   now opens "Save a series from its page with the Save button." Verified
   live at 390 px.
+- 2026-09-10 round 121: dark mode. No stylesheet change since round 84.
+  Rendered two dark surfaces no dark round had covered: the Browse
+  category cards (panel, line, ink and muted tokens) and the CPI page's
+  Options panel (selects on the dark field colour with the dark border,
+  the checkbox in the accent, labels in muted ink). Both read right.
+  Nothing to fix.
