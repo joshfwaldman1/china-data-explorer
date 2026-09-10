@@ -1400,7 +1400,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; naviga
               <span>% change</span>
               <div>
                 <div className="steps">{RAMP.map((color) => <i key={color} style={{ background: color }} />)}</div>
-                <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge}</span>)}</div>
+                <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge.toFixed(1)}</span>)}</div>
               </div>
             </div>
           </section>
