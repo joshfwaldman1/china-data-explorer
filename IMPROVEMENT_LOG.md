@@ -1199,3 +1199,14 @@ not from scratch. Rounds are small on purpose.
   (118) was documented in its own round; the compare caption (116), the
   topbar box (115), the Saved copy (120) and the Custom focus (122) need
   no doc. Docs only, no deploy.
+- 2026-09-10 round 124: audited search for ten Chinese queries on the
+  live site (社零, 外汇储备, 城镇化率, 水泥, 粗钢, 房价, 进出口, 汽车销量, 用电量,
+  财政收入). Six led with the right series; 城镇化率 is annual and 用电量 is
+  National Energy Administration data, both honestly absent. Two
+  defects: the abbreviation 社零 was unknown, and 汽车销量 found nothing
+  because NBS titles sales 销售量 and the two-character piece 销量 matched
+  no title. Pieces now match through the alias dictionary as well as
+  literally, and 社零, 销量 and 汽车销量 are known; 社零 also joins the
+  retail sales headline's synonyms. Test added. Verified live: 社零 leads
+  with the retail sales headline then the NBS total, 汽车销量 with
+  automobile sales, and 猪肉价格 (round 52) still finds the pork CPI.
