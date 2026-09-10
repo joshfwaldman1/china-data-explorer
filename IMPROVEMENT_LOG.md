@@ -1009,3 +1009,29 @@ not from scratch. Rounds are small on purpose.
   typecheck gate caught a union return type on the first attempt.
   Verified live during the next boot ingest: the light call answered in
   eight seconds cold and one second warm, the flagged call in five.
+- 2026-09-10 round 106: audited the share image with two live renders not
+  yet covered: a catalog series whose February is the combined
+  January-February figure (railway passenger traffic) and GDP on a custom
+  window (Q1 2019 to Q4 2022). The window image is right: title,
+  subtitle range, year ticks. Defect: the page notes the combined
+  February point for such series, but the image carried no note, so a
+  reader of the picture alone would take the point for a February
+  reading. The image now carries "February is the combined
+  January-February figure NBS publishes; there is no January point",
+  naming the series in a compare. Verified live on the rail image. The
+  owner interrupted this round's verification with a 502 on a series
+  page and a question about the 9,569 count; the count is the catalog's
+  distinct indicators after year-range slices fold into families (14,886
+  slices), of which 9,209 are stored and 360 came back empty from NBS.
+- 2026-09-10 round 107: owner report. A series page returned "Request
+  failed (502)" at 16:27, twenty seconds after the round-106 container
+  started. The deploy log shows the process listening and answering
+  /health before the catalog, gloss and search index were warm, so
+  Railway switched traffic to the new container while it was still busy
+  and the edge returned 502 for the first seconds of every deploy.
+  Health now reports 503 until the warm-up finishes, capped at 25
+  seconds so a slow warm-up cannot fail a deploy, and the warm-up time is
+  logged. Verified live by polling a series page and health every two
+  seconds through the next deploy: one eight-second no-answer sample at
+  the hand-over, then 200s throughout; the new container logged
+  "Catalog warm in 11.8s".
