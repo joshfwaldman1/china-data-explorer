@@ -96,6 +96,7 @@ test("the status summary leaves out the per-series coverage list unless asked", 
   const summary = dbStatus();
   expect(summary.totals.observations).toBeGreaterThan(0);
   expect("perSeries" in summary).toBe(false);
+  expect(summary.fetchLog.rows).toBeGreaterThanOrEqual(0);
   const full = dbStatusWithSeries();
   expect(full.perSeries.length).toBeGreaterThan(0);
   expect(full.perSeries[0]).toHaveProperty("lastPeriod");

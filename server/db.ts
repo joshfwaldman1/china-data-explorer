@@ -462,6 +462,11 @@ function computeStatus() {
     FROM observations
   `).get() as { observations: number; keys: number; lastFetch: string | null };
 
+  // The fetch log grows by a run per series on every boot ingest (about 140 rows), so its size is
+  // reported here for the audit that decides when to prune it.
+  const fetchLogRow = database.query<{ rows: number; oldest: string | null }, []>("SELECT COUNT(*) AS rows, MIN(finished_at) AS oldest FROM fetch_log").get();
+  const fetchLog = { rows: fetchLogRow?.rows ?? 0, oldest: fetchLogRow?.oldest ?? null };
+
   const recentRuns = database.prepare(`
     SELECT key, region, status, point_count AS points, changed_count AS changed,
            finished_at AS finishedAt, message
@@ -483,5 +488,5 @@ function computeStatus() {
   `).all({ $weekAgo: weekAgo });
 
   return { sizeBytes,
-    path: DB_PATH, totals, recentRuns, recentFailures };
+    path: DB_PATH, totals, fetchLog, recentRuns, recentFailures };
 }
