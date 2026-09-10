@@ -527,14 +527,15 @@ function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
 
 function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
   const [headline, setHeadline] = useState<Map<string, SeriesResult>>(new Map());
+  const [homeFailed, setHomeFailed] = useState(false);
   const [draft, setDraft] = useState("");
   const headlineEntries = props.curated.filter((entry) => entry.home !== false);
   const byAgency = (agency: string) => headlineEntries.filter((entry) => entry.agency.includes(agency)).length;
   useEffect(() => {
     let cancelled = false;
     // Each indicator lands as it arrives; one slow source must not hold the whole page blank.
-    // One request for every headline series, sent at once rather than after the catalog
-    // arrives; the per-series fetch below stays as the fallback if it fails.
+    // One request for every headline series, sent once on mount rather than after the catalog
+    // arrives. Only if it fails does the page fall back to one request per indicator.
     json("/api/home").then((body) => {
       if (cancelled) return;
       if (typeof body !== "object" || body === null) throw new Error("no home payload");
@@ -542,17 +543,20 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
       for (const [key, value] of Object.entries(body)) if (isSeriesResult(value)) next.set(key, value);
       if (next.size === 0) throw new Error("empty home payload");
       setHeadline(next);
-    }).catch(() => {
-      if (cancelled) return;
-      for (const entry of props.curated.filter((entry) => entry.home !== false)) {
-        json(`/api/series/${entry.key}?limit=24`).then((body) => {
-          if (cancelled || !isSeriesResult(body)) return;
-          setHeadline((current) => new Map(current).set(entry.key, body));
-        }).catch(() => undefined);
-      }
-    });
+    }).catch(() => { if (!cancelled) setHomeFailed(true); });
     return () => { cancelled = true; };
-  }, [props.curated.map((entry) => entry.key).join(",")]);
+  }, []);
+  useEffect(() => {
+    if (!homeFailed) return;
+    let cancelled = false;
+    for (const entry of props.curated.filter((entry) => entry.home !== false)) {
+      json(`/api/series/${entry.key}?limit=24`).then((body) => {
+        if (cancelled || !isSeriesResult(body)) return;
+        setHeadline((current) => new Map(current).set(entry.key, body));
+      }).catch(() => undefined);
+    }
+    return () => { cancelled = true; };
+  }, [homeFailed, props.curated.map((entry) => entry.key).join(",")]);
   const upcoming = props.releases.filter((release) => isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
   const monthly = props.stats?.datasets.find((dataset) => dataset.frequency === "Monthly")?.count ?? 0;
   const quarterly = props.stats?.datasets.find((dataset) => dataset.frequency === "Quarterly")?.count ?? 0;
