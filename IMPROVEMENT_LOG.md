@@ -707,3 +707,10 @@ not from scratch. Rounds are small on purpose.
   stats.gov.cn." with a working link and a Try again button, which is
   what a reader needs. The empty state for an unpublished month was
   fixed in round 34. Nothing to fix.
+- 2026-09-10 round 81: audited `/api/status` after a deploy-heavy day:
+  twenty deployments, each with a boot ingest of 139 runs, and no failure
+  logged today; the store gained seven observations, as expected between
+  releases. One observation for later: each boot ingest adds about 140
+  fetch-log rows, so a day like this adds nearly 3,000; at a normal
+  cadence that is a few hundred a day, small beside 1.3 million
+  observations, so no pruning yet. Nothing to fix.
