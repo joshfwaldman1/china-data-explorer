@@ -78,9 +78,9 @@ families already present in the published snapshot.
   always in the light palette, with title, unit and range, end labels, a
   legend when there is more than one line, year ticks whenever the data is
   annual, the scale named in the subtitle when it is logarithmic, up to three
-  lines of notes under the chart (a suspension, an ended series, a frequency
-  conversion, a combined January-February point), and the source and page
-  URL in the footer,
+  lines of notes under the chart (a suspension, an ended or stopped series, a
+  frequency conversion, a combined January-February point), and the source
+  and page URL in the footer,
   ready to paste into a tweet or a doc.
 
 ## Local JSON API
