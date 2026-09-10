@@ -68,6 +68,8 @@ test("fmt never shows a negative zero", () => {
 });
 
 test("deltaText says pp for percentages only", () => {
+  expect(deltaText({ date: "2026-08", value: 3.0 }, { date: "2026-07", value: 3.0 }, "%", "short")).toBe("0.0 pp");
+  expect(deltaText({ date: "2026-08", value: 34383 }, { date: "2026-07", value: 34383 }, "100M USD", "short")).toBe("0");
   expect(deltaText({ date: "2026-07", value: 0.5 }, { date: "2026-06", value: 1.0 }, "Percent change from year ago")).toBe("Down 0.5 pp from Jun 2026");
   expect(deltaText({ date: "2026-07", value: 99.9 }, { date: "2026-06", value: 99.7 }, "Index, previous month = 100")).toBe("Up 0.2 from Jun 2026");
 });

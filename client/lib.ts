@@ -132,7 +132,11 @@ export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint
   const difference = latest.value - previous.value;
   // Percentage points for a percentage; an index or a level changes in its own units.
   const points = /%|percent/i.test(unit) && !/index/i.test(unit) ? " pp" : "";
-  if (Math.abs(difference) < 0.000001) return style === "long" ? `Unchanged from ${observationLabel(previous.date, frequency)}` : "0.0";
+  if (Math.abs(difference) < 0.000001) {
+    if (style === "long") return `Unchanged from ${observationLabel(previous.date, frequency)}`;
+    // The short form sits beside "+0.3 pp" on the Home list, so an unchanged rate says "0.0 pp" too.
+    return `${!isRate(unit) && Math.abs(latest.value) >= 1000 ? "0" : "0.0"}${points}`;
+  }
   // Levels in the thousands change by whole units; anything finer is noise at that scale.
   const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);
   if (style === "short") return `${difference > 0 ? "+" : "-"}${magnitude}${points}`;
