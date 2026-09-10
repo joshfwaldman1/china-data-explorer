@@ -1320,3 +1320,16 @@ not from scratch. Rounds are small on purpose.
   indicator and consumer confidence, and the World Bank life expectancy
   and GDP per capita, with the NBS quarterly GDP tables following the
   last. Nothing to fix.
+- 2026-09-10 round 136: audited ten random headline and international
+  series pages on the live site (CPI, PMI, new loans, reserves, OECD
+  leading indicator, US exports to China, US import prices from China,
+  and the World Bank fertility, GDP per capita and population aged 65
+  series), which the random rounds had never drawn because they sample
+  the NBS catalog. Every payload is served from the store with ordered
+  periods, no duplicates or nulls, and current last values; the pages
+  read their units, ranges and "Not in the NBS calendar; published by"
+  rows correctly. One defect: annual series carried "Not seasonally
+  adjusted", a statement with no meaning for yearly data, because the
+  tag was added to every series not marked adjusted. Annual series now
+  omit it. Verified live: the Fertility Rate page's meta line ends with
+  World Bank and the CPI page keeps the tag.
