@@ -516,7 +516,7 @@ const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
 const GROUP_ORDER = ["Growth & Output", "Prices", "Labor", "Consumption", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Property", "Sentiment", "Markets", "Public Finance", "Demographics", "Regional"];
 const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
 function unitSuffix(unit: string): string { return isRate(unit) && unit !== "%" && !/index/i.test(unit) ? "%" : ""; }
-function shortAgency(agency: string): string { return agency === "National Bureau of Statistics" ? "NBS" : agency === "People's Bank of China" ? "PBOC" : agency; }
+function shortAgency(agency: string): string { return agency === "National Bureau of Statistics" ? "NBS" : agency === "People's Bank of China" ? "PBOC" : agency === "General Administration of Customs" ? "Customs" : agency; }
 function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
   const values = props.points.map((point) => point.value);
   if (values.length < 2) return <svg viewBox="0 0 160 28" aria-hidden="true" />;
