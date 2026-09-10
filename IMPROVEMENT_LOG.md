@@ -1333,3 +1333,11 @@ not from scratch. Rounds are small on purpose.
   tag was added to every series not marked adjusted. Annual series now
   omit it. Verified live: the Fertility Rate page's meta line ends with
   World Bank and the CPI page keeps the tag.
+- 2026-09-10 round 137: audited the Home list's descriptors, the small
+  line under each name giving measure and agency, against each series'
+  unit and agency on the live site. All fourteen match (the Caixin rows
+  show the agency alone since the name is the measure). One
+  inconsistency: agencies are abbreviated, "NBS" and "PBOC", except the
+  trade row's "General Administration of Customs", which the tagline
+  calls "Customs". The row now reads "Exports (YoY %), Customs".
+  Verified live.
