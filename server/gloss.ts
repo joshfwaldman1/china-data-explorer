@@ -158,7 +158,14 @@ export function glossTitle(name: string): string {
  * folded into it here rather than by hand across 155 table entries.
  */
 export function normalizeIndexPrefix(title: string): string {
-  return title.replace(/^(CPI|PPI|RPI|PMI),\s+/, "$1: ");
+  return title
+    .replace(/^(CPI|PPI|RPI|PMI),\s+/, "$1: ")
+    // The spelled-out forms fold the same way when a component follows: "Producer price index for tea",
+    // "Producer price index, electricity supply" and "Retail price index of sports goods" all read "PPI: tea",
+    // "PPI: electricity supply", "RPI: sports goods". A bare "Consumer price index" is the headline and stays.
+    .replace(/^Producer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/, "PPI: ")
+    .replace(/^Consumer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/, "CPI: ")
+    .replace(/^Retail price index(?:\s+for|\s+of|,|:)\s+(?=\S)/, "RPI: ");
 }
 
 /** An index title's base period, "(上月=100)", is part of what the series is, so it stays in the English title. */

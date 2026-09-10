@@ -42,5 +42,9 @@ test("index components read with a colon whichever way the table wrote them", ()
   expect(normalizeIndexPrefix("PPI, food")).toBe("PPI: food");
   expect(normalizeIndexPrefix("CPI, household articles and services")).toBe("CPI: household articles and services");
   expect(normalizeIndexPrefix("PPI: clothing")).toBe("PPI: clothing");
-  expect(normalizeIndexPrefix("Producer price index, food")).toBe("Producer price index, food");
+  expect(normalizeIndexPrefix("Producer price index, food")).toBe("PPI: food");
+  expect(normalizeIndexPrefix("Producer price index for tea")).toBe("PPI: tea");
+  expect(normalizeIndexPrefix("Retail price index of sports and recreational goods")).toBe("RPI: sports and recreational goods");
+  expect(normalizeIndexPrefix("Consumer price index")).toBe("Consumer price index");
+  expect(normalizeIndexPrefix("Producer price index")).toBe("Producer price index");
 });
