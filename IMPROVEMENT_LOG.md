@@ -693,3 +693,11 @@ not from scratch. Rounds are small on purpose.
   July's new yuan loans at -5,896 (100 million yuan), follows the same
   July pattern in the source as 2024 (-808) and 2025 (-4,296), so it is
   the published figure. Nothing to fix.
+- 2026-09-10 round 79: audited the Provinces page's error state, the one
+  part of it not yet exercised. It told a visitor "Run the ingest and try
+  again", a developer instruction, where the search and calendar errors
+  speak to the reader and offer a retry. It now reads "The provincial
+  series did not load. Try again in a moment." with a Try again button
+  that refetches. Verified live by blocking the page's own fetch in the
+  browser: the new state appeared, and Try again brought back all 31
+  tiles for the chosen period.
