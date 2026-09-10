@@ -22,11 +22,6 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
-- Two NBS tables both gloss as "PPI: food, same month a year earlier =
-  100": 食品工业 (the food industry, in the by-industry table) and 食品类
-  (the food category, in the by-category table). Search shows them as
-  twins; the industry one should say "food industry" (surfaced by round
-  96).
 
 ## Log
 
@@ -891,3 +886,14 @@ not from scratch. Rounds are small on purpose.
   food" with the year-on-year food PPI. Surfaced and queued: two tables
   both read "PPI: food, same month a year earlier = 100" (食品工业 and
   食品类), so the results show apparent twins.
+- 2026-09-10 round 97: queue item. "ppi food" showed twins, "PPI: food"
+  twice, because the by-department PPI table's 食品工业 and the
+  by-category table's 食品类 were glossed alike. The by-department table
+  (fifteen industries, the older classification) was inconsistent
+  throughout: "Producer price index for the chemical industry", "PPI:
+  Building materials", "Producer price index, forestry". All fifteen now
+  read "PPI: <industry> industry", and the durable consumer goods category
+  takes the same "PPI:" form. GLOSS_FORMAT bumped to 12 so stored titles
+  rebuilt on boot; test added. Verified live: "ppi food" lists the food
+  category, then the food industry, then food manufacturing, and the
+  chemical industry entry reads "PPI: chemical industry".
