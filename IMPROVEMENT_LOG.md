@@ -1048,3 +1048,10 @@ not from scratch. Rounds are small on purpose.
   the mining VAT table's page and search results; the CPI page renders.
   The count question: 14,886 NBS table slices fold into 9,569 distinct
   indicators, 9,209 with data stored and 360 empty at NBS.
+- 2026-09-10 round 109: measured the three states this session added at
+  390 px on the live site: the empty-table error state (round 108), a
+  search results page carrying the "no data published" tag on six
+  entries, and the Provinces page with two provinces picked (detail
+  panel, comparison chips, "Chart 2 provinces together", ranking). All
+  three lay out at exactly 390 px with no element past the edge, and the
+  new copy wraps cleanly. Nothing to fix.
