@@ -877,7 +877,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
     <>
     <button ref={buttonRef} className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>Add series</button>
     <div className="add-series" role="search">
-      <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese: GDP, 工业增加值, steel output" /></div>
+      <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese" /></div>
       <div className="add-series-results" role="listbox" aria-label="Matching series" aria-busy={busy}>
         {draft.trim() && !busy && results.length === 0 && <p className="add-series-note">No series match “{draft.trim()}”. The catalog holds national monthly and quarterly NBS series.</p>}
         {results.map((entry) => {
