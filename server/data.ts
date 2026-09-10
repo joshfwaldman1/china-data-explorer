@@ -234,10 +234,10 @@ type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndi
 // series serve from the store and their refresh is skipped with a plain
 // message — rather than probing localhost, which on a platform that puts
 // this very app on :8080 answers 404 and reads like a mystery.
-const AKTOOLS_URL = process.env.AKTOOLS_URL ?? "http://127.0.0.1:8080";
+function aktoolsUrl(): string { return process.env.AKTOOLS_URL ?? "http://127.0.0.1:8080"; }
 
 /** False when the deployment has said it has no AKTools, so callers can skip AkShare series instead of failing on them. */
-export function aktoolsConfigured(): boolean { return AKTOOLS_URL !== "off"; }
+export function aktoolsConfigured(): boolean { return aktoolsUrl() !== "off"; }
 
 function nbsProvince(text: string, gbt2260: string): NbsRegion {
   return { text, value: gbt2260.padEnd(12, "0") };
@@ -560,6 +560,8 @@ export interface CatalogEntry {
   unit: string;
   ended?: string;
   endedNote?: string;
+  /** Set when this deployment cannot refresh the series (AkShare without AKTools); it serves from the store. */
+  refreshBlocked?: string;
   home?: boolean;
 }
 
@@ -569,6 +571,7 @@ export function catalogList(): CatalogEntry[] {
     frequency: c.frequency, unit: c.unit,
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     ...(c.home === false ? { home: false } : {}),
+    ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
   }));
 }
 
@@ -833,12 +836,12 @@ async function fetchAktools(key: string, cfg: AktoolsIndicator, _limit: number):
   // AkShare functions can take 15-25s, so give them a generous timeout.
   // AKTools is a local Python service, not a remote portal. Say so when it is
   // down, or the page blames NBS for a service that was never started.
-  if (AKTOOLS_URL === "off") {
+  if (aktoolsUrl() === "off") {
     throw new Error(`AKTools is not configured on this deployment; ${cfg.fn} serves from the stored copy until it is.`);
   }
   let res: Response;
   try {
-    res = await fetch(`${AKTOOLS_URL}/api/public/${cfg.fn}`, {
+    res = await fetch(`${aktoolsUrl()}/api/public/${cfg.fn}`, {
       signal: AbortSignal.timeout(45000),
     });
   } catch (error) {
@@ -847,10 +850,10 @@ async function fetchAktools(key: string, cfg: AktoolsIndicator, _limit: number):
     const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     throw new Error(timedOut
       ? `AKTools did not answer within 45s for ${cfg.fn}. The upstream AkShare call is slow or blocked; try again later.`
-      : `AKTools is not running at ${AKTOOLS_URL}. This series comes from AkShare through a local AKTools service: start it with 'python -m aktools' and try again.`);
+      : `AKTools is not running at ${aktoolsUrl()}. This series comes from AkShare through a local AKTools service: start it with 'python -m aktools' and try again.`);
   }
   if (!res.ok) {
-    throw new Error(`AKTools ${cfg.fn} -> HTTP ${res.status} (is 'python -m aktools' running on ${AKTOOLS_URL}?)`);
+    throw new Error(`AKTools ${cfg.fn} -> HTTP ${res.status} (is 'python -m aktools' running on ${aktoolsUrl()}?)`);
   }
   const rows: Record<string, unknown>[] = await res.json();
   if (!Array.isArray(rows)) throw new Error(`AKTools ${cfg.fn} returned an unexpected shape`);

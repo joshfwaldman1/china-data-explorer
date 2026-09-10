@@ -12,7 +12,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -1161,7 +1161,9 @@ function SeriesPage(props: {
       {mixed && !rebased && <div className="notice"><div>These series have different units ({units.join("; ")}) and share one axis, so compare their shapes, not their levels. Choose a common transform under Options.</div></div>}
       {!mixed && show === "default" && results.length > 1 && results.some((result) => result.transform && result.transform !== "raw" && !props.route.show) && <div className="notice info"><div>Level series are shown as % change from a year ago so their units match the rates on this chart. Change this under Options.</div></div>}
       {curated?.ended && <div className="notice"><div><b>This series ended in {periodPretty(curated.ended)}.</b>{curated.endedNote}</div></div>}
-      {!curated?.ended && latest && isBehind(latest.date, primary.frequency) && <div className="notice"><div><b>Latest available observation is {observationLabel(latest.date, primary.frequency)}.</b>The source has published nothing newer; the store was last checked {fmtDate(primary.updatedAt) || "today"}.</div></div>}
+      {!curated?.ended && latest && isBehind(latest.date, primary.frequency) && <div className="notice"><div><b>Latest available observation is {observationLabel(latest.date, primary.frequency)}.</b>{curated?.refreshBlocked
+        ? `This series is refreshed through ${curated.refreshBlocked}, which this deployment does not run, so nothing newer can appear here until it does.`
+        : `The source has published nothing newer; the store was last checked ${fmtDate(primary.updatedAt) || "today"}.`}</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
 
       <section className="card data-card">
