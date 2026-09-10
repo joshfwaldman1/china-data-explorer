@@ -126,12 +126,19 @@ function nbsDate(date: Date, endOfDay = false): string {
 
 let scheduleStatus: () => { nextReleases: { en: string; at: string; keys: string[] }[]; lastReleaseRefresh: null | { en: string; at: string; attempts: number; advanced: number } } = () => ({ nextReleases: [], lastReleaseRefresh: null });
 
+const bootAt = Date.now();
+const WARM_GRACE_MS = 25_000;
+let catalogWarm = false;
+
 const routes = {
     "/": index,
     // The default link-preview image (a real chart) for X, Slack and the like.
     "/og.png": () => new Response(Bun.file(new URL("../client/og.png", import.meta.url)), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } }),
     // Liveness for a platform healthcheck: the store opens and answers.
     "/health": () => {
+      // Not healthy until the catalog is warm (or 25 s have passed), so Railway keeps the previous
+      // container serving through the warm-up instead of sending visitors a 502 (round 107).
+      if (!catalogWarm && Date.now() - bootAt < WARM_GRACE_MS) return Response.json({ ok: false, warming: true }, { status: 503 });
       try { return Response.json(dbHealth()); }
       catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 503 }); }
     },
@@ -357,8 +364,12 @@ try {
 }
 
 console.log(`\n  China Data Explorer running at ${server.url}\n`);
-// Warm the catalog, gloss and search index now rather than on the first visitor.
-nbsCatalogStats().catch(() => undefined);
+// Warm the catalog, gloss and search index now rather than on the first visitor; the
+// healthcheck waits for it so the previous container keeps serving meanwhile.
+nbsCatalogStats().catch(() => undefined).finally(() => {
+  catalogWarm = true;
+  console.log(`  Catalog warm in ${((Date.now() - bootAt) / 1000).toFixed(1)}s`);
+});
 
 // On a single-service deployment the daily refresh runs in this process: a
 // separate cron cannot share the volume the store lives on. Off in
