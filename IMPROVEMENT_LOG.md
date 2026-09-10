@@ -1055,3 +1055,8 @@ not from scratch. Rounds are small on purpose.
   panel, comparison chips, "Chart 2 provinces together", ranking). All
   three lay out at exactly 390 px with no element past the edge, and the
   new copy wraps cleanly. Nothing to fix.
+- 2026-09-10 round 110: dark mode. No stylesheet change since round 84.
+  Rendered the two surfaces round 108 added, in dark: the search results
+  carrying "no data published" (the amber tag reads at about 7:1 on the
+  dark panel) and the empty-table error state (heading, text and buttons
+  take the dark ink and link tokens). Nothing to fix.
