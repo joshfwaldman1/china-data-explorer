@@ -46,6 +46,15 @@ const QUARTERLY_BUNDLE_MONTHS = new Set([1, 4, 7, 10]);
  * January, April, July and October, so in those months the bundle also
  * refreshes the GDP series. `when` is the release time, "YYYY-MM-DD HH:MM:SS".
  */
+/**
+ * An agenda bound as NBS's calendar wants it. A caller who passes a bare date for `end`
+ * ("2026-11-30") would otherwise be read as midnight and lose that day's releases, so a
+ * bare date takes the start or end of its day; a value that already carries a time is kept.
+ */
+export function agendaBound(value: string, endOfDay: boolean): string {
+  return /^\d{4}[-/]\d{2}[-/]\d{2}$/.test(value.trim()) ? `${value.trim()} ${endOfDay ? "23:59:59" : "00:00:00"}` : value;
+}
+
 export function describeRelease(title: string, when = ""): ReleaseMapping | null {
   const stem = title.replace(/\s*[（(]\d{1,2}:\d{2}[)）]\s*$/, "");
   const entry = RELEASE_MAP.find((candidate) => stem.includes(candidate.match)) ?? null;

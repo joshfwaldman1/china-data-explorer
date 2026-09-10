@@ -22,7 +22,7 @@ import {
   transformLabel,
   transformPoints,
   type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery } from "./nbs-catalog";
-import { RELEASE_MAP, describeRelease } from "./releases";
+import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
 import { refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
@@ -158,7 +158,7 @@ const routes = {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
       try {
-        return Response.json(await fetchAgenda(params.get("start") ?? nbsDate(monthStart), params.get("end") ?? nbsDate(monthEnd, true)));
+        return Response.json(await fetchAgenda(agendaBound(params.get("start") ?? nbsDate(monthStart), false), agendaBound(params.get("end") ?? nbsDate(monthEnd, true), true)));
       } catch (error) {
         const message = error instanceof Error ? error.message : "NBS release calendar failed";
         return Response.json({ error: message }, { status: 502 });
