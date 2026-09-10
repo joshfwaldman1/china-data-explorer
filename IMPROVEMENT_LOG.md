@@ -562,3 +562,17 @@ not from scratch. Rounds are small on purpose.
   list and AGENTS.md now carry all four, the last as its own section
   since it explains a data convention a reader would otherwise mistake
   for a gap. Docs only, no deploy.
+- 2026-09-10 round 64: audited search for ten queries with typos,
+  questions, hyphens and plurals on the live site. Two gaps fixed: a
+  hyphen inside a phrase blocked the alias ("fixed-asset investment"
+  found nothing where "fixed asset investment" found 343), and "yoy" was
+  not a word the search knew ("exports yoy" found nothing). Queries are
+  now normalised once, a hyphen between letters becoming a space with
+  "16-24" and hex ids untouched, and yoy, y/y, year on year and year over
+  year all mean 同比. Test added. Verified live: both queries lead with
+  the right series and the controls are unchanged. Not changed: a typo
+  ("unemployement") and a question ("how much is china's cpi") still
+  miss or mis-rank, and "population growth" finds nothing because the
+  only population series is annual and outside the monthly catalog.
+  Three requests came back empty for a moment right after the deploy,
+  the container switch, and answered normally a minute later.
