@@ -1113,3 +1113,13 @@ not from scratch. Rounds are small on purpose.
   to 14 so stored units rebuilt on boot; tests added. Verified live: the
   pig iron ratio reads %, the cloth ratio change reads 百分点, and crude
   steel output still reads 万吨.
+- 2026-09-10 round 115: audited Home's hero on the live site: the four
+  tiles link to GDP, CPI, unemployment and PMI with values, periods and
+  changes matching the store, and the hero search trims its input and
+  opens the results page. One defect: the topbar search box was filled
+  from the URL only when the app first loaded and cleared on leaving the
+  search page, so a hero search or a chip from Home landed on results
+  with an empty box while a reload of the same URL showed the query. It
+  now follows the query whenever the route changes. Verified live: a
+  hero search for "steel output" lands with the box reading it, going
+  Home empties it, and the LPR chip fills it with "LPR".
