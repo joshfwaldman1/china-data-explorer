@@ -22,6 +22,11 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
+- Search ranking for index components: "ppi" lists "PPI: food, previous
+  month = 100" ahead of the year-on-year base, because the tie-break
+  prefers the shorter English title. A researcher typing "ppi" or "cpi"
+  most often wants the same-month-a-year-earlier base first (surfaced by
+  round 95 in the Add series popover).
 
 ## Log
 
@@ -869,3 +874,11 @@ not from scratch. Rounds are small on purpose.
   mid-word. It now reads "Search in English or Chinese"; the examples
   were already given on the Home search. Verified live: the placeholder
   measures 177 px in a 264 px box.
+- 2026-09-10 round 95: dark mode. No stylesheet change since round 84.
+  Rendered two dark surfaces no dark round had covered: the release
+  calendar (day column, times, bilingual titles, series and category
+  links) and the Add series popover with results for "ppi" over the
+  chart. Panel, text, link and focus tokens all resolve on the dark
+  ground in both. Nothing to fix. Surfaced for a search round and queued:
+  "ppi" lists the previous-month-base components ahead of the
+  year-on-year ones.
