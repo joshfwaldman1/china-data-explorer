@@ -44,6 +44,14 @@ describe("timeTicks", () => {
     expect(ticks.length).toBeLessThanOrEqual(15);
     expect(ticks.every((tick) => /^\d{4}$/.test(tick.label))).toBe(true);
   });
+  test("annual points get year labels on any span, quarterly ones beyond three years", () => {
+    const annual = timeTicks(Date.UTC(2015, 0, 1), Date.UTC(2020, 0, 1), 1300, 90, "Annual");
+    expect(annual.map((tick) => tick.label)).toEqual(["2015", "2016", "2017", "2018", "2019", "2020"]);
+    const quarterly = timeTicks(Date.UTC(2021, 6, 1), Date.UTC(2026, 6, 1), 1300, 90, "Quarterly");
+    expect(quarterly.every((tick) => /^\d{4}$/.test(tick.label))).toBe(true);
+    const shortQuarterly = timeTicks(Date.UTC(2024, 0, 1), Date.UTC(2026, 0, 1), 1300, 90, "Quarterly");
+    expect(shortQuarterly[0]?.label).toMatch(/^[A-Z][a-z]{2} \d{2}$/);
+  });
   test("month labels on a short span, at least 90px apart", () => {
     const width = 1300;
     const ticks = timeTicks(Date.UTC(2024, 0, 1), Date.UTC(2026, 0, 1), width);

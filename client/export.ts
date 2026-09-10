@@ -117,12 +117,18 @@ export function logTicks(min: number, max: number): { lo: number; hi: number; ti
 }
 
 /** Time-axis ticks: years when the span is long, months otherwise, thinned to at least `minGap` px apart. */
-export function timeTicks(min: number, max: number, plotWidth: number, minGap = 90): { t: number; label: string }[] {
+/**
+ * Axis ticks for the span. Years on a long span; months on a short one, except that
+ * annual points always get years, and quarterly points get years beyond three of them:
+ * "Jan 09, Jul 09" under one point a year misleads.
+ */
+export function timeTicks(min: number, max: number, plotWidth: number, minGap = 90, coarsest: "Monthly" | "Quarterly" | "Annual" = "Monthly"): { t: number; label: string }[] {
   if (!(max > min) || plotWidth <= 0) return [];
   const span = max - min;
   const px = (t: number) => ((t - min) / span) * plotWidth;
   const startYear = new Date(min).getUTCFullYear(), endYear = new Date(max).getUTCFullYear();
-  if (span / YEAR > 6) {
+  const yearsOnly = span / YEAR > 6 || coarsest === "Annual" || (coarsest === "Quarterly" && span / YEAR > 3);
+  if (yearsOnly) {
     const yearPx = plotWidth / (span / YEAR);
     const step = Math.max(1, Math.ceil(minGap / yearPx));
     const anchor = Math.ceil(startYear / step) * step;
@@ -268,7 +274,9 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   };
 
   const yTicks = scale.ticks.map((value, index) => ({ y: yOf(value), label: yTickLabels[index] ?? "" }));
-  const xTicks = timeTicks(tMin, tMax, plot.w).map((tick) => ({ x: xOf(tick.t), label: tick.label }));
+  const coarsest: "Monthly" | "Quarterly" | "Annual" = tracks.every((track) => track.frequency === "Annual") ? "Annual"
+    : tracks.every((track) => track.frequency === "Quarterly" || track.frequency === "Annual") ? "Quarterly" : "Monthly";
+  const xTicks = timeTicks(tMin, tMax, plot.w, 90, coarsest).map((tick) => ({ x: xOf(tick.t), label: tick.label }));
   const refLines: { y: number }[] = [];
   if (isRate(input.unit) && !input.logScale && scale.lo < 0 && scale.hi > 0) refLines.push({ y: yOf(0) });
   const indexBase = /=100|= 100/.test(input.unit) ? 100 : null;
