@@ -1161,3 +1161,11 @@ not from scratch. Rounds are small on purpose.
   sentence. Verified live: the pig iron image reads "Last published Q4
   2019; nothing newer has been published." and the CPI image carries no
   note.
+- 2026-09-10 round 120: measured three pages no mobile round had covered
+  at 390 px on the live site: Browse's category cards, the Saved page's
+  empty state, and the CPI page with the Options panel open (frequency,
+  show-as and Lunar New Year controls). All three lay out at exactly
+  390 px with no element past the edge. One copy gap: the Saved page's
+  empty state said where saved series live but not how to save one; it
+  now opens "Save a series from its page with the Save button." Verified
+  live at 390 px.
