@@ -22,6 +22,11 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
+- Search's stored-range cache (`storedRanges` in nbs-catalog.ts) is rebuilt
+  on first use by a MIN/MAX scan over 1.3 million observations and expires
+  every ten minutes, so one searcher waits about ten seconds each time.
+  Confirm with a timed search after expiry; then refresh it in the
+  background or keep it warm from the ingest.
 
 ## Log
 
@@ -655,3 +660,16 @@ not from scratch. Rounds are small on purpose.
   operations after the hung pushes. AGENTS.md's January-February section
   and search paragraph, the README's share image bullet and LOOP.md's
   commit step now carry them. Docs only, no deploy.
+- 2026-09-10 round 75: ten search queries all came back empty from here
+  in the minute the scheduled ingest was finishing, and round 52 had seen
+  the same. Polling health and search through a boot ingest (a redeploy
+  of the same code) showed the ingest itself does not block requests, but
+  its first step did: the due scan over 15,034 stored series ran
+  synchronously and held one search for eight seconds. The scan now
+  yields every 500 rows. Verified with a second poll: samples across the
+  ingest's start stayed at 1.2 to 1.4 seconds. The same poll showed the
+  first search after boot taking 13.5 seconds, which points at the
+  search's stored-range cache, rebuilt on first use by a scan of the
+  observations table and expiring every ten minutes; queued for the next
+  round. Two of the three poll jobs were killed by memory pressure on this
+  machine and rerun with samples written to a file.
