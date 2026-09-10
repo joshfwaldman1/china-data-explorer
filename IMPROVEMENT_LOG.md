@@ -807,3 +807,15 @@ not from scratch. Rounds are small on purpose.
   unit only in the unchanged case. An unchanged rate now reads "0.0 pp"
   and an unchanged level in the thousands "0"; tests added. Verified
   live: the LPR row reads "0.0 pp" next to the PPI row's "+0.3 pp".
+- 2026-09-10 round 90: audited the Provinces page on the live site for
+  three quarters the earlier rounds had not: Q2 2022 (Shanghai -5.3,
+  Jilin -6.0 at the bottom, Ningxia 5.7 on top), Q1 2011 and Q1 2020
+  (Hubei -39.3). All 31 provinces carry a value in each, and the tiles,
+  ranking and card headings agree with the API. One gap in the researcher
+  workflow rather than a data defect: the Period control kept its choice
+  in component state, so a link copied from a view of Q1 2020 opened on
+  the latest quarter. The period now travels in the URL as
+  #/regions?period=2020-Q1 and the control writes it through the router.
+  Verified live: the link opens on Q1 2020 with the control, both card
+  headings and the Hubei tile agreeing, and changing the control rewrites
+  the hash.
