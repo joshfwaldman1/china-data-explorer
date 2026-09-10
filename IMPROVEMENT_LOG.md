@@ -648,3 +648,10 @@ not from scratch. Rounds are small on purpose.
   frequency. Verified live: the caption reads "New Home Prices, 70
   Cities: Percent change from year ago, monthly data, one row per period,
   newest first." and stays invisible.
+- 2026-09-10 round 74: audited the docs against the code since round 63.
+  Undocumented: the catalog-wide February fill from the year-to-date
+  sibling (round 65), the query normaliser (64), the share image's tick
+  rule by frequency (70), and the loop's practice of capping git
+  operations after the hung pushes. AGENTS.md's January-February section
+  and search paragraph, the README's share image bullet and LOOP.md's
+  commit step now carry them. Docs only, no deploy.

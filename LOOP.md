@@ -47,6 +47,9 @@ until he stops the loop. Read this whole file before doing anything.
    is logic. Gate the commit on that output rather than piping it into
    `grep` and carrying on: a chain that did not stop shipped a broken build
    once (round 31).
+   Run `git pull` and `git push` under a hard cap (kill after 60 to 90
+   seconds and retry): GitHub connections from this machine have hung for
+   up to an hour, and a hung push blocks the deploy behind it.
 5. Commit with a message that states the defect and the fix in plain words
    (see `git log` for the voice), and push to `china-data-explorer`.
    Pushing deploys the live site if the Railway service is linked to GitHub;

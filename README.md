@@ -75,8 +75,9 @@ families already present in the published snapshot.
 - **Share image** — Copy image, Download image or Copy link from the series
   page. The image is drawn from the data on a canvas at 1600 x 900 (2x),
   always in the light palette, with title, unit and range, end labels, a
-  legend when there is more than one line, and the source and page URL in
-  the footer, ready to paste into a tweet or a doc.
+  legend when there is more than one line, year ticks whenever the data is
+  annual, and the source and page URL in the footer, ready to paste into a
+  tweet or a doc.
 
 ## Local JSON API
 
