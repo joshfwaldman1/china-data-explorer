@@ -118,6 +118,8 @@ Object.assign(SEARCH_ALIASES, {
   "core inflation": ["不包括食品和能源"], "core cpi": ["不包括食品和能源"], core: ["不包括食品和能源"],
   auto: ["汽车"], autos: ["汽车"], automobile: ["汽车"], automobiles: ["汽车"], vehicle: ["汽车"], vehicles: ["汽车"],
   semiconductor: ["集成电路"], "solar panels": ["太阳能电池"], "solar panel": ["太阳能电池"], "solar cells": ["太阳能电池"], pv: ["光伏"],
+  // Common Chinese abbreviations.
+  "固投": ["固定资产投资"], "社融": ["社会融资规模"], "规上": ["规模以上"],
 });
 // Words that carry no signal for a series: the country itself and English function words ("exports to the united states").
 export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from"]);
@@ -629,6 +631,16 @@ export function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => latinTermHit(haystack, pinyinJoined, term)))) {
     const titleMatches = tokenGroups.filter((group) => group.some((term) => hasTerm(name, term) || hasTerm(nameEn, term))).length;
     bestScore = Math.max(bestScore, 10 + titleMatches * 20);
+  }
+  // A Chinese phrase that appears nowhere whole ("猪肉价格") still matches when each of its
+  // two-character pieces does: 猪肉 and 价格 both sit in 猪肉居民消费价格指数. Scored below a
+  // whole-phrase hit so the exact titles keep the top.
+  if (bestScore === 0 && /^[\u3400-\u9fff]{4,}$/.test(lowerQuery)) {
+    const pieces = lowerQuery.match(/[\u3400-\u9fff]{1,2}/g) ?? [];
+    if (pieces.every((piece) => haystack.includes(piece))) {
+      const inTitle = pieces.filter((piece) => name.includes(piece)).length;
+      bestScore = 5 + inTitle * 10;
+    }
   }
   return bestScore;
 }

@@ -162,3 +162,11 @@ test("PMI sub-indexes carry their table in the English title", async () => {
   const titles = result.results.filter((entry) => entry.name.startsWith("新订单指数")).map((entry) => entry.nameEn);
   expect(new Set(titles).size).toBe(titles.length);
 });
+
+test("a Chinese phrase matches by its two-character pieces when it appears nowhere whole", async () => {
+  const pork = await searchNbsCatalog({ query: "猪肉价格", limit: 5 });
+  expect(pork.results.length).toBeGreaterThan(0);
+  expect(pork.results.every((entry) => entry.name.includes("猪肉"))).toBe(true);
+  const fai = await searchNbsCatalog({ query: "固投", limit: 3 });
+  expect(fai.results[0]?.name.startsWith("固定资产投资")).toBe(true);
+});
