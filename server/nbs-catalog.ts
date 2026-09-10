@@ -19,7 +19,7 @@ const HMT_REGIONS = [
 const SEARCH_ALIASES: Record<string, string[]> = {
   gdp: ["国内生产总值", "地区生产总值"],
   cpi: ["居民消费价格"],
-  inflation: ["居民消费价格", "价格指数"],
+  inflation: ["居民消费价格", "价格指数"], "inflation rate": ["居民消费价格指数"],
   ppi: ["工业生产者价格"],
   pmi: ["采购经理指数"],
   fai: ["固定资产投资"],
@@ -39,7 +39,7 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   wage: ["工资"],
   savings: ["储蓄"],
   investment: ["投资"],
-  output: ["产量", "产值", "增加值"],
+  output: ["产量", "产值", "增加值"], make: ["产量"], makes: ["产量"], made: ["产量"], produce: ["产量"], produces: ["产量"], produced: ["产量"], manufacture: ["产量"], manufactures: ["产量"],
   production: ["生产", "产量", "增加值"],
   growth: ["增长", "增速"],
   rate: ["率", "增速"],
@@ -109,7 +109,7 @@ Object.assign(SEARCH_ALIASES, {
   m2: ["广义货币", "M2"], m1: ["狭义货币", "M1"], loans: ["贷款"], deposits: ["存款"], fiscal: ["财政"], tax: ["税收"], taxes: ["税收"],
   "crude steel": ["粗钢"], aluminium: ["原铝（电解铝）产量"], aluminum: ["原铝（电解铝）产量"], copper: ["铜"], pork: ["猪肉"], vegetables: ["鲜菜"],
   rail: ["铁路"], railway: ["铁路"], aviation: ["民航"], airlines: ["民航"], tourism: ["旅游"], shipping: ["港口", "水运"], ports: ["港口"],
-  ev: ["新能源汽车"], evs: ["新能源汽车"], "electric vehicles": ["新能源汽车"], robots: ["工业机器人"], chips: ["集成电路"], semiconductors: ["集成电路"],
+  ev: ["新能源汽车"], evs: ["新能源汽车"], "electric vehicles": ["新能源汽车"], robots: ["工业机器人"], chips: ["集成电路"], chip: ["集成电路"], semiconductors: ["集成电路"],
   solar: ["太阳能", "光伏"], wind: ["风电"], nuclear: ["核电"], hydro: ["水电"], "power generation": ["发电量"], smartphones: ["手机"], phones: ["手机"],
   income: ["收入"], "disposable income": ["可支配收入"], spending: ["支出", "消费"], "industrial profits": ["工业企业利润"], inventories: ["库存", "产成品"],
   "floor space": ["面积"], "housing starts": ["房地产新开工施工面积"],
@@ -126,7 +126,7 @@ Object.assign(SEARCH_ALIASES, {
   yoy: ["同比"], "y/y": ["同比"], "year on year": ["同比"], "year over year": ["同比"],
 });
 // Words that carry no signal for a series: the country itself and English function words ("exports to the united states").
-export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from"]);
+export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from", "how", "many", "much", "does", "do", "is", "are", "was", "what", "which"]);
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
 
@@ -641,7 +641,10 @@ export function searchScore(entry: NbsCatalogEntry, query: string): number {
     .map((word) => SEARCH_ALIASES[word] ?? [word]);
   if (tokenGroups.length > 0 && tokenGroups.every((group) => group.some((term) => latinTermHit(haystack, pinyinJoined, term)))) {
     const titleMatches = tokenGroups.filter((group) => group.some((term) => hasTerm(name, term) || hasTerm(nameEn, term))).length;
-    bestScore = Math.max(bestScore, 10 + titleMatches * 20);
+    // A title that opens with the query's leading concept ("汽车产量" for "cars make") edges out one
+    // that merely contains it ("载货汽车产量", truck output), which the shorter-title tie-break would favour.
+    const leading = tokenGroups[0]?.some((term) => name.startsWith(term) || nameEn.startsWith(term)) ? 5 : 0;
+    bestScore = Math.max(bestScore, 10 + titleMatches * 20 + leading);
   }
   // A Chinese phrase that appears nowhere whole ("猪肉价格") still matches when each of its
   // two-character pieces does: 猪肉 and 价格 both sit in 猪肉居民消费价格指数. Scored below a

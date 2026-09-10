@@ -177,6 +177,15 @@ test("metals and aviation vocabulary: aluminium means primary aluminium, air pas
   expect(air.results[0]?.name.startsWith("民航客运量")).toBe(true);
 });
 
+test("plain phrasing: a question about cars made, 'chip output' and 'inflation rate' reach their tables", async () => {
+  const cars = await searchNbsCatalog({ query: "how many cars does china make", limit: 3 });
+  expect(cars.results[0]?.name.startsWith("汽车产量")).toBe(true);
+  const chips = await searchNbsCatalog({ query: "chip output", limit: 3 });
+  expect(chips.results[0]?.name.startsWith("集成电路")).toBe(true);
+  const inflation = await searchNbsCatalog({ query: "inflation rate", limit: 3 });
+  expect(inflation.results[0]?.name.startsWith("居民消费价格指数")).toBe(true);
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");
