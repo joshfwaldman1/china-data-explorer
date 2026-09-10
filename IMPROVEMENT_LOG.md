@@ -1210,3 +1210,19 @@ not from scratch. Rounds are small on purpose.
   retail sales headline's synonyms. Test added. Verified live: 社零 leads
   with the retail sales headline then the NBS total, 汽车销量 with
   automobile sales, and 猪肉价格 (round 52) still finds the pork CPI.
+- 2026-09-10 round 125: audited ten random stored price-index series
+  pages on the live site (CPI components on both bases, PPI industries,
+  farmers' market prices and their month-on-month growth). Periods
+  ordered, no duplicates or nulls, the year-on-year indices shown as
+  growth and the previous-month index raw, as intended. Two title
+  defects, both systemic: 82 glosses put the index after the component
+  ("Liquor, beverage and refined tea manufacturing: producer price
+  index") and 19 capitalised the component ("CPI: Transport and
+  communication") against 204 reading "CPI: food". The normaliser now
+  folds the suffix form, keeps the urban and rural variants in front
+  ("Urban CPI: livestock meat"), and lowercases the component unless it
+  is an acronym or a proper adjective; the first attempt missed the
+  lowercase index name after "Urban", which the test caught.
+  GLOSS_FORMAT bumped to 15; tests added. Verified live on the liquor
+  PPI, the transport CPI and the urban livestock CPI, with the headline
+  "Consumer Price Index" unchanged.
