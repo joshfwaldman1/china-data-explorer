@@ -22,11 +22,6 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
-- Search's stored-range cache (`storedRanges` in nbs-catalog.ts) is rebuilt
-  on first use by a MIN/MAX scan over 1.3 million observations and expires
-  every ten minutes, so one searcher waits about ten seconds each time.
-  Confirm with a timed search after expiry; then refresh it in the
-  background or keep it warm from the ingest.
 
 ## Log
 
@@ -673,3 +668,11 @@ not from scratch. Rounds are small on purpose.
   observations table and expiring every ten minutes; queued for the next
   round. Two of the three poll jobs were killed by memory pressure on this
   machine and rerun with samples written to a file.
+- 2026-09-10 round 76: queue item, tested rather than fixed. The
+  suspicion was that the search's stored-range cache, rebuilt on first use
+  and expiring every ten minutes, cost a searcher ten seconds each time.
+  A search timed just after the ten-minute mark took 1.1 seconds, the same
+  as a warm one, and health answered in under a second alongside it. So
+  the rebuild is cheap and the 13.5-second sample in round 75 was the
+  first search after boot, a one-off warm-up of the catalog and its index
+  that a deploy causes and nothing else. Item removed; nothing to fix.
