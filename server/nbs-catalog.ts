@@ -120,6 +120,8 @@ Object.assign(SEARCH_ALIASES, {
   semiconductor: ["集成电路"], "solar panels": ["太阳能电池"], "solar panel": ["太阳能电池"], "solar cells": ["太阳能电池"], pv: ["光伏"],
   // Common Chinese abbreviations.
   "固投": ["固定资产投资"], "社融": ["社会融资规模"], "规上": ["规模以上"],
+  // Year-on-year phrasings.
+  yoy: ["同比"], "y/y": ["同比"], "year on year": ["同比"], "year over year": ["同比"],
 });
 // Words that carry no signal for a series: the country itself and English function words ("exports to the united states").
 export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from"]);
@@ -654,6 +656,15 @@ function termHit(name: string, term: string): number {
   return 0;
 }
 
+/**
+ * A query as the matchers see it: lower-cased, a hyphen between letters
+ * turned into a space ("fixed-asset investment" is the alias "fixed asset
+ * investment"; "16-24" and hex ids keep theirs), whitespace collapsed.
+ */
+export function normalizeQuery(query: string): string {
+  return query.toLocaleLowerCase().replace(/(?<=[a-z])-(?=[a-z])/g, " ").replace(/\s+/g, " ").trim();
+}
+
 /** Every phrasing the dictionary offers for a query, plus the query itself. */
 export function queryVariants(query: string): string[] {
   const lower = query.toLocaleLowerCase();
@@ -697,7 +708,7 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
     }
     return { ...entry, firstPeriod: first, lastPeriod: own.last };
   };
-  const query = (filters.query ?? "").trim();
+  const query = normalizeQuery(filters.query ?? "");
   const passes = (entry: NbsCatalogEntry) =>
     (!filters.frequency || entry.frequency === filters.frequency) &&
     (!filters.geography || entry.geography === filters.geography) &&

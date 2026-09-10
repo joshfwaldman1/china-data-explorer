@@ -21,7 +21,7 @@ import {
   searchNbsCatalog,
   transformLabel,
   transformPoints,
-  type NbsTransform, SEARCH_STOP_WORDS } from "./nbs-catalog";
+  type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease } from "./releases";
 import { refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 
@@ -212,7 +212,7 @@ const routes = {
       const frequency = params.get("frequency") ?? undefined;
       const geography = params.get("geography") ?? undefined;
       const category = params.get("category") ?? undefined;
-      const allTerms = queryText.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+      const allTerms = normalizeQuery(queryText).split(/\s+/).filter(Boolean);
       // Function words and the country drop out ("exports to the united states"), unless that would leave nothing.
       const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
       const queryTerms = meaningful.length > 0 ? meaningful : allTerms;

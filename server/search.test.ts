@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -169,4 +169,14 @@ test("a Chinese phrase matches by its two-character pieces when it appears nowhe
   expect(pork.results.every((entry) => entry.name.includes("猪肉"))).toBe(true);
   const fai = await searchNbsCatalog({ query: "固投", limit: 3 });
   expect(fai.results[0]?.name.startsWith("固定资产投资")).toBe(true);
+});
+
+test("a hyphen inside a phrase and a year-on-year suffix do not block a match", async () => {
+  expect(normalizeQuery("Fixed-Asset  Investment")).toBe("fixed asset investment");
+  expect(normalizeQuery("16-24")).toBe("16-24");
+  const fai = await searchNbsCatalog({ query: "fixed-asset investment", limit: 3 });
+  expect(fai.results[0]?.name.startsWith("固定资产投资")).toBe(true);
+  const exports = await searchNbsCatalog({ query: "exports yoy", limit: 3 });
+  expect(exports.results.length).toBeGreaterThan(0);
+  expect(exports.results.every((entry) => entry.name.includes("出口") && entry.name.includes("同比"))).toBe(true);
 });
