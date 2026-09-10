@@ -847,3 +847,16 @@ not from scratch. Rounds are small on purpose.
   call time so a test can exercise the flag; test added. Verified live:
   the catalog flags the three AkShare series and the page carries the
   new notice.
+- 2026-09-10 round 93: audited the share image with three live renders
+  not yet covered: the two-line money supply growth chart, foreign
+  exchange reserves on a log scale, and a mixed-unit compare (CPI with
+  reserves) shown as year-on-year change. The first and third render
+  right. Defect: the log-scale image drew two labels, 20,000 and 50,000,
+  with the line floating between them, because the log tick rule steps
+  by decades and 1-2-5 factors even when the data spans less than a
+  doubling, and the subtitle said nothing about the scale. A span
+  narrower than a doubling now takes evenly spaced labels on the log
+  axis, and the subtitle ends "log scale". Tests added. Verified live:
+  the reserves image reads 28,000 to 36,000 in five steps with the
+  subtitle "Hundred million USD (亿美元), monthly, Aug 2016 to Aug 2026,
+  log scale".
