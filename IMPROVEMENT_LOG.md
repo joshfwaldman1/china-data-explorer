@@ -635,3 +635,7 @@ not from scratch. Rounds are small on purpose.
   data portal", a lowercase fragment where every other source string
   starts with the source's name; it now reads "NBS's own data portal".
   Verified live.
+- 2026-09-10 round 72: dark mode. No stylesheet change since round 61 and
+  the one share-image change since then touched tick placement, not
+  colour; the 27 colour tokens remain defined in the light palette and
+  both dark blocks. Nothing to fix.
