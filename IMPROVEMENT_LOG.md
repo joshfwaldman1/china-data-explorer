@@ -936,3 +936,21 @@ not from scratch. Rounds are small on purpose.
   "aluminium output" and "aluminum" lead with primary aluminium,
   "aluminium alloy" keeps its table, "air passengers" finds civil
   aviation passenger traffic.
+- 2026-09-10 round 101: audited ten random catalog series pages on the
+  live site (private enterprise administrative expenses, two PPI
+  components, leather industry assets, shareholding enterprise operating
+  profit, repair industry revenue growth, non-ferrous current assets and
+  fixed-asset investment growth, food inventories, foreign-invested
+  enterprise assets). Periods ordered, no duplicates or nulls, units,
+  ranges and the 增减 wording from round 88 all sound. One defect,
+  systemic: the sampled "Producer price index for weighing instrument
+  manufacturing" sat beside the convention "PPI: sanitary materials";
+  the gloss table spells out 124 PPI components that way, plus a handful
+  of retail and consumer index ones, and the prefix normaliser folded
+  only the abbreviated comma form. It now folds the spelled-out forms
+  when a component follows and leaves the bare headline titles alone.
+  GLOSS_FORMAT bumped to 13 so stored titles rebuilt on boot; tests
+  updated. Verified live: the sampled page reads "PPI: weighing
+  instrument manufacturing, same month a year earlier = 100", "ppi tea"
+  leads with "PPI: tea", and the headline "Consumer price index" is
+  unchanged.
