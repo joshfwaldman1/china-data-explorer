@@ -153,6 +153,12 @@ test("industry vocabulary: auto exports, semiconductor output and solar panels r
   expect(solar.results[0]?.name.startsWith("太阳能电池")).toBe(true);
 });
 
+test("housing starts reach the monthly real estate table, not the construction industry's floor space started", async () => {
+  const starts = await searchNbsCatalog({ query: "housing starts", limit: 3 });
+  expect(starts.results[0]?.name.startsWith("房地产新开工施工面积")).toBe(true);
+  expect(starts.results[0]?.frequency).toBe("Monthly");
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");
