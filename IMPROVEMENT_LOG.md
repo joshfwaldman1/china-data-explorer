@@ -533,3 +533,8 @@ not from scratch. Rounds are small on purpose.
   live after the boot ingest: every February from 2013 to 2026 is present
   (4.1 for February 2026), July 2026 unchanged at -0.1. With rounds 58 and
   59 the three activity series NBS publishes this way are all whole.
+- 2026-09-10 round 60: measured the remaining page types at 390 px on the
+  live site: a four-series compare (lede, four chips, the quarterly-average
+  notice, the "four series is the most" note) and a catalog page down to
+  its Related Series cards. Both lay out at exactly 390 px with no element
+  past the edge. Nothing to fix.
