@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -179,4 +179,16 @@ test("a hyphen inside a phrase and a year-on-year suffix do not block a match", 
   const exports = await searchNbsCatalog({ query: "exports yoy", limit: 3 });
   expect(exports.results.length).toBeGreaterThan(0);
   expect(exports.results.every((entry) => entry.name.includes("出口") && entry.name.includes("同比"))).toBe(true);
+});
+
+test("a monthly level or growth series takes its combined February from the year-to-date sibling", () => {
+  expect(februarySiblingName("柴油产量当期值 (万吨)")).toBe("柴油产量累计值 (万吨)");
+  expect(februarySiblingName("柴油产量同比增长 (%)")).toBe("柴油产量累计增长 (%)");
+  expect(februarySiblingName("柴油产量累计值 (万吨)")).toBeNull();
+  const primary = [{ date: "2025-12", value: 1771 }, { date: "2026-03", value: 1650.5 }];
+  const sibling = [{ date: "2025-12", value: 19959.4 }, { date: "2026-02", value: 3147 }, { date: "2026-03", value: 4799.9 }];
+  const out = fillFebruary(primary, sibling);
+  expect(out.filled).toBe(1);
+  expect(out.points.map((p) => p.date)).toEqual(["2025-12", "2026-02", "2026-03"]);
+  expect(fillFebruary(out.points, sibling).filled).toBe(0);
 });

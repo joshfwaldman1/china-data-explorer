@@ -159,6 +159,8 @@ export interface NbsCatalogEntry {
    * for any member returns the slices stitched together.
    */
   family?: NbsFamily;
+  /** Set on a served series whose February points came from the year-to-date sibling of the same table (the combined January-February figure). */
+  februaryFrom?: string;
   /** The stored history's first and last periods, attached at search time; absent until the series is stored. */
   firstPeriod?: string;
   lastPeriod?: string;
@@ -1065,6 +1067,27 @@ export function storeNbsPoints(entry: NbsCatalogEntry, region: NbsRegionOption, 
   return "ok";
 }
 
+/**
+ * NBS publishes January and February of the monthly activity tables as one
+ * reading: a "current period" level or a monthly growth rate has no
+ * February point, while the year-to-date series of the same table carries
+ * the combined figure there. The sibling's name is the primary's with the
+ * measure swapped; null when the name is not one of those measures.
+ */
+export function februarySiblingName(name: string): string | null {
+  if (/当期值/.test(name)) return name.replace(/当期值/, "累计值");
+  if (/同比增长/.test(name)) return name.replace(/同比增长/, "累计增长");
+  return null;
+}
+
+/** The primary's points plus the sibling's February points it lacks, in date order. */
+export function fillFebruary(primary: SeriesPoint[], sibling: SeriesPoint[]): { points: SeriesPoint[]; filled: number } {
+  const have = new Set(primary.map((point) => point.date));
+  const extra = sibling.filter((point) => point.date.endsWith("-02") && !have.has(point.date));
+  if (extra.length === 0) return { points: primary, filled: 0 };
+  return { points: [...primary, ...extra].sort((a, b) => a.date.localeCompare(b.date)), filled: extra.length };
+}
+
 /** The store-first read that every page view goes through. */
 export async function getNbsCatalogSeries(options: {
   entry: NbsCatalogEntry;
@@ -1087,8 +1110,24 @@ export async function getNbsCatalogSeries(options: {
     catch (error) { if (memberEntries.length === 1) throw error; }
   }
   if (parts.every((part) => part.points.length === 0)) throw new Error("NBS returned no observations for this series");
-  const points = stitchPoints(parts.map((part) => part.points));
+  let points = stitchPoints(parts.map((part) => part.points));
   const source: NbsSeriesResult["source"] = parts.some((part) => part.source === "stale") ? "stale" : parts.some((part) => part.source === "live") ? "live" : "store";
+
+  // The combined January-February reading lives in the year-to-date sibling; take its stored
+  // February points where this series has none. Stored only: a page view never fetches for it.
+  let februaryFrom: string | undefined;
+  const siblingName = options.entry.frequency === "Monthly" ? februarySiblingName(options.entry.name) : null;
+  if (siblingName) {
+    const snapshot = await loadSnapshot();
+    const sibling = snapshot.entries.find((candidate) => candidate.cid === options.entry.cid && candidate.geography === options.entry.geography && candidate.name === siblingName);
+    if (sibling) {
+      const siblingEntries = sibling.family
+        ? sibling.family.members.map((key) => snapshot.entries.find((candidate) => candidate.key === key)).filter((member): member is NbsCatalogEntry => member !== undefined)
+        : [sibling];
+      const filled = fillFebruary(points, stitchPoints(siblingEntries.map((member) => storedPoints(member, region))));
+      if (filled.filled > 0) { points = filled.points; februaryFrom = sibling.key; }
+    }
+  }
 
   // Transform over the full history, then slice, so lagged transforms keep
   // their first year instead of losing it to the limit.
@@ -1097,7 +1136,7 @@ export async function getNbsCatalogSeries(options: {
   return {
     ...rawResult(options.entry, region, transformed),
     unit,
-    metadata: options.entry,
+    metadata: februaryFrom ? { ...options.entry, februaryFrom } : options.entry,
     region,
     transform,
     source,

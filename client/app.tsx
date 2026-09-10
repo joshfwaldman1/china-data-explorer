@@ -18,6 +18,7 @@ interface NbsCatalogEntry {
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
   noteEn?: string; annotationEn?: string; datasetEn?: string; categoriesEn?: string[];
   family?: { head: string; members: string[]; span: string };
+  februaryFrom?: string;
   firstPeriod?: string; lastPeriod?: string;
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
@@ -1034,6 +1035,7 @@ function SeriesPage(props: {
   const readingNotes = [
     ...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)),
     ...(curated?.endedNote ? [curated.endedNote] : []),
+    ...(meta?.februaryFrom ? ["NBS publishes January and February together. The February point is the combined figure, taken from the year-to-date series of the same table; there is no January point."] : []),
     ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces; they are joined here into one series covering ${meta.family.span}. Where two pieces overlap, the newer one is used.`] : []),
   ];
   const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
