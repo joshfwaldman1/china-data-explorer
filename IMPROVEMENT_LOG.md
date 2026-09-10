@@ -1247,3 +1247,14 @@ not from scratch. Rounds are small on purpose.
   inconsistency: the legend printed "4" where the tiles and the other
   ticks show one decimal. The ticks now read with one decimal. Verified
   live: "2.7, 4.0, 4.5, 4.9, 5.4".
+- 2026-09-10 round 128: audited the next-release rows that the release
+  calendar feeds on the live site. GDP reads the 19 October quarterly
+  bundle and the 70-city prices read 15 September, both right. Defect:
+  every series without a mapped release fell back to "Not scheduled
+  this month", which read as a scheduling gap on the People's Bank money
+  supply and the BIS credit series, whose publishers are not in the NBS
+  calendar at all, and on provincial GDP, which provinces publish after
+  the national release. An NBS series now says the calendar has nothing
+  for it this month or next; another agency's series says the NBS
+  calendar does not cover it and names the publisher. Verified live on
+  all four pages.
