@@ -909,3 +909,14 @@ not from scratch. Rounds are small on purpose.
   is now a disabled button until two are picked. Verified live: with one
   pick the control is a disabled button that does not take focus; with
   two, "Chart 2 provinces together" links to the two-province compare.
+- 2026-09-10 round 99: audited the docs against the code since round 86.
+  Undocumented: the ranking tie-breaks (still publishing, then a
+  year-earlier index base over a previous-month one, then the shorter
+  title; round 96), the Provinces period in the URL (90), the `lny`
+  series parameter, the by-department PPI and 增减 gloss rules (97, 88),
+  the `refreshBlocked` catalog flag and its page notice (92), and the
+  log-scale subtitle on the share image (93). AGENTS.md's ranking, series
+  URL and gloss paragraphs and the README's AKTools and share image
+  bullets now carry them. The housing starts alias (87), the Home delta
+  wording (89), the placeholder (94) and the comparison button (98) need
+  no doc. Docs only, no deploy.
