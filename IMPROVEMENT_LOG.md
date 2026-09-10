@@ -830,3 +830,20 @@ not from scratch. Rounds are small on purpose.
   Household living standards, the preliminary value-added estimate to
   National accounts, culture to Culture). `lastReleaseRefresh` is still
   null, as expected before the first release day. Nothing to fix.
+- 2026-09-10 round 92: audited `/api/status` on the live site. No
+  failures since 9 September; the store holds 1,315,243 observations
+  across 15,077 keys at 454 MB; the twenty latest runs are the boot
+  ingest of the last deploy. The payload is 2.6 MB because it lists all
+  15,177 stored (key, region) pairs, and a cold call took 14 s during a
+  boot ingest against 3 s warm; noted, not changed, since only audits
+  read it. Reading the per-series list turned up one headline series
+  frozen for a reason the site misstated: the real estate climate index
+  comes through AkShare, which production does not run, so it stops at
+  December 2025, yet its page said "the source has published nothing
+  newer; the store was last checked Sep 8", false on both counts. The
+  catalog now flags AkShare series as not refreshable when
+  AKTOOLS_URL=off and the notice says the series is refreshed through
+  AkShare, which this deployment does not run. The AKTools URL is read at
+  call time so a test can exercise the flag; test added. Verified live:
+  the catalog flags the three AkShare series and the page carries the
+  new notice.
