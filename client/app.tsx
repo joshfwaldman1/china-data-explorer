@@ -1495,7 +1495,9 @@ function App() {
       const key = route.keys[0];
       if (key) { const next = [key, ...recent.filter((item) => item !== key)].slice(0, 20); setRecent(next); writeList("china-recent", next); }
     }
-    if (route.view !== "search") setDraft("");
+    // The topbar box shows the query being viewed: cleared off the search page, set to the query on it
+    // (a hero search or a chip arrives here with the box otherwise empty).
+    setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
       const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
