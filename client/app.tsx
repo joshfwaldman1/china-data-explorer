@@ -1146,7 +1146,7 @@ function SeriesPage(props: {
       {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
         <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
-          <span className="stat-value">{fmt(latest.value, primary.unit)}</span>
+          <span className="stat-value">{fmt(latest.value, primary.unit)}</span><span className="visually-hidden">, </span>
           <span className="stat-text">{unitLabel(primary.unit)}, {primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${headline.label}, ` : ""}{observationLabel(latest.date, primary.frequency)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
       )}
