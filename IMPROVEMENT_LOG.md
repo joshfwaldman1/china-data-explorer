@@ -981,3 +981,15 @@ not from scratch. Rounds are small on purpose.
   the rule. Verified live: the CPI, Hubei and GDP-with-CPI pages render
   with titles "Consumer Price Index", "Provincial Real GDP Growth: Hubei"
   and "Gross Domestic Product, Consumer Price Index".
+- 2026-09-10 round 104: audited the release calendar and `/api/schedule`
+  on the live site for November, the month the earlier rounds had not
+  read in full, and the next-release rows on the industrial production
+  and PMI pages (15 September 10:00 and 30 September 09:30, both right).
+  The November calendar renders eleven releases on four days with the
+  30 November PMI last. One defect in the API rather than the page:
+  `/api/releases` passed start and end to NBS as given, so a bare
+  `end=2026-11-30` was read as midnight and that day's PMI fell outside
+  the window; the calendar page was unaffected because it sends times.
+  A bare date now takes the start or end of its day; test added.
+  Verified live: the bare-date query returns all eleven, and the
+  November page still renders the same eleven under its heading.
