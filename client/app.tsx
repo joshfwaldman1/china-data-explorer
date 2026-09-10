@@ -1167,7 +1167,7 @@ function SeriesPage(props: {
           <ActionMenu label="Share" items={shareItems} />
         </>}
       />
-      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
+      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{primary.frequency !== "Annual" && !/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
       {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
