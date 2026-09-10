@@ -76,8 +76,9 @@ families already present in the published snapshot.
   page. The image is drawn from the data on a canvas at 1600 x 900 (2x),
   always in the light palette, with title, unit and range, end labels, a
   legend when there is more than one line, year ticks whenever the data is
-  annual, up to three lines of notes under the chart (a suspension, an ended
-  series, a frequency conversion), and the source and page URL in the footer,
+  annual, the scale named in the subtitle when it is logarithmic, up to three
+  lines of notes under the chart (a suspension, an ended series, a frequency
+  conversion), and the source and page URL in the footer,
   ready to paste into a tweet or a doc.
 
 ## Local JSON API
@@ -176,7 +177,9 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
 - Set `AKTOOLS_URL=off` on a deployment without AKTools so those refreshes are
   skipped with a clear message instead of probing localhost.
 - The three AkShare-backed series need AKTools (`python -m aktools` on :8080,
-  `AKTOOLS_URL` to point elsewhere). Without it they serve from the store.
+  `AKTOOLS_URL` to point elsewhere). Without it they serve from the store, the
+  catalog marks them `refreshBlocked`, and their pages say the series is
+  refreshed through AkShare, which the deployment does not run.
 
 ### Environment variables
 
