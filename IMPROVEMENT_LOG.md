@@ -1148,3 +1148,16 @@ not from scratch. Rounds are small on purpose.
   reports the log's row count and oldest entry; docs and test updated.
   Verified live: 29,346 rows since 7 September, three days of heavy
   deploying, a few megabytes beside a 454 MB store; no pruning needed.
+- 2026-09-10 round 119: audited the share image with two live renders not
+  yet covered: the pig iron output-sales ratio, now labelled Percent
+  after round 114, and Beijing's new and existing home prices with the
+  city named in the title. Both render right. Defect: the pig iron
+  series stopped in Q4 2019 and the page says so in its notice, but the
+  image carried no note, so a reader of the picture alone would take
+  2019 as current; round 36 had covered only headline series with an
+  ended flag. The image now notes the last published period for any
+  series behind its schedule, and for an AkShare series that this
+  deployment cannot refresh it; a follow-up commit capitalised the
+  sentence. Verified live: the pig iron image reads "Last published Q4
+  2019; nothing newer has been published." and the CPI image carries no
+  note.
