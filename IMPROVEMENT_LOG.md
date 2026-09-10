@@ -1132,3 +1132,11 @@ not from scratch. Rounds are small on purpose.
   caption now uses the view title the tab and share image use. Verified
   live: the compare table is captioned "Provincial Real GDP Growth:
   Guangdong, Shanghai, Hubei, Tibet" and the CPI table reads as before.
+- 2026-09-10 round 117: audited the release calendar at its edges on the
+  live site. December's agenda holds eleven releases, every one with an
+  English name and a series or category link, ending with the 31
+  December PMI. Stepping back from September shows August's schedule
+  (9, 17 and 27 August) with the month in the URL; stepping to January
+  2027 shows the "Calendar not published yet" state with its note that
+  the coming year's schedule appears each December. `/api/schedule` is
+  unchanged since round 104. Nothing to fix.
