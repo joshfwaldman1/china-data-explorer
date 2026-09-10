@@ -638,8 +638,10 @@ export function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (bestScore === 0 && /^[\u3400-\u9fff]{4,}$/.test(lowerQuery)) {
     const pieces = lowerQuery.match(/[\u3400-\u9fff]{1,2}/g) ?? [];
     if (pieces.every((piece) => haystack.includes(piece))) {
+      // Always below 10, the least any whole-phrase hit scores, so a near-variant with every
+      // piece in its title never outranks the title that carries the phrase itself.
       const inTitle = pieces.filter((piece) => name.includes(piece)).length;
-      bestScore = 5 + inTitle * 10;
+      bestScore = 4 + Math.min(0.9, inTitle * 0.1);
     }
   }
   return bestScore;
