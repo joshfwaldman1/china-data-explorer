@@ -1143,8 +1143,9 @@ function SeriesPage(props: {
       />
       <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{!/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
+      {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
-        <p className="stat-line" aria-label="Latest observation">
+        <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
           <span className="stat-value">{fmt(latest.value, primary.unit)}</span>
           <span className="stat-text">{unitLabel(primary.unit)}, {primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${headline.label}, ` : ""}{observationLabel(latest.date, primary.frequency)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
