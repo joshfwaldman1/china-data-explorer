@@ -724,3 +724,13 @@ not from scratch. Rounds are small on purpose.
   together three, with the plot giving up the height; the note's age
   range uses a hyphen like the legend. Test added. Verified live: the
   unemployment image carries the whole note on two lines.
+- 2026-09-10 round 83: measured the unemployment page at 390 px on the
+  live site in three states not yet covered: the chart with its five-entry
+  legend, the Options panel open, and the Table tab. The first two lay out
+  at exactly 390 px with no element past the edge. The table's five series
+  run to 438 px and scroll inside the card, which is right, but a reader
+  who swipes right lost the Period column and could not tell which month a
+  value belonged to. The first column is now sticky on the left, in the
+  header row too. The Notes card's "16–24" en dash now matches the
+  hyphen used by the legend and table headers. Verified live: with the
+  table scrolled to its limit the Period cells stay at the card's edge.
