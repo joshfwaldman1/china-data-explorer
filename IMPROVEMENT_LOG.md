@@ -819,3 +819,14 @@ not from scratch. Rounds are small on purpose.
   Verified live: the link opens on Q1 2020 with the control, both card
   headings and the Hubei tile agreeing, and changing the control rewrites
   the hash.
+- 2026-09-10 round 91: audited the release calendar and `/api/schedule`
+  for October, the first month with a quarterly bundle, on the live site.
+  The schedule holds 24 upcoming releases from 15 September with no
+  duplicates, the 19 October bundle carries gdp beside industrial output,
+  retail sales and unemployment, and every timer is at 09:30 or 10:00
+  China Standard Time. The October calendar renders fifteen releases on
+  six days, each with a series link or a category link (capacity
+  utilisation and industrial profits to Industry, household income to
+  Household living standards, the preliminary value-added estimate to
+  National accounts, culture to Culture). `lastReleaseRefresh` is still
+  null, as expected before the first release day. Nothing to fix.
