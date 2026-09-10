@@ -1239,3 +1239,11 @@ not from scratch. Rounds are small on purpose.
   names all seven FRED agencies, and says "Annual NBS series"; the
   footer names the international agencies via FRED beside NBS, PBOC,
   Customs and Caixin. Verified live.
+- 2026-09-10 round 127: audited the Provinces page's colour ramp and
+  tile geography on the live site. The five ramp breaks equal the
+  quantiles of the 31 current values recomputed independently (2.7, 4.0,
+  4.5, 4.9, 5.4), and Heilongjiang, Xinjiang, Tibet, Shanghai, Beijing
+  and Hainan sit where the approximate geography puts them. One
+  inconsistency: the legend printed "4" where the tiles and the other
+  ticks show one decimal. The ticks now read with one decimal. Verified
+  live: "2.7, 4.0, 4.5, 4.9, 5.4".
