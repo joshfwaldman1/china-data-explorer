@@ -767,7 +767,7 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Saved and Recent</span></div>
       <h1>{props.title}</h1>
-      {props.keys.length === 0 ? <div className="state"><b>{props.empty}</b><p>Saved series and recently viewed series live in this browser only.</p></div> : (
+      {props.keys.length === 0 ? <div className="state"><b>{props.empty}</b><p>Save a series from its page with the Save button. Saved and recently viewed series live in this browser only.</p></div> : (
         <div className="result-list" style={{ marginTop: 20 }}>
           {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a></article>; })}
         </div>
