@@ -144,12 +144,21 @@ export function segmentGloss(base: string): string {
 export function glossTitle(name: string): string {
   const parts = splitTitle(name);
   const known = table ?? {};
-  const baseEn = known[parts.base] ?? segmentGloss(parts.base);
+  const baseEn = normalizeIndexPrefix(known[parts.base] ?? segmentGloss(parts.base));
   if (!baseEn) return "";
   const measureEn = MEASURES.find(([zh]) => zh === parts.measure)?.[1] ?? "";
   const base = baseOf(parts.unit);
   const head = [baseEn, measureEn, base].filter(Boolean).join(", ");
   return head.charAt(0).toUpperCase() + head.slice(1);
+}
+
+/**
+ * The gloss table names index components both ways, "PPI, food" and
+ * "PPI: clothing"; the colon form is the convention, so the comma form is
+ * folded into it here rather than by hand across 155 table entries.
+ */
+export function normalizeIndexPrefix(title: string): string {
+  return title.replace(/^(CPI|PPI|RPI|PMI),\s+/, "$1: ");
 }
 
 /** An index title's base period, "(上月=100)", is part of what the series is, so it stays in the English title. */

@@ -260,7 +260,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 9; // 9: PMI sub-index titles carry their table
+const GLOSS_FORMAT = 10; // 10: index component titles use the colon form, PPI: food
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
