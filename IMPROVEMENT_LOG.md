@@ -538,3 +538,8 @@ not from scratch. Rounds are small on purpose.
   notice, the "four series is the most" note) and a catalog page down to
   its Related Series cards. Both lay out at exactly 390 px with no element
   past the edge. Nothing to fix.
+- 2026-09-10 round 61: re-checked dark mode. The only stylesheet change
+  since round 49 (the result path wrap) touched no colour, and the one
+  dark surface not yet rendered, a chart with the Lunar New Year bands and
+  the amber suspension band, draws every band, label and line from theme
+  tokens and reads correctly on the dark panel. Nothing to fix.
