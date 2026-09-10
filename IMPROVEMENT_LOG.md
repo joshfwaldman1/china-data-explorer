@@ -554,3 +554,11 @@ not from scratch. Rounds are small on purpose.
   Verified live: the line reads "Latest observation: 0.8, Percent change
   from year ago, Aug 2026. Up 0.3 pp from Jul 2026." with no aria-label,
   and looks unchanged on screen.
+- 2026-09-10 round 63: audited the docs against the code since round 51.
+  Four mechanisms were undocumented: the `/api/home` payload, the
+  two-character piece fallback in search, the colon convention for index
+  component titles, and the January-February handling on both fetch
+  paths with the conversion rule that goes with it. The README's API
+  list and AGENTS.md now carry all four, the last as its own section
+  since it explains a data convention a reader would otherwise mistake
+  for a gap. Docs only, no deploy.

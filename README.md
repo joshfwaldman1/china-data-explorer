@@ -81,6 +81,8 @@ families already present in the published snapshot.
 ## Local JSON API
 
 - `GET /api/catalog` — the headline indicators (key, title, agency, unit, group).
+- `GET /api/home` — every headline series with its last 24 points in one
+  payload, for the Home page.
 - `GET /api/catalog/stats` — coverage and dataset/category facets.
 - `GET /api/search?q=&frequency=&geography=&dataset=&category=&limit=&offset=`
   — paginated catalog search; results carry their stored date range.
