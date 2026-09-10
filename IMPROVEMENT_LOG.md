@@ -1258,3 +1258,14 @@ not from scratch. Rounds are small on purpose.
   for it this month or next; another agency's series says the NBS
   calendar does not cover it and names the publisher. Verified live on
   all four pages.
+- 2026-09-10 round 129: audited `/api/status` and `/api/schedule` on the
+  live site after a day of some forty deploys. No failures today; the
+  store holds 1,315,263 observations at 454 MB; the fetch log stands at
+  30,270 rows since 7 September, about 900 more than round 118 for six
+  further boot ingests, as expected. The cold summary took 14 s because
+  the call landed during the last deploy's boot ingest (round 105
+  measured 8 s cold, 1 s warm); the count is cached for five minutes, so
+  this costs one audit call a deploy and no visitor. The schedule's next
+  release is the 70-city prices on 15 September at 09:30 and the last
+  release refresh is still null, as expected before that day. Nothing
+  to fix.
