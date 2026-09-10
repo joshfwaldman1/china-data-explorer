@@ -293,6 +293,9 @@ table { width: 100%; border-collapse: collapse; font-size: var(--fs-2); }
 th, td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); text-align: right; }
 th { position: sticky; top: 0; background: var(--panel-2); color: var(--muted); font-size: var(--fs-1); font-weight: 600; }
 th:first-child, td:first-child { text-align: left; white-space: nowrap; }
+/* The period column stays put while a wide table (five unemployment series on a phone) scrolls sideways. */
+td:first-child { position: sticky; left: 0; background: var(--panel); }
+th:first-child { left: 0; z-index: 1; }
 .table-foot { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); color: var(--muted); font-size: var(--fs-2); border-top: 1px solid var(--line); }
 .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 var(--s-5); padding: var(--s-2) var(--s-4) var(--s-4); }
 .meta-grid > div { padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
