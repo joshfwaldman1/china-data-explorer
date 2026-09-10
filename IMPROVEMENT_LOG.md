@@ -1098,3 +1098,18 @@ not from scratch. Rounds are small on purpose.
   Test added; the earlier ranking tests still pass. Verified live: the
   three queries lead with CPI, integrated circuit output and automobile
   output, and steel output, housing starts and ppi food are unchanged.
+- 2026-09-10 round 114: audited ten random stored quarterly series pages
+  on the live site (steel and paper sales, pig iron sales and ratio,
+  secondary industry value added, cultural industry revenues, urban
+  business income, wholesale building completions, excavator ratio).
+  Periods ordered, no duplicates or nulls, quarter labels throughout.
+  One defect, systemic: the pig iron output-sales ratio page read "99.80,
+  10,000 tonnes" for a percentage, because the catalog's unit field is
+  the table's while a row's own unit sits in its title; 248 rows
+  disagree that way, 68 ratios labelled with a physical unit and 117
+  year-on-year changes in those ratios labelled percent where they are
+  percentage points. rawUnitOf now takes the title's unit when the two
+  differ, leaving base periods to the existing rule; GLOSS_FORMAT bumped
+  to 14 so stored units rebuilt on boot; tests added. Verified live: the
+  pig iron ratio reads %, the cloth ratio change reads 百分点, and crude
+  steel output still reads 万吨.
