@@ -897,3 +897,15 @@ not from scratch. Rounds are small on purpose.
   rebuilt on boot; test added. Verified live: "ppi food" lists the food
   category, then the food industry, then food manufacturing, and the
   chemical industry entry reads "PPI: chemical industry".
+- 2026-09-10 round 98: probed the Provinces page for keyboard and screen
+  readers on the live site, the one page the accessibility rounds had
+  touched only for its ranking. The tile map is a labelled group whose
+  tiles read "Beijing, 5.4%" with a pressed state, the ranking buttons
+  read the same way, the period control is a combobox named Period, the
+  detail panel is a polite live region, and the comparison chips' remove
+  buttons read "Remove Guangdong". One defect: with one province picked,
+  "Pick at least two" was a link marked aria-disabled that a keyboard
+  could still focus and follow, landing on a single-province chart. It
+  is now a disabled button until two are picked. Verified live: with one
+  pick the control is a disabled button that does not take focus; with
+  two, "Chart 2 provinces together" links to the two-province compare.
