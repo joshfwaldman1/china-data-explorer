@@ -543,3 +543,14 @@ not from scratch. Rounds are small on purpose.
   dark surface not yet rendered, a chart with the Lunar New Year bands and
   the amber suspension band, draws every band, label and line from theme
   tokens and reads correctly on the dark panel. Nothing to fix.
+- 2026-09-10 round 62: checked what a screen reader is given for the
+  numbers, using Chrome's accessibility tree on the live site. Hero tiles
+  expose their full text ("Gross Domestic Product 4.7% Real GDP (YoY %),
+  Q2 2026, -0.3 pp"). Defect: the series page's stat line carried
+  aria-label="Latest observation", and on a paragraph that label replaces
+  the content, so the reader heard the label and never the value. It is
+  now a visually hidden prefix inside the line, with a hidden ", " between
+  the value and its unit so the two are not run together as "0.8Percent".
+  Verified live: the line reads "Latest observation: 0.8, Percent change
+  from year ago, Aug 2026. Up 0.3 pp from Jul 2026." with no aria-label,
+  and looks unchanged on screen.
