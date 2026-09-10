@@ -1398,7 +1398,9 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; naviga
               <section className="card" style={{ padding: 16 }} aria-live="polite">
                 <div className="section-head" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Compare Provinces</h2><span>{picked.length} of 4</span></div>
                 <div className="chip-row" style={{ margin: "0 0 10px" }}>{picked.map((code) => { const province = PROVINCES.find((item) => item.code === code); return <span className="chip" key={code}>{province?.en ?? code}<button onClick={() => setPicked(picked.filter((item) => item !== code))} aria-label={`Remove ${province?.en ?? code}`}>×</button></span>; })}</div>
-                <a className="button" href={seriesHash(picked.map((code) => `provincial_gdp@${code}`), { range: "10y" })} aria-disabled={picked.length < 2}>{picked.length < 2 ? "Pick at least two" : `Chart ${picked.length} provinces together`}</a>
+                {picked.length < 2
+                  ? <button className="button" type="button" disabled>Pick at least two</button>
+                  : <a className="button" href={seriesHash(picked.map((code) => `provincial_gdp@${code}`), { range: "10y" })}>Chart {picked.length} provinces together</a>}
               </section>
             )}
             <section className="card">
