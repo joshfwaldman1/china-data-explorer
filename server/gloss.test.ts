@@ -21,6 +21,13 @@ test("an enterprise indicator's 增减 (%) reads as the change from a year ago o
   expect(glossTitle("布产销率比上年同期增减 (%)")).toBe("Cloth output-sales ratio, change from same period last year");
 });
 
+test("the by-department PPI table names its industries, so the food industry is not a twin of the food category", async () => {
+  await warmGloss();
+  expect(glossTitle("食品工业生产者出厂价格指数 (上年同月=100)")).toBe("PPI: food industry, same month a year earlier = 100");
+  expect(glossTitle("食品类工业生产者出厂价格指数 (上年同月=100)")).toBe("PPI: food, same month a year earlier = 100");
+  expect(glossTitle("化学工业生产者出厂价格指数 (上年同月=100)")).toBe("PPI: chemical industry, same month a year earlier = 100");
+});
+
 test("pinyin and base concepts", () => {
   expect(toPinyin("失业率")).toBe("shi ye lv");
   expect(baseConcepts(["粗钢产量累计值 (万吨)", "粗钢产量累计增长 (%)", "钢材产量当期值 (万吨)"])).toEqual(["粗钢产量", "钢材产量"]);
