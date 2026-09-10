@@ -1302,3 +1302,11 @@ not from scratch. Rounds are small on purpose.
   name gave no state. It now reads "Switch theme, now dark", "now light"
   or "now following your system". Verified live at rest and after a
   press.
+- 2026-09-10 round 134: audited the docs against the code since round
+  123. Undocumented: search pieces matching through the alias dictionary
+  (round 124), the suffix-form and lowercase index title rules (125),
+  and quarter ticks on a short quarterly share image (130). AGENTS.md's
+  search and gloss paragraphs and the README's share image bullet now
+  carry them. The Coverage card and footer copy (126), the ramp ticks
+  (127), the next-release fallback (128) and the theme button's name
+  (133) are interface copy needing no doc. Docs only, no deploy.
