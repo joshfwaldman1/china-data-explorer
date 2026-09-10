@@ -920,3 +920,19 @@ not from scratch. Rounds are small on purpose.
   bullets now carry them. The housing starts alias (87), the Home delta
   wording (89), the placeholder (94) and the comparison button (98) need
   no doc. Docs only, no deploy.
+- 2026-09-10 round 100: audited search for ten fresh analyst queries on
+  the live site (ev production, aluminium output, property investment,
+  port cargo, air passengers, coal output, 服务业生产指数, 工业企业利润,
+  gold reserves, urban unemployment 31 cities). Seven led with the right
+  series; gold reserves is People's Bank data and rightly absent. Two
+  vocabulary defects: "aluminium output" led with alumina, because the
+  alias covered every 铝 series and the shorter title won, and "air
+  passengers" found nothing, although NBS publishes primary (electrolytic)
+  aluminium output and civil aviation passenger traffic monthly.
+  Aluminium and aluminum now name the primary aluminium table; aliases
+  added for primary aluminium, air passengers, air travel, airline
+  passengers and airline. The typecheck gate caught the first attempt,
+  which duplicated four existing keys. Test added. Verified live:
+  "aluminium output" and "aluminum" lead with primary aluminium,
+  "aluminium alloy" keeps its table, "air passengers" finds civil
+  aviation passenger traffic.
