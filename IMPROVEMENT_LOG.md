@@ -796,3 +796,14 @@ not from scratch. Rounds are small on purpose.
   period (from same period last year, from start of year) are untouched.
   GLOSS_FORMAT bumped to 11 so stored titles rebuilt on boot; tests added.
   Verified live on the sampled page and on search results.
+- 2026-09-10 round 89: audited Home on the live site at desktop width:
+  the tagline's counts agree with the Coverage card (7 non-NBS
+  indicators, 24 FRED series, 18 headline entries), the four hero tiles
+  and fourteen rows match the store, the Upcoming card lists the six
+  September 15 releases with their series and category links, and the
+  categories grid is intact. One defect: the Loan Prime Rate row, whose
+  August value matched July, showed its change as a bare "0.0" beside
+  neighbours reading "+0.3 pp", because the short change text dropped the
+  unit only in the unchanged case. An unchanged rate now reads "0.0 pp"
+  and an unchanged level in the thousands "0"; tests added. Verified
+  live: the LPR row reads "0.0 pp" next to the PPI row's "+0.3 pp".
