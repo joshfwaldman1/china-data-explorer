@@ -1285,3 +1285,11 @@ not from scratch. Rounds are small on purpose.
   Recent page, and the CPI page with the Download menu open. All three
   lay out at exactly 390 px with no element past the edge. Nothing to
   fix.
+- 2026-09-10 round 132: dark mode. No stylesheet change since round 84.
+  Rendered two dark surfaces no dark round had covered: the Home hero
+  tiles (panel and ink tokens, chart-1 sparkline) and the CPI page's
+  Share menu popover (panel, border and ink tokens); the toast is
+  styled ink on ground, so it inverts with the theme. Headless Chrome
+  left the Copy link clipboard call pending, so no toast could be read
+  there; the handler shows "Link copied" or "Could not copy the link".
+  Nothing to fix.
