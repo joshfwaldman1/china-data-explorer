@@ -498,3 +498,11 @@ not from scratch. Rounds are small on purpose.
   will refresh due series in the right tables. Several releases at the
   same hour name the same category, which is harmless: a series refreshed
   by the first is no longer due for the next. Nothing to fix.
+- 2026-09-10 round 57: audited `/api/status` for growth and the revision
+  trail. The store holds 1,315,187 observations (ten more than a day ago,
+  a quiet stretch between releases) at 454 MB; the newest failure is from
+  13:19Z yesterday, before the shared retry landed. No series has a
+  recorded revision yet, headline or catalog, which is expected after
+  three days: NBS restates figures rarely and the append-only store is
+  covered by the store tests. The first real revisions should appear with
+  the 15 September releases. Nothing to fix.
