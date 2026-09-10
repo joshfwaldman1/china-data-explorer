@@ -627,3 +627,11 @@ not from scratch. Rounds are small on purpose.
   keep the old rule. Test added. Verified live: a six-year annual view of
   industrial production reads 2016 to 2020, and the five-year quarterly
   GDP moved from "Jul 21, Jan 22" to whole years.
+- 2026-09-10 round 71: measured the surfaces changed since the last
+  mobile audit at 390 px on the live site: the CPI page with its hidden
+  stat-line prefix and a catalog page whose notes now carry the February
+  sentence. Both lay out at exactly 390 px. One copy nit fixed from the
+  same screenshot: the Series Details "Retrieved via" row read "the NBS
+  data portal", a lowercase fragment where every other source string
+  starts with the source's name; it now reads "NBS's own data portal".
+  Verified live.
