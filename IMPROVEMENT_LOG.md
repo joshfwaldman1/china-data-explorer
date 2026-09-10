@@ -993,3 +993,19 @@ not from scratch. Rounds are small on purpose.
   A bare date now takes the start or end of its day; test added.
   Verified live: the bare-date query returns all eleven, and the
   November page still renders the same eleven under its heading.
+- 2026-09-10 round 105: audited `/api/status` on the live site. No
+  failures since 9 September; the store holds 1,315,248 observations;
+  the headline series last fetched on 7 or 8 September are the ones
+  whose next release is later, as the due rule intends. Defect: the
+  first status call, made a few minutes into a boot ingest, returned
+  nothing after 75 seconds while health and the page APIs answered in
+  about a second; a retry mid-ingest took four seconds. The endpoint was
+  computing a group-by over all 1.3 million observations and sending a
+  2.6 MB list of fifteen thousand (key, region) rows on every call, the
+  weight round 92 noted and left. The summary (size, totals, last runs,
+  the week's failures) is now the default at 15 KB, and the coverage
+  list is computed and cached separately, only with `?series=1`; the
+  ingest's end-of-run tally uses the summary; docs and test updated. The
+  typecheck gate caught a union return type on the first attempt.
+  Verified live during the next boot ingest: the light call answered in
+  eight seconds cold and one second warm, the flagged call in five.
