@@ -819,7 +819,7 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
             const day = new Date(`${date}T00:00:00`);
             return (
               <section className="release-day" key={date}>
-                <div className="release-date"><b>{day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</b><span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span></div>
+                <div className="release-date"><b>{day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</b><span className="visually-hidden">, </span><span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span></div>
                 <div>{releases.map((release) => (
                   <article className="release" key={release.id}>
                     <time dateTime={release.date}>{release.date.slice(11, 16)}</time>
