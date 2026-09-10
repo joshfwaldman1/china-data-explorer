@@ -687,3 +687,9 @@ not from scratch. Rounds are small on purpose.
   152 s with no response despite a 30-second cap, which a curl cannot do
   unless the process itself was frozen; this machine has been out of
   memory all day, so that sample is not evidence about the server.
+- 2026-09-10 round 78: read the live Home page as a reader would, the
+  four hero tiles and all fourteen list rows, against the store. Every
+  value, delta and period matches. The one figure that looked wrong,
+  July's new yuan loans at -5,896 (100 million yuan), follows the same
+  July pattern in the source as 2024 (-808) and 2025 (-4,296), so it is
+  the published figure. Nothing to fix.
