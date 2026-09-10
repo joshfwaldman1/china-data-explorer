@@ -1102,9 +1102,9 @@ function SeriesPage(props: {
     const entry = props.curated.find((item) => item.key === result.key);
     const last = result.series[0]?.points.at(-1)?.date;
     if (!last || entry?.ended || !isBehind(last, result.frequency)) return [];
-    const name = results.length > 1 ? `${displayTitle(result, results)}: ` : "";
+    const name = results.length > 1 ? `${displayTitle(result, results)}: last` : "Last";
     const when = observationLabel(last, result.frequency);
-    return [entry?.refreshBlocked ? `${name}last value ${when}; refreshed through ${entry.refreshBlocked}, which this deployment does not run.` : `${name}last published ${when}; nothing newer has been published.`];
+    return [entry?.refreshBlocked ? `${name} value ${when}; refreshed through ${entry.refreshBlocked}, which this deployment does not run.` : `${name} published ${when}; nothing newer has been published.`];
   });
   const shareInput = (): ShareInput => ({
     title: seriesViewTitle(results, props.lang),
