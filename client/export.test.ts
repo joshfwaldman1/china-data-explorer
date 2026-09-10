@@ -43,6 +43,10 @@ describe("logTicks", () => {
 });
 
 describe("timeTicks", () => {
+  test("a one-year quarterly view steps by quarters from the data's own quarter-end months", () => {
+    const ticks = timeTicks(Date.UTC(2025, 5, 1), Date.UTC(2026, 5, 1), 1600, 90, "Quarterly");
+    expect(ticks.map((tick) => tick.label)).toEqual(["Jun 25", "Sep 25", "Dec 25", "Mar 26", "Jun 26"]);
+  });
   test("one label per year on a long span, spaced for the width", () => {
     const ticks = timeTicks(Date.UTC(2010, 0, 1), Date.UTC(2025, 0, 1), 1300);
     expect(ticks[0]?.label).toBe("2010");

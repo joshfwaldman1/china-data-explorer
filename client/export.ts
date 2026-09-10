@@ -146,10 +146,13 @@ export function timeTicks(min: number, max: number, plotWidth: number, minGap = 
     return out;
   }
   const monthPx = plotWidth / (span / (YEAR / 12));
-  const step = [1, 2, 3, 6, 12].find((candidate) => candidate * monthPx >= minGap) ?? 12;
+  // Quarterly data steps by whole quarters from its own quarter-end months (Jun, Sep, Dec, Mar), so a
+  // one-year view reads five quarter labels rather than twelve month labels under five points.
+  const candidates = coarsest === "Quarterly" ? [3, 6, 12] : [1, 2, 3, 6, 12];
+  const step = candidates.find((candidate) => candidate * monthPx >= minGap) ?? 12;
   const out: { t: number; label: string }[] = [];
   const firstMonth = new Date(min).getUTCMonth();
-  let year = startYear, month = Math.ceil(firstMonth / step) * step;
+  let year = startYear, month = coarsest === "Quarterly" ? firstMonth : Math.ceil(firstMonth / step) * step;
   while (true) {
     if (month >= 12) { year += 1; month -= 12; }
     const t = Date.UTC(year, month, 1);
