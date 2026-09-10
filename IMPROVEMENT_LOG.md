@@ -22,6 +22,10 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
+- Electricity output (NBS esData) has no January or February point since
+  2015 for the same reason as industrial production: NBS publishes the two
+  months together. Fill February from the cumulative indicator on the NBS
+  path, as round 58 did for the Eastmoney series.
 
 ## Log
 
@@ -506,3 +510,20 @@ not from scratch. Rounds are small on purpose.
   three days: NBS restates figures rarely and the append-only store is
   covered by the store tests. The first real revisions should appear with
   the 15 September releases. Nothing to fix.
+- 2026-09-10 round 58: audited the share image on frequency-converted
+  views and found two defects, one behind the other. First, industrial
+  production converted to annual drew an empty chart with the image
+  actions disabled: the conversion demanded twelve months per year, and
+  NBS publishes January and February of the activity series as one
+  reading. A year or quarter now counts as complete once its closing month
+  is in and at most one reading is missing; test added. Second, the
+  annual view then ran only to 2014: since 2015 the store had no February
+  point at all for industrial production or retail sales, because
+  Eastmoney leaves the February row's monthly column empty and carries the
+  combined January-February growth only in the year-to-date column. Those
+  fields now name that column as the February fallback; a test covers it,
+  and the series notes say the February point is the combined figure.
+  Verified live after the boot ingest: both series carry every February
+  from 2015 to 2026 (industrial production 6.3 for Feb 2026, retail sales
+  2.8), and both annual and quarterly conversions draw. Electricity output
+  from NBS's own portal has the same gap and is a separate path; queued.
