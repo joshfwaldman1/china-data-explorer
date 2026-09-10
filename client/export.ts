@@ -111,6 +111,12 @@ export function logTicks(min: number, max: number): { lo: number; hi: number; ti
     }
   }
   const inRange = ticks.filter((value) => value >= low && value <= high);
+  // Data spanning less than a doubling (reserves between 30,000 and 34,400) would get one
+  // label or none, so it takes evenly spaced labels instead; they still sit on the log axis.
+  if (high / low < 2 && inRange.length < 3) {
+    const linear = niceTicks(low, high, 4);
+    if (linear.lo > 0) return linear;
+  }
   const lo = inRange[0] !== undefined && inRange[0] <= low ? inRange[0] : (ticks.filter((value) => value <= low).at(-1) ?? 10 ** first);
   const hi = ticks.find((value) => value >= high) ?? 10 ** lastExponent;
   return { lo, hi, ticks: ticks.filter((value) => value >= lo && value <= hi) };
@@ -226,7 +232,7 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   const titleTop = 52;
   const titleLineHeight = 42;
   let cursor = titleTop + titleLines.length * titleLineHeight - 8;
-  const subtitle: Text = { text: subtitleOf(input.unit, input.frequencies, input.tracks), x: margin, y: cursor + 22, font: subtitleFont, color: LIGHT.muted, align: "left" };
+  const subtitle: Text = { text: `${subtitleOf(input.unit, input.frequencies, input.tracks)}${input.logScale ? ", log scale" : ""}`, x: margin, y: cursor + 22, font: subtitleFont, color: LIGHT.muted, align: "left" };
   cursor = subtitle.y + 12;
 
   const tracks = input.tracks.filter((track) => track.points.length > 0);

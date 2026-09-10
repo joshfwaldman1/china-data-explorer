@@ -34,6 +34,12 @@ describe("logTicks", () => {
     const scale = logTicks(20, 80);
     expect(scale.ticks).toContain(20); expect(scale.ticks).toContain(50);
   });
+  test("a span narrower than a doubling gets evenly spaced labels rather than one or none", () => {
+    const scale = logTicks(30000, 34383);
+    expect(scale.ticks.length).toBeGreaterThanOrEqual(3);
+    expect(scale.lo).toBeGreaterThan(0); expect(scale.lo).toBeLessThanOrEqual(30000); expect(scale.hi).toBeGreaterThanOrEqual(34383);
+    expect(scale.ticks.every((value) => value >= scale.lo && value <= scale.hi)).toBe(true);
+  });
 });
 
 describe("timeTicks", () => {
@@ -107,6 +113,10 @@ describe("layoutShareImage", () => {
     source: "People's Bank of China", url: "https://example.org/#/series/lpr", date: "8 Sep 2026",
   };
   const layout = layoutShareImage(input, measure);
+  test("the subtitle names the log scale when it is on", () => {
+    expect(layout.subtitle.text.endsWith("log scale")).toBe(false);
+    expect(layoutShareImage({ ...input, logScale: true }, measure).subtitle.text.endsWith(", log scale")).toBe(true);
+  });
   test("plot sits inside the frame", () => {
     expect(layout.width).toBe(IMAGE.width); expect(layout.height).toBe(IMAGE.height);
     expect(layout.plot.x).toBeGreaterThan(0); expect(layout.plot.x + layout.plot.w).toBeLessThan(IMAGE.width);
