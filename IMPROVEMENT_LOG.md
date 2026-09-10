@@ -1279,3 +1279,9 @@ not from scratch. Rounds are small on purpose.
   months. Quarterly data now steps by whole quarters from its own
   quarter-end months. Test added. Verified live: the one-year GDP image
   reads Jun 25, Sep 25, Dec 25, Mar 26, Jun 26.
+- 2026-09-10 round 131: measured three states no mobile round had covered
+  at 390 px on the live site: the whole Home page down to the Coverage
+  card (the bundle's ten links wrap inside the Upcoming card), the
+  Recent page, and the CPI page with the Download menu open. All three
+  lay out at exactly 390 px with no element past the edge. Nothing to
+  fix.
