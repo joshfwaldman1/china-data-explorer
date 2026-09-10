@@ -1060,3 +1060,13 @@ not from scratch. Rounds are small on purpose.
   carrying "no data published" (the amber tag reads at about 7:1 on the
   dark panel) and the empty-table error state (heading, text and buttons
   take the dark ink and link tokens). Nothing to fix.
+- 2026-09-10 round 111: probed the search results page for keyboard and
+  screen readers on the live site. The Frequency and Dataset controls
+  are named comboboxes, each result is one link whose name reads the
+  title, gloss, path and meta line in order, and the result count is a
+  polite status region. One defect: an empty result was announced as
+  "Showing 0 of 0 series" while the explanation and the Chinese-term
+  suggestions sat in a block with no role. The count now says nothing
+  for zero results and the empty-state block is the status region.
+  Verified live: the empty page carries the status role on the block
+  with an empty count, and "steel output" still counts 60 of 461.
