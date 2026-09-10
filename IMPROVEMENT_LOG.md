@@ -484,3 +484,9 @@ not from scratch. Rounds are small on purpose.
   catalog arrived; the second commit sends it once. Verified live: four
   requests, the headline payload finishing at the same moment as the
   catalog, all tiles and rows filled.
+- 2026-09-10 round 55: audited the Provinces page's data on the live site.
+  The regional API has all 31 provinces for the latest, 2015 and 2008
+  periods with no gaps across 86 quarters, and with the map switched to
+  Q4 2008 every tile's value matched the API (Inner Mongolia 16.5 at the
+  top, a floor of 8.0), with the ranking and colour legend following.
+  Nothing to fix.
