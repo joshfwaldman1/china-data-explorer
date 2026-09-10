@@ -12,7 +12,7 @@ import { join } from "node:path";
 process.env.CHINA_DB_PATH = join(mkdtempSync(join(tmpdir(), "china-store-")), "test.db");
 process.env.CHINA_SEED = "off"; // start from an empty store, not the seed
 
-const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh } = await import("./db.ts");
+const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh, dbHealth } = await import("./db.ts");
 const { parseEsDataPoints } = await import("./nbs-catalog.ts");
 
 const NATIONAL = "000000000000";
@@ -84,6 +84,12 @@ test("esData parser skips blank cells and other regions, and labels quarters", (
   // A province asked of a national section comes back as a grid of blanks:
   // that must parse to nothing, so the caller can treat it as a failure.
   expect(parseEsDataPoints(raw, "X", "310000000000")).toEqual([]);
+});
+
+test("the healthcheck counts observations without the status page having been opened", () => {
+  const before = dbHealth();
+  expect(before.ok).toBe(true);
+  expect(before.observations).toBeGreaterThan(0);
 });
 
 test("the last release-day refresh is read back from the fetch log", () => {

@@ -391,12 +391,27 @@ export function listStoredSeries(prefix: string): { key: string; region: string 
  * stalling every other request behind it. This answers from one indexed
  * read and a cached summary.
  */
+/**
+ * Platform healthcheck. The observation count is kept for five minutes on its own,
+ * so the answer is right from the first boot ping rather than zero until someone
+ * has opened the status page; the full coverage summary is not computed here.
+ */
 export function dbHealth(): { ok: boolean; observations: number; lastFetch: string | null } {
   const database = db();
   database.query("SELECT 1").get();
   const last = database.query<{ finishedAt: string | null }, []>("SELECT MAX(finished_at) AS finishedAt FROM fetch_log WHERE status = 'ok'").get();
-  return { ok: true, observations: cachedStatus?.totals.observations ?? 0, lastFetch: last?.finishedAt ?? null };
+  const now = Date.now();
+  if (cachedStatus && cachedStatusAt > healthCountAt) { healthCount = cachedStatus.totals.observations; healthCountAt = cachedStatusAt; }
+  if (now - healthCountAt >= STATUS_TTL_MS) {
+    const row = database.query<{ observations: number }, []>("SELECT COUNT(*) AS observations FROM observations").get();
+    healthCount = row?.observations ?? 0;
+    healthCountAt = now;
+  }
+  return { ok: true, observations: healthCount, lastFetch: last?.finishedAt ?? null };
 }
+
+let healthCount = 0;
+let healthCountAt = 0;
 
 let cachedStatus: ReturnType<typeof computeStatus> | null = null;
 let cachedStatusAt = 0;

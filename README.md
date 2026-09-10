@@ -76,8 +76,9 @@ families already present in the published snapshot.
   page. The image is drawn from the data on a canvas at 1600 x 900 (2x),
   always in the light palette, with title, unit and range, end labels, a
   legend when there is more than one line, year ticks whenever the data is
-  annual, and the source and page URL in the footer, ready to paste into a
-  tweet or a doc.
+  annual, up to three lines of notes under the chart (a suspension, an ended
+  series, a frequency conversion), and the source and page URL in the footer,
+  ready to paste into a tweet or a doc.
 
 ## Local JSON API
 
