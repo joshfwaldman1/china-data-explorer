@@ -130,6 +130,16 @@ describe("layoutShareImage", () => {
     expect(layout.footer.url.text).not.toContain("https://");
     expect(layout.footer.source.text).toBe("Source: People's Bank of China");
   });
+  test("a long note wraps to a second line instead of ending in an ellipsis; notes take at most three lines", () => {
+    const long = "NBS suspended the 16-24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labour-market conditions.";
+    const wrapped = layoutShareImage({ ...input, notes: [long] }, measure);
+    expect(wrapped.notes.length).toBe(2);
+    expect(wrapped.notes.map((note) => note.text).join(" ")).toBe(long);
+    expect(wrapped.plot.h).toBeLessThan(layout.plot.h);
+    const three = layoutShareImage({ ...input, notes: [long, long] }, measure);
+    expect(three.notes.length).toBe(3);
+    expect(three.notes[2]?.text.endsWith("…")).toBe(true);
+  });
   test("a page URL too long for the footer gives way to the host alone, never an ellipsis", () => {
     const keys = ["440000000000", "310000000000", "540000000000", "110000000000"].map((code) => `provincial_gdp@${code}`).join(",");
     const long = layoutShareImage({ ...input, url: `https://econstats-china-production.up.railway.app/#/series/${keys}?range=10y` }, measure);

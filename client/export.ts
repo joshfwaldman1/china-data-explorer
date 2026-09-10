@@ -245,8 +245,14 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
 
   // Footer and axis space claim the bottom; notes sit between the axis and the footer.
   const footerY = height - 40;
-  const notes = input.notes.slice(0, 2);
-  const noteHeight = notes.length * 22;
+  // Each note may take two lines and the notes together three, so a two-sentence note about a
+  // suspended series is read whole rather than cut mid-sentence.
+  const noteLines: string[] = [];
+  for (const note of input.notes) {
+    if (noteLines.length >= 3) break;
+    noteLines.push(...wrapText(note, width - margin * 2, noteFont, measure, Math.min(2, 3 - noteLines.length)));
+  }
+  const noteHeight = noteLines.length * 22;
   const plotTop = cursor + 28;
   const plotBottom = footerY - 66 - noteHeight - 36;
 
@@ -306,8 +312,8 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   const spread = spreadLabels(centers, 24, plot.y + 10, plot.y + plot.h - 10);
   const endLabels: Text[] = endTexts.map((item, index) => ({ text: item.text, x: plot.x + plot.w + 10, y: spread[index] ?? centers[index] ?? plot.y, font: labelFont, color: lightColor(item.track.color), align: "left" }));
 
-  const noteTexts: Text[] = notes.map((note, index) => ({
-    text: wrapText(note, width - margin * 2, noteFont, measure, 1)[0] ?? "",
+  const noteTexts: Text[] = noteLines.map((line, index) => ({
+    text: line,
     x: margin, y: plot.y + plot.h + 36 + 22 + index * 22, font: noteFont, color: LIGHT.muted, align: "left",
   }));
 

@@ -214,7 +214,7 @@ const BREAKS: { key: string; match: RegExp; from: string; to: string; before: st
   {
     key: "unemployment", match: /16-24/, from: "2023-07", to: "2023-11",
     before: "Youth 16-24, incl. students (%)", after: "Youth 16-24, ex-students (%)",
-    note: "NBS suspended the 16–24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labour-market conditions.",
+    note: "NBS suspended the 16-24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labour-market conditions.",
   },
 ];
 
