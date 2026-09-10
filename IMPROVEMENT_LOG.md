@@ -612,3 +612,10 @@ not from scratch. Rounds are small on purpose.
   fifteen-minute retries if the portal lags, and the daily rule stays the
   backstop from the 21st. Nothing to fix; the first live run is four days
   away.
+- 2026-09-10 round 69: audited the cost of `/api/status` itself. Its
+  per-series table is 15,177 rows, 2.6 MB uncompressed, and answers in
+  about three seconds from here, two of them transfer; the server's share
+  is cached for five minutes. A client that accepts gzip, as every browser
+  does, receives 418 KB in 2.2 s, and search results come as 9 KB, so
+  compression is already on at the edge. The store stands at 1,315,231
+  observations with no failure since 13:19Z on the 9th. Nothing to fix.
