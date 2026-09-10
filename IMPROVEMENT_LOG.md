@@ -591,3 +591,10 @@ not from scratch. Rounds are small on purpose.
   2026 (3,147 and 1.6), the year-to-date series is unchanged, coal fills
   too, and the diesel page grew from 192 to 390 points. The typecheck gate
   caught a regex slip in the client type before any commit.
+- 2026-09-10 round 66: audited Home after the February fixes. The home
+  payload's 24-point sparklines for industrial production, retail sales
+  and electricity now include February 2025 and February 2026, so the
+  list's sparklines and deltas see the combined readings; CPI, which never
+  had the gap, is unchanged. One request for the payload came back empty
+  once from here and answered normally on retry, 26 KB in 1.3 s. Nothing
+  to fix.
