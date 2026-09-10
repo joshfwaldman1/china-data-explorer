@@ -603,3 +603,12 @@ not from scratch. Rounds are small on purpose.
   builds (Tibet, Hainan, Beijing, Guangdong). The title names all four,
   the legend distinguishes the four line styles, and the four end labels
   (6.3, 5.4, 4.5, 2.0) are spread without collision. Nothing to fix.
+- 2026-09-10 round 68: audited what 15 September will do. The daily due
+  rule does not call August due for a monthly series until the 21st, but
+  the release-day refresh does not use it: it fetches the mapped headline
+  keys outright and refreshes every stored catalog series in the release's
+  categories whose latest period is below the release's target (August),
+  batched by table. So the 10:10 CST refresh will act on the day, with
+  fifteen-minute retries if the portal lags, and the daily rule stays the
+  backstop from the 21st. Nothing to fix; the first live run is four days
+  away.
