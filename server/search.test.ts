@@ -190,6 +190,13 @@ test("plain phrasing: a question about cars made, 'chip output' and 'inflation r
   expect(inflation.results[0]?.name.startsWith("居民消费价格指数")).toBe(true);
 });
 
+test("Chinese abbreviations: 社零 reaches retail sales and 汽车销量 the automobile sales table", async () => {
+  const retail = await searchNbsCatalog({ query: "社零", limit: 3 });
+  expect(retail.results[0]?.name.startsWith("社会消费品零售总额")).toBe(true);
+  const autos = await searchNbsCatalog({ query: "汽车销量", limit: 3 });
+  expect(autos.results[0]?.name.startsWith("汽车销售量")).toBe(true);
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");

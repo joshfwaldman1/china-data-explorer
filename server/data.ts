@@ -50,7 +50,7 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   cpi: ["cpi", "inflation", "inflation rate", "consumer prices", "prices", "cost of living", "居民消费价格", "通胀", "物价"],
   ppi: ["ppi", "producer prices", "factory gate prices", "deflation", "工业生产者价格", "出厂价格"],
   unemployment: ["unemployment", "jobless", "joblessness", "youth unemployment", "labor market", "labour market", "employment", "失业率", "青年失业", "就业"],
-  retail_sales: ["retail sales", "consumption", "consumer spending", "shopping", "社会消费品零售", "消费"],
+  retail_sales: ["retail sales", "consumption", "consumer spending", "shopping", "社会消费品零售", "社零", "消费"],
   money_supply: ["money supply", "m1", "m2", "liquidity", "broad money", "货币供应量", "广义货币"],
   new_loans: ["new loans", "credit", "bank lending", "yuan loans", "新增贷款", "人民币贷款", "信贷"],
   trade: ["trade", "exports", "imports", "trade balance", "customs", "进出口", "出口", "进口", "贸易"],

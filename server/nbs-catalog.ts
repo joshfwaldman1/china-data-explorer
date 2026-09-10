@@ -113,6 +113,7 @@ Object.assign(SEARCH_ALIASES, {
   solar: ["太阳能", "光伏"], wind: ["风电"], nuclear: ["核电"], hydro: ["水电"], "power generation": ["发电量"], smartphones: ["手机"], phones: ["手机"],
   income: ["收入"], "disposable income": ["可支配收入"], spending: ["支出", "消费"], "industrial profits": ["工业企业利润"], inventories: ["库存", "产成品"],
   "floor space": ["面积"], "housing starts": ["房地产新开工施工面积"],
+  社零: ["社会消费品零售总额"], 销量: ["销售量"], 汽车销量: ["汽车销售量"],
   "aluminium output": ["原铝（电解铝）产量"], "aluminum output": ["原铝（电解铝）产量"], "primary aluminium": ["原铝"], "primary aluminum": ["原铝"],
   "air passengers": ["民航客运量"], "air travel": ["民航客运量"], "airline passengers": ["民航客运量"], airline: ["民航"], completions: ["竣工面积"], "home sales": ["商品房销售"],
   united: ["us", "美国"], states: ["us", "美国"], usa: ["us", "美国"], america: ["us", "美国"], american: ["us", "美国"],
@@ -651,10 +652,12 @@ export function searchScore(entry: NbsCatalogEntry, query: string): number {
   // whole-phrase hit so the exact titles keep the top.
   if (bestScore === 0 && /^[\u3400-\u9fff]{4,}$/.test(lowerQuery)) {
     const pieces = lowerQuery.match(/[\u3400-\u9fff]{1,2}/g) ?? [];
-    if (pieces.every((piece) => haystack.includes(piece))) {
+    // Each piece may also hit through the dictionary: 销量 in "汽车销量" means 销售量, which is how NBS titles sales.
+    const forms = (piece: string): string[] => [piece, ...(SEARCH_ALIASES[piece] ?? [])];
+    if (pieces.every((piece) => forms(piece).some((term) => haystack.includes(term)))) {
       // Always below 10, the least any whole-phrase hit scores, so a near-variant with every
       // piece in its title never outranks the title that carries the phrase itself.
-      const inTitle = pieces.filter((piece) => name.includes(piece)).length;
+      const inTitle = pieces.filter((piece) => forms(piece).some((term) => name.includes(term))).length;
       bestScore = 4 + Math.min(0.9, inTitle * 0.1);
     }
   }
