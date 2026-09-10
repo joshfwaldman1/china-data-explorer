@@ -1070,3 +1070,14 @@ not from scratch. Rounds are small on purpose.
   for zero results and the empty-state block is the status region.
   Verified live: the empty page carries the status role on the block
   with an empty count, and "steel output" still counts 60 of 461.
+- 2026-09-10 round 112: audited the docs against the code since round 99.
+  Undocumented: the healthcheck waiting for the warm-up (round 107), the
+  empty NBS tables and their "no data published" marking (108), the
+  spelled-out index prefixes folding to "PPI: tea" (101), bare dates on
+  the releases API (104), the February note on the share image (106),
+  and tab titles naming the series (103). The README's health, share
+  image, deep links and releases bullets and AGENTS.md's warm-up and
+  gloss paragraphs now carry them. The status endpoint's `?series=1`
+  was documented in its own round. The aluminium and aviation aliases
+  (100) and the empty-result status region (111) need no doc. Docs
+  only, no deploy.
