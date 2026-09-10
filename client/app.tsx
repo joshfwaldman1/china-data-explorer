@@ -1567,7 +1567,7 @@ function App() {
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
         </nav>
         <div className="topbar-tools">
-          <button className="icon-button" onClick={cycleTheme} aria-label="Switch theme"><ThemeIcon /></button>
+          <button className="icon-button" onClick={cycleTheme} aria-label={`Switch theme, now ${theme === "" ? "following your system" : theme === "dark" ? "dark" : "light"}`}><ThemeIcon /></button>
         </div>
       </header>
       <div className={route.view === "home" ? "body-grid no-sidebar" : "body-grid"}>
