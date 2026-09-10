@@ -1314,6 +1314,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [selected, setSelected] = useState<string>("");
   const [picked, setPicked] = useState<string[]>([]);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
@@ -1322,7 +1323,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
       if (isRegionalResponse(body)) { setData(body); setStatus("ok"); } else setStatus("error");
     }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
-  }, [period]);
+  }, [period, attempt]);
 
   const rows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.province && item.value !== null);
   const values = rows.map((item) => item.value ?? 0);
@@ -1350,7 +1351,7 @@ function RegionsPage(props: { toast: (text: string) => void }) {
       </div>
 
       {status === "loading" && <div className="state" role="status"><span className="loader" aria-hidden="true" />Loading provinces…</div>}
-      {status === "error" && <div className="state" role="alert"><b>Provincial data unavailable</b><p>The store has no provincial rows yet. Run the ingest and try again.</p></div>}
+      {status === "error" && <div className="state" role="alert"><b>Provincial data unavailable</b><p>The provincial series did not load. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => setAttempt(attempt + 1)}>Try again</button></div></div>}
       {status === "ok" && data && (
         <div className="regional-grid">
           <section className="card" aria-label="Map of provinces">
