@@ -1190,3 +1190,12 @@ not from scratch. Rounds are small on purpose.
   answer for 76 s while the page APIs answered in a second; with the
   machine out of memory the next three samples were 9.7 s then 1 s, so
   that sample says nothing about the server.
+- 2026-09-10 round 123: audited the docs against the code since round
+  112. Undocumented: a row's title unit winning over the table's unit
+  field (round 114), the leading-concept tie rule with the question stop
+  words and the make/produce aliases (113), and the stopped-series note
+  on the share image (119). AGENTS.md's gloss and ranking paragraphs and
+  the README's share image bullet now carry them. The fetch-log size
+  (118) was documented in its own round; the compare caption (116), the
+  topbar box (115), the Saved copy (120) and the Custom focus (122) need
+  no doc. Docs only, no deploy.
