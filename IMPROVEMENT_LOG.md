@@ -676,3 +676,14 @@ not from scratch. Rounds are small on purpose.
   the rebuild is cheap and the 13.5-second sample in round 75 was the
   first search after boot, a one-off warm-up of the catalog and its index
   that a deploy causes and nothing else. Item removed; nothing to fix.
+- 2026-09-10 round 77: audited ten monthly catalog series of the measure
+  types round 65 did not touch: year-to-date growth and levels, end-of-
+  period stocks (subscribers, inventories, total assets) and CPI component
+  indices. All carry their own February, none carries a January except the
+  price indices, which NBS publishes monthly, and none was given the
+  February note, which is right since no fill happened. Units, transforms
+  and ranges are sound. Nothing to fix. The round-76 expiry job finished
+  meanwhile: its first post-expiry search took 1.4 s, its second reported
+  152 s with no response despite a 30-second cap, which a curl cannot do
+  unless the process itself was frozen; this machine has been out of
+  memory all day, so that sample is not evidence about the server.
