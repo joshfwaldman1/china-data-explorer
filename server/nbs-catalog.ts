@@ -266,7 +266,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 13; // 13: spelled-out index components fold to "PPI: tea" (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 14; // 14: a row's title unit wins over the table unit (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -1161,8 +1161,13 @@ export async function getNbsCatalogSeries(options: {
  */
 export function rawUnitOf(entry: Pick<NbsCatalogEntry, "unit" | "name">): string {
   const unit = entry.unit.trim();
-  if (unit && unit !== "无") return unit;
   const name = entry.name;
+  // The unit field is the table's; a row's own unit sits in its title's parentheses and wins when
+  // they differ: "生铁产销率累计值 (%)" is a percentage, not the 万吨 of the pig iron table, and
+  // "产销率比上年同期增减 (百分点)" is percentage points, not percent. Base periods ("上月=100") are handled below.
+  const titled = name.match(/[（(]\s*([^()（）=]+?)\s*[)）]\s*$/)?.[1]?.trim();
+  if (titled && titled !== unit && !/=/.test(titled)) return titled;
+  if (unit && unit !== "无") return unit;
   if (/上年同月\s*=\s*100/.test(name)) return "Index, same month a year earlier = 100";
   if (/上年同期\s*=\s*100/.test(name)) return "Index, same period a year earlier = 100";
   if (/上月\s*=\s*100/.test(name)) return "Index, previous month = 100";

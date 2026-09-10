@@ -113,6 +113,10 @@ test("an index table labelled 无 gets its base as the unit", () => {
   expect(rawUnitOf({ unit: "无", name: "居民消费价格指数 (上月=100)" })).toBe("Index, previous month = 100");
   expect(rawUnitOf({ unit: "无", name: "居民消费价格指数 (上年同月=100)" })).toBe("Index, same month a year earlier = 100");
   expect(rawUnitOf({ unit: "万吨", name: "粗钢产量当期值 (万吨)" })).toBe("万吨");
+  // A row's own unit in its title wins over the table's unit field.
+  expect(rawUnitOf({ unit: "万吨", name: "生铁产销率累计值 (%)" })).toBe("%");
+  expect(rawUnitOf({ unit: "%", name: "布产销率比上年同期增减 (百分点)" })).toBe("百分点");
+  expect(rawUnitOf({ unit: "台", name: "挖掘机产销率累计值 (%)" })).toBe("%");
 });
 
 test("isCurrent: within two years of today publishes, older has stopped", () => {
