@@ -22,11 +22,11 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
-- Search ranking for index components: "ppi" lists "PPI: food, previous
-  month = 100" ahead of the year-on-year base, because the tie-break
-  prefers the shorter English title. A researcher typing "ppi" or "cpi"
-  most often wants the same-month-a-year-earlier base first (surfaced by
-  round 95 in the Add series popover).
+- Two NBS tables both gloss as "PPI: food, same month a year earlier =
+  100": 食品工业 (the food industry, in the by-industry table) and 食品类
+  (the food category, in the by-category table). Search shows them as
+  twins; the industry one should say "food industry" (surfaced by round
+  96).
 
 ## Log
 
@@ -882,3 +882,12 @@ not from scratch. Rounds are small on purpose.
   ground in both. Nothing to fix. Surfaced for a search round and queued:
   "ppi" lists the previous-month-base components ahead of the
   year-on-year ones.
+- 2026-09-10 round 96: queue item. "ppi" and "cpi" listed the
+  previous-month components ("PPI: food, previous month = 100") ahead of
+  the year-on-year ones, because the ranking's tie-break preferred the
+  shorter English title. A previous-month base now ranks after a
+  year-earlier base when keyword scores tie; test added. Verified live:
+  "cpi" leads with the same-month-a-year-earlier index, "ppi" and "ppi
+  food" with the year-on-year food PPI. Surfaced and queued: two tables
+  both read "PPI: food, same month a year earlier = 100" (食品工业 and
+  食品类), so the results show apparent twins.
