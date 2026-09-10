@@ -964,3 +964,20 @@ not from scratch. Rounds are small on purpose.
   prices, LPR). The hero search's placeholder and form are intact, the
   tagline's counts still agree with the Coverage card, and the Upcoming
   card lists the six 15 September releases. Nothing to fix.
+- 2026-09-10 round 103: audited the Provinces page's outbound path on the
+  live site: selecting Hubei on Q1 2020 gives a panel reading -39.3%, an
+  eight-quarter sparkline ending that quarter, and an Open series link to
+  the Hubei view. That page exposed a defect on every series page: the
+  browser tab and any bookmark were titled by the route key,
+  "provincial_gdp - EconStats China Data" or an NBS hash. The series page
+  now sets its title from the expression the share image already used
+  ("Provincial Real GDP Growth: Hubei"), the key standing in until the
+  series loads, and the other views get their page names ("NBS Release
+  Calendar", "Search: steel"). The first deploy placed the new effect
+  after the loading-state return, so the hook count changed once a series
+  loaded and React unmounted the page: every series page was blank from
+  15:58 to 16:02, which the first live check misread as a title still
+  unset. The effect now sits above both early returns; LOOP.md carries
+  the rule. Verified live: the CPI, Hubei and GDP-with-CPI pages render
+  with titles "Consumer Price Index", "Provincial Real GDP Growth: Hubei"
+  and "Gross Domestic Product, Consumer Price Index".

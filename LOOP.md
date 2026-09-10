@@ -50,6 +50,11 @@ until he stops the loop. Read this whole file before doing anything.
    Run `git pull` and `git push` under a hard cap (kill after 60 to 90
    seconds and retry): GitHub connections from this machine have hung for
    up to an hour, and a hung push blocks the deploy behind it.
+   A React hook added to a page component must sit above every early
+   return in that component; neither gate catches a hook placed after
+   one, and the page goes blank once it loads (round 103). After any
+   client change, the live check must confirm the page renders (its
+   heading is present) before reading the detail that changed.
 5. Commit with a message that states the defect and the fix in plain words
    (see `git log` for the voice), and push to `china-data-explorer`.
    Pushing deploys the live site if the Railway service is linked to GitHub;
