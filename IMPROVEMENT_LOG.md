@@ -1226,3 +1226,16 @@ not from scratch. Rounds are small on purpose.
   GLOSS_FORMAT bumped to 15; tests added. Verified live on the liquor
   PPI, the transport CPI and the urban livestock CPI, with the headline
   "Consumer Price Index" unchanged.
+- 2026-09-10 round 126: audited Home's Coverage card and footer on the
+  live site against what the store holds. The counts agree (8,776
+  monthly and 793 quarterly NBS series, 18 headline indicators by
+  agency, 24 FRED series), but three lines misdescribed the holdings:
+  the 360 unstored series were said to be retried or fetched on view,
+  where round 108 established they are tables NBS lists but has never
+  filled; the FRED agency list omitted the US Treasury and BLS series
+  the sidebar shows; and "Annual series" as not included contradicted
+  the World Bank annual series. The card now says "the other 360 are
+  tables NBS lists but has published no data for, retried monthly",
+  names all seven FRED agencies, and says "Annual NBS series"; the
+  footer names the international agencies via FRED beside NBS, PBOC,
+  Customs and Caixin. Verified live.
