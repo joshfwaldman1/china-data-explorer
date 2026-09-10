@@ -1175,3 +1175,18 @@ not from scratch. Rounds are small on purpose.
   Options panel (selects on the dark field colour with the dark border,
   the checkbox in the accent, labels in muted ink). Both read right.
   Nothing to fix.
+- 2026-09-10 round 122: probed the series page's chart controls for
+  keyboard and screen readers on the live site: the range buttons carry
+  pressed states inside a group named "Date range", the Download and
+  Share menus are named disclosures with plain item names, Save carries
+  its pressed state, and the Custom range's month fields are labelled
+  "Start month" and "End month". One defect: clicking Custom revealed the
+  fields but left focus on the button, where Add series moves focus
+  into its box. The Start month field now takes focus when Custom is
+  toggled on, and not when a page loads with dates in its URL. Verified
+  live: after Custom the active element is "Start month"; a page loaded
+  with from and to keeps focus on the main region with the fields
+  prefilled. One local note: a health sample from this machine got no
+  answer for 76 s while the page APIs answered in a second; with the
+  machine out of memory the next three samples were 9.7 s then 1 s, so
+  that sample says nothing about the server.
