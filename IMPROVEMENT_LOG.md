@@ -1123,3 +1123,12 @@ not from scratch. Rounds are small on purpose.
   now follows the query whenever the route changes. Verified live: a
   hero search for "steel output" lands with the box reading it, going
   Home empties it, and the LPR chip fills it with "LPR".
+- 2026-09-10 round 116: followed the Provinces page's "Chart together"
+  path to a four-province compare on the live site. Tab title, lede
+  ("Guangdong, compared with Shanghai, Hubei and Tibet"), four region
+  chips with labelled remove buttons, the stat line and the table's four
+  columns are all right. One defect: the table's hidden caption named
+  only Guangdong, so a screen reader entering it heard one province. The
+  caption now uses the view title the tab and share image use. Verified
+  live: the compare table is captioned "Provincial Real GDP Growth:
+  Guangdong, Shanghai, Hubei, Tibet" and the CPI table reads as before.
