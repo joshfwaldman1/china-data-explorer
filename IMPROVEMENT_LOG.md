@@ -766,3 +766,16 @@ not from scratch. Rounds are small on purpose.
   README's share image bullet now carries it. The other code changes
   since round 74 (Provinces error copy, the due scan's yield, the sticky
   period column, the calendar comma) need no doc.
+- 2026-09-10 round 87: audited search for ten fresh researcher queries on
+  the live site (steel output, crude oil imports, fiscal revenue, housing
+  starts, birth rate, container throughput, cement production, rail
+  freight, deposits, wages). Six led with the right series. Three found
+  nothing and rightly so: deposits and commodity imports are People's
+  Bank and Customs data, container throughput is Ministry of Transport,
+  none of them in NBS monthly or quarterly tables, and the empty state
+  says what the catalog holds. One defect: "housing starts" led with a
+  quarterly construction-industry series and one that ended in 2014,
+  because the alias 新开工面积 sits at the start of those titles while the
+  monthly real estate table has 施工 inside the phrase. The alias now
+  names the real estate table; test added. Verified live: the query leads
+  with real estate floor space newly started, monthly through July 2026.
