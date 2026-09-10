@@ -1081,3 +1081,20 @@ not from scratch. Rounds are small on purpose.
   was documented in its own round. The aluminium and aviation aliases
   (100) and the empty-result status region (111) need no doc. Docs
   only, no deploy.
+- 2026-09-10 round 113: audited search for ten plain-language queries on
+  the live site (how many cars does china make, population, inflation
+  rate, home sales, solar power generation, chip output, tourism, robots,
+  pork prices, electric vehicle sales). Six led with the right series;
+  electric vehicle sales is honestly absent (NBS publishes output, not
+  sales). Three defects: "inflation rate" led with PMI price sub-indices
+  because only the single word was known; "chip output" led with
+  industrial value added because only the plural was; the cars question
+  found nothing because "make" meant nothing and "how many" and "does"
+  had to match. The phrase, the singular and make/produce/manufacture
+  (产量) are now known and question words are stop words. Fixing the
+  question exposed a tie: 汽车产量 and 载货汽车产量 scored alike and the
+  shorter English title, "Truck output", won, so a title that opens with
+  the query's leading concept now edges out one that merely contains it.
+  Test added; the earlier ranking tests still pass. Verified live: the
+  three queries lead with CPI, integrated circuit output and automobile
+  output, and steel output, housing starts and ppi food are unchanged.
