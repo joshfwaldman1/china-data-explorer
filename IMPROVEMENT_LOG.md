@@ -701,3 +701,9 @@ not from scratch. Rounds are small on purpose.
   that refetches. Verified live by blocking the page's own fetch in the
   browser: the new state appeared, and Try again brought back all 31
   tiles for the chosen period.
+- 2026-09-10 round 80: audited the release calendar's error state the same
+  way, by blocking its fetch in the browser. It reads "Release calendar
+  unavailable. NBS didn't respond. The schedule is also published at
+  stats.gov.cn." with a working link and a Try again button, which is
+  what a reader needs. The empty state for an unpublished month was
+  fixed in round 34. Nothing to fix.
