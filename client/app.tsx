@@ -533,12 +533,24 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   useEffect(() => {
     let cancelled = false;
     // Each indicator lands as it arrives; one slow source must not hold the whole page blank.
-    for (const entry of props.curated.filter((entry) => entry.home !== false)) {
-      json(`/api/series/${entry.key}?limit=24`).then((body) => {
-        if (cancelled || !isSeriesResult(body)) return;
-        setHeadline((current) => new Map(current).set(entry.key, body));
-      }).catch(() => undefined);
-    }
+    // One request for every headline series, sent at once rather than after the catalog
+    // arrives; the per-series fetch below stays as the fallback if it fails.
+    json("/api/home").then((body) => {
+      if (cancelled) return;
+      if (typeof body !== "object" || body === null) throw new Error("no home payload");
+      const next = new Map<string, SeriesResult>();
+      for (const [key, value] of Object.entries(body)) if (isSeriesResult(value)) next.set(key, value);
+      if (next.size === 0) throw new Error("empty home payload");
+      setHeadline(next);
+    }).catch(() => {
+      if (cancelled) return;
+      for (const entry of props.curated.filter((entry) => entry.home !== false)) {
+        json(`/api/series/${entry.key}?limit=24`).then((body) => {
+          if (cancelled || !isSeriesResult(body)) return;
+          setHeadline((current) => new Map(current).set(entry.key, body));
+        }).catch(() => undefined);
+      }
+    });
     return () => { cancelled = true; };
   }, [props.curated.map((entry) => entry.key).join(",")]);
   const upcoming = props.releases.filter((release) => isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);

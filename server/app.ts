@@ -136,6 +136,19 @@ const routes = {
       catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 503 }); }
     },
     "/api/catalog": () => Response.json(catalogList()),
+    // Every headline series at once for the Home page: the stored copy of each with its last
+    // 24 points, in one round trip instead of one request per indicator after the catalog.
+    "/api/home": () => {
+      const out: Record<string, unknown> = {};
+      for (const entry of catalogList()) {
+        if (entry.home === false) continue;
+        const regions = seriesRegions(entry.key);
+        const region = regions.length > 0 ? (regions.find((item) => item.value === seriesRegion(entry.key)) ?? regions[0]) : undefined;
+        const stored = readSeries(entry.key, 24, region?.value);
+        if (stored && stored.series.some((s) => s.points.length > 0)) out[entry.key] = { ...stored, region, source: "store", transform: "raw" };
+      }
+      return Response.json(out);
+    },
     "/api/catalog/stats": async () => Response.json(await nbsCatalogStats()),
     "/api/releases": async (req: RouteRequest) => {
       const params = new URL(req.url).searchParams;
