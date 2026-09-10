@@ -954,3 +954,13 @@ not from scratch. Rounds are small on purpose.
   instrument manufacturing, same month a year earlier = 100", "ppi tea"
   leads with "PPI: tea", and the headline "Consumer price index" is
   unchanged.
+- 2026-09-10 round 102: audited the parts of Home the last Home round
+  did not, on the live site. The NBS Categories grid shows the twelve
+  largest top-level groups with counts that match the catalog stats
+  (Industry 7,189 down to Culture 49), each card linking to its category
+  listing and reading "工业 Industry 7,189 series" to a screen reader
+  with the parts separated. The six common-search chips each lead with
+  the series they name (youth unemployment, CPI, PMI, exports, house
+  prices, LPR). The hero search's placeholder and form are intact, the
+  tagline's counts still agree with the Coverage card, and the Upcoming
+  card lists the six 15 September releases. Nothing to fix.
