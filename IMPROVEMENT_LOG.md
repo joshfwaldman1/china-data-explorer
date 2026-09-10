@@ -22,10 +22,6 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
-- Electricity output (NBS esData) has no January or February point since
-  2015 for the same reason as industrial production: NBS publishes the two
-  months together. Fill February from the cumulative indicator on the NBS
-  path, as round 58 did for the Eastmoney series.
 
 ## Log
 
@@ -527,3 +523,13 @@ not from scratch. Rounds are small on purpose.
   from 2015 to 2026 (industrial production 6.3 for Feb 2026, retail sales
   2.8), and both annual and quarterly conversions draw. Electricity output
   from NBS's own portal has the same gap and is a separate path; queued.
+- 2026-09-10 round 59: queue item. Electricity output, fetched from NBS's
+  own portal, had no February point in twelve of the last fourteen years
+  for the same reason: the monthly indicator is empty for February while
+  the table's year-to-date growth indicator carries the combined
+  January-February figure. The NBS headline fetch now requests that
+  indicator alongside and uses its February value when the monthly one is
+  empty; a test covers the pick, and the series note says so. Verified
+  live after the boot ingest: every February from 2013 to 2026 is present
+  (4.1 for February 2026), July 2026 unchanged at -0.1. With rounds 58 and
+  59 the three activity series NBS publishes this way are all whole.
