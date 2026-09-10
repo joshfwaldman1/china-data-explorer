@@ -1341,3 +1341,13 @@ not from scratch. Rounds are small on purpose.
   trade row's "General Administration of Customs", which the tagline
   calls "Customs". The row now reads "Exports (YoY %), Customs".
   Verified live.
+- 2026-09-10 round 138: audited the Provinces page against a period the
+  store lacks, the one input no Provinces round had tried. The API
+  answers such a period with 31 regions and no values, and the page
+  drew an empty map and ranking under a "Q1 2030" heading with the
+  control showing Q2 2026 and no message, which a stale bookmark or a
+  typo in the URL would produce. The page now returns to the latest
+  quarter with a toast naming the quarter it could not show. Verified
+  live: #/regions?period=2030-Q1 lands on #/regions with all 31 tiles
+  and the Q2 2026 heading, and #/regions?period=2020-Q1 stays on Q1
+  2020.
