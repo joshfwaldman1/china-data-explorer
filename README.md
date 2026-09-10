@@ -62,7 +62,8 @@ families already present in the published snapshot.
 ## FRED-style features
 
 - **Deep links** — every series has its own URL (`#/series/cpi`), so views can
-  be bookmarked or shared; comma-separated keys create comparison views.
+  be bookmarked or shared; comma-separated keys create comparison views. The
+  browser tab and any bookmark carry the series name, not its key.
 - **Catalog discovery** — full-text search across titles, categories, dataset
   names, and IDs, with frequency and geography facets.
 - **Series tools** — raw levels, changes, percent changes, year-over-year
@@ -78,7 +79,8 @@ families already present in the published snapshot.
   legend when there is more than one line, year ticks whenever the data is
   annual, the scale named in the subtitle when it is logarithmic, up to three
   lines of notes under the chart (a suspension, an ended series, a frequency
-  conversion), and the source and page URL in the footer,
+  conversion, a combined January-February point), and the source and page
+  URL in the footer,
   ready to paste into a tweet or a doc.
 
 ## Local JSON API
@@ -97,6 +99,7 @@ families already present in the published snapshot.
   the Provinces map.
 - `GET /api/releases?start=&end=` — the NBS publication calendar, each item
   mapped to the series it updates.
+  A bare date for `start` or `end` takes the start or end of its day.
 - `GET /api/release-map` — the title-to-series mapping behind that calendar.
 - `GET /api/schedule` — upcoming mapped releases and the last release-day
   refresh.
@@ -171,7 +174,10 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
 - `/data/catalog.db` is a cache rebuilt from `china-explorer/catalog/*.json`
   whenever those files change. Losing it costs half a second.
 - `GET /health` returns `{ ok: true, observations, lastFetch }` for a platform
-  healthcheck (`railway.toml` already points at `/health`).
+  healthcheck (`railway.toml` already points at `/health`). It answers 503
+  until the catalog, gloss and search index are warm (about twelve seconds,
+  capped at twenty-five), so Railway keeps the previous container serving
+  through a deploy instead of sending visitors 502s.
 - `ANTHROPIC_API_KEY` is optional: without it, search still works but English
   queries that miss are not expanded.
 - Set `AKTOOLS_URL=off` on a deployment without AKTools so those refreshes are
