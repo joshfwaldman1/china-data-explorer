@@ -598,3 +598,8 @@ not from scratch. Rounds are small on purpose.
   had the gap, is unchanged. One request for the payload came back empty
   once from here and answered normally on retry, 26 KB in 1.3 s. Nothing
   to fix.
+- 2026-09-10 round 67: audited the Provinces page's share path with a
+  live render of the four-province compare its "Chart together" link
+  builds (Tibet, Hainan, Beijing, Guangdong). The title names all four,
+  the legend distinguishes the four line styles, and the four end labels
+  (6.3, 5.4, 4.5, 2.0) are spread without collision. Nothing to fix.
