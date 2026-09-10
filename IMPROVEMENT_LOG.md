@@ -576,3 +576,18 @@ not from scratch. Rounds are small on purpose.
   only population series is annual and outside the monthly catalog.
   Three requests came back empty for a moment right after the deploy,
   the container switch, and answered normally a minute later.
+- 2026-09-10 round 65: audited ten current monthly catalog series for the
+  January-February gap that rounds 58 and 59 fixed in the headline
+  series. Every "current period" level and every monthly growth rate in
+  NBS's activity tables (diesel, coal, smartphones, cigarettes, steel bar,
+  export deliveries, retail above designated size) lacked all Februaries,
+  while the year-to-date series of the same table carries the combined
+  figure there; diesel's year-to-date February (3,147) less March (4,799.9
+  cumulative) reconciles with March's current period (1,650.5). A served
+  monthly series whose name is a current-period level or a monthly growth
+  rate now takes its missing February points from that sibling, stored
+  points only, and the page says so in its notes; pure helpers under
+  test. Verified live: diesel's current period and growth carry February
+  2026 (3,147 and 1.6), the year-to-date series is unchanged, coal fills
+  too, and the diesel page grew from 192 to 390 points. The typecheck gate
+  caught a regex slip in the client type before any commit.
