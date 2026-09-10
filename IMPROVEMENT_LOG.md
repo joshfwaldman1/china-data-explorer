@@ -639,3 +639,12 @@ not from scratch. Rounds are small on purpose.
   the one share-image change since then touched tick placement, not
   colour; the 27 colour tokens remain defined in the light palette and
   both dark blocks. Nothing to fix.
+- 2026-09-10 round 73: probed the Table view and the Options panel for
+  screen readers on the live site. The Options controls are labelled by
+  wrapping labels and the table's column headers carry scope, but the
+  table had no caption or label, so a reader entering it heard only
+  "table, 3 columns, 187 rows". Both the data table and the revisions
+  table now carry a visually hidden caption naming the series, unit and
+  frequency. Verified live: the caption reads "New Home Prices, 70
+  Cities: Percent change from year ago, monthly data, one row per period,
+  newest first." and stays invisible.
