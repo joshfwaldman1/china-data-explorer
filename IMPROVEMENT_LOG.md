@@ -714,3 +714,13 @@ not from scratch. Rounds are small on purpose.
   fetch-log rows, so a day like this adds nearly 3,000; at a normal
   cadence that is a few hundred a day, small beside 1.3 million
   observations, so no pruning yet. Nothing to fix.
+- 2026-09-10 round 82: audited the share image with a live render of the
+  unemployment page, the one series with a suspension gap. Band, dashed
+  and solid youth segments, five end labels and legend all render right.
+  Defect: the note under the chart was cut to one line with an ellipsis,
+  so the image said readings across the gap "are not comparable, and ..."
+  and lost the half that tells a reader not to read the jump as a change
+  in the labour market. Each note may now take two lines and the notes
+  together three, with the plot giving up the height; the note's age
+  range uses a hyphen like the legend. Test added. Verified live: the
+  unemployment image carries the whole note on two lines.
