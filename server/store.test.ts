@@ -12,7 +12,7 @@ import { join } from "node:path";
 process.env.CHINA_DB_PATH = join(mkdtempSync(join(tmpdir(), "china-store-")), "test.db");
 process.env.CHINA_SEED = "off"; // start from an empty store, not the seed
 
-const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh, dbHealth } = await import("./db.ts");
+const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh, dbHealth, dbStatus, dbStatusWithSeries } = await import("./db.ts");
 const { parseEsDataPoints } = await import("./nbs-catalog.ts");
 
 const NATIONAL = "000000000000";
@@ -90,6 +90,15 @@ test("the healthcheck counts observations without the status page having been op
   const before = dbHealth();
   expect(before.ok).toBe(true);
   expect(before.observations).toBeGreaterThan(0);
+});
+
+test("the status summary leaves out the per-series coverage list unless asked", () => {
+  const summary = dbStatus();
+  expect(summary.totals.observations).toBeGreaterThan(0);
+  expect("perSeries" in summary).toBe(false);
+  const full = dbStatusWithSeries();
+  expect(full.perSeries.length).toBeGreaterThan(0);
+  expect(full.perSeries[0]).toHaveProperty("lastPeriod");
 });
 
 test("the last release-day refresh is read back from the fetch log", () => {

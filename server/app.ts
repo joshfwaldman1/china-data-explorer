@@ -11,7 +11,7 @@
 
 import index from "../client/index.html";
 import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult, seriesRegion } from "./data";
-import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -274,7 +274,8 @@ const routes = {
       });
     },
     // Coverage and recent ingest runs — a stale chart should be diagnosable.
-    "/api/status": () => Response.json(dbStatus()),
+    // The coverage list is heavy; it comes only with ?series=1.
+    "/api/status": (req: RouteRequest) => Response.json(new URL(req.url).searchParams.get("series") === "1" ? dbStatusWithSeries() : dbStatus()),
     // The revision trail for one period: every value we have ever stored for
     // it, oldest first.
     "/api/revisions/:key": (req: RouteRequest) => {

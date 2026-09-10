@@ -417,12 +417,39 @@ let cachedStatus: ReturnType<typeof computeStatus> | null = null;
 let cachedStatusAt = 0;
 const STATUS_TTL_MS = 5 * 60 * 1000;
 
-/** Coverage summary, cached for five minutes: the group-by over the whole store is the expensive part. */
+/**
+ * Store status, cached for five minutes. The summary (size, totals, the last runs, the week's
+ * failures) is cheap; the coverage list over all fifteen thousand (key, region) pairs is a group-by
+ * across the whole store and a 2.6 MB payload, so it is computed and sent only when asked for
+ * (`/api/status?series=1`). A status call during a boot ingest once hung for over a minute on it.
+ */
 export function dbStatus() {
-  if (cachedStatus && Date.now() - cachedStatusAt < STATUS_TTL_MS) return cachedStatus;
-  cachedStatus = computeStatus();
-  cachedStatusAt = Date.now();
+  const now = Date.now();
+  if (!cachedStatus || now - cachedStatusAt >= STATUS_TTL_MS) { cachedStatus = computeStatus(); cachedStatusAt = now; }
   return cachedStatus;
+}
+
+/** The summary plus coverage per (key, region), for `/api/status?series=1`. */
+export function dbStatusWithSeries() {
+  const now = Date.now();
+  if (!cachedPerSeries || now - cachedPerSeriesAt >= STATUS_TTL_MS) { cachedPerSeries = computePerSeries(); cachedPerSeriesAt = now; }
+  return { ...dbStatus(), perSeries: cachedPerSeries };
+}
+
+let cachedPerSeries: ReturnType<typeof computePerSeries> | null = null;
+let cachedPerSeriesAt = 0;
+
+function computePerSeries() {
+  return db().prepare(`
+    SELECT key, region,
+           COUNT(DISTINCT period) AS periods,
+           MIN(period) AS firstPeriod,
+           MAX(period) AS lastPeriod,
+           MAX(fetched_at) AS lastFetch
+    FROM observations
+    GROUP BY key, region
+    ORDER BY key, region
+  `).all();
 }
 
 function computeStatus() {
@@ -434,17 +461,6 @@ function computeStatus() {
            MAX(fetched_at) AS lastFetch
     FROM observations
   `).get() as { observations: number; keys: number; lastFetch: string | null };
-
-  const perSeries = database.prepare(`
-    SELECT key, region,
-           COUNT(DISTINCT period) AS periods,
-           MIN(period) AS firstPeriod,
-           MAX(period) AS lastPeriod,
-           MAX(fetched_at) AS lastFetch
-    FROM observations
-    GROUP BY key, region
-    ORDER BY key, region
-  `).all();
 
   const recentRuns = database.prepare(`
     SELECT key, region, status, point_count AS points, changed_count AS changed,
@@ -467,5 +483,5 @@ function computeStatus() {
   `).all({ $weekAgo: weekAgo });
 
   return { sizeBytes,
-    path: DB_PATH, totals, perSeries, recentRuns, recentFailures };
+    path: DB_PATH, totals, recentRuns, recentFailures };
 }

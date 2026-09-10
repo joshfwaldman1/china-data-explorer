@@ -101,8 +101,8 @@ families already present in the published snapshot.
 - `GET /api/schedule` — upcoming mapped releases and the last release-day
   refresh.
 - `GET /api/revisions/:key?label=&period=` — locally stored revision history.
-- `GET /api/status` — store size, coverage per series, the last runs and the
-  failed fetches of the past week.
+- `GET /api/status` — store size, totals, the last runs and the failed fetches
+  of the past week; add `?series=1` for coverage per series (a 2.6 MB list).
 
 ## Optional: AKTools (AkShare) for extra breadth
 
