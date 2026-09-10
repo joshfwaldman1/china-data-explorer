@@ -1352,6 +1352,13 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; naviga
     }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
   }, [period, attempt]);
+  // A link to a quarter the store lacks (a stale bookmark, a typo) falls back to the latest quarter and says so,
+  // rather than drawing an empty map under that quarter's heading.
+  useEffect(() => {
+    if (status !== "ok" || !period || !data || data.values.some((item) => item.value !== null)) return;
+    props.toast(`No provincial data for ${periodPretty(period)}; showing the latest quarter`);
+    props.navigate({ view: "regions", period: "" });
+  }, [status, data, period]);
 
   const rows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.province && item.value !== null);
   const values = rows.map((item) => item.value ?? 0);
