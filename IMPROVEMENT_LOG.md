@@ -490,3 +490,11 @@ not from scratch. Rounds are small on purpose.
   Q4 2008 every tile's value matched the API (Inner Mongolia 16.5 at the
   top, a floor of 8.0), with the ranking and colour legend following.
   Nothing to fix.
+- 2026-09-10 round 56: audited the release map's category side against
+  the live catalog, the part of the release-day refresh not yet exercised
+  before 15 September. Every category named by the 23 mappings is a real
+  top-level category with series in it (industry 7,189, price indices
+  1,134, down to the services production index with 2), so each release
+  will refresh due series in the right tables. Several releases at the
+  same hour name the same category, which is harmless: a series refreshed
+  by the first is no longer due for the next. Nothing to fix.
