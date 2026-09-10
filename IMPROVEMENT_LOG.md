@@ -860,3 +860,12 @@ not from scratch. Rounds are small on purpose.
   the reserves image reads 28,000 to 36,000 in five steps with the
   subtitle "Hundred million USD (亿美元), monthly, Aug 2016 to Aug 2026,
   log scale".
+- 2026-09-10 round 94: measured two surfaces at 390 px on the live site
+  that no mobile round had covered: the Provinces page on Q2 2022 (period
+  control, tile map, colour ramp, ranking) and the Add series popover
+  open on the CPI page. Both lay out at exactly 390 px with no element
+  past the edge. One copy defect: the popover's search box placeholder
+  read "Search in English or Chinese: GDP, 工业增" with the rest cut off
+  mid-word. It now reads "Search in English or Chinese"; the examples
+  were already given on the Home search. Verified live: the placeholder
+  measures 177 px in a 264 px box.
