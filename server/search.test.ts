@@ -159,6 +159,15 @@ test("housing starts reach the monthly real estate table, not the construction i
   expect(starts.results[0]?.frequency).toBe("Monthly");
 });
 
+test("an index on a year-earlier base outranks the previous-month base among equal matches", async () => {
+  const cpi = await searchNbsCatalog({ query: "cpi", limit: 6 });
+  const firstNbs = cpi.results.find((entry) => entry.key.startsWith("nbs_"));
+  expect(firstNbs?.name).toContain("上年同月=100");
+  const food = await searchNbsCatalog({ query: "ppi food", limit: 3 });
+  expect(food.results[0]?.name).toContain("上年同月=100");
+  expect(food.results[0]?.name).toContain("食品");
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");

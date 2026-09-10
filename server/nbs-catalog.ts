@@ -600,6 +600,11 @@ function titleLength(entry: NbsCatalogEntry): number {
   return (entry.nameEn ?? entry.name).length;
 }
 
+/** 1 for an index on a previous-month base, which ranks after the year-earlier base a researcher usually means by "cpi" or "ppi food". */
+function monthOnMonthBase(entry: NbsCatalogEntry): number {
+  return /[（(]\s*上月\s*=\s*100\s*[)）]/.test(entry.name) ? 1 : 0;
+}
+
 export function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (!query) return 1;
   const name = entry.name.toLocaleLowerCase();
@@ -731,8 +736,9 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       return { entry, score };
     }).filter((item) => item.score > 0).sort((a, b) =>
       // Keyword score decides in bands of five (the full-text tiebreak is worth at most two points),
-      // then a series that still publishes beats one that stopped, then the shorter English title.
-      band(b.score) - band(a.score) || Number(isCurrent(ranges.get(b.entry.key)?.last)) - Number(isCurrent(ranges.get(a.entry.key)?.last)) || titleLength(a.entry) - titleLength(b.entry) || b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+      // then a series that still publishes beats one that stopped, then a year-earlier index base beats
+      // a previous-month one, then the shorter English title.
+      band(b.score) - band(a.score) || Number(isCurrent(ranges.get(b.entry.key)?.last)) - Number(isCurrent(ranges.get(a.entry.key)?.last)) || monthOnMonthBase(a.entry) - monthOnMonthBase(b.entry) || titleLength(a.entry) - titleLength(b.entry) || b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
   };
 
   let scored = rank([]);
