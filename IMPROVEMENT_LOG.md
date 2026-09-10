@@ -619,3 +619,11 @@ not from scratch. Rounds are small on purpose.
   does, receives 418 KB in 2.2 s, and search results come as 9 KB, so
   compression is already on at the edge. The store stands at 1,315,231
   observations with no failure since 13:19Z on the 9th. Nothing to fix.
+- 2026-09-10 round 70: audited the share image's time axis, which round
+  58 had noticed labelling annual points "Jan 09, Jul 09". The tick rule
+  chose years only for spans over six years, whatever the data's
+  frequency. It now takes the coarsest visible frequency: annual points
+  always get year ticks, quarterly ones beyond three years, monthly ones
+  keep the old rule. Test added. Verified live: a six-year annual view of
+  industrial production reads 2016 to 2020, and the five-year quarterly
+  GDP moved from "Jul 21, Jan 22" to whole years.
