@@ -156,11 +156,11 @@ const UNIT_EN: Record<string, string> = {
 const ABOUT: Record<string, string> = {
   gdp: "Real GDP growth, year over year, from the NBS quarterly national accounts. Constant-price series are chain-linked by base period, and quarterly values are not seasonally adjusted.",
   provincial_gdp: "Guangdong's real GDP growth as reported by the provincial bureau. NBS publishes it as a cumulative year-to-date index against the same period a year earlier, so the Q2 figure is first-half growth.",
-  industrial_production: "Value added of industrial enterprises above designated size (annual revenue over 20 million yuan), year over year. January and February are published together to avoid Lunar New Year distortion.",
+  industrial_production: "Value added of industrial enterprises above designated size (annual revenue over 20 million yuan), year over year. January and February are published together to avoid Lunar New Year distortion. The February point carries the combined January-February figure and there is no January point.",
   cpi: "Consumer price index, year over year, from the NBS monthly price survey. Food carries a large weight, so pork and vegetable prices move the headline more than in most economies.",
   ppi: "Producer price index for industrial products at the factory gate, year over year. It tracks commodity prices closely and turns negative in deflationary stretches.",
   unemployment: "Surveyed urban unemployment from the monthly labour force survey, with age breakdowns. The 16–24 series was suspended after June 2023 and resumed in December 2023 excluding students; the two segments are not comparable.",
-  retail_sales: "Retail sales of consumer goods, nominal, year over year. Includes goods sold to households and to institutions; catering is included, most services are not.",
+  retail_sales: "Retail sales of consumer goods, nominal, year over year. Includes goods sold to households and to institutions; catering is included, most services are not. January and February are published together; the February point carries the combined figure and there is no January point.",
   money_supply: "M1 (cash plus demand deposits) and M2 (M1 plus savings and time deposits), year over year, from the People's Bank of China. M1 was redefined in January 2025 to include personal demand deposits.",
   new_loans: "New yuan-denominated loans extended by financial institutions in the month, from the PBOC. Strongly seasonal: January is always the largest month.",
   trade: "Merchandise exports and imports in US dollar terms, year over year, from the General Administration of Customs. Lunar New Year timing shifts January and February.",

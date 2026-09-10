@@ -92,3 +92,12 @@ test("the last release-day refresh is read back from the fetch log", () => {
   logFetch({ key: "release_refresh", region: "", startedAt: "2026-09-15T02:10:00.000Z", finishedAt: "2026-09-15T02:12:00.000Z", status: "ok", points: 0, changed: 2, message: "National economy monthly bundle" });
   expect(lastReleaseRefresh()).toEqual({ en: "National economy monthly bundle", at: "2026-09-15T02:12:00.000Z", attempts: 2, advanced: 0 });
 });
+
+test("an empty February takes the combined January-February figure from the year-to-date column", async () => {
+  const { eastmoneyValue } = await import("./data.ts");
+  const field = { field: "BASE_SAME", januaryFebruaryField: "BASE_ACCUMULATE", label: "x" };
+  expect(eastmoneyValue({ BASE_SAME: null, BASE_ACCUMULATE: 6.3 }, field, "2026-02")).toBe(6.3);
+  expect(eastmoneyValue({ BASE_SAME: 5.7, BASE_ACCUMULATE: 6.1 }, field, "2026-03")).toBe(5.7);
+  expect(eastmoneyValue({ BASE_SAME: null, BASE_ACCUMULATE: 6.1 }, field, "2026-03")).toBeNull();
+  expect(eastmoneyValue({ BASE_SAME: null, BASE_ACCUMULATE: 6.3 }, { field: "BASE_SAME", label: "x" }, "2026-02")).toBeNull();
+});

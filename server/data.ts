@@ -95,6 +95,21 @@ interface EastmoneyField {
   label: string;
   /** Added to every value: an index where last year = 100 becomes a % change with -100. */
   valueOffset?: number;
+  /**
+   * NBS publishes January and February of the activity series together, and
+   * Eastmoney leaves the February row's monthly column empty with the
+   * combined figure in the year-to-date column. Named here, that column
+   * fills the February point; January stays absent, as published.
+   */
+  januaryFebruaryField?: string;
+}
+
+/** The value a row holds for a field, taking the combined January-February figure for an empty February. */
+export function eastmoneyValue(row: Record<string, unknown>, field: EastmoneyField, month: string): unknown {
+  const primary = row[field.field];
+  const empty = primary === null || primary === undefined || primary === "";
+  if (empty && field.januaryFebruaryField && month.endsWith("-02")) return row[field.januaryFebruaryField];
+  return primary;
 }
 interface EastmoneyIndicator {
   kind: "eastmoney";
@@ -354,7 +369,7 @@ export const CATALOG: Record<string, Indicator> = {
     title: "Industrial Production (Value-Added, Large Firms)", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_INDUS_GROW",
-    fields: [{ field: "BASE_SAME", label: "Industrial production (YoY %)" }],
+    fields: [{ field: "BASE_SAME", januaryFebruaryField: "BASE_ACCUMULATE", label: "Industrial production (YoY %)" }],
   },
   cpi: {
     kind: "eastmoney", group: "Prices",
@@ -388,7 +403,7 @@ export const CATALOG: Record<string, Indicator> = {
     title: "Retail Sales of Consumer Goods", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_TOTAL_RETAIL",
-    fields: [{ field: "RETAIL_TOTAL_SAME", label: "Retail sales (YoY %)" }],
+    fields: [{ field: "RETAIL_TOTAL_SAME", januaryFebruaryField: "RETAIL_ACCUMULATE_SAME", label: "Retail sales (YoY %)" }],
   },
   money_supply: {
     kind: "eastmoney", group: "Money & Credit",
@@ -562,11 +577,12 @@ async function fetchEastmoney(key: string, cfg: EastmoneyIndicator, limit: numbe
     const points: SeriesPoint[] = [];
     for (const row of rows) {
       const rawDate = row[cfg.dateField ?? "REPORT_DATE"];
-      const rawVal = row[f.field];
       if (typeof rawDate !== "string") continue;
+      const month = toMonth(rawDate);
+      const rawVal = eastmoneyValue(row, f, month);
       const num = typeof rawVal === "number" ? rawVal : Number(rawVal);
-      if (rawVal === null || rawVal === "" || Number.isNaN(num)) continue;
-      points.push({ date: toMonth(rawDate), value: offsetValue(num, f.valueOffset) });
+      if (rawVal === null || rawVal === undefined || rawVal === "" || Number.isNaN(num)) continue;
+      points.push({ date: month, value: offsetValue(num, f.valueOffset) });
     }
     points.sort((a, b) => a.date.localeCompare(b.date));
     return { label: f.label, points };
