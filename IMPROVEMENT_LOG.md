@@ -465,3 +465,11 @@ not from scratch. Rounds are small on purpose.
   financing is not in the store. Two search requests stalled for over two
   minutes from here during the nightly ingest while health answered in
   two seconds; not reproduced afterwards.
+- 2026-09-10 round 53: audited the PPI and CPI component pages, which
+  round 52 had flagged. The gloss table named index components both ways,
+  "PPI, food" (155 entries) beside "PPI: clothing" (189), so neighbouring
+  results and pages disagreed on the convention. Titles are now normalised
+  to the colon form where they are composed, with the cache format bumped
+  and a test. Verified live: all 59 PPI-prefixed and 43 CPI-prefixed
+  titles use the colon; the three plain CPI titles are the "excluding
+  food and energy" lines, which carry no component.
