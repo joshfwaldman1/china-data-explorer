@@ -1310,3 +1310,13 @@ not from scratch. Rounds are small on purpose.
   carry them. The Coverage card and footer copy (126), the ramp ticks
   (127), the next-release fallback (128) and the theme button's name
   (133) are interface copy needing no doc. Docs only, no deploy.
+- 2026-09-10 round 135: audited search for ten queries aimed at the
+  international series on the live site (household debt, government
+  debt, policy uncertainty, treasuries, yuan dollar, real house prices,
+  leading indicator, consumer confidence, life expectancy, gdp per
+  capita). All ten led with the right series: the BIS household credit
+  and real property prices, the IMF government debt, both uncertainty
+  indices, the Treasury holdings, the exchange rate, the OECD leading
+  indicator and consumer confidence, and the World Bank life expectancy
+  and GDP per capita, with the NBS quarterly GDP tables following the
+  last. Nothing to fix.
