@@ -1096,13 +1096,23 @@ function SeriesPage(props: {
   // The page's February note travels with the picture too: a reader of the image alone would
   // otherwise take the combined January-February point for a February reading.
   const februaryNotes = results.filter((result) => result.metadata?.februaryFrom).map((result) => `${results.length > 1 ? `${displayTitle(result, results)}: ` : ""}February is the combined January-February figure NBS publishes; there is no January point.`);
+  // A series whose last value is older than its schedule allows says so on the picture, as the page
+  // does in its notice; a reader of the image alone would otherwise take Q4 2019 as current.
+  const behindNotes = results.flatMap((result) => {
+    const entry = props.curated.find((item) => item.key === result.key);
+    const last = result.series[0]?.points.at(-1)?.date;
+    if (!last || entry?.ended || !isBehind(last, result.frequency)) return [];
+    const name = results.length > 1 ? `${displayTitle(result, results)}: ` : "";
+    const when = observationLabel(last, result.frequency);
+    return [entry?.refreshBlocked ? `${name}last value ${when}; refreshed through ${entry.refreshBlocked}, which this deployment does not run.` : `${name}last published ${when}; nothing newer has been published.`];
+  });
   const shareInput = (): ShareInput => ({
     title: seriesViewTitle(results, props.lang),
     unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
     gaps: built.gaps,
-    notes: [...endedNotes, ...februaryNotes, ...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
+    notes: [...endedNotes, ...behindNotes, ...februaryNotes, ...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
     logScale: logScale && canLog,
     lunar,
     source: [...new Set(results.map((result) => result.agency))].join(", ") + (results.some((result) => result.sourceUrl.includes("eastmoney")) ? " via Eastmoney" : ""),
