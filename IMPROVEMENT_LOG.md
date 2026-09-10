@@ -473,3 +473,14 @@ not from scratch. Rounds are small on purpose.
   and a test. Verified live: all 59 PPI-prefixed and 43 CPI-prefixed
   titles use the colon; the three plain CPI titles are the "excluding
   food and energy" lines, which carry no component.
+- 2026-09-10 round 54: measured Home's first load on the live site. It
+  made 21 API requests in two steps: the catalog, stats and releases, then
+  one request per headline series once the catalog had arrived, so the
+  tiles filled about half a second after the page could have shown them.
+  A new `/api/home` returns every headline series with its last 24 points
+  in one payload (26 KB), requested on mount alongside the catalog; the
+  per-series requests remain only as a fallback if it fails. The first
+  commit sent that request twice, once on mount and again when the
+  catalog arrived; the second commit sends it once. Verified live: four
+  requests, the headline payload finishing at the same moment as the
+  catalog, all tiles and rows filled.
