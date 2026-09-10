@@ -753,3 +753,16 @@ not from scratch. Rounds are small on purpose.
   ranking. A visually hidden comma now separates them. Verified live: the
   blocks read "Sep 9, Wed", "Sep 15, Tue", "Sep 28, Mon". The bare "10:00"
   on each release is fine, since the lede states China Standard Time.
+- 2026-09-10 round 86: audited the docs against the code since round 74.
+  The README's health paragraph says `/health` returns the observation
+  count; live it returned 0 against a store of 1.3 million, because the
+  route read the count from the status page's five-minute cache, which is
+  empty until someone requests `/api/status`. A platform healthcheck
+  after boot never saw a real number. Health now keeps its own
+  five-minute count; test added. Verified live: the first ping after the
+  deploy reported 1,315,240 (it took seven seconds, the boot ingest
+  contention round 75 measured, and the second under a second). Also
+  undocumented: the share image's notes line (rounds 36, 58 and 82); the
+  README's share image bullet now carries it. The other code changes
+  since round 74 (Provinces error copy, the due scan's yield, the sticky
+  period column, the calendar comma) need no doc.
