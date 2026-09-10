@@ -168,6 +168,15 @@ test("an index on a year-earlier base outranks the previous-month base among equ
   expect(food.results[0]?.name).toContain("食品");
 });
 
+test("metals and aviation vocabulary: aluminium means primary aluminium, air passengers reach civil aviation", async () => {
+  const aluminium = await searchNbsCatalog({ query: "aluminium output", limit: 3 });
+  expect(aluminium.results[0]?.name.startsWith("原铝")).toBe(true);
+  const alloy = await searchNbsCatalog({ query: "aluminium alloy", limit: 3 });
+  expect(alloy.results[0]?.name.startsWith("铝合金")).toBe(true);
+  const air = await searchNbsCatalog({ query: "air passengers", limit: 3 });
+  expect(air.results[0]?.name.startsWith("民航客运量")).toBe(true);
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");
