@@ -81,7 +81,7 @@ type Route =
   | { view: "search"; q: string; freq: string; cat: string; dataset: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
-  | { view: "regions" }
+  | { view: "regions"; period: string }
   | { view: "saved" }
   | { view: "recent" };
 
@@ -281,7 +281,7 @@ function parseRoute(hash: string): Route {
   if (head === "browse") return { view: "browse", cat: "" };
   if (head === "category" && parts[1]) return { view: "search", q: "", freq: "", cat: decodeURIComponent(parts[1]), dataset: "" };
   if (head === "releases") return { view: "releases", month: query.get("month") ?? "" };
-  if (head === "regions") return { view: "regions" };
+  if (head === "regions") return { view: "regions", period: query.get("period") ?? "" };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -294,7 +294,7 @@ function routeHash(route: Route): string {
     case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
-    case "regions": return "#/regions";
+    case "regions": return `#/regions${qs([["period", route.period]])}`;
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -1308,9 +1308,11 @@ function breaksFor(values: number[]): number[] {
 }
 function stepFor(value: number, breaks: number[]): number { let step = 0; for (const edge of breaks) if (value >= edge) step += 1; return Math.min(step, RAMP.length - 1); }
 
-function RegionsPage(props: { toast: (text: string) => void }) {
+function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; navigate: (route: Route) => void; toast: (text: string) => void }) {
   const [data, setData] = useState<RegionalResponse | null>(null);
-  const [period, setPeriod] = useState("");
+  // The period lives in the URL, so a view of Q1 2020 can be shared and bookmarked.
+  const period = props.route.period;
+  const setPeriod = (value: string) => props.navigate({ view: "regions", period: value });
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [selected, setSelected] = useState<string>("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -1541,7 +1543,7 @@ function App() {
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
         {route.view === "browse" && <BrowsePage stats={stats} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
-        {route.view === "regions" && <RegionsPage toast={setToast} />}
+        {route.view === "regions" && <RegionsPage route={route} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
