@@ -900,6 +900,19 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
 
 // ── Series page ───────────────────────────────────────────────────────────────
 
+/**
+ * The name a series view goes by outside the page: the browser tab, a bookmark and the share
+ * image all use it. A compare across provinces keeps the measure ("Provincial Real GDP Growth:
+ * Guangdong, Shanghai"); a single province or city names it ("Provincial Real GDP Growth: Hainan").
+ */
+function seriesViewTitle(results: SeriesResult[], lang: string): string {
+  const primary = results[0];
+  if (!primary) return "";
+  if (results.length > 1 && results.every((result) => result.key === primary.key && result.region)) return `${primary.title}: ${results.map((result) => displayTitle(result, results)).join(", ")}`;
+  if (results.length === 1 && primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg") return `${(lang !== "zh" && primary.metadata?.nameEn) || primary.title}: ${regionLabel(primary.region)}`;
+  return results.map((result) => (lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", ");
+}
+
 function SeriesPage(props: {
   route: Extract<Route, { view: "series" }>; curated: CuratedEntry[]; saved: string[]; releases: Release[]; lang: string;
   onToggleSaved: (key: string) => void; navigate: (route: Route) => void; toast: (text: string) => void;
@@ -1021,6 +1034,10 @@ function SeriesPage(props: {
   const set = (patch: Partial<Extract<Route, { view: "series" }>>) => props.navigate({ ...props.route, ...patch });
 
   if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time. This takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
+  // The tab and any bookmark carry the series name once it has loaded, the key until then.
+  const tabTitle = status === "ok" && primary ? seriesViewTitle(results, props.lang) : "";
+  useEffect(() => { document.title = `${tabTitle || props.route.keys.join(", ")} - EconStats China Data`; }, [tabTitle, routeHash(props.route)]);
+
   if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/Unknown/.test(error) ? "There is no series with this ID. Check the link, or search for the series by name." : /AKTools/.test(error) ? error : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
 
   const firstSeries = built.tracks[0];
@@ -1077,13 +1094,7 @@ function SeriesPage(props: {
     return entry?.ended ? [`${result.title} ended in ${periodPretty(entry.ended)}; the last value shown is the final one published.`] : [];
   });
   const shareInput = (): ShareInput => ({
-    // A compare of one series across provinces keeps the measure in the title: "Provincial Real GDP Growth: Guangdong, Shanghai".
-    title: results.length > 1 && results.every((result) => result.key === primary.key && result.region)
-      ? `${primary.title}: ${results.map((result) => displayTitle(result, results)).join(", ")}`
-      // One province or city: the picture must name it, as the page's lede does ("Provincial Real GDP Growth: Hainan").
-      : results.length === 1 && primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg"
-        ? `${(props.lang !== "zh" && primary.metadata?.nameEn) || primary.title}: ${regionLabel(primary.region)}`
-        : results.map((result) => (props.lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", "),
+    title: seriesViewTitle(results, props.lang),
     unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
@@ -1482,7 +1493,11 @@ function App() {
       if (key) { const next = [key, ...recent.filter((item) => item !== key)].slice(0, 20); setRecent(next); writeList("china-recent", next); }
     }
     if (route.view !== "search") setDraft("");
-    document.title = route.view === "home" ? "EconStats China Data" : `${route.view === "series" ? route.keys.join(", ") : route.view} - EconStats China Data`;
+    // The series page sets its own title once the series has loaded (a child effect would lose to this one).
+    if (route.view !== "series") {
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
+    }
     const main = document.getElementById("main");
     if (main && route.view !== "home") main.focus({ preventScroll: true });
   }, [routeHash(route)]);
