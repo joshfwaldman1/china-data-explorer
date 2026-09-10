@@ -1035,3 +1035,16 @@ not from scratch. Rounds are small on purpose.
   seconds through the next deploy: one eight-second no-answer sample at
   the hand-over, then 200s throughout; the new container logged
   "Catalog warm in 11.8s".
+- 2026-09-10 round 108: owner report, "we do not in fact have all the
+  series". Tested on the live site: 369 of the 15,403 national monthly
+  and quarterly catalog entries have no stored copy, 360 of them the
+  by-industry enterprise tax indicators (VAT payable, business taxes and
+  surcharges) that NBS lists but stopped filling, and nine PPI and CPI
+  sub-indices; NBS answers each with no observations, so the page said
+  "NBS didn't respond, and this series has no stored copy yet", which
+  reads as a passing outage. The page now says NBS lists the table but
+  has published no data for it, and search results mark such entries
+  "no data published" where the period range would be. Verified live on
+  the mining VAT table's page and search results; the CPI page renders.
+  The count question: 14,886 NBS table slices fold into 9,569 distinct
+  indicators, 9,209 with data stored and 360 empty at NBS.
