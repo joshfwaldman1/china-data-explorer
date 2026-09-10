@@ -1269,3 +1269,13 @@ not from scratch. Rounds are small on purpose.
   release is the 70-city prices on 15 September at 09:30 and the last
   release refresh is still null, as expected before that day. Nothing
   to fix.
+- 2026-09-10 round 130: audited the share image with two live renders not
+  yet covered: a three-headline compare with mixed units (reserves as
+  year-on-year change, M1 and M2 growth, both LPR tenors), whose
+  subtitle joins the two units and whose five end labels spread without
+  collision, and GDP on a one-year window. Defect on the second: twelve
+  month labels under five quarterly points, because the tick rule
+  switched to years only beyond three years and otherwise stepped by
+  months. Quarterly data now steps by whole quarters from its own
+  quarter-end months. Test added. Verified live: the one-year GDP image
+  reads Jun 25, Sep 25, Dec 25, Mar 26, Jun 26.
