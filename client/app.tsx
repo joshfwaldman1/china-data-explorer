@@ -1042,7 +1042,7 @@ function SeriesPage(props: {
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date))[0];
   const stale = primary.source === "stale";
   const zhFirst = props.lang === "zh" || !meta?.nameEn;
-  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : "the NBS data portal";
+  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : "NBS's own data portal";
   const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
   const citation = `${primary.agency}, "${primary.title}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key])}`;
   const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
