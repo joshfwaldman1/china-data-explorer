@@ -1254,7 +1254,7 @@ function SeriesPage(props: {
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
             <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${observationLabel(headline.points[0]?.date ?? "", primary.frequency)} to ${observationLabel(headline.points[headline.points.length - 1]?.date ?? "", primary.frequency)}` : "—"}</dd>
             <dt>Updated</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
-            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}` : "Not scheduled this month"}</dd>
+            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}` : /National Bureau of Statistics/.test(primary.agency) ? "Not in the NBS calendar for this month or next" : `Not in the NBS calendar; published by ${primary.agency}`}</dd>
             <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>
             {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
               ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
