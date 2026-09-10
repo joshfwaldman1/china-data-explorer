@@ -779,3 +779,20 @@ not from scratch. Rounds are small on purpose.
   monthly real estate table has 施工 inside the phrase. The alias now
   names the real estate table; test added. Verified live: the query leads
   with real estate floor space newly started, monthly through July 2026.
+- 2026-09-10 round 88: audited ten random catalog series pages on the
+  live site (detergent output, other-mining liabilities, rail passenger
+  traffic, manufacturing value added, nuclear power, other-mining
+  inventories, truck output growth, other-mining assets, mining
+  receivables, PPI consumer goods). Periods ordered, no duplicates or
+  nulls, units and ranges sound; rail passengers lose January from 2024
+  because NBS combined it with February then, and the February fill shows
+  where it applied. One defect, systemic: NBS's 增减 (%) on the industrial
+  enterprise tables (assets, liabilities, inventories, receivables,
+  loss-making firms) is the change from the same month a year earlier,
+  but 639 glosses read "Other mining: change in total liabilities" with a
+  unit of %, which reads as a level change. They now follow the site's
+  convention for year-on-year rates, "Other mining: total liabilities,
+  change from a year ago, %"; the 194 glosses that already name their base
+  period (from same period last year, from start of year) are untouched.
+  GLOSS_FORMAT bumped to 11 so stored titles rebuilt on boot; tests added.
+  Verified live on the sampled page and on search results.
