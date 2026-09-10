@@ -158,14 +158,27 @@ export function glossTitle(name: string): string {
  * folded into it here rather than by hand across 155 table entries.
  */
 export function normalizeIndexPrefix(title: string): string {
-  return title
+  const abbreviations: Record<string, string> = { "producer price index": "PPI", "consumer price index": "CPI", "retail price index": "RPI" };
+  let out = title;
+  // The suffix form, "Non-metallic mineral products: producer price index", folds to "PPI: non-metallic
+  // mineral products"; the urban and rural variants keep their word in front.
+  const suffix = out.match(/^(.+?):\s*((?:urban |rural )?)(producer price index|consumer price index|retail price index)\s*$/i);
+  if (suffix) {
+    const scope = suffix[2] ?? "", index = suffix[3] ?? "", component = suffix[1] ?? "";
+    out = `${scope ? `${scope.charAt(0).toUpperCase()}${scope.slice(1).toLowerCase()}` : ""}${abbreviations[index.toLowerCase()] ?? index}: ${component}`;
+  }
+  out = out
     .replace(/^(CPI|PPI|RPI|PMI),\s+/, "$1: ")
     // The spelled-out forms fold the same way when a component follows: "Producer price index for tea",
-    // "Producer price index, electricity supply" and "Retail price index of sports goods" all read "PPI: tea",
-    // "PPI: electricity supply", "RPI: sports goods". A bare "Consumer price index" is the headline and stays.
-    .replace(/^Producer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/, "PPI: ")
-    .replace(/^Consumer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/, "CPI: ")
-    .replace(/^Retail price index(?:\s+for|\s+of|,|:)\s+(?=\S)/, "RPI: ");
+    // "Producer price index, electricity supply" and "Urban retail price index: clothing" read "PPI: tea",
+    // "PPI: electricity supply", "Urban RPI: clothing". A bare "Consumer price index" is the headline and stays.
+    .replace(/^((?:Urban |Rural )?)Producer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/i, "$1PPI: ")
+    .replace(/^((?:Urban |Rural )?)Consumer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/i, "$1CPI: ")
+    .replace(/^((?:Urban |Rural )?)Retail price index(?:\s+for|\s+of|,|:)\s+(?=\S)/i, "$1RPI: ");
+  // A component reads in lowercase after the colon ("CPI: transport and communication"), except a proper
+  // adjective or an acronym.
+  return out.replace(/^((?:Urban |Rural )?(?:CPI|PPI|RPI|PMI): )([A-Z])([a-z]+)\b/, (whole, prefix: string, first: string, rest: string) =>
+    `${first}${rest}` === "Chinese" ? whole : `${prefix}${first.toLowerCase()}${rest}`);
 }
 
 /** An index title's base period, "(上月=100)", is part of what the series is, so it stays in the English title. */
