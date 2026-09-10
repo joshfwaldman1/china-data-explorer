@@ -1218,7 +1218,7 @@ function SeriesPage(props: {
           )}
           {tab === "table" && (
             <>
-              <div className="table-scroll"><table><caption className="visually-hidden">{displayTitle(primary, results)}: {unitLabel(unit)}, {tableFrequency.toLowerCase()} data, one row per period, newest first.</caption><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{observationLabel(row.period, tableFrequency)}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
+              <div className="table-scroll"><table><caption className="visually-hidden">{seriesViewTitle(results, props.lang)}: {unitLabel(unit)}, {tableFrequency.toLowerCase()} data, one row per period, newest first.</caption><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{observationLabel(row.period, tableFrequency)}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
               <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods. The CSV download has all of them.` : `${tableRows.length} periods`}</span></div>
             </>
           )}
