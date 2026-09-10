@@ -81,8 +81,19 @@ export function convertTrack(track: Track, target: TargetFrequency, agg: Aggrega
   if ((FREQUENCY_RANK[track.frequency] ?? 0) >= (FREQUENCY_RANK[target] ?? 0)) return track;
   const need = target === "Annual" ? (track.frequency === "Monthly" ? 12 : 4) : 3;
   const groups = new Map<string, number[]>();
-  for (const point of track.points) { const key = periodOf(point.t, target); groups.set(key, [...(groups.get(key) ?? []), point.v]); }
-  const points = [...groups.entries()].filter(([, values]) => values.length >= need).map(([key, values]) => ({
+  const closed = new Set<string>();
+  for (const point of track.points) {
+    const key = periodOf(point.t, target);
+    groups.set(key, [...(groups.get(key) ?? []), point.v]);
+    // The period is complete once its closing month is in: December for a year, the quarter's
+    // last month for a quarter (quarterly points are dated by their last month too).
+    const month = new Date(point.t).getUTCMonth() + 1;
+    if (target === "Annual" ? month === 12 : month % 3 === 0) closed.add(key);
+  }
+  // Complete means the closing month is present and at most one reading is missing: NBS
+  // publishes January and February together for industrial output, so a year of it has
+  // eleven monthly points and a first quarter two, and both are whole periods.
+  const points = [...groups.entries()].filter(([key, values]) => closed.has(key) && values.length >= need - 1).map(([key, values]) => ({
     p: key, t: periodTime(key),
     v: agg === "sum" ? values.reduce((a, b) => a + b, 0) : agg === "last" ? (values[values.length - 1] ?? 0) : values.reduce((a, b) => a + b, 0) / values.length,
   })).sort((a, b) => a.t - b.t);

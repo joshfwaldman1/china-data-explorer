@@ -25,6 +25,17 @@ test("monthly to quarterly averages, dropping an incomplete final quarter", () =
   expect(out.points.map((p) => [p.p, p.v])).toEqual([["2025-Q1", 2], ["2025-Q2", 5]]);
 });
 
+test("a year or quarter missing one reading still converts, an open-ended one does not", () => {
+  // NBS publishes January and February of industrial output together, so each year has eleven
+  // monthly points and each first quarter two.
+  const noJanuary = (year: number): Track["points"] => Array.from({ length: 11 }, (_, i) => ({ t: Date.UTC(year, i + 1, 1), v: i + 1, p: `${year}-${String(i + 2).padStart(2, "0")}` }));
+  const track: Track = { ...monthly([]), points: [...noJanuary(2024), ...noJanuary(2025), { t: Date.UTC(2026, 1, 1), v: 1, p: "2026-02" }, { t: Date.UTC(2026, 2, 1), v: 3, p: "2026-03" }, { t: Date.UTC(2026, 3, 1), v: 5, p: "2026-04" }] };
+  expect(convertTrack(track, "Annual", "avg").points.map((p) => p.p)).toEqual(["2024", "2025"]);
+  const quarters = convertTrack(track, "Quarterly", "avg").points.map((p) => p.p);
+  expect(quarters.slice(0, 4)).toEqual(["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"]);
+  expect(quarters.at(-1)).toBe("2026-Q1");
+});
+
 test("sum and end-of-period aggregation; coarser input is left alone", () => {
   expect(convertTrack(monthly([1, 2, 3]), "Quarterly", "sum").points[0]?.v).toBe(6);
   expect(convertTrack(monthly([1, 2, 3]), "Quarterly", "last").points[0]?.v).toBe(3);
