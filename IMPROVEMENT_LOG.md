@@ -1293,3 +1293,12 @@ not from scratch. Rounds are small on purpose.
   left the Copy link clipboard call pending, so no toast could be read
   there; the handler shows "Link copied" or "Could not copy the link".
   Nothing to fix.
+- 2026-09-10 round 133: probed the topbar and sidebar for screen readers
+  on the live site: the nav is a landmark named Primary, the brand link
+  reads "EconStats China Data", the sidebar is a complementary landmark
+  named Catalog with disclosure groups, and the current series link
+  carries its current state. One gap: the theme button read only
+  "Switch theme"; the change is announced by a toast, but the resting
+  name gave no state. It now reads "Switch theme, now dark", "now light"
+  or "now following your system". Verified live at rest and after a
+  press.
