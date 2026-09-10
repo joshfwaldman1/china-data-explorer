@@ -1093,13 +1093,16 @@ function SeriesPage(props: {
     const entry = props.curated.find((item) => item.key === result.key);
     return entry?.ended ? [`${result.title} ended in ${periodPretty(entry.ended)}; the last value shown is the final one published.`] : [];
   });
+  // The page's February note travels with the picture too: a reader of the image alone would
+  // otherwise take the combined January-February point for a February reading.
+  const februaryNotes = results.filter((result) => result.metadata?.februaryFrom).map((result) => `${results.length > 1 ? `${displayTitle(result, results)}: ` : ""}February is the combined January-February figure NBS publishes; there is no January point.`);
   const shareInput = (): ShareInput => ({
     title: seriesViewTitle(results, props.lang),
     unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
     tracks: visibleTracks(tracks, years, windowStart, windowEnd),
     gaps: built.gaps,
-    notes: [...endedNotes, ...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
+    notes: [...endedNotes, ...februaryNotes, ...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
     logScale: logScale && canLog,
     lunar,
     source: [...new Set(results.map((result) => result.agency))].join(", ") + (results.some((result) => result.sourceUrl.includes("eastmoney")) ? " via Eastmoney" : ""),
