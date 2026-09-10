@@ -160,6 +160,24 @@ interface NbsSeriesId {
   id: string;
   label: string;
   valueOffset?: number;
+  /**
+   * NBS publishes January and February of the activity series together, so
+   * the monthly indicator has no February value. Named here, the year-to-date
+   * growth indicator of the same table (whose February value is that combined
+   * figure) fills the February point; January stays absent, as published.
+   */
+  januaryFebruaryId?: string;
+}
+
+type NbsPeriodValue = { _id?: string; da?: string; value?: unknown };
+
+/** The value an indicator holds for one period, taking the combined January-February figure for an empty February. */
+export function nbsPeriodValue(values: NbsPeriodValue[], idcfg: NbsSeriesId, regionValue: string, date: string): unknown {
+  const pick = (id: string) => values.find((value) => value._id === id && (value.da === undefined || value.da === regionValue))?.value;
+  const primary = pick(idcfg.id);
+  const empty = primary === null || primary === undefined || primary === "";
+  if (empty && idcfg.januaryFebruaryId && date.endsWith("-02")) return pick(idcfg.januaryFebruaryId);
+  return primary;
 }
 export interface NbsRegion {
   text: string;
@@ -493,7 +511,7 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Percent change from year ago",
     cid: "1abb1cfea75847b8bf1a0e395d85966b",
     rootId: "fc982599aa684be7969d7b90b1bd0e84",
-    ids: [{ id: "5cc686f383d84ed9bd11f4293ab4170e", label: "Electricity output (YoY %)" }],
+    ids: [{ id: "5cc686f383d84ed9bd11f4293ab4170e", januaryFebruaryId: "619254b0b9f24a5aa0c336bdf5998c4e", label: "Electricity output (YoY %)" }],
   },
   lpr: {
     kind: "eastmoney", group: "Interest Rates",
@@ -751,7 +769,7 @@ function nbsPeriod(code: string): string {
 async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<SeriesResult> {
   const region = cfg.region ?? { text: "全国", value: "000000000000" };
   const payload = {
-    cid: cfg.cid, indicatorIds: cfg.ids.map((i) => i.id), daCatalogId: "",
+    cid: cfg.cid, indicatorIds: [...new Set(cfg.ids.flatMap((i) => (i.januaryFebruaryId ? [i.id, i.januaryFebruaryId] : [i.id])))], daCatalogId: "",
     das: [region], showType: "1",
     dts: [nbsRange(cfg, limit)], rootId: cfg.rootId,
   };
@@ -777,11 +795,9 @@ async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<
     for (const period of periods) {
       const code = typeof period.code === "string" ? period.code : "";
       const date = nbsPeriod(code);
-      const found = (period.values ?? []).find(
-        (value) => value._id === idcfg.id && (value.da === undefined || value.da === region.value),
-      );
-      const num = typeof found?.value === "number" ? found.value : Number(found?.value);
-      if (found?.value === null || found?.value === undefined || found?.value === "" || Number.isNaN(num)) continue;
+      const raw = nbsPeriodValue(period.values ?? [], idcfg, region.value, date);
+      const num = typeof raw === "number" ? raw : Number(raw);
+      if (raw === null || raw === undefined || raw === "" || Number.isNaN(num)) continue;
       const adjusted = num + (idcfg.valueOffset ?? 0);
       const value = idcfg.valueOffset === undefined ? adjusted : Math.round(adjusted * 10) / 10;
       points.push({ date, value });

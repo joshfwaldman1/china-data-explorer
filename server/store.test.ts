@@ -101,3 +101,13 @@ test("an empty February takes the combined January-February figure from the year
   expect(eastmoneyValue({ BASE_SAME: null, BASE_ACCUMULATE: 6.1 }, field, "2026-03")).toBeNull();
   expect(eastmoneyValue({ BASE_SAME: null, BASE_ACCUMULATE: 6.3 }, { field: "BASE_SAME", label: "x" }, "2026-02")).toBeNull();
 });
+
+test("an NBS indicator's empty February takes the year-to-date growth of the same table", async () => {
+  const { nbsPeriodValue } = await import("./data.ts");
+  const idcfg = { id: "monthly", januaryFebruaryId: "ytd", label: "x" };
+  const values = [{ _id: "monthly", da: "000000000000", value: null }, { _id: "ytd", da: "000000000000", value: 4.1 }];
+  expect(nbsPeriodValue(values, idcfg, "000000000000", "2026-02")).toBe(4.1);
+  expect(nbsPeriodValue(values, idcfg, "000000000000", "2026-03")).toBeNull();
+  expect(nbsPeriodValue([{ _id: "monthly", value: 3 }, { _id: "ytd", value: 4 }], idcfg, "000000000000", "2026-02")).toBe(3);
+  expect(nbsPeriodValue(values, { id: "monthly", label: "x" }, "000000000000", "2026-02")).toBeNull();
+});

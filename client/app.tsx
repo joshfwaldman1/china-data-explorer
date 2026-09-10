@@ -194,7 +194,7 @@ const ABOUT: Record<string, string> = {
   gdp_usd: "World Bank GDP at current US dollars, in trillions.",
   gdp_per_capita_usd: "World Bank GDP per capita at current US dollars.",
   gini: "World Bank Gini index of income inequality, 0 (perfect equality) to 100. Published for survey years only.",
-  electricity_output: "Electricity output of industrial enterprises above designated size, year over year, from the NBS monthly energy production release. Watched as a proxy for industrial activity because generation is hard to smooth.",
+  electricity_output: "Electricity output of industrial enterprises above designated size, year over year, from the NBS monthly energy production release. Watched as a proxy for industrial activity because generation is hard to smooth. January and February are published together; the February point carries the combined figure and there is no January point.",
   lpr: "The loan prime rate, the benchmark for new bank lending, set monthly by the PBOC from quotes by 18 banks. The 1-year rate anchors corporate loans; the 5-year rate anchors mortgages.",
 };
 const READING: Record<string, string[]> = {
