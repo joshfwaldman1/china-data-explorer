@@ -16,6 +16,11 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
+- "car sales" ranks automobile output first: the phrase alias maps to
+  汽车销量, which no title carries, so every 汽车 title ties and the shorter
+  wins. The sales series are 汽车销售量 (quarterly, ended 2019) and
+  汽车类商品零售 (monthly, current); point the alias at them. Small, one
+  round (raised 2026-09-11, round 169).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1621,3 +1626,22 @@ not from scratch. Rounds are small on purpose.
   and families paragraphs and the README's AkShare bullet now carry
   them. The mobile catalog closing on navigation (165) is an interface
   detail needing no doc. Docs only, no deploy.
+- 2026-09-11 round 169: search quality, fifteen researcher queries on the
+  live site. Twelve rank well (youth unemployment, house prices, steel,
+  pork, money supply, fiscal revenue, coal, electricity, cement, exports,
+  new loans, tourism, the last honestly limited to CPI travel services).
+  Broken: "exports to us" and "exports to the united states" returned
+  only US Exports to China, the opposite direction, because the curated
+  match kept every term and nothing on US Imports from China said
+  "exports". The two US trade series now carry the phrases a researcher
+  types for each direction (exports to us, imports from us, and their
+  united states and america forms), and the curated matcher, lifted out
+  of the route as `matchCurated` with its own test file, puts the entry
+  whose text holds the whole query phrase first, so "exports to us" leads
+  with US imports from China and "us exports" still leads with US
+  exports. Synonyms are joined with a separator so phrases cannot form
+  across two of them. Verified live in both directions. Also seen and
+  left: "population", "birth rate" and "land sales" find no NBS series
+  because the snapshot holds only the national monthly and quarterly
+  datasets, and "population" pulls in telephone subscribers through the
+  model query expansion, not the code; "car sales" is queued.
