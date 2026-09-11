@@ -137,3 +137,20 @@ test("an NBS indicator's empty February takes the year-to-date growth of the sam
   expect(nbsPeriodValue([{ _id: "monthly", value: 3 }, { _id: "ytd", value: 4 }], idcfg, "000000000000", "2026-02")).toBe(3);
   expect(nbsPeriodValue(values, { id: "monthly", label: "x" }, "000000000000", "2026-02")).toBeNull();
 });
+
+test("a fetch whose every series reads 0 over stored values is rejected as a mirror glitch", async () => {
+  const { isZeroedFetch } = await import("./ingest.ts");
+  const zeroed = result("money_t", "M1", [{ date: "2026-06", value: 4.2 }, { date: "2026-07", value: 0 }]);
+  zeroed.series.push({ label: "M2", points: [{ date: "2026-06", value: 7.9 }, { date: "2026-07", value: 0 }] });
+  const stored = (_key: string, _region: string, label: string, period: string) =>
+    (period === "2026-07" ? (label === "M1" ? 4 : 7.7) : null);
+  expect(isZeroedFetch(zeroed, "", stored)).toBe(true);
+  // A genuine zero the store has never held a value for is written as usual.
+  expect(isZeroedFetch(zeroed, "", () => null)).toBe(false);
+  // A zero the store already holds is a real reading, not a glitch.
+  expect(isZeroedFetch(zeroed, "", () => 0)).toBe(false);
+  // One series still carrying a value means the response is not blank.
+  const partial = result("money_t", "M1", [{ date: "2026-07", value: 0 }]);
+  partial.series.push({ label: "M2", points: [{ date: "2026-07", value: 7.7 }] });
+  expect(isZeroedFetch(partial, "", stored)).toBe(false);
+});

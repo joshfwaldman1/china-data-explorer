@@ -15,8 +15,8 @@
  * it has none (AKTOOLS_URL=off) skips them instead of logging a failure.
  */
 
-import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyKeys, storedLatest } from "./db.ts";
+import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions, type SeriesResult } from "./data.ts";
+import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyKeys, storedLatest, storedValue } from "./db.ts";
 import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { isDue } from "./due.ts";
 
@@ -42,6 +42,12 @@ async function ingestRegion(key: string, region: { text: string; value: string }
       console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} empty`);
       return "empty";
     }
+    if (isZeroedFetch(result, region.value)) {
+      const message = "every series read 0 where the store holds a value; treated as a bad response from the mirror";
+      logFetch({ key, region: region.value, startedAt, finishedAt, status: "error", points: 0, changed: 0, message });
+      console.log(`  ${label.padEnd(36)} REJECTED  ${message}`);
+      return "error";
+    }
     const summary = writeSeries(result, region.value, finishedAt);
     logFetch({ key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed });
     console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} ${String(summary.points).padStart(4)} points, ${summary.changed} new or revised`);
@@ -52,6 +58,26 @@ async function ingestRegion(key: string, region: { text: string; value: string }
     console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} FAILED  ${message}`);
     return "error";
   }
+}
+
+/**
+ * A mirror glitch, not a revision: every label's newest reading is exactly 0 where the store
+ * already holds a non-zero value for that same period. Eastmoney served M1 and M2 as 0.0 for
+ * July 2026 at 09:02 on 10 September 2026 and the real 4.0 and 7.7 ten minutes later, and the
+ * append-only store recorded the zeros as a vintage. Such a fetch is rejected and logged as an
+ * error, so the next run retries and a source that really did publish zeros keeps failing
+ * visibly rather than quietly rewriting the archive.
+ */
+export function isZeroedFetch(result: SeriesResult, region: string, stored = storedValue): boolean {
+  const newest = result.series
+    .map((series) => series.points[series.points.length - 1])
+    .filter((point): point is { date: string; value: number } => point !== undefined);
+  if (newest.length === 0 || !newest.every((point) => point.value === 0)) return false;
+  return result.series.every((series, index) => {
+    const point = newest[index];
+    const previous = point ? stored(result.key, region, series.label, point.date) : null;
+    return previous !== null && previous !== 0;
+  });
 }
 
 async function ingestOne(key: string): Promise<"ok" | "error" | "empty"> {
@@ -68,7 +94,15 @@ async function ingestOne(key: string): Promise<"ok" | "error" | "empty"> {
       return "empty";
     }
 
-    const summary = writeSeries(result, seriesRegion(key), finishedAt);
+    const region = seriesRegion(key);
+    if (isZeroedFetch(result, region)) {
+      const message = "every series read 0 where the store holds a value; treated as a bad response from the mirror";
+      logFetch({ key, region, startedAt, finishedAt, status: "error", points: 0, changed: 0, message });
+      console.log(`  ${key.padEnd(22)} REJECTED  ${message}`);
+      return "error";
+    }
+
+    const summary = writeSeries(result, region, finishedAt);
     logFetch({ key, startedAt, finishedAt, status: "ok",
       points: summary.points, changed: summary.changed });
     console.log(

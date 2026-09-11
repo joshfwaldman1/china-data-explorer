@@ -346,6 +346,17 @@ export function seriesFreshness(key: string, region: string): string | null {
 }
 
 /** For each stored series with the prefix: its latest period and when it was last written. */
+/** The most recently stored value for one observation, or null when the store has none. */
+export function storedValue(key: string, region: string, label: string, period: string): number | null {
+  const row = db().query<{ value: number | null }, Record<string, string>>(`
+    SELECT value FROM observations
+    WHERE key = $key AND region = $region AND label = $label AND period = $period
+    ORDER BY fetched_at DESC
+    LIMIT 1
+  `).get({ $key: key, $region: region, $label: label, $period: period });
+  return row?.value ?? null;
+}
+
 export function storedLatest(prefix: string): { key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }[] {
   // firstRealPeriod is the first period with a non-zero value: NBS pads the months before an
   // indicator existed with 0.0, which the series page drops from level and index series.
