@@ -1361,3 +1361,12 @@ not from scratch. Rounds are small on purpose.
   null. The shell classifier was unavailable for part of this round, so
   the API was read through the fetch tool and the page logic by reading
   the code rather than a rendered page. Nothing to fix.
+- 2026-09-11 round 140: audited `/api/status` on the live site on the
+  first morning with no deploys yet. The store holds 1,315,267
+  observations; the fetch log 30,913 rows; the warm summary and health
+  answer in a second, the cold summary in eight. One failure since
+  yesterday morning: the 70-city average at 21:28, when Eastmoney closed
+  the socket mid-fetch during a boot ingest and the single retry did not
+  save it; the 22:14 boot ingest fetched it with 374 points, so the
+  store never lacked it. The daily due check next runs at 22:14 and the
+  headline sweeps at 10:10, 11:10 and 16:10. Nothing to fix.
