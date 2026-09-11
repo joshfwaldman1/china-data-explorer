@@ -1613,3 +1613,11 @@ not from scratch. Rounds are small on purpose.
   shortcut; Enter runs the search and focus lands on the results' main
   region; from there the tab order is the Home breadcrumb, the Frequency
   and Dataset filters, then the first result. Nothing to fix.
+- 2026-09-11 round 168: audited the docs against the code since round
+  157. Undocumented: a word's first alias as its primary meaning (round
+  158), the family span being nominal with the Range row stating what
+  the pieces hold (159), and the next-release row of an AkShare series
+  saying the release is not picked up here (162). AGENTS.md's ranking
+  and families paragraphs and the README's AkShare bullet now carry
+  them. The mobile catalog closing on navigation (165) is an interface
+  detail needing no doc. Docs only, no deploy.
