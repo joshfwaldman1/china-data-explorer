@@ -16,10 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Rate series in the sliced industry tables carry the same leading 0.0
-  placeholders (textile operating revenue growth, 2016) and keep them,
-  since a zero rate can be real; decide a rule, perhaps a run of three or
-  more exact zeros before the first non-zero (raised 2026-09-11, round 182).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1824,3 +1820,21 @@ not from scratch. Rounds are small on purpose.
   test added; 132 pass. Deployed with `railway up`. Verified live: the
   revenue level and its same-period-last-year sibling say 2017-02, the
   growth rate still 2016-04, crude steel unchanged at 1989-02.
+- 2026-09-11 round 186: queue item, placeholder zeros on rate series.
+  Measured on the live site: every industry operating-revenue growth
+  series from the 2012-2017 table (eight of twelve sampled) opens with
+  exactly nine 0.0 readings, April to December 2016, before its first
+  real figure; the national and 2018-table series open clean. A rate
+  now sheds its leading zeros when the run is six periods or longer
+  (six periods of exactly 0.0 growth at the start of a real series does
+  not happen; shorter runs are kept since a zero rate can be real), and
+  search ranges apply the same rule by counting periods between the
+  stored first period and the first non-zero one. Tests extended; 132
+  pass. Deployed with `railway up`. Verified live: the textile growth
+  page opens at February 2017 (6.6%), its search range and the other
+  2016-table growth series say 2017-02, the national series stays at
+  2019-02.
+- 2026-09-11 round 187: docs. AGENTS.md now carries the NBS placeholder
+  padding and the read rule (rounds 182, 185, 186) beside the esData
+  cap note, and why health reads the highest rowid (184) in the
+  deployment section. Docs only, no deploy.
