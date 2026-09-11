@@ -1667,3 +1667,16 @@ not from scratch. Rounds are small on purpose.
   "value added", building materials reads lowercase after the purchasing
   price index, "traditional Chinese medicine" and "VAT payable" keep
   their case.
+- 2026-09-11 round 172: audited Home and the four hero tiles on the
+  live site, rendered headless. Tiles: GDP 4.7% Q2 2026, CPI 0.8% Aug
+  2026, unemployment 5.2% Jul 2026, PMI 49.8 Aug 2026, each with its
+  series label, period and change, all from the store and refreshed
+  today; the indicator list's 14 rows carry the right periods, and the
+  export (+25.0%), import and new-loan (-5,896) figures are what Customs
+  and PBOC published, consistent month to month. One defect: the
+  Provincial Real GDP Growth row showed Guangdong's 4.5% with no
+  province in the row, so a reader could not tell whose growth it was.
+  The small print of Home rows and hero tiles now starts with the
+  region's English name when the payload is one region's series.
+  Deployed with `railway up`. Verified live: the row reads "Guangdong,
+  Real GDP, cumulative YTD (YoY %), NBS", the national rows unchanged.
