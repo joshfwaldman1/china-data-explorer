@@ -16,6 +16,19 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
+- Search results show a series' stored first period ("2016-04") where the
+  page now starts at the first real value (2017-02) because leading
+  placeholder zeros are dropped on read; give the results the same rule or
+  store the first real period. Small (raised 2026-09-11, round 182).
+- Rate series in the sliced industry tables carry the same leading 0.0
+  placeholders (textile operating revenue growth, 2016) and keep them,
+  since a zero rate can be real; decide a rule, perhaps a run of three or
+  more exact zeros before the first non-zero (raised 2026-09-11, round 182).
+- `/health` counts the observations table when its cache is cold, which on a
+  fresh container reads 450 MB from the volume: 12.9 to 15.9 s on the first
+  calls after each deploy today. MAX(rowid) is instant and close enough for
+  a health line; measure the first health call after the next deploy before
+  changing it (raised 2026-09-11, round 182).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1778,3 +1791,23 @@ not from scratch. Rounds are small on purpose.
   location pays about a second, of which TCP and TLS are 0.55 s and the
   server's share about 0.15 s, so the floor is geography, not the site;
   one `/health` call took 12.9 s during the boot ingest, as before.
+- 2026-09-11 round 182: audited ten random catalog series pages on the
+  live site. Units, English titles, families and notes right on nine;
+  one request met a 502 at the round 181 deploy's container switch.
+  Defect: the textile, apparel and accessories operating revenue series
+  opened with nine months of 0.0 (April to December 2016) before real
+  figures in 2017. NBS's own esData returns "0.0" with no flag for
+  months before an indicator existed in the 2012-2017 table (fetched
+  raw to confirm; January to March 2016 come back empty and were already
+  skipped). Leading zeros before the first non-zero value are now
+  dropped on read from level and index series; rates keep theirs and
+  the store keeps what NBS sent. Test added; 131 pass. Deployed with
+  `railway up`. Verified live: the revenue series starts at February
+  2017 with no zeros; a PPI subindex that read 0 after the growth
+  transform was checked raw and is a genuine 100.0 (prices unchanged),
+  which the rule correctly leaves alone. Queued: the search results'
+  first period, rate-series placeholders, and the cold health count.
+- 2026-09-11 round 183: Home and the four hero tiles on the live site,
+  rendered headless after today's deploys: the same values, periods and
+  changes as round 172, the regional row naming Guangdong. Nothing to
+  fix.
