@@ -1259,7 +1259,8 @@ export async function getNbsCatalogSeries(options: {
     const snapshot = await loadSnapshot();
     const found = snapshot.entries.find((candidate) =>
       candidate.cid === options.entry.cid && candidate.geography === options.entry.geography && titleStem(candidate.name) === growthName);
-    if (found) growthSibling = { key: found.key, name: found.nameEn || found.name };
+    // The English title ends ", %", which reads badly inside a sentence naming the series.
+    if (found) growthSibling = { key: found.key, name: (found.nameEn || found.name).replace(/,\s*%$/, "") };
   }
 
   // Transform over the full history, then slice, so lagged transforms keep

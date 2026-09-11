@@ -16,6 +16,10 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
+- The comparable-scope note names the published growth series in prose but
+  does not link to it; the reading notes are plain strings. Make one note
+  linkable, or add the sibling to Related Series (raised 2026-09-11, round
+  205).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1978,3 +1982,7 @@ not from scratch. Rounds are small on purpose.
   can take NBS's figure instead of working one out. The sibling is
   resolved by title stem, since the level is in tonnes and the rate in
   percent. Tests added; 137 pass. Deployed with `railway up`.
+- 2026-09-11 round 205: the round 204 note named the series with its
+  unit suffix, "Crude steel output, growth from a year ago, %, computed
+  on a scope...". The trailing ", %" is dropped where the name sits in a
+  sentence. Queued: the note names the series but does not link to it.
