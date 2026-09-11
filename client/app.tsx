@@ -160,6 +160,10 @@ const UNIT_EN: Record<string, string> = {
   "亿件": "100 million pieces", "万件": "10,000 pieces", "万户": "10,000 households", "个": "count", "%": "%", "无": "no unit",
   "上年同期=100": "index, prior-year period = 100", "上年同月=100": "index, prior-year month = 100", "上月=100": "index, prior month = 100",
   "上年=100": "index, prior year = 100", "元": "yuan", "亿": "100 million", "万": "10,000", "百分点": "percentage points", "天": "days", "小时": "hours",
+  // The rest of the server's unit dictionary (gloss.ts), so a result line never shows a bare Chinese unit the series page glosses.
+  "亿立方米": "100 million m³", "万立方米": "10,000 m³", "万千瓦": "10,000 kW", "千瓦": "kW", "亿米": "100 million metres", "万米": "10,000 metres",
+  "万千升": "10,000 kilolitres", "亿吨公里": "100 million tonne-km", "亿人公里": "100 million passenger-km", "万公里": "10,000 km", "台": "units", "户": "households",
+  "上年同季=100": "index, prior-year quarter = 100", "2015年=100": "index, 2015 = 100", "2020年=100": "index, 2020 = 100",
 };
 /** Two sentences each, written for a reader rather than a catalog. */
 const ABOUT: Record<string, string> = {
