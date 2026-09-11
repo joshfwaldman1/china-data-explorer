@@ -38,6 +38,14 @@ function splitSpec(spec: string): { key: string; region: string } {
   const at = spec.indexOf("@");
   return at < 0 ? { key: spec, region: "" } : { key: spec.slice(0, at), region: spec.slice(at + 1) };
 }
+/**
+ * "Guangdong, " in front of a Home row's small print when the headline payload is one region's
+ * series, so the row names the geography its value belongs to; nothing for national series.
+ */
+function regionPrefix(result: SeriesResult | undefined): string {
+  if (!result?.region || result.region.value === "000000000000" || result.region.text === "全国") return "";
+  return `${regionLabel(result.region)}, `;
+}
 /** A region's name for the UI: the English name where we have one, else what NBS sent. */
 function regionLabel(region: Region): string {
   if (region.en) return region.en;
@@ -592,7 +600,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span className="tile-unit">{unitSuffix(entry.unit)}</span></span>
                 {first && <Sparkline points={first.points} />}
-                <small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
+                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
               </a>
             );
           })}
@@ -608,7 +616,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 const previous = first?.points[first.points.length - 2];
                 return (
                   <a key={entry.key} className="indicator-row" href={seriesHash([entry.key])}>
-                    <span className="name">{entry.title}<small>{first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
+                    <span className="name">{entry.title}<small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
                     <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
