@@ -278,6 +278,12 @@ test("a monthly level or growth series takes its combined February from the year
   expect(out.filled).toBe(1);
   expect(out.points.map((p) => p.date)).toEqual(["2025-12", "2026-02", "2026-03"]);
   expect(fillFebruary(out.points, sibling).filled).toBe(0);
+  // A series that publishes a February of its own keeps the gap: the sibling's February is the
+  // January-February total, and mixing the two bases is what made passenger traffic read -49.5%.
+  const ownFebruary = [{ date: "2023-02", value: 65872 }, { date: "2026-02", value: 139505 }, { date: "2026-03", value: 140484 }];
+  const combined = [{ date: "2024-02", value: 271802 }, { date: "2025-02", value: 276370 }];
+  expect(fillFebruary(ownFebruary, combined).filled).toBe(0);
+  expect(fillFebruary(ownFebruary, combined).points).toEqual(ownFebruary);
 });
 
 test("a transform matches the comparison period by label, so a missing January does not shift the year", () => {

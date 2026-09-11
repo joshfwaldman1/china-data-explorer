@@ -1180,6 +1180,12 @@ export function februarySiblingName(name: string): string | null {
 /** The primary's points plus the sibling's February points it lacks, in date order. */
 export function fillFebruary(primary: SeriesPoint[], sibling: SeriesPoint[]): { points: SeriesPoint[]; filled: number } {
   const have = new Set(primary.map((point) => point.date));
+  // Only a series that never carries a February of its own takes one from the sibling. The
+  // sibling's February is the January-February total, so filling it into a series that does
+  // publish single Februaries in other years mixes one-month and two-month readings: passenger
+  // traffic held 139,505 for February 2026 beside a filled 276,370 for February 2025, and the
+  // year-over-year transform read -49.5% where NBS published +0.9%.
+  if (primary.some((point) => point.date.endsWith("-02"))) return { points: primary, filled: 0 };
   const extra = sibling.filter((point) => point.date.endsWith("-02") && !have.has(point.date));
   if (extra.length === 0) return { points: primary, filled: 0 };
   return { points: [...primary, ...extra].sort((a, b) => a.date.localeCompare(b.date)), filled: extra.length };
