@@ -1370,3 +1370,12 @@ not from scratch. Rounds are small on purpose.
   save it; the 22:14 boot ingest fetched it with 374 points, so the
   store never lacked it. The daily due check next runs at 22:14 and the
   headline sweeps at 10:10, 11:10 and 16:10. Nothing to fix.
+- 2026-09-11 round 141: audited the share image with two live renders not
+  yet covered: reserves shown as percent change from the previous
+  period, which renders right, and the annual World Bank population aged
+  65 series. Defect on the second: annual points are dated December of
+  their year and the year ticks sat at the following January, so every
+  value stood at the next year's label and read a year late; the ten-year
+  chart started at "2017" with no 2016 label. Annual ticks now sit on
+  the points' own month. Test added. Verified live: the image reads 2016
+  to 2025 with each label on its point.
