@@ -1454,3 +1454,13 @@ not from scratch. Rounds are small on purpose.
   indicator, eighteen in all, and every hero tile and list row filled
   with the same values the payload gives (GDP 4.7, CPI 0.8,
   unemployment 5.2, PMI 49.8, and the fourteen rows). Nothing to fix.
+- 2026-09-11 round 150: read the Provinces page's lede, Notes card and
+  detail panel word by word on the live site, the parts no Provinces
+  round had read in full. The lede states the measure (year-to-date
+  real GDP, % change from the same period a year earlier), how to read
+  Q2 and Q4, and the source; the notes explain 本期累计, the historical
+  gap between provincial sums and the national total, the low-base
+  caution for small western provinces, and the absence of Hong Kong,
+  Macao and Taiwan; the Tibet panel reads "6.3%, Q2 2026, year to date"
+  with an eight-quarter sparkline matching the API's window. Nothing to
+  fix.
