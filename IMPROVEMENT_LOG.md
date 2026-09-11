@@ -1499,3 +1499,10 @@ not from scratch. Rounds are small on purpose.
   month fields stack, focus on From), and the GDP page down to its
   Revisions section. All lay out at exactly 390 px with no element past
   the edge. Nothing to fix.
+- 2026-09-11 round 155: dark mode. The only stylesheet change since
+  round 84 is the round-144 chart-3 token, so this round computed the
+  contrast of every dark token on the dark panel (#161f2b) rather than
+  eyeballing a page: the eight chart colours sit between 4.2:1
+  (chart-2) and 6.3:1 (the new chart-3), above the 3:1 floor for 2 px
+  lines; amber 7.4:1, muted ink 7.5:1, faint 6.5:1, the strong line
+  5.6:1 and body ink 13.8:1. Nothing to fix.
