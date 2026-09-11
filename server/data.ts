@@ -660,10 +660,16 @@ async function loadEastmoneyTable(cfg: EastmoneyIndicator, pages: number): Promi
     });
     const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?${params.toString()}`;
     const headers = { "User-Agent": UA, Accept: "application/json, text/plain, */*" };
-    // Eastmoney occasionally stalls a page or closes the socket mid-body; one retry of the
-    // whole request, body included, covers it.
+    // Eastmoney occasionally stalls a page or closes the socket mid-body, and from the
+    // deployment's network it did so on the first burst of most days (nine house-price
+    // refreshes failed that way in three days, each recovering on the next region's
+    // download a minute later). A failed page is retried twice after a pause, not at once.
     const load = async () => (await fetch(url, { headers, signal: AbortSignal.timeout(45_000) })).json();
-    const json = await load().catch(() => load());
+    let json: { result?: { data?: unknown; pages?: unknown } } | undefined;
+    for (const pause of [0, 2_000, 6_000]) {
+      if (pause > 0) await new Promise((resolve) => setTimeout(resolve, pause));
+      try { json = await load(); break; } catch (error) { if (pause === 6_000) throw error; }
+    }
     const data: unknown = json?.result?.data;
     const rows: Record<string, unknown>[] = [];
     if (Array.isArray(data)) for (const row of data) if (typeof row === "object" && row !== null) rows.push(row);
@@ -672,8 +678,9 @@ async function loadEastmoneyTable(cfg: EastmoneyIndicator, pages: number): Promi
   const first = await fetchPage(1);
   const last = Math.min(wanted, first.totalPages);
   const rows = [...first.rows];
-  for (let page = 2; page <= last; page += 9) {
-    const batch = await Promise.all(Array.from({ length: Math.min(9, last - page + 1) }, (_, offset) => fetchPage(page + offset)));
+  // Five pages at a time: nine in flight was the burst the socket drops followed.
+  for (let page = 2; page <= last; page += 5) {
+    const batch = await Promise.all(Array.from({ length: Math.min(5, last - page + 1) }, (_, offset) => fetchPage(page + offset)));
     for (const part of batch) rows.push(...part.rows);
   }
   eastmoneyTables.set(cfg.reportName, { at: Date.now(), pages: last, complete: last >= first.totalPages, rows });
