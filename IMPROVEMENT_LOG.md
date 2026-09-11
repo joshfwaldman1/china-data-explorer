@@ -1752,3 +1752,11 @@ not from scratch. Rounds are small on purpose.
   to comparison offered) with focus kept on the tile; Tab moves to
   Tianjin, Hebei and Shanxi in map order, each named with its value.
   Nothing to fix.
+- 2026-09-11 round 180: audited the docs against the code since round
+  168. Undocumented: the word after any colon reading lowercase (round
+  171), the region prefix on Home rows and hero tiles (172) and the
+  Eastmoney page retries and five-page batches (175). AGENTS.md's gloss
+  paragraph and the 70-city house price entry now carry them. The
+  ranking without a height cap (173) and the Related section needing a
+  sibling (177) are interface details needing no doc. Docs only, no
+  deploy.
