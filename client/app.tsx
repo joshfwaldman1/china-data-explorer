@@ -1062,6 +1062,8 @@ function SeriesPage(props: {
   const saved = props.saved.includes(primary.key);
   const meta = primary.metadata;
   const curated = props.curated.find((entry) => entry.key === primary.key);
+  // Other curated series in the same group; a series alone in its group (provincial GDP) gets no Related section.
+  const curatedSiblings = curated ? props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4) : [];
   const definition = meta?.noteEn || meta?.note || ABOUT[primary.key] || "";
   const definitionZh = meta?.noteEn && meta.note ? meta.note : "";
   const readingNotes = [
@@ -1288,7 +1290,7 @@ function SeriesPage(props: {
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 
       {!curated && meta && related.length > 0 && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{categoryPath({ categories: meta.categories.slice(-1), categoriesEn: meta.categoriesEn?.slice(-1), family: meta.family })}</span><a className="more" href={`#/category/${encodeURIComponent(meta.categories.at(-1) ?? "")}`}>All in this category</a></div><div className="tiles">{related.map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.nameEn || entry.name}</span>{entry.nameEn && <small><Zh>{entry.name}</Zh></small>}<small>{entry.frequency}, {unitLabel(entry.unit)}</small></a>)}</div></section>}
-      {curated && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{curated.group}</span></div><div className="tiles">{props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4).map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency}, {entry.agency}</small></a>)}</div></section>}
+      {curated && curatedSiblings.length > 0 && <section className="related"><div className="section-head"><h2>Related Series</h2><span>{curated.group}</span></div><div className="tiles">{curatedSiblings.map((entry) => <a key={entry.key} className="tile" href={seriesHash([entry.key])}><span className="label">{entry.title}</span><small>{entry.frequency}, {entry.agency}</small></a>)}</div></section>}
     </main>
   );
 }
