@@ -1542,3 +1542,14 @@ not from scratch. Rounds are small on purpose.
   their tables, and "cars" and "inflation" still lead with automobile
   output and CPI. Queued the legibility split raised by the owner's
   question as an owner's call.
+- 2026-09-11 round 159: audited ten stitched family series on the live
+  site, the path no random round had targeted, fetching each full
+  history and checking the joins. Periods ordered, no duplicates; the
+  quarterly-looking gaps in 2007 and 2010 sit inside one slice's own
+  span, which is how NBS published those enterprise indicators then.
+  One defect: two families' notes said the pieces were joined into one
+  series "covering 2003 to present" beside a Range row of Feb 2007 to
+  Jul 2026, because a piece named from 2003 holds data only from 2007
+  and no piece covers 2012 to 2017. The note now calls the span nominal
+  and defers to the Range row for what the pieces hold. Verified live
+  on the ferrous-metal export delivery series.
