@@ -178,9 +178,11 @@ export function normalizeIndexPrefix(title: string): string {
     .replace(/^((?:Urban |Rural )?)Producer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/i, "$1PPI: ")
     .replace(/^((?:Urban |Rural )?)Consumer price index(?:\s+for|\s+of|,|:)\s+(?=\S)/i, "$1CPI: ")
     .replace(/^((?:Urban |Rural )?)Retail price index(?:\s+for|\s+of|,|:)\s+(?=\S)/i, "$1RPI: ");
-  // A component reads in lowercase after the colon ("CPI: transport and communication"), except a proper
-  // adjective or an acronym.
-  return out.replace(/^((?:Urban |Rural )?(?:CPI|PPI|RPI|PMI): )([A-Z])([a-z]+)\b/, (whole, prefix: string, first: string, rest: string) =>
+  // What follows the colon reads in lowercase, whether the prefix is an index ("CPI: transport and
+  // communication") or an industry ("Leather, fur, feather (down) and related products: value added"):
+  // the gloss table capitalised a few hundred industry measures. A proper adjective or an acronym keeps
+  // its case.
+  return out.replace(/^([^:]+: )([A-Z])([a-z]+)\b/, (whole, prefix: string, first: string, rest: string) =>
     `${first}${rest}` === "Chinese" ? whole : `${prefix}${first.toLowerCase()}${rest}`);
 }
 

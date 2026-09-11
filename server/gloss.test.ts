@@ -58,5 +58,9 @@ test("index components read with a colon whichever way the table wrote them", ()
   expect(normalizeIndexPrefix("Urban retail price index: clothing, footwear and headwear")).toBe("Urban RPI: clothing, footwear and headwear");
   expect(normalizeIndexPrefix("CPI: Transport and communication")).toBe("CPI: transport and communication");
   expect(normalizeIndexPrefix("CPI: Chinese medicine")).toBe("CPI: Chinese medicine");
+  expect(normalizeIndexPrefix("Leather, fur, feather (down) and related products: Value added")).toBe("Leather, fur, feather (down) and related products: value added");
+  expect(normalizeIndexPrefix("Purchasing price index: Building materials and non-metallic minerals")).toBe("Purchasing price index: building materials and non-metallic minerals");
+  expect(normalizeIndexPrefix("Financial expenses: VAT payable")).toBe("Financial expenses: VAT payable");
+  expect(normalizeIndexPrefix("Textile industry: Chinese medicine")).toBe("Textile industry: Chinese medicine");
   expect(normalizeIndexPrefix("Urban consumer price index")).toBe("Urban consumer price index");
 });
