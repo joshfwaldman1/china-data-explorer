@@ -1735,3 +1735,13 @@ not from scratch. Rounds are small on purpose.
   group. The section now needs at least one sibling, as the NBS catalog
   pages already required. Deployed with `railway up`. Verified live: the
   provincial GDP page has no Related section, GDP keeps its four tiles.
+- 2026-09-11 round 178: dark mode on the live site, two states no dark
+  round had rendered: the Table tab of a two-province compare (ink
+  230,235,240 on cards 22,31,43, header row 163,176,189 on 27,37,50,
+  the active tab white on navy) and the search results page (result
+  cards, category paths, the auto-translated badge and the range line
+  all in their tokens). Both read right. Nothing to fix. Seen while
+  measuring: every request paid about a second and one `/health` call
+  took 12.9 s while the new container's boot ingest ran, the condition
+  rounds 105, 129 and 163 recorded; timings are being sampled through
+  the ingest window for the next round.
