@@ -42,6 +42,17 @@ test("pinyin, spaced or not, finds the series", async () => {
   expect(joined.results[0]?.name).toContain("失业率");
 });
 
+test("a singular finds its plural in the gloss and the other way round: soybean, egg, eggs, maize", async () => {
+  const soybean = await searchNbsCatalog({ query: "soybean", limit: 3 });
+  expect(soybean.results.some((entry) => entry.name.includes("大豆"))).toBe(true);
+  const egg = await searchNbsCatalog({ query: "egg", limit: 3 });
+  expect(egg.results.some((entry) => entry.name.includes("鸡蛋"))).toBe(true);
+  const eggs = await searchNbsCatalog({ query: "eggs", limit: 3 });
+  expect(eggs.results.some((entry) => entry.name.includes("鸡蛋"))).toBe(true);
+  const maize = await searchNbsCatalog({ query: "maize", limit: 3 });
+  expect(maize.results.some((entry) => entry.name.includes("玉米"))).toBe(true);
+});
+
 test("Latin terms match on word boundaries: house is not household", async () => {
   // The audit's case: the household-goods CPI glosses to "household …" and
   // used to rank first for "house prices" on a substring match.

@@ -97,6 +97,7 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   "social financing": ["社会融资"],
   "profits": ["利润"],
   "cars": ["汽车"],
+  "maize": ["玉米"], "soy": ["大豆"],
   "power": ["发电量", "电力"],
   "tourism": ["旅游"],
   "rail": ["铁路"],
@@ -572,7 +573,8 @@ async function expandQuery(query: string): Promise<string[]> {
 /** Latin terms match on a word boundary — "house" must not hit "household". */
 function hasTerm(text: string, term: string): boolean {
   if (!/^[a-z0-9][a-z0-9 .'-]*$/i.test(term)) return text.includes(term);
-  return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9])`, "i").test(text);
+  // A word matches its plural too: "soybean" finds "Market price of soybeans", "egg" finds "Eggs".
+  return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:e?s)?(?![a-z0-9])`, "i").test(text);
 }
 
 function haystackOf(entry: NbsCatalogEntry): string {
@@ -585,7 +587,11 @@ function haystackOf(entry: NbsCatalogEntry): string {
  * boundary to find, and that is the one place a substring is the right rule.
  */
 function latinTermHit(haystack: string, pinyinJoined: string, term: string): boolean {
-  return hasTerm(haystack, term) || (/^[a-z]{3,}$/.test(term) && pinyinJoined.includes(term));
+  if (hasTerm(haystack, term)) return true;
+  // The plural typed against a singular in the text: "eggs" against "egg". Three letters and under
+  // ("us", "gas") keep their s.
+  if (/^[a-z]{4,}s$/.test(term) && hasTerm(haystack, term.replace(/e?s$/, ""))) return true;
+  return /^[a-z]{3,}$/.test(term) && pinyinJoined.includes(term);
 }
 
 /** A trigram index matches substrings; for a Latin query that is only a real hit by the rule above. */
