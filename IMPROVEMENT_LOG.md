@@ -1434,3 +1434,17 @@ not from scratch. Rounds are small on purpose.
   like "national" and "china". Test added. Verified live: "IP" leads
   with the industrial production headline, "NBS PMI" with the headline
   PMI, and "pmi" and "industrial production" are unchanged.
+- 2026-09-11 round 148: audited ten random stored series pages from the
+  smaller categories the random draws had never reached (transport,
+  telecoms, construction, household living standards, national
+  accounts, culture) on the live site. Periods ordered, no duplicates
+  or nulls; the transport series lose January from 2024 as NBS combines
+  it with February. One defect: sixteen national-accounts glosses carried
+  their index base inside the English text, "Value added index of
+  construction (same period last year=100), quarterly value", where
+  every other index reads its base last as ", same period a year
+  earlier = 100". The title builder now strips the inner parenthetical
+  and derives the base from the title when the unit field has none.
+  GLOSS_FORMAT bumped to 16; test added. Verified live on the
+  construction and real estate value-added indices and the GDP index,
+  with "CPI: food, same month a year earlier = 100" unchanged.
