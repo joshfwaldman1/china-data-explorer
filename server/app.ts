@@ -10,7 +10,15 @@
  */
 
 import index from "../client/index.html";
-import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion } from "./data";
+import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion, configuredLabels } from "./data";
+
+/** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
+function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult | null {
+  const labels = configuredLabels(key);
+  if (!stored || !labels) return stored;
+  const kept = stored.series.filter((series) => labels.includes(series.label));
+  return kept.length > 0 ? { ...stored, series: kept } : stored;
+}
 import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
 import {
   getNbsCatalogSeries,
@@ -151,7 +159,7 @@ const routes = {
         if (entry.home === false) continue;
         const regions = seriesRegions(entry.key);
         const region = regions.length > 0 ? (regions.find((item) => item.value === seriesRegion(entry.key)) ?? regions[0]) : undefined;
-        const stored = readSeries(entry.key, 24, region?.value);
+        const stored = onlyConfigured(entry.key, readSeries(entry.key, 24, region?.value));
         if (stored && stored.series.some((s) => s.points.length > 0)) out[entry.key] = { ...stored, region, source: "store", transform: "raw" };
       }
       return Response.json(out);
@@ -316,7 +324,7 @@ const routes = {
         // 70-city average for home prices), not whichever region happens to be listed first.
         const requested = params.get("region") ?? seriesRegion(key);
         const region = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
-        const stored = readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value);
+        const stored = onlyConfigured(key, readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value));
         if (stored && stored.series.some((s) => s.points.length > 0)) {
           return Response.json({ ...applyTransform(stored, transform), region, source: "store", transform: transform ?? "raw" });
         }

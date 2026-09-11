@@ -950,6 +950,21 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
  * NBS region label (for example 广东省) for provincial ones. The store keys
  * observations by this so provinces stay distinct rows.
  */
+/**
+ * The series labels a key is configured to serve, in declared order, or null
+ * when the kind has no fixed label list. The store is append-only, so a label
+ * dropped from the configuration (gold reserves moved off FX reserves) stays
+ * stored; reads keep only the configured ones.
+ */
+export function configuredLabels(key: string): string[] | null {
+  const cfg = CATALOG[key];
+  if (!cfg) return null;
+  if (cfg.kind === "eastmoney" || cfg.kind === "aktools") return cfg.fields.map((field) => field.label);
+  if (cfg.kind === "nbs") return cfg.ids.map((id) => id.label);
+  if (cfg.kind === "fred") return [cfg.label];
+  return null;
+}
+
 export function seriesRegion(key: string): string {
   const cfg = CATALOG[key];
   if (cfg && cfg.kind === "nbs" && cfg.region) return cfg.regions ? cfg.region.value : cfg.region.text;
