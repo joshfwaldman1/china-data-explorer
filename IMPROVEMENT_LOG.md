@@ -1475,3 +1475,9 @@ not from scratch. Rounds are small on purpose.
   headline sweeps at 10:10, 11:10 and 16:10 China Standard Time would
   catch the 15 September data even if every plan fetch failed. Nothing
   to fix.
+- 2026-09-11 round 152: audited `/api/status` on the live site at 09:13.
+  The summary answers in a second; no failures today; the store holds
+  1,315,270 observations and the fetch log 31,430 rows; the latest runs
+  are the 08:55 deploy's boot ingest, all ok. The first headline sweep
+  of the day is at 10:10 China Standard Time, still ahead. Nothing to
+  fix.
