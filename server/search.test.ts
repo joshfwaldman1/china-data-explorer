@@ -320,3 +320,13 @@ test("a level series names the growth rate NBS publishes for the same table", ()
   expect(growthSiblingName("粗钢产量同比增长 (%)")).toBeNull();
   expect(growthSiblingName("粗钢产量累计增长 (%)")).toBeNull();
 });
+
+test("a scope qualifier NBS keeps in its annotations is dropped from a query", async () => {
+  expect(normalizeQuery("规模以上工业增加值")).toBe("工业增加值");
+  expect(normalizeQuery("限额以上汽车类商品零售")).toBe("汽车类商品零售");
+  expect(normalizeQuery("全国粗钢产量")).toBe("粗钢产量");
+  // The qualifier alone stays: it is a real query for the national total.
+  expect(normalizeQuery("全国")).toBe("全国");
+  const result = await searchNbsCatalog({ query: "规模以上工业增加值", limit: 5 });
+  expect(result.results.some((entry) => entry.name.includes("工业增加值"))).toBe(true);
+});

@@ -726,8 +726,20 @@ function termHit(name: string, term: string): number {
  * turned into a space ("fixed-asset investment" is the alias "fixed asset
  * investment"; "16-24" and hex ids keep theirs), whitespace collapsed.
  */
+/**
+ * Scope qualifiers NBS states in a table's annotation rather than in any title: a reader types
+ * 规模以上工业增加值, the title is 工业增加值, and every series in those tables is above designated
+ * size anyway. Dropped from a query so the concept still matches.
+ */
+const QUERY_SCOPE_QUALIFIERS = ["规模以上", "限额以上", "全国"];
+
 export function normalizeQuery(query: string): string {
-  return query.toLocaleLowerCase().replace(/(?<=[a-z])-(?=[a-z])/g, " ").replace(/\s+/g, " ").trim();
+  let out = query.toLocaleLowerCase().replace(/(?<=[a-z])-(?=[a-z])/g, " ").replace(/\s+/g, " ").trim();
+  for (const qualifier of QUERY_SCOPE_QUALIFIERS) {
+    // Only where something is left to search for: "全国" alone is a real query for the national total.
+    if (out.startsWith(qualifier) && out.length > qualifier.length) out = out.slice(qualifier.length).trim();
+  }
+  return out;
 }
 
 /** Every phrasing the dictionary offers for a query, plus the query itself. */
