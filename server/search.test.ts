@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween, transformPoints, shiftPeriod } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -278,4 +278,30 @@ test("a monthly level or growth series takes its combined February from the year
   expect(out.filled).toBe(1);
   expect(out.points.map((p) => p.date)).toEqual(["2025-12", "2026-02", "2026-03"]);
   expect(fillFebruary(out.points, sibling).filled).toBe(0);
+});
+
+test("a transform matches the comparison period by label, so a missing January does not shift the year", () => {
+  expect(shiftPeriod("2026-07", "Monthly", 12)).toBe("2025-07");
+  expect(shiftPeriod("2026-02", "Monthly", 12)).toBe("2025-02");
+  expect(shiftPeriod("2026-Q2", "Quarterly", 4)).toBe("2025-Q2");
+  expect(shiftPeriod("2026-06", "Quarterly", 4)).toBe("2025-06");
+  expect(shiftPeriod("2026", "Annual", 1)).toBe("2025");
+  expect(shiftPeriod("whenever", "Monthly", 12)).toBe("");
+  // A monthly NBS activity series: no January in either year, so counting twelve points back from
+  // July 2026 would land on June 2025. Matching by label gives July against July.
+  const months = (year: number, values: Record<string, number>) =>
+    Object.entries(values).map(([month, value]) => ({ date: `${year}-${month}`, value }));
+  const points = [
+    ...months(2025, { "02": 100, "03": 110, "04": 120, "05": 130, "06": 140, "07": 150, "08": 160, "09": 170, "10": 180, "11": 190, "12": 200 }),
+    ...months(2026, { "02": 110, "03": 121, "04": 132, "05": 143, "06": 154, "07": 300 }),
+  ];
+  const yoy = transformPoints(points, "yoy", "Monthly");
+  expect(yoy.find((point) => point.date === "2026-07")?.value).toBe(100);
+  expect(yoy.find((point) => point.date === "2026-02")?.value).toBe(10);
+  // 2025 has no comparison year in this sample, so it yields no points at all.
+  expect(yoy.every((point) => point.date.startsWith("2026"))).toBe(true);
+  // Change from the previous period skips February, whose January is not published.
+  const change = transformPoints(points, "change", "Monthly");
+  expect(change.some((point) => point.date === "2026-02")).toBe(false);
+  expect(change.find((point) => point.date === "2026-03")?.value).toBe(11);
 });

@@ -914,21 +914,50 @@ function periodsPerYear(frequency: NbsCatalogEntry["frequency"]): number {
   return 1;
 }
 
+/**
+ * The period label `steps` periods earlier, counted in the series' own frequency: "2026-07" a year
+ * back at Monthly is "2025-07", "2026-Q2" at Quarterly is "2025-Q2". Quarterly series reach the
+ * site in both shapes, "2026-Q2" from the NBS catalog and "2026-06" from the Eastmoney mirror.
+ * Returns "" for a label in none of those shapes.
+ */
+export function shiftPeriod(period: string, frequency: NbsCatalogEntry["frequency"], steps: number): string {
+  const annual = period.match(/^(\d{4})$/);
+  if (annual) return String(Number(annual[1]) - steps);
+  const quarter = period.match(/^(\d{4})-Q([1-4])$/);
+  if (quarter) {
+    const index = Number(quarter[1]) * 4 + (Number(quarter[2]) - 1) - steps;
+    return `${Math.floor(index / 4)}-Q${(index % 4) + 1}`;
+  }
+  const month = period.match(/^(\d{4})-(\d{2})$/);
+  if (month) {
+    const months = frequency === "Quarterly" ? 3 : frequency === "Annual" ? 12 : 1;
+    const index = Number(month[1]) * 12 + (Number(month[2]) - 1) - steps * months;
+    return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+/**
+ * Transforms match the comparison period by its label, never by counting back through the array:
+ * NBS publishes no January for its monthly activity series (January and February come out
+ * together as the February point), so a twelfth point back is the wrong month. A period whose
+ * comparison period is missing yields no point rather than a wrong one.
+ */
 export function transformPoints(points: SeriesPoint[], transform: NbsTransform, frequency: NbsCatalogEntry["frequency"]): SeriesPoint[] {
   if (transform === "raw") return points;
   if (transform === "index_growth") {
     return points.map((point) => ({ date: point.date, value: Math.round((point.value - 100) * 1000) / 1000 }));
   }
   const lag = transform === "yoy" ? periodsPerYear(frequency) : 1;
+  const byPeriod = new Map(points.map((point) => [point.date, point.value]));
   const output: SeriesPoint[] = [];
-  for (let index = lag; index < points.length; index += 1) {
-    const current = points[index];
-    const previous = points[index - lag];
-    if (!current || !previous) continue;
-    let value = current.value - previous.value;
+  for (const current of points) {
+    const previous = byPeriod.get(shiftPeriod(current.date, frequency, lag));
+    if (previous === undefined) continue;
+    let value = current.value - previous;
     if (transform === "percent_change" || transform === "yoy") {
-      if (previous.value === 0) continue;
-      value = (current.value / previous.value - 1) * 100;
+      if (previous === 0) continue;
+      value = (current.value / previous - 1) * 100;
     }
     output.push({ date: current.date, value: Math.round(value * 1000) / 1000 });
   }
