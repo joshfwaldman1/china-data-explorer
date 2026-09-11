@@ -1693,3 +1693,15 @@ not from scratch. Rounds are small on purpose.
   overflow, Hainan 2.0 last. Seen during the deploy: the Railway edge
   answered `/api/releases` and `/api/schedule` with a 502 for a few
   seconds at the container switch, while `/health` answered 200.
+- 2026-09-11 round 174: audited the release calendar and `/api/schedule`
+  on the live site after the round 173 deploy. `/api/releases` lists 26
+  NBS releases for September and October, each with its English name and
+  either headline keys or catalog categories (fixed-asset investment,
+  industrial profits, capacity utilisation, household income, value added
+  by major industry and the culture industries map to categories only,
+  as intended). The schedule was empty for the first minute after boot,
+  by design (the plan runs 60 s after boot), then held 24 upcoming
+  releases with the 15 September house-price and monthly-bundle timers
+  set; the last-refresh field is still null because no mapped release
+  has occurred since round 45 recorded it, so 15 September is its first
+  test. Nothing to fix.
