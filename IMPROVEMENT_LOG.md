@@ -1599,3 +1599,10 @@ not from scratch. Rounds are small on purpose.
   any route change. Verified live: after choosing GDP from the open
   panel, the GDP page shows with the toggle collapsed and the catalog at
   zero height.
+- 2026-09-11 round 166: dark mode. No stylesheet change since round 144.
+  Rendered two dark states no dark round had covered: the Provinces
+  tile map, whose six-step blue ramp is the same in both themes and
+  reads on the dark card from bright tiles with dark text to deep blues
+  with white text, with the ranking bars and legend in their tokens;
+  and the mobile catalog panel open at 390 px, which takes the dark
+  panel and ink tokens. Nothing to fix.
