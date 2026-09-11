@@ -1648,3 +1648,22 @@ not from scratch. Rounds are small on purpose.
   2019); the older duplicate alias line was removed. Verified live: the
   four monthly retail sales of automobiles lines lead, the quarterly
   unit sales follow, and "cars" still leads with automobile output.
+- 2026-09-11 round 171: audited ten random catalog series pages on the
+  live site (fixed asset investment price index for other expenses,
+  general-purpose equipment profits, pharmaceutical principal business
+  cost, power industry liabilities 2001-2002, other industrial enterprises'
+  investment income, ferrous metal revenue, furniture current assets,
+  ferrous mining VAT payable, textile employees, leather value added).
+  Units, ranges, families and notes all right; the industry tables NBS
+  renamed between slices (power, leather) stand alone on purpose. One
+  defect: 306 of the 8,844 colon titles capitalised the word after the
+  colon ("Leather, fur, feather (down) and related products: Value
+  added") where the other 8,200 read lowercase, because the gloss file
+  capitalised some industry measures and the lowercase rule covered only
+  the CPI, PPI, RPI and PMI prefixes. The rule now covers any prefix,
+  keeping "Chinese" and acronyms; four cases added to the gloss test and
+  GLOSS_FORMAT 17 rebuilds the stored glosses. Deployed with `railway up`
+  (a push alone does not deploy). Verified live: the leather title reads
+  "value added", building materials reads lowercase after the purchasing
+  price index, "traditional Chinese medicine" and "VAT payable" keep
+  their case.
