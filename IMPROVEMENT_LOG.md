@@ -1422,3 +1422,15 @@ not from scratch. Rounds are small on purpose.
   abbreviation (137), the dark chart-3 token (144) and the calendar's
   month status region (145) are interface details needing no doc. Docs
   only, no deploy.
+- 2026-09-11 round 147: audited search for ten desk-style queries on the
+  live site (TSF, total social financing, FAI, IP, NBS PMI,
+  non-manufacturing PMI, M1, CNY, FX reserves, trade surplus). Six led
+  with the right series; total social financing is People's Bank data
+  the catalog does not hold, so its two spellings are honestly empty.
+  Two defects: "IP" matched a fixed-line call-duration series by its
+  letters, and "NBS PMI" ranked a catalog sub-index above the headline
+  PMI because "nbs" had to match. "ip" now means industrial value added
+  on both the headline and the catalog side, and "nbs" is a stop word
+  like "national" and "china". Test added. Verified live: "IP" leads
+  with the industrial production headline, "NBS PMI" with the headline
+  PMI, and "pmi" and "industrial production" are unchanged.
