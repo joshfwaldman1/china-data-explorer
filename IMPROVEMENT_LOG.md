@@ -1733,4 +1733,5 @@ not from scratch. Rounds are small on purpose.
   nothing under it, because the curated branch rendered the section
   whenever the series was curated, and provincial GDP is alone in its
   group. The section now needs at least one sibling, as the NBS catalog
-  pages already required. Deployed with `railway up`.
+  pages already required. Deployed with `railway up`. Verified live: the
+  provincial GDP page has no Related section, GDP keeps its four tiles.
