@@ -96,7 +96,6 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   "credit": ["贷款", "社会融资"],
   "social financing": ["社会融资"],
   "profits": ["利润"],
-  "car sales": ["汽车销量", "汽车"],
   "cars": ["汽车"],
   "power": ["发电量", "电力"],
   "tourism": ["旅游"],
@@ -105,7 +104,7 @@ const SEARCH_ALIASES: Record<string, string[]> = {
 };
 Object.assign(SEARCH_ALIASES, {
   youth: ["16—24岁", "16-24岁", "青年"], "youth unemployment": ["16—24岁", "16-24岁"], jobless: ["失业"], population: ["人口"],
-  profits: ["利润"], profit: ["利润"], "home prices": ["住宅销售价格", "房价"], "car sales": ["汽车"], cars: ["汽车", "轿车"],
+  profits: ["利润"], profit: ["利润"], "home prices": ["住宅销售价格", "房价"], "car sales": ["汽车类商品零售", "汽车销售量"], cars: ["汽车", "轿车"],
   m2: ["广义货币", "M2"], m1: ["狭义货币", "M1"], loans: ["贷款"], deposits: ["存款"], fiscal: ["财政"], tax: ["税收"], taxes: ["税收"],
   "crude steel": ["粗钢"], aluminium: ["原铝（电解铝）产量"], aluminum: ["原铝（电解铝）产量"], copper: ["铜"], pork: ["猪肉"], vegetables: ["鲜菜"],
   rail: ["铁路"], railway: ["铁路"], aviation: ["民航"], airlines: ["民航"], tourism: ["旅游"], shipping: ["港口", "水运"], ports: ["港口"],
