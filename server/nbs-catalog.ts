@@ -882,8 +882,8 @@ export function transformPoints(points: SeriesPoint[], transform: NbsTransform, 
 }
 
 export function transformLabel(transform: NbsTransform): string {
-  if (transform === "change") return "Change";
-  if (transform === "percent_change") return "Percent change";
+  if (transform === "change") return "Change from previous period";
+  if (transform === "percent_change") return "Percent change from previous period";
   if (transform === "yoy") return "Percent change from year ago";
   if (transform === "index_growth") return "Percent change from year ago";
   return "Raw value";
