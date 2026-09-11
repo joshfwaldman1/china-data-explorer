@@ -1515,3 +1515,10 @@ not from scratch. Rounds are small on purpose.
   description pointed only to the Table tab, so a screen reader user had
   no way to learn the keyboard path. It now reads "Arrow keys step
   through the points; the Table tab lists the values." Verified live.
+- 2026-09-11 round 157: audited the docs against the code since round
+  146. Undocumented: "nbs" as a stop word and "ip" as industrial value
+  added (round 147), an index base written inside a gloss moving to the
+  end (148), the transform labels naming their period (153), and the
+  chart's keyboard path (156). AGENTS.md's search, gloss and transform
+  paragraphs now carry the first three, and the README gains a keyboard
+  and screen reader bullet for the last. Docs only, no deploy.
