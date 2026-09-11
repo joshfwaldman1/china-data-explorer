@@ -20,6 +20,14 @@ not from scratch. Rounds are small on purpose.
   does not link to it; the reading notes are plain strings. Make one note
   linkable, or add the sibling to Related Series (raised 2026-09-11, round
   205).
+- A January point could be derived for a monthly level series that publishes
+  a single February and no January: the year-to-date sibling holds January
+  plus February, so January is the difference (passenger traffic: 274,706
+  less 139,505 is 135,201, and March checks out). It would return the first
+  quarters that round 206 drops. Held back because a series whose 当期值
+  February is already the combined figure would derive a January of zero,
+  and because it puts a number on the page that NBS does not publish
+  directly; an owner's call (raised 2026-09-11, round 207).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1997,3 +2005,13 @@ not from scratch. Rounds are small on purpose.
   `februaryFrom` flag, carried to the chart as `Track.combinedFebruary`;
   a series without it must have every reading. Tests added and the
   existing conversion test marked; 138 pass.
+- 2026-09-11 round 206 (verified): the live quarterly table for
+  passenger traffic no longer carries the short Q1 2026 of 279,989; the
+  other quarters are unchanged (Q2 2026 434,009, Q4 2025 420,660).
+- 2026-09-11 round 207: regression check over the headline series after
+  five data-path changes in a row (placeholder zeros, the zeroed-fetch
+  guard, transforms by label, the February fill, frequency conversion).
+  GDP 4.7% Q2, CPI 0.8% August, unemployment 5.2% July, PMI 49.8 August,
+  industrial production 4.5% July, retail sales 0.6% July, exports 25.0%
+  August: all unchanged from this morning, and no fetch has failed.
+  Queued the derived January as an owner's call.
