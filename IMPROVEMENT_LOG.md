@@ -1745,3 +1745,10 @@ not from scratch. Rounds are small on purpose.
   took 12.9 s while the new container's boot ingest ran, the condition
   rounds 105, 129 and 163 recorded; timings are being sampled through
   the ingest window for the next round.
+- 2026-09-11 round 179: walked the Provinces tile map by keyboard on
+  the live site, the one keyboard path no accessibility round had
+  walked. The first tile is named "Beijing, 5.4%"; Enter selects it
+  (aria-pressed true, the ranking row highlighted, Open series and Add
+  to comparison offered) with focus kept on the tile; Tab moves to
+  Tianjin, Hebei and Shanxi in map order, each named with its value.
+  Nothing to fix.
