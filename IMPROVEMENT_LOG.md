@@ -1493,3 +1493,9 @@ not from scratch. Rounds are small on purpose.
   the period on both the catalog and the headline side. Verified live:
   the API returns "Change from previous period" and "Percent change from
   previous period", and the page's meta and stat lines carry the former.
+- 2026-09-11 round 154: measured three states no mobile round had covered
+  at 390 px on the live site: the October calendar with the quarterly
+  bundle's ten links, the CPI page with the Custom range open (the two
+  month fields stack, focus on From), and the GDP page down to its
+  Revisions section. All lay out at exactly 390 px with no element past
+  the edge. Nothing to fix.
