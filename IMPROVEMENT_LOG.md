@@ -1606,3 +1606,10 @@ not from scratch. Rounds are small on purpose.
   with white text, with the ranking bars and legend in their tokens;
   and the mobile catalog panel open at 390 px, which takes the dark
   panel and ink tokens. Nothing to fix.
+- 2026-09-11 round 167: walked the search entry path by keyboard on the
+  live site, the one path no accessibility round had walked. The slash
+  shortcut focuses the topbar box on a series page and the hero box on
+  Home, both named "Search series" and announcing "/" as their
+  shortcut; Enter runs the search and focus lands on the results' main
+  region; from there the tab order is the Home breadcrumb, the Frequency
+  and Dataset filters, then the first result. Nothing to fix.
