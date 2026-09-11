@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -120,6 +120,14 @@ test("a leading run of NBS placeholder zeros is dropped from a level or index se
   expect(dropLeadingPlaceholders(points, { unit: "百分点", name: "增减 (百分点)" })).toEqual(points);
   const allZero = [{ date: "2016-04", value: 0 }, { date: "2016-05", value: 0 }];
   expect(dropLeadingPlaceholders(allZero, { unit: "亿元", name: "x" })).toEqual(allZero);
+  // Nine zeros before the first real growth figure, as every industry revenue growth series in the
+  // 2012-2017 table carries, are placeholders even on a rate.
+  const nine = Array.from({ length: 9 }, (_, index) => ({ date: `2016-${String(index + 4).padStart(2, "0")}`, value: 0 }));
+  const rate = [...nine, { date: "2017-02", value: 8.1 }, { date: "2017-03", value: 0 }];
+  expect(dropLeadingPlaceholders(rate, { unit: "%", name: "营业收入累计增长 (%)" }).map((point) => point.date)).toEqual(["2017-02", "2017-03"]);
+  expect(periodsBetween("2016-04", "2017-02", "Monthly")).toBe(10);
+  expect(periodsBetween("2016-Q2", "2017-Q1", "Quarterly")).toBe(3);
+  expect(periodsBetween("2016", "2022", "Annual")).toBe(6);
 });
 
 test("stitchPoints joins slices oldest to newest, newer winning on overlap", () => {

@@ -384,10 +384,30 @@ export function isRateEntry(entry: Pick<NbsCatalogEntry, "unit" | "name">): bool
   return unit === "%" || unit === "百分点" || (unit === "无" && !/=\s*100/.test(entry.name));
 }
 
+/**
+ * A rate can really be 0.0, so a rate series sheds its leading zeros only when the run is
+ * this long: every industry operating-revenue growth series in the 2012-2017 table opens
+ * with nine (April to December 2016), and six periods of exactly 0.0 growth at the start of
+ * a real series does not happen.
+ */
+export const RATE_PLACEHOLDER_RUN = 6;
+
 export function dropLeadingPlaceholders(points: SeriesPoint[], entry: Pick<NbsCatalogEntry, "unit" | "name">): SeriesPoint[] {
-  if (isRateEntry(entry)) return points;
   const firstReal = points.findIndex((point) => point.value !== 0);
-  return firstReal > 0 ? points.slice(firstReal) : points;
+  if (firstReal <= 0) return points;
+  if (isRateEntry(entry) && firstReal < RATE_PLACEHOLDER_RUN) return points;
+  return points.slice(firstReal);
+}
+
+/** Whole periods from one label to a later one at the series' frequency: "2016-04" to "2017-02" monthly is 10. */
+export function periodsBetween(from: string, to: string, frequency: string): number {
+  const parse = (label: string): number => {
+    const year = Number(label.slice(0, 4));
+    if (frequency === "Quarterly") return year * 4 + (Number(label.match(/Q(\d)/)?.[1] ?? (Math.ceil(Number(label.slice(5, 7)) / 3) || 1)) - 1);
+    if (frequency === "Monthly") return year * 12 + (Number(label.slice(5, 7)) || 1) - 1;
+    return year;
+  };
+  return parse(to) - parse(from);
 }
 
 export function stitchPoints(slices: SeriesPoint[][]): SeriesPoint[] {
@@ -745,7 +765,10 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
     // A family head is served stitched with its older slices, so its range starts where the oldest
     // slice starts; for a level or index series that is the first non-zero value, the same rule
     // the page applies when it drops NBS's leading placeholder zeros.
-    const startOf = (range: { first: string; firstReal: string }) => (isRateEntry(entry) ? range.first : range.firstReal);
+    // A rate keeps its stored start unless the zeros before its first real value run as long as the
+    // page's rule for shedding them (the run is counted in periods between the two labels).
+    const startOf = (range: { first: string; firstReal: string }) =>
+      (isRateEntry(entry) && periodsBetween(range.first, range.firstReal, entry.frequency) < RATE_PLACEHOLDER_RUN ? range.first : range.firstReal);
     let first = startOf(own);
     for (const member of entry.family?.members ?? []) {
       const range = ranges.get(member);
