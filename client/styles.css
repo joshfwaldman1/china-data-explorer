@@ -61,7 +61,7 @@
     /* The one four-set of the reference dark palette that passes all pairs
        on this surface: blue, magenta, green, yellow. Yellow is last because
        it sits nearest the amber used for breaks and warnings. */
-    --chart-1: #3987e5; --chart-2: #d55181; --chart-3: #008300; --chart-4: #c98500;
+    --chart-1: #3987e5; --chart-2: #d55181; --chart-3: #22b573; --chart-4: #c98500;
     --chart-5: #d95926; --chart-6: #199e70; --chart-7: #9085e9; --chart-8: #e66767;
     --shadow: none;
   }
@@ -74,7 +74,7 @@
   --navy: #0d2b47; --blue: #6ea3d6; --red: #e0655a; --amber: #d9a441;
   --blue-soft: #1a2a3b; --amber-soft: #2a2313; --red-soft: #33201d;
   --on-navy: #ffffff; --on-navy-muted: #a9c0d6; --focus: #8fb9e2; --accent-text: #8fb9e2;
-  --chart-1: #3987e5; --chart-2: #d55181; --chart-3: #008300; --chart-4: #c98500;
+  --chart-1: #3987e5; --chart-2: #d55181; --chart-3: #22b573; --chart-4: #c98500;
   --chart-5: #d95926; --chart-6: #199e70; --chart-7: #9085e9; --chart-8: #e66767;
   --shadow: none;
 }
