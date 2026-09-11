@@ -1404,3 +1404,12 @@ not from scratch. Rounds are small on purpose.
   6.5:1, in both dark blocks; the light palette is unchanged. Verified
   live: the four dark strokes read blue, pink, the new green and amber,
   and the light strokes are as before.
+- 2026-09-11 round 145: probed the release calendar's month navigation
+  and the Browse page for screen readers on the live site. The month
+  buttons are named "Previous month" and "Next month", the Browse cards
+  read "工业 Industry 7,189 series", and both headings are right. One
+  defect: pressing a month button moved the calendar but announced
+  nothing, since the month label between the buttons was a plain
+  element. It is now a status region. Verified live: the label carries
+  the status role and reads "October 2026" after Next month, with the
+  month in the URL.
