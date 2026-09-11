@@ -1057,7 +1057,9 @@ function SeriesPage(props: {
     ...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)),
     ...(curated?.endedNote ? [curated.endedNote] : []),
     ...(meta?.februaryFrom ? ["NBS publishes January and February together. The February point is the combined figure, taken from the year-to-date series of the same table; there is no January point."] : []),
-    ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces; they are joined here into one series covering ${meta.family.span}. Where two pieces overlap, the newer one is used.`] : []),
+    // The pieces' nominal span is what NBS names them by; the Range row states what they hold, which
+    // can start later (a 2003 piece with data from 2007) or leave years uncovered between pieces.
+    ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces, nominally ${meta.family.span}; they are joined here into one series, and the Range below is what the pieces hold. Where two pieces overlap, the newer one is used.`] : []),
   ];
   const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date))[0];
