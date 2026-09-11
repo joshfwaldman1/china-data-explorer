@@ -10,7 +10,7 @@
  */
 
 import index from "../client/index.html";
-import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, CURATED_SYNONYMS, type SeriesResult, seriesRegion } from "./data";
+import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion } from "./data";
 import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
 import {
   getNbsCatalogSeries,
@@ -224,15 +224,8 @@ const routes = {
       const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
       const queryTerms = meaningful.length > 0 ? meaningful : allTerms;
       const featured = queryText && datasetCode === undefined && (!geography || geography === "National")
-        ? catalogList().filter((entry) => {
-          if (frequency && entry.frequency !== frequency) return false;
-          if (category && entry.group !== category) return false;
-          const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key} ${(CURATED_SYNONYMS[entry.key] ?? []).join(" ")}`.toLocaleLowerCase();
-          // Latin terms match at a word start ("unemp" finds unemployment, "ppi" no longer finds shopping); Chinese anywhere.
-          return queryTerms.every((term) => /[\u3400-\u9fff]/.test(term)
-            ? haystack.includes(term)
-            : new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack));
-        }).map((entry) => ({
+        // Latin terms match at a word start ("unemp" finds unemployment, "ppi" no longer finds shopping); Chinese anywhere.
+        ? matchCurated(catalogList().filter((entry) => (!frequency || entry.frequency === frequency) && (!category || entry.group === category)), allTerms, queryTerms).map((entry) => ({
           key: entry.key,
           id: entry.key,
           name: entry.title,

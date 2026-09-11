@@ -73,8 +73,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   oecd_cli: ["leading indicator", "cli", "oecd", "先行指标"],
   consumer_confidence_oecd: ["consumer confidence", "sentiment", "消费者信心"],
   shibor_3m: ["shibor", "interbank", "money market", "同业拆借"],
-  us_imports_from_china: ["us imports", "trade war", "tariffs", "美国进口", "united states", "america", "imports from china"],
-  us_exports_to_china: ["us exports", "soybeans", "trade war", "美国出口", "united states", "america", "exports to china"],
+  us_imports_from_china: ["us imports", "trade war", "tariffs", "美国进口", "united states", "america", "imports from china", "china exports to us", "exports to us", "exports to the united states", "exports to america", "对美出口"],
+  us_exports_to_china: ["us exports", "soybeans", "trade war", "美国出口", "united states", "america", "exports to china", "china imports from us", "imports from us", "imports from the united states", "imports from america", "自美进口"],
   us_treasury_holdings: ["treasuries", "treasury holdings", "us debt", "美债", "united states", "america"],
   us_import_prices_china: ["import prices", "tariffs", "进口价格"],
   golden_dragon: ["stocks", "adr", "nasdaq", "equities", "中概股"],
@@ -550,6 +550,28 @@ export const CATALOG: Record<string, Indicator> = {
   gdp_per_capita_usd: { kind: "fred", group: "Growth & Output", home: false, title: "GDP per Capita in US Dollars", agency: "World Bank", frequency: "Annual", unit: "Current US dollars", seriesId: "PCAGDPCNA646NWDB", label: "GDP per capita, current US dollars" },
   gini: { kind: "fred", group: "Demographics", home: false, title: "Gini Index", agency: "World Bank", frequency: "Annual", unit: "Index, 0 to 100", seriesId: "SIPOVGINICHN", label: "Gini index" },
 };
+
+/**
+ * The headline series a query names: every term must start a word of the
+ * title, group, agency, unit, key or synonyms (Chinese terms match anywhere).
+ * An entry whose text holds the whole query as a phrase comes first, so
+ * "exports to us" leads with US imports from China, which carries that
+ * phrase, and "us exports" leads with US exports to China. Otherwise the
+ * catalog order stands.
+ */
+export function matchCurated(entries: CatalogEntry[], allTerms: string[], queryTerms: string[]): CatalogEntry[] {
+  const phrase = allTerms.join(" ");
+  const matched = entries.flatMap((entry) => {
+    const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key} ${(CURATED_SYNONYMS[entry.key] ?? []).join(" | ")}`.toLocaleLowerCase();
+    const hit = queryTerms.every((term) => /[\u3400-\u9fff]/.test(term)
+      ? haystack.includes(term)
+      : new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack));
+    if (!hit) return [];
+    const wholePhrase = phrase.length > 0 && new RegExp(`(^|[^a-z0-9])${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`).test(haystack);
+    return [{ entry, wholePhrase }];
+  });
+  return matched.sort((a, b) => Number(b.wholePhrase) - Number(a.wholePhrase)).map((item) => item.entry);
+}
 
 export interface CatalogEntry {
   key: string;
