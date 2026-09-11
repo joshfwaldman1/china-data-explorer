@@ -371,6 +371,22 @@ export function attachFamilies(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
 }
 
 /** Join year-range slices into one history; a later slice wins where two overlap. */
+/**
+ * NBS fills the months before an indicator existed with "0.0" and no flag: the
+ * 2012-2017 table carries operating revenue as 0.0 from April to December 2016
+ * and real figures from 2017, and a PPI on a year-earlier base reads 0 for
+ * 2014-2015 (an index can never be 0). A leading run of zeros before the first
+ * non-zero value is dropped from a level or index series; a rate keeps its
+ * zeros, which can be real, and an all-zero series is left as it came.
+ */
+export function dropLeadingPlaceholders(points: SeriesPoint[], entry: Pick<NbsCatalogEntry, "unit" | "name">): SeriesPoint[] {
+  const unit = entry.unit.trim();
+  const isRate = unit === "%" || unit === "百分点" || (unit === "无" && !/=\s*100/.test(entry.name));
+  if (isRate) return points;
+  const firstReal = points.findIndex((point) => point.value !== 0);
+  return firstReal > 0 ? points.slice(firstReal) : points;
+}
+
 export function stitchPoints(slices: SeriesPoint[][]): SeriesPoint[] {
   const byDate = new Map<string, SeriesPoint>();
   for (const slice of slices) for (const point of slice) byDate.set(point.date, point);
@@ -1132,7 +1148,7 @@ export async function getNbsCatalogSeries(options: {
     catch (error) { if (memberEntries.length === 1) throw error; }
   }
   if (parts.every((part) => part.points.length === 0)) throw new Error("NBS returned no observations for this series");
-  let points = stitchPoints(parts.map((part) => part.points));
+  let points = dropLeadingPlaceholders(stitchPoints(parts.map((part) => part.points)), options.entry);
   const source: NbsSeriesResult["source"] = parts.some((part) => part.source === "stale") ? "stale" : parts.some((part) => part.source === "live") ? "live" : "store";
 
   // The combined January-February reading lives in the year-to-date sibling; take its stored

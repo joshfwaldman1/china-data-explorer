@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -110,6 +110,16 @@ test("sub-industry PPI slices join across NBS's trailing-业 rename", async () =
   const same = result.results.filter((entry) => entry.name.includes("褐煤开采洗选") && entry.name.includes("上年同月"));
   expect(same.length).toBe(1);
   expect(same[0]?.family?.span).toBe("2014 to present");
+});
+
+test("a leading run of NBS placeholder zeros is dropped from a level or index series, kept on a rate", () => {
+  const points = [{ date: "2016-04", value: 0 }, { date: "2016-12", value: 0 }, { date: "2017-02", value: 3395.6 }, { date: "2017-03", value: 0 }];
+  expect(dropLeadingPlaceholders(points, { unit: "亿元", name: "纺织服装、服饰业营业收入累计值 (亿元)" }).map((point) => point.date)).toEqual(["2017-02", "2017-03"]);
+  expect(dropLeadingPlaceholders(points, { unit: "无", name: "其他水的处理工业生产者出厂价格指数 (上年同月=100)" }).map((point) => point.date)).toEqual(["2017-02", "2017-03"]);
+  expect(dropLeadingPlaceholders(points, { unit: "%", name: "营业收入累计增长 (%)" })).toEqual(points);
+  expect(dropLeadingPlaceholders(points, { unit: "百分点", name: "增减 (百分点)" })).toEqual(points);
+  const allZero = [{ date: "2016-04", value: 0 }, { date: "2016-05", value: 0 }];
+  expect(dropLeadingPlaceholders(allZero, { unit: "亿元", name: "x" })).toEqual(allZero);
 });
 
 test("stitchPoints joins slices oldest to newest, newer winning on overlap", () => {
