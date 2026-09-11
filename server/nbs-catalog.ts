@@ -5,7 +5,7 @@ import { stat } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
 import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, storedLatest, writeSeries } from "./db";
-import { glossTitle, toPinyin, warmGloss } from "./gloss";
+import { glossTitle, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
@@ -267,7 +267,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 17; // 17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 18; // 18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 async function catalogVersion(): Promise<string> {
   const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
@@ -431,9 +431,10 @@ async function readNotesTable(): Promise<Record<string, string>> {
 
 /** Attach English prose to an entry where the table has it. Categories are translated segment by segment. */
 function withProseEnglish(entry: NbsCatalogEntry, table: Record<string, string>): NbsCatalogEntry {
-  const categoriesEn = entry.categories.map((category) => table[category.trim()] ?? "");
+  const categoriesEn = entry.categories.map((category) => plainRanges(table[category.trim()] ?? ""));
   return {
     ...entry,
+    nameEn: entry.nameEn ? plainRanges(entry.nameEn) : entry.nameEn,
     // An index table's "无" unit becomes its base period everywhere the unit is shown.
     unit: rawUnitOf(entry),
     noteEn: table[entry.note.trim()] || undefined,

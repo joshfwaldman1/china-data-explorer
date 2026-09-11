@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { splitTitle, glossTitle, segmentGloss, toPinyin, baseConcepts, normalizeIndexPrefix, warmGloss } from "./gloss.ts";
+import { splitTitle, glossTitle, segmentGloss, toPinyin, baseConcepts, normalizeIndexPrefix, warmGloss, plainRanges } from "./gloss.ts";
 
 test("titles split into base, measure and unit", () => {
   expect(splitTitle("粗钢产量累计增长 (%)")).toEqual({ base: "粗钢产量", measure: "累计增长", unit: "%" });
@@ -63,4 +63,11 @@ test("index components read with a colon whichever way the table wrote them", ()
   expect(normalizeIndexPrefix("Financial expenses: VAT payable")).toBe("Financial expenses: VAT payable");
   expect(normalizeIndexPrefix("Textile industry: Chinese medicine")).toBe("Textile industry: Chinese medicine");
   expect(normalizeIndexPrefix("Urban consumer price index")).toBe("Urban consumer price index");
+});
+
+test("year ranges read in the site's words, without en dashes", () => {
+  expect(plainRanges("Main economic indicators of industrial enterprises by type of registration (–2023)")).toBe("Main economic indicators of industrial enterprises by type of registration (to 2023)");
+  expect(plainRanges("By type of registration (2024–)")).toBe("By type of registration (2024-present)");
+  expect(plainRanges("Crucian carp (0.2–0.5 kg) farmers' market price")).toBe("Crucian carp (0.2-0.5 kg) farmers' market price");
+  expect(plainRanges("Main economic indicators (2012-2017)")).toBe("Main economic indicators (2012-2017)");
 });

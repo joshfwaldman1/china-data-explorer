@@ -186,6 +186,19 @@ export function normalizeIndexPrefix(title: string): string {
     `${first}${rest}` === "Chinese" ? whole : `${prefix}${first.toLowerCase()}${rest}`);
 }
 
+/**
+ * Year ranges in the site's own words. The translated category labels wrote
+ * "(–2023)" and "(2024–)" with an en dash, where the rest of the catalog reads
+ * "(to 2018)" and "(2018-present)"; a dash between numbers reads as a hyphen,
+ * "0.2-0.5 kg".
+ */
+export function plainRanges(text: string): string {
+  return text
+    .replace(/\(\s*[–—]\s*(\d{4})\s*\)/g, "(to $1)")
+    .replace(/\(\s*(\d{4})\s*[–—]\s*\)/g, "($1-present)")
+    .replace(/(\d)\s*[–—]\s*(?=\d)/g, "$1-");
+}
+
 /** An index title's base period, "(上月=100)", is part of what the series is, so it stays in the English title. */
 function baseOf(unit: string): string {
   if (!/=\s*100/.test(unit)) return "";
