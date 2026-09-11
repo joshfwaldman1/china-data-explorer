@@ -1394,3 +1394,13 @@ not from scratch. Rounds are small on purpose.
   whose four chips, legend and "four series is the most" note wrap
   inside the viewport. Both lay out at exactly 390 px with no element
   past the edge. Nothing to fix.
+- 2026-09-11 round 144: dark mode. Rendered two dark surfaces no dark
+  round had covered: the four-line provincial compare and the chart
+  tooltip on hover. The tooltip takes the panel, ink and border tokens
+  and the grid, axis text and zero line their dark tokens. Defect: the
+  dark palette's third series colour was #008300, a deep green at about
+  4:1 on the panel and far darker than its neighbours, so Hubei's dotted
+  line was the least legible on the chart. It is now #22b573, about
+  6.5:1, in both dark blocks; the light palette is unchanged. Verified
+  live: the four dark strokes read blue, pink, the new green and amber,
+  and the light strokes are as before.
