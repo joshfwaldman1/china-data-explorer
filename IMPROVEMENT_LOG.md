@@ -1553,3 +1553,9 @@ not from scratch. Rounds are small on purpose.
   and no piece covers 2012 to 2017. The note now calls the span nominal
   and defers to the Range row for what the pieces hold. Verified live
   on the ferrous-metal export delivery series.
+- 2026-09-11 round 160: measured what a first visitor to Home waits for,
+  on the live site: a 7 KB stylesheet and a 205 KB script (Recharts and
+  React, gzipped), then four API calls in parallel, the catalog stats,
+  the headline payload, the releases and the catalog list, 9 KB together
+  and each answered in under half a second. Nothing on the page waits
+  on anything but the script. Nothing to fix.
