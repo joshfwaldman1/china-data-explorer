@@ -139,8 +139,11 @@ export function timeTicks(min: number, max: number, plotWidth: number, minGap = 
     const step = Math.max(1, Math.ceil(minGap / yearPx));
     const anchor = Math.ceil(startYear / step) * step;
     const out: { t: number; label: string }[] = [];
+    // Annual points are dated December of their year, so their labels sit on the points themselves
+    // rather than at the following January, where each value would read a year late.
+    const tickMonth = coarsest === "Annual" ? new Date(min).getUTCMonth() : 0;
     for (let year = anchor; year <= endYear; year += step) {
-      const t = Date.UTC(year, 0, 1);
+      const t = Date.UTC(year, tickMonth, 1);
       if (t >= min && t <= max) out.push({ t, label: String(year) });
     }
     return out;

@@ -43,6 +43,11 @@ describe("logTicks", () => {
 });
 
 describe("timeTicks", () => {
+  test("annual points, dated December, get their year label on the point rather than at the following January", () => {
+    const ticks = timeTicks(Date.UTC(2016, 11, 1), Date.UTC(2025, 11, 1), 1600, 90, "Annual");
+    expect(ticks.map((tick) => tick.label)).toEqual(["2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"]);
+    expect(ticks[0]?.t).toBe(Date.UTC(2016, 11, 1));
+  });
   test("a one-year quarterly view steps by quarters from the data's own quarter-end months", () => {
     const ticks = timeTicks(Date.UTC(2025, 5, 1), Date.UTC(2026, 5, 1), 1600, 90, "Quarterly");
     expect(ticks.map((tick) => tick.label)).toEqual(["Jun 25", "Sep 25", "Dec 25", "Mar 26", "Jun 26"]);
