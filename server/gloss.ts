@@ -144,10 +144,13 @@ export function segmentGloss(base: string): string {
 export function glossTitle(name: string): string {
   const parts = splitTitle(name);
   const known = table ?? {};
-  const baseEn = normalizeIndexPrefix(known[parts.base] ?? segmentGloss(parts.base));
+  const glossed = normalizeIndexPrefix(known[parts.base] ?? segmentGloss(parts.base));
+  // A few national-accounts glosses carry the base inside their text, "(same period last year=100)";
+  // the base belongs last, in the site's own words, derived from the title when the unit field has none.
+  const baseEn = glossed.replace(/\s*\([^()]*=\s*100\)\s*/, " ").replace(/\s+,/g, ",").trim();
   if (!baseEn) return "";
   const measureEn = MEASURES.find(([zh]) => zh === parts.measure)?.[1] ?? "";
-  const base = baseOf(parts.unit);
+  const base = baseOf(parts.unit) || (/=\s*100/.test(glossed) ? baseOf(name) : "");
   const head = [baseEn, measureEn, base].filter(Boolean).join(", ");
   return head.charAt(0).toUpperCase() + head.slice(1);
 }

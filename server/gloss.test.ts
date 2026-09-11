@@ -21,6 +21,12 @@ test("an enterprise indicator's 增减 (%) reads as the change from a year ago o
   expect(glossTitle("布产销率比上年同期增减 (%)")).toBe("Cloth output-sales ratio, change from same period last year");
 });
 
+test("an index base written inside a gloss moves to the end in the site's words", async () => {
+  await warmGloss();
+  expect(glossTitle("建筑业增加值指数 (上年同期=100) 当季值")).toBe("Value added index of construction, quarterly value, same period a year earlier = 100");
+  expect(glossTitle("国内生产总值指数 (上年同期=100)")).toBe("GDP index, same period a year earlier = 100");
+});
+
 test("the by-department PPI table names its industries, so the food industry is not a twin of the food category", async () => {
   await warmGloss();
   expect(glossTitle("食品工业生产者出厂价格指数 (上年同月=100)")).toBe("PPI: food industry, same month a year earlier = 100");
