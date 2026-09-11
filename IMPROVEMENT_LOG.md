@@ -1351,3 +1351,13 @@ not from scratch. Rounds are small on purpose.
   live: #/regions?period=2030-Q1 lands on #/regions with all 31 tiles
   and the Q2 2026 heading, and #/regions?period=2020-Q1 stays on Q1
   2020.
+- 2026-09-11 round 139: audited the release calendar and `/api/schedule`
+  on the first morning after a release day has passed into the window's
+  history. The schedule still lists all 24 future releases from 15
+  September; the calendar's default window carries the two 9 September
+  releases as past items; the client's upcoming rule, a release whose
+  China Standard Time instant is still ahead, keeps them off the Home
+  card and the next-release rows; the last release refresh is still
+  null. The shell classifier was unavailable for part of this round, so
+  the API was read through the fetch tool and the page logic by reading
+  the code rather than a rendered page. Nothing to fix.
