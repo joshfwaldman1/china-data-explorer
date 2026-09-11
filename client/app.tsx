@@ -409,7 +409,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
       .map((year) => ({ year, x1: Date.UTC(year, 0, 1), x2: Date.UTC(year, 2, 1) })).filter((band) => band.x2 >= min && band.x1 <= max)
     : [];
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
-  const description = `${props.title}. ${shown.length} series, ${props.unit}. Use the Table tab for the values.`;
+  const description = `${props.title}. ${shown.length} series, ${props.unit}. Arrow keys step through the points; the Table tab lists the values.`;
   return (
     <div className="chart-wrap" style={{ width: "100%", height: 460 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
