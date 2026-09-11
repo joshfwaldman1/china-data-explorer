@@ -663,8 +663,9 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="cats">
           {props.stats?.categories.slice(0, 12).map((category) => (
             <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
-              <b><Zh>{category.name}</Zh></b>
-              {categoryEn(category.name) && <span className="gloss">{categoryEn(category.name)}</span>}
+              {categoryEn(category.name)
+                ? <><b>{categoryEn(category.name)}</b><span className="gloss"><Zh>{category.name}</Zh></span></>
+                : <b><Zh>{category.name}</Zh></b>}
               <small>{category.count.toLocaleString("en-US")} series</small>
             </a>
           ))}
@@ -758,8 +759,10 @@ function BrowsePage(props: { stats: CatalogStats | null }) {
       <div className="cats" style={{ marginTop: 20 }}>
         {props.stats?.categories.map((category) => (
           <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
-            <b><Zh>{category.name}</Zh></b>
-            {categoryEn(category.name) && <span className="gloss">{categoryEn(category.name)}</span>}
+            {/* English first with the Chinese alongside, as the rest of the site reads; Chinese alone only when no gloss exists. */}
+            {categoryEn(category.name)
+              ? <><b>{categoryEn(category.name)}</b><span className="gloss"><Zh>{category.name}</Zh></span></>
+              : <b><Zh>{category.name}</Zh></b>}
             <small>{category.count.toLocaleString("en-US")} series</small>
           </a>
         ))}
