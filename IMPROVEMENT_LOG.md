@@ -1838,3 +1838,43 @@ not from scratch. Rounds are small on purpose.
   padding and the read rule (rounds 182, 185, 186) beside the esData
   cap note, and why health reads the highest rowid (184) in the
   deployment section. Docs only, no deploy.
+- 2026-09-11 round 188: search quality, ten more researcher queries on
+  the live site. Seven rank well (auto production, passenger traffic,
+  port throughput, semiconductors, lithium, excavator sales, mortgage,
+  the last three honestly ending where NBS's own data ends: the
+  lithium-ion battery indicator was fetched raw from NBS and carries
+  nothing after December 2024, and excavators end in 2019). Honestly
+  limited: "bank deposits" and "shadow banking" find nothing, since the
+  monthly NBS tables carry no PBOC deposit data. Defect: "gold
+  reserves" led with Official Foreign Exchange Reserves, whose synonyms
+  include the phrase, but the series held only the FX line. The PBOC
+  release Eastmoney mirrors carries gold reserves in US dollars in the
+  same table; it is now the series' second line. Deployed with
+  `railway up`. Verified live after the boot ingest: the store serves
+  FX reserves 34,383 and gold reserves 3,500.8 hundred million US
+  dollars for August 2026, and "gold reserves" leads with the series.
+- 2026-09-11 round 189: audited ten random catalog series pages on the
+  live site: nine right (units, ranges, families, no leading zeros
+  after round 186), one 502 at a container switch. Defect: 876 entries
+  sat under translated category labels written "(–2023)" and "(2024–)"
+  with an en dash, where the rest of the catalog reads "(to 2018)" and
+  "(2018-present)", and three fish-price titles wrote a weight range
+  with an en dash. Labels are normalised as they are attached
+  (`plainRanges`), GLOSS_FORMAT 18 rebuilds the stored glosses; test
+  added, 133 pass. Deployed with `railway up`. Verified live: the
+  state-holding enterprises path reads "(to 2023)", the 2024 slice
+  "(2024-present)", crucian carp "(0.2-0.5 kg)".
+- 2026-09-11 round 190: docs. AGENTS.md now carries the plural rule
+  for Latin search terms (round 181), the gold reserves line (188) and
+  the year-range normalisation (189). Docs only, no deploy.
+- 2026-09-11 round 191: mobile at 390 px, the Provinces page after
+  round 173's ranking change: no element crosses the right edge, the
+  map's 31 tiles are 40 px squares (44 would need more than the width
+  allows at eight columns; the ranking rows below offer the same
+  selection full width), and all 31 ranking rows show in 1,100 px.
+  Nothing to fix.
+- 2026-09-11 round 192: the Releases page on the live site, rendered
+  headless: September's eleven releases grouped by day with time,
+  English and Chinese names and links to the series and categories
+  each updates, month navigation present. No fetch has failed since
+  the round 175 deploy across five boot ingests. Nothing to fix.
