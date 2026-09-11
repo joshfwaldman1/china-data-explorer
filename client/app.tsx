@@ -458,6 +458,9 @@ function csvOf(results: SeriesResult[], tracks: Track[], notes: string[]): strin
 
 function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; route: Route; saved: string[]; recent: string[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // On a phone the catalog is a panel above the page; following a link in it closes it, so the
+  // reader lands on the series rather than under the catalog.
+  useEffect(() => { setMobileOpen(false); }, [routeHash(props.route)]);
   const groups = new Map<string, CuratedEntry[]>();
   for (const entry of props.curated) groups.set(entry.group, [...(groups.get(entry.group) ?? []), entry]);
   const activeKey = props.route.view === "series" ? splitSpec(props.route.keys[0] ?? "").key : "";
