@@ -1575,3 +1575,9 @@ not from scratch. Rounds are small on purpose.
   release the site will not pick up. The row now adds "not refreshed on
   this deployment, which does not run AkShare", matching the page's
   notice. Verified live on both the real estate and electricity pages.
+- 2026-09-11 round 163: audited `/api/status` on the live site at 10:05.
+  No failures today; the store holds 1,315,273 observations and the
+  fetch log 31,901 rows; the latest runs are the 10:02 deploy's boot
+  ingest, mid-way through the provinces, all ok; the cold summary took
+  13 s during that ingest as in rounds 105 and 129. The 10:10 headline
+  sweep was still ahead. Nothing to fix.
