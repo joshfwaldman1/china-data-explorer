@@ -1565,3 +1565,13 @@ not from scratch. Rounds are small on purpose.
   mean 4.27, Tibet 6.3 at the top and Hainan 2.0 at the bottom, against
   national growth of 4.7, which is consistent for an unweighted spread;
   the regional store was refreshed at 09:51 today. Nothing to fix.
+- 2026-09-11 round 162: checked the next-release rows on three headline
+  series the 15 September releases will update but whose keys sit
+  under different releases: electricity output (energy production),
+  the real estate climate index (real estate development and sales)
+  and unemployment (the monthly bundle). All three name the right
+  release. One overpromise: the real estate climate index comes through
+  AkShare, which this deployment does not run, so its row announced a
+  release the site will not pick up. The row now adds "not refreshed on
+  this deployment, which does not run AkShare", matching the page's
+  notice. Verified live on both the real estate and electricity pages.
