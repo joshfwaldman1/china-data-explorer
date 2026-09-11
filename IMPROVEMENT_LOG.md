@@ -1379,3 +1379,11 @@ not from scratch. Rounds are small on purpose.
   chart started at "2017" with no 2016 label. Annual ticks now sit on
   the points' own month. Test added. Verified live: the image reads 2016
   to 2025 with each label on its point.
+- 2026-09-11 round 142: round 141 surfaced the same defect on the page
+  chart, which has its own tick rule: year ticks at January the first,
+  so an annual series' December-dated points sat at the next year's
+  label on views over six years, and under six years were labelled by
+  month ("Dec 19"). An annual chart now puts a year label on each point.
+  Verified live: the population aged 65 chart's labels 2016 to 2025 sit
+  exactly at the line's two ends, and the monthly CPI chart's year ticks
+  are unchanged. The mobile surface moves to the next round.
