@@ -16,11 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- "car sales" ranks automobile output first: the phrase alias maps to
-  汽车销量, which no title carries, so every 汽车 title ties and the shorter
-  wins. The sales series are 汽车销售量 (quarterly, ended 2019) and
-  汽车类商品零售 (monthly, current); point the alias at them. Small, one
-  round (raised 2026-09-11, round 169).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1645,3 +1640,11 @@ not from scratch. Rounds are small on purpose.
   because the snapshot holds only the national monthly and quarterly
   datasets, and "population" pulls in telephone subscribers through the
   model query expansion, not the code; "car sales" is queued.
+- 2026-09-11 round 170: "car sales" led with automobile output because
+  the phrase alias mapped to 汽车销量, a string no title carries, so every
+  汽车 title tied and the shortest, output, won. The alias now names the
+  two sales tables, 汽车类商品零售 (retail sales of automobiles, monthly,
+  current) and 汽车销售量 (automobile sales in units, quarterly, ended
+  2019); the older duplicate alias line was removed. Verified live: the
+  four monthly retail sales of automobiles lines lead, the quarterly
+  unit sales follow, and "cars" still leads with automobile output.
