@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -448,24 +448,6 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
 
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-function csvOf(results: SeriesResult[], tracks: Track[], notes: string[]): string {
-  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
-  const head = [
-    `# Series: ${results.map((result) => result.title).join(" | ")}`,
-    `# Unit: ${[...new Set(results.map((result) => result.unit))].join(" | ")}`,
-    `# Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}`,
-    ...notes.map((note) => `# Note: ${note}`),
-    `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
-  ];
-  const frequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
-  const keyed = tracks.map((track) => new Map(track.points.map((point) => [canonicalPeriod(point.p, frequency), point.v])));
-  const periods = [...new Set(keyed.flatMap((points) => [...points.keys()]))].sort((a, b) => periodTime(a) - periodTime(b));
-  const lines = [["period", ...tracks.map((track) => track.name)].map(quote).join(",")];
-  for (const period of periods) {
-    lines.push([period, ...keyed.map((points) => { const value = points.get(period); return value === undefined ? "" : String(value); })].map(quote).join(","));
-  }
-  return [...head, ...lines].join("\n");
-}
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
@@ -1111,7 +1093,7 @@ function SeriesPage(props: {
   const downloadItems = [
     {
       label: "Download CSV",
-      onSelect: () => downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(results, tracks, built.notes)], { type: "text/csv;charset=utf-8" })),
+      onSelect: () => downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(results.map((result) => ({ title: result.title, unit: result.unit, agency: result.agency, region: result.region && result.region.value !== "000000000000" ? regionLabel(result.region) : undefined })), tracks, built.notes)], { type: "text/csv;charset=utf-8" })),
     },
     {
       label: "Download JSON",

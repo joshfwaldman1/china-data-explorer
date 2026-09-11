@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { canonicalPeriod, convertTrack, deltaText, coarsestFrequency, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, releaseTime, type Track } from "./lib.ts";
+import { canonicalPeriod, convertTrack, csvOf, deltaText, coarsestFrequency, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -83,4 +83,16 @@ test("a release is upcoming until its China Standard Time instant has passed", (
   expect(isUpcoming("2026-09-09 09:30:00", morning)).toBe(true);
   expect(isUpcoming("2026-09-09 09:30:00", evening)).toBe(false);
   expect(isUpcoming("not a date", morning)).toBe(false);
+});
+
+test("the CSV header names the region when a series carries one", () => {
+  const track: Track = { id: "a", name: "New homes (YoY %)", unit: "%", frequency: "Monthly", color: "#000", dash: "", points: [{ t: periodTime("2026-06"), v: -3.4, p: "2026-06" }, { t: periodTime("2026-07"), v: -2.3, p: "2026-07" }] };
+  const meta = { title: "New Home Prices, 70 Cities", unit: "Percent change from year ago", agency: "National Bureau of Statistics" };
+  const beijing = csvOf([{ ...meta, region: "Beijing" }], [track], []);
+  expect(beijing.split("\n")[1]).toBe("# Region: Beijing");
+  expect(beijing).toContain('"period","New homes (YoY %)"');
+  expect(beijing.trim().split("\n").at(-1)).toBe('"2026-07","-2.3"');
+  // National series say nothing about a region, and two regions are listed together.
+  expect(csvOf([meta], [track], []).split("\n")[1]).toBe("# Unit: Percent change from year ago");
+  expect(csvOf([{ ...meta, region: "Beijing" }, { ...meta, region: "Shanghai" }], [track], []).split("\n")[1]).toBe("# Region: Beijing | Shanghai");
 });

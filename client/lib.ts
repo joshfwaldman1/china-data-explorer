@@ -159,3 +159,32 @@ export function isUpcoming(text: string, now = Date.now()): boolean {
   const at = releaseTime(text);
   return Number.isFinite(at) && at > now;
 }
+
+/** What the CSV header needs from each charted series; the caller resolves the region's English name. */
+export interface CsvSeriesMeta { title: string; unit: string; agency: string; region?: string }
+
+/**
+ * The charted series as CSV: a commented header (series, region, unit, source, notes, retrieval
+ * date), then one row per period with a column per track. The region line appears only when a
+ * series carries one, so a file of Beijing's house prices says Beijing.
+ */
+export function csvOf(results: CsvSeriesMeta[], tracks: Track[], notes: string[]): string {
+  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const regions = [...new Set(results.map((result) => result.region ?? "").filter(Boolean))];
+  const head = [
+    `# Series: ${results.map((result) => result.title).join(" | ")}`,
+    ...(regions.length > 0 ? [`# Region: ${regions.join(" | ")}`] : []),
+    `# Unit: ${[...new Set(results.map((result) => result.unit))].join(" | ")}`,
+    `# Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}`,
+    ...notes.map((note) => `# Note: ${note}`),
+    `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
+  ];
+  const frequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
+  const keyed = tracks.map((track) => new Map(track.points.map((point) => [canonicalPeriod(point.p, frequency), point.v])));
+  const periods = [...new Set(keyed.flatMap((points) => [...points.keys()]))].sort((a, b) => periodTime(a) - periodTime(b));
+  const lines = [["period", ...tracks.map((track) => track.name)].map(quote).join(",")];
+  for (const period of periods) {
+    lines.push([period, ...keyed.map((points) => { const value = points.get(period); return value === undefined ? "" : String(value); })].map(quote).join(","));
+  }
+  return [...head, ...lines].join("\n");
+}
