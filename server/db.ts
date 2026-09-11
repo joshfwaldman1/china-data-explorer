@@ -403,7 +403,11 @@ export function dbHealth(): { ok: boolean; observations: number; lastFetch: stri
   const now = Date.now();
   if (cachedStatus && cachedStatusAt > healthCountAt) { healthCount = cachedStatus.totals.observations; healthCountAt = cachedStatusAt; }
   if (now - healthCountAt >= STATUS_TTL_MS) {
-    const row = database.query<{ observations: number }, []>("SELECT COUNT(*) AS observations FROM observations").get();
+    // The highest rowid, not COUNT(*): the table is append-only (rows are never deleted by code), so
+    // the two agree to within a handful of rows, and COUNT(*) walks the whole 450 MB table, which on
+    // a fresh container's cold volume took 13 to 16 s on the first health calls after each deploy.
+    // The status page's exact count replaces this figure whenever it is fresher (above).
+    const row = database.query<{ observations: number | null }, []>("SELECT MAX(rowid) AS observations FROM observations").get();
     healthCount = row?.observations ?? 0;
     healthCountAt = now;
   }
