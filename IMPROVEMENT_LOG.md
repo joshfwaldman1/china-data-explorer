@@ -1590,3 +1590,12 @@ not from scratch. Rounds are small on purpose.
   does not run." Both render right. One render needed a longer download
   wait on this machine, which is a tooling note, not a site one. Nothing
   to fix.
+- 2026-09-11 round 165: exercised the mobile catalog toggle at 390 px on
+  the live site, the one phone interaction no mobile round had tried.
+  Opening it lays the catalog out at 390 px with no element past the
+  edge and the toggle reports expanded. One defect: after a link in the
+  panel was followed, the panel stayed open on the new page, so the
+  reader landed under 560 pixels of catalog. The panel now closes on
+  any route change. Verified live: after choosing GDP from the open
+  panel, the GDP page shows with the toggle collapsed and the catalog at
+  zero height.
