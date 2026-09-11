@@ -706,14 +706,18 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
   const freqs = (props.stats?.datasets ?? []).map((dataset) => dataset.frequency).filter((value, index, list) => list.indexOf(value) === index);
   const geos = (props.stats?.datasets ?? []).map((dataset) => dataset.geography).filter((value, index, list) => list.indexOf(value) === index);
   const set = (patch: Partial<Extract<Route, { view: "search" }>>) => props.navigate({ ...props.route, ...patch });
+  // The facet counts are whole-catalog totals; beside a query or a category they read as counts
+  // within it ("Monthly (8,776)" on an 88-series category), so they show only on the full list.
+  const wholeCatalog = !props.route.q && !props.route.cat;
+  const withCount = (label: string, count: number) => (wholeCatalog ? `${label} (${count.toLocaleString("en-US")})` : label);
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span>{props.route.cat ? <><a href="#/browse">Categories</a><span aria-hidden="true">›</span><span><Zh>{props.route.cat}</Zh></span></> : <span>Search</span>}</div>
       <h1>{props.route.cat && catEn ? <>{catEn}<Zh className="gloss">{props.route.cat}</Zh></> : CJK.test(title) ? <Zh>{title}</Zh> : title}</h1>
       <div className="facets">
-        <select aria-label="Frequency" value={props.route.freq} onChange={(event) => set({ freq: event.target.value })}><option value="">All frequencies</option>{freqs.map((freq) => <option key={freq} value={freq}>{freq} ({(props.stats?.datasets.filter((dataset) => dataset.frequency === freq).reduce((sum, dataset) => sum + dataset.count, 0) ?? 0).toLocaleString("en-US")})</option>)}</select>
+        <select aria-label="Frequency" value={props.route.freq} onChange={(event) => set({ freq: event.target.value })}><option value="">All frequencies</option>{freqs.map((freq) => <option key={freq} value={freq}>{withCount(freq, props.stats?.datasets.filter((dataset) => dataset.frequency === freq).reduce((sum, dataset) => sum + dataset.count, 0) ?? 0)}</option>)}</select>
         {geos.length > 1 && <select aria-label="Region" value="" onChange={() => undefined}>{geos.map((geo) => <option key={geo}>{geo}</option>)}</select>}
-        {props.stats && props.stats.datasets.length > 1 && <select aria-label="Dataset" value={props.route.dataset} onChange={(event) => set({ dataset: event.target.value })}><option value="">All datasets</option>{props.stats.datasets.map((dataset) => <option key={dataset.code} value={String(dataset.code)}>{dataset.geography} {dataset.frequency.toLowerCase()} ({dataset.count.toLocaleString("en-US")})</option>)}</select>}
+        {props.stats && props.stats.datasets.length > 1 && <select aria-label="Dataset" value={props.route.dataset} onChange={(event) => set({ dataset: event.target.value })}><option value="">All datasets</option>{props.stats.datasets.map((dataset) => <option key={dataset.code} value={String(dataset.code)}>{withCount(`${dataset.geography} ${dataset.frequency.toLowerCase()}`, dataset.count)}</option>)}</select>}
         {(props.route.freq || props.route.cat || props.route.dataset) && <button className="button" onClick={() => props.navigate({ view: "search", q: props.route.q, freq: "", cat: "", dataset: "" })}>Clear filters</button>}
       </div>
       <p className="result-count" role="status" aria-live="polite">{status === "loading" ? "Searching…" : status === "error" ? "" : response && response.total > 0 ? `Showing ${response.results.length.toLocaleString("en-US")} of ${response.total.toLocaleString("en-US")} series` : ""}</p>
