@@ -1581,3 +1581,12 @@ not from scratch. Rounds are small on purpose.
   ingest, mid-way through the provinces, all ok; the cold summary took
   13 s during that ingest as in rounds 105 and 129. The 10:10 headline
   sweep was still ahead. Nothing to fix.
+- 2026-09-11 round 164: audited the share image with two live renders not
+  yet covered: a series with a long English title (foreign and
+  HMT-invested enterprises' current assets, same period last year),
+  which fits its line with 190K-style axis labels for hundred-million
+  yuan, and the AkShare real estate climate index, whose note reads
+  "Last value Dec 2025; refreshed through AkShare, which this deployment
+  does not run." Both render right. One render needed a longer download
+  wait on this machine, which is a tooling note, not a site one. Nothing
+  to fix.
