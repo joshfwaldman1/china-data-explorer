@@ -455,7 +455,12 @@ export const CATALOG: Record<string, Indicator> = {
     title: "Official Foreign Exchange Reserves", agency: "People's Bank of China",
     frequency: "Monthly", unit: "Hundred million USD (亿美元)",
     reportName: "RPT_ECONOMY_GOLD_CURRENCY",
-    fields: [{ field: "FOREX", label: "FX reserves (100M USD)" }],
+    // The same PBOC release carries gold reserves valued in US dollars; the synonyms
+    // promise "gold reserves", so the series carries them.
+    fields: [
+      { field: "FOREX", label: "FX reserves (100M USD)" },
+      { field: "GOLD_RESERVES", label: "Gold reserves (100M USD)" },
+    ],
   },
   real_estate: {
     kind: "aktools", group: "Property",
