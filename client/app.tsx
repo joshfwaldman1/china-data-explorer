@@ -174,6 +174,7 @@ const ABOUT: Record<string, string> = {
   new_loans: "New yuan-denominated loans extended by financial institutions in the month, from the PBOC. Strongly seasonal: January is always the largest month.",
   trade: "Merchandise exports and imports in US dollar terms, year over year, from the General Administration of Customs. Lunar New Year timing shifts January and February.",
   forex_reserves: "Official foreign exchange reserves held by the PBOC, in US dollars. Valuation effects from currency and bond prices move the total even with no intervention.",
+  gold_reserves: "Official gold reserves held by the PBOC, valued in US dollars at market prices, so the series moves with the gold price as well as with purchases. The PBOC reports holdings in troy ounces; this is the dollar value from the same monthly release.",
   real_estate: "The national real estate climate index compiled by NBS from investment, sales, construction and financing indicators. 100 is neutral; below 95 is weak.",
   pmi: "The official NBS manufacturing purchasing managers' index, a diffusion index where 50 separates expansion from contraction. Weighted toward large state-owned firms.",
   caixin_pmi: "The Caixin/S&P Global manufacturing PMI, a private survey weighted toward smaller, export-oriented private firms. Often diverges from the official PMI.",

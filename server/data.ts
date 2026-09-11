@@ -54,7 +54,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   money_supply: ["money supply", "m1", "m2", "liquidity", "broad money", "货币供应量", "广义货币"],
   new_loans: ["new loans", "credit", "bank lending", "yuan loans", "新增贷款", "人民币贷款", "信贷"],
   trade: ["trade", "exports", "imports", "trade balance", "customs", "进出口", "出口", "进口", "贸易"],
-  forex_reserves: ["forex reserves", "foreign exchange reserves", "fx reserves", "gold reserves", "外汇储备", "黄金储备"],
+  forex_reserves: ["forex reserves", "foreign exchange reserves", "fx reserves", "外汇储备"],
+  gold_reserves: ["gold reserves", "gold", "pboc gold", "黄金储备", "黄金"],
   real_estate: ["real estate", "property", "housing", "real estate climate", "房地产", "国房景气指数", "楼市"],
   pmi: ["pmi", "manufacturing pmi", "purchasing managers", "factory activity", "采购经理指数", "制造业"],
   caixin_pmi: ["caixin", "caixin pmi", "private pmi", "财新", "财新制造业"],
@@ -455,12 +456,16 @@ export const CATALOG: Record<string, Indicator> = {
     title: "Official Foreign Exchange Reserves", agency: "People's Bank of China",
     frequency: "Monthly", unit: "Hundred million USD (亿美元)",
     reportName: "RPT_ECONOMY_GOLD_CURRENCY",
-    // The same PBOC release carries gold reserves valued in US dollars; the synonyms
-    // promise "gold reserves", so the series carries them.
-    fields: [
-      { field: "FOREX", label: "FX reserves (100M USD)" },
-      { field: "GOLD_RESERVES", label: "Gold reserves (100M USD)" },
-    ],
+    fields: [{ field: "FOREX", label: "FX reserves (100M USD)" }],
+  },
+  gold_reserves: {
+    kind: "eastmoney", group: "Trade & External", home: false,
+    title: "Official Gold Reserves", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元)",
+    // The same PBOC release as FX reserves; its own series rather than a second line there,
+    // since gold at a tenth of the FX total flattened the FX line on a shared axis.
+    reportName: "RPT_ECONOMY_GOLD_CURRENCY",
+    fields: [{ field: "GOLD_RESERVES", label: "Gold reserves (100M USD)" }],
   },
   real_estate: {
     kind: "aktools", group: "Property",
