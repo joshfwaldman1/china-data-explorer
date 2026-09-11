@@ -1705,3 +1705,32 @@ not from scratch. Rounds are small on purpose.
   set; the last-refresh field is still null because no mapped release
   has occurred since round 45 recorded it, so 15 September is its first
   test. Nothing to fix.
+- 2026-09-11 round 175: audited `/api/status` on the live site. No
+  failed runs in the latest twenty; the failure list held the expected
+  AkShare skips plus one pattern: the 70-city house price refresh had
+  failed nine times since 9 September on its first region, the 70-city
+  average, with "the socket connection was closed unexpectedly", and
+  recovered on the next region's download a minute later. The average
+  region is the one that triggers the 27-page table download, nine pages
+  in flight at once; the same bursts succeed from a residential IP, so
+  the drops belong to the deployment's network. A failed page was
+  retried once at once; it is now retried twice after 2 and 6 second
+  pauses, and pages load five at a time. A local ingest of all 71
+  regions passed through the changed loader. Deployed with `railway up`.
+  Verified live: the new container's boot ingest loaded the average
+  region first time (374 points) and no fetch has failed since.
+- 2026-09-11 round 176: audited the share image with a live render no
+  round had covered, a two-province compare (Guangdong and Shanghai,
+  10 years). Title names both provinces, subtitle carries the unit,
+  frequency and Q2 2016 to Q2 2026 span, dashed second line, end labels
+  5.6 and 4.5, source, URL and retrieval date all right. The 44 layout
+  and palette tests pass. Nothing to fix.
+- 2026-09-11 round 177: mobile at 390 px on the live site, three pages
+  no mobile round had rendered: the two-province compare, a 70-city
+  house price city page and a search results page. No element crosses
+  the right edge and the document is 390 px wide on all three. One
+  defect on the provincial GDP page: a Related Series heading with
+  nothing under it, because the curated branch rendered the section
+  whenever the series was curated, and provincial GDP is alone in its
+  group. The section now needs at least one sibling, as the NBS catalog
+  pages already required. Deployed with `railway up`.
