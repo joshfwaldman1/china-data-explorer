@@ -811,7 +811,7 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Releases</span></div>
       <h1>NBS Release Calendar</h1>
       <p className="lede">Official publication schedule, China Standard Time. Each release links to the series it updates.</p>
-      <div className="month-nav"><button className="button" onClick={() => shift(-1)} aria-label="Previous month">‹</button><b>{new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button className="button" onClick={() => shift(1)} aria-label="Next month">›</button></div>
+      <div className="month-nav"><button className="button" onClick={() => shift(-1)} aria-label="Previous month">‹</button><b role="status">{new Date(year ?? now.getFullYear(), (monthIndex ?? 1) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b><button className="button" onClick={() => shift(1)} aria-label="Next month">›</button></div>
       {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading the calendar…</div>}
       {status === "error" && <div className="state"><b>Release calendar unavailable</b><p>NBS didn't respond. The schedule is also published at <a href="https://www.stats.gov.cn/sj/fbrc/" target="_blank" rel="noreferrer">stats.gov.cn</a>.</p><div className="actions"><button className="button" onClick={() => shift(0)}>Try again</button></div></div>}
       {status === "ok" && grouped.size === 0 && (month > `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
