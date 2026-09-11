@@ -1506,3 +1506,12 @@ not from scratch. Rounds are small on purpose.
   (chart-2) and 6.3:1 (the new chart-3), above the 3:1 floor for 2 px
   lines; amber 7.4:1, muted ink 7.5:1, faint 6.5:1, the strong line
   5.6:1 and body ink 13.8:1. Nothing to fix.
+- 2026-09-11 round 156: probed the chart itself for screen readers on the
+  live site, the one part of the series page no accessibility round had
+  read. The SVG is focusable with a title and a description, the arrow
+  keys step a tooltip from point to point (Recharts 3's accessibility
+  layer), the range buttons sit in a group named Date range, and the
+  Chart and Table tabs form a tablist named View. One gap: the
+  description pointed only to the Table tab, so a screen reader user had
+  no way to learn the keyboard path. It now reads "Arrow keys step
+  through the points; the Table tab lists the values." Verified live.
