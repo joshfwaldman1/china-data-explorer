@@ -387,12 +387,16 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const times = shown.flatMap((track) => track.points.map((point) => point.t));
   const min = Math.min(...times), max = Math.max(...times);
   const spanYears = (max - min) / (365.25 * 86400000);
+  // Annual points are dated December of their year, so their year labels sit on the points themselves
+  // rather than at the following January, where each value would read a year late.
+  const annual = shown.length > 0 && shown.every((track) => track.frequency === "Annual");
   const tick = (value: number) => {
     const date = new Date(value);
-    return spanYears > 6 ? String(date.getUTCFullYear()) : date.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+    return annual || spanYears > 6 ? String(date.getUTCFullYear()) : date.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
   };
-  const ticks = spanYears > 6
-    ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => Date.UTC(new Date(min).getUTCFullYear() + index, 0, 1)).filter((value) => value >= min && value <= max)
+  const tickMonth = annual ? new Date(min).getUTCMonth() : 0;
+  const ticks = annual || spanYears > 6
+    ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => Date.UTC(new Date(min).getUTCFullYear() + index, tickMonth, 1)).filter((value) => value >= min && value <= max)
     : undefined;
   const hasZero = isRate(props.unit) && !props.logScale;
   const shownValues = shown.flatMap((track) => track.points.map((point) => point.v));
