@@ -1413,3 +1413,12 @@ not from scratch. Rounds are small on purpose.
   element. It is now a status region. Verified live: the label carries
   the status role and reads "October 2026" after Next month, with the
   month in the URL.
+- 2026-09-11 round 146: audited the docs against the code since round
+  134. Undocumented: annual points dated December with their year label
+  on the point, on both the share image and the page chart (rounds 141
+  and 142), and the Provinces page's fallback from a quarter the store
+  lacks (138). AGENTS.md's FRED and series URL paragraphs now carry
+  them. The seasonal tag on annual series (136), the Customs
+  abbreviation (137), the dark chart-3 token (144) and the calendar's
+  month status region (145) are interface details needing no doc. Docs
+  only, no deploy.
