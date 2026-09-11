@@ -22,6 +22,11 @@ not from scratch. Rounds are small on purpose.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).
+- Legibility: split `client/app.tsx` (1,603 lines, 57 functions) into one
+  file per page plus a shared chart file, and `server/nbs-catalog.ts`
+  (1,193 lines) into loading, families, search and glossing; reflow the
+  JSX lines over 200 characters. Mechanical, one page per round (owner's
+  call, raised 2026-09-11).
 
 ## Log
 
@@ -1522,3 +1527,18 @@ not from scratch. Rounds are small on purpose.
   chart's keyboard path (156). AGENTS.md's search, gloss and transform
   paragraphs now carry the first three, and the README gains a keyboard
   and screen reader bullet for the last. Docs only, no deploy.
+- 2026-09-11 round 158: audited search for ten single-word queries on
+  the live site (profits, investment, revenue, exports, prices,
+  employment, wages, output, sales, debt). Nine led sensibly; "revenue"
+  leads with an industry software line where the reader's intent is
+  ambiguous, left as is. Defect: "investment" led with the enterprise
+  "Investment income" line, because its alias was the broad 投资, which
+  both tables contain, and the shorter English title won the tie. The
+  alias now names 固定资产投资 first, and a hit on a word's first alias
+  carries a small bonus, the size of the leading-concept one, so the
+  primary meaning edges out later ones. Test added; the 103 earlier
+  tests still pass. Verified live: "investment" leads with fixed-asset
+  investment, "investment income" and "real estate investment" keep
+  their tables, and "cars" and "inflation" still lead with automobile
+  output and CPI. Queued the legibility split raised by the owner's
+  question as an owner's call.
