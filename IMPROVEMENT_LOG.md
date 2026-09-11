@@ -2015,3 +2015,15 @@ not from scratch. Rounds are small on purpose.
   industrial production 4.5% July, retail sales 0.6% July, exports 25.0%
   August: all unchanged from this morning, and no fetch has failed.
   Queued the derived January as an owner's call.
+- 2026-09-11 round 208: search quality in Chinese, ten queries an
+  economist would type (汽车产量, 水泥产量, 居民消费价格, 城镇调查失业率,
+  社会消费品零售总额, 进出口, 固定资产投资, 猪肉价格, 新能源汽车). Nine
+  lead with the right series. Defect: 规模以上工业增加值 returned nothing,
+  because NBS states the above-designated-size scope in a table's
+  annotation and never in a title, and annotations are not searched.
+  The qualifiers 规模以上 and 限额以上, and a leading 全国, are dropped from
+  a query when something is left to search for; 全国 alone still searches
+  for the national total. Test added; 139 pass. Deployed with `railway
+  up`. Verified live: 规模以上工业增加值 leads with Industrial Production
+  (149 hits), 全国粗钢产量 with crude steel output, and 全国 alone and
+  汽车产量 are unchanged.
