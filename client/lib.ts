@@ -5,7 +5,12 @@
 
 export interface SeriesPoint { date: string; value: number; }
 
-export interface Track { id: string; name: string; unit: string; frequency: string; color: string; dash: string; points: { t: number; v: number; p: string }[]; }
+export interface Track {
+  id: string; name: string; unit: string; frequency: string; color: string; dash: string;
+  points: { t: number; v: number; p: string }[];
+  /** True when February holds the combined January-February figure, so a first quarter of two readings is whole. */
+  combinedFebruary?: boolean;
+}
 
 export function isRate(unit: string): boolean { return /%|percent|index|=100/i.test(unit); }
 
@@ -90,10 +95,13 @@ export function convertTrack(track: Track, target: TargetFrequency, agg: Aggrega
     const month = new Date(point.t).getUTCMonth() + 1;
     if (target === "Annual" ? month === 12 : month % 3 === 0) closed.add(key);
   }
-  // Complete means the closing month is present and at most one reading is missing: NBS
-  // publishes January and February together for industrial output, so a year of it has
-  // eleven monthly points and a first quarter two, and both are whole periods.
-  const points = [...groups.entries()].filter(([key, values]) => closed.has(key) && values.length >= need - 1).map(([key, values]) => ({
+  // Complete means the closing month is present and every reading is in, with one exception:
+  // a series whose February holds the combined January-February figure has eleven points in a
+  // year and two in a first quarter, and both are whole. A series that publishes a single
+  // February and no January (passenger traffic) is genuinely short a month, and summing it
+  // would understate the quarter, so those periods are dropped.
+  const allowed = need - (track.combinedFebruary ? 1 : 0);
+  const points = [...groups.entries()].filter(([key, values]) => closed.has(key) && values.length >= allowed).map(([key, values]) => ({
     p: key, t: periodTime(key),
     v: agg === "sum" ? values.reduce((a, b) => a + b, 0) : agg === "last" ? (values[values.length - 1] ?? 0) : values.reduce((a, b) => a + b, 0) / values.length,
   })).sort((a, b) => a.t - b.t);

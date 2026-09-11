@@ -1986,3 +1986,14 @@ not from scratch. Rounds are small on purpose.
   unit suffix, "Crude steel output, growth from a year ago, %, computed
   on a scope...". The trailing ", %" is dropped where the name sits in a
   sentence. Queued: the note names the series but does not link to it.
+- 2026-09-11 round 206: a consequence of round 203. Frequency
+  conversion counted a period whole when one reading was missing, which
+  is right for a series whose February holds the combined
+  January-February figure (a first quarter of two readings is the whole
+  quarter) but wrong for one that publishes a single February and no
+  January: with the fill gone, passenger traffic's first quarter would
+  have summed February and March and understated the quarter by
+  January, about 135,000 of 415,000. The tolerance now follows the
+  `februaryFrom` flag, carried to the chart as `Track.combinedFebruary`;
+  a series without it must have every reading. Tests added and the
+  existing conversion test marked; 138 pass.

@@ -27,9 +27,10 @@ test("monthly to quarterly averages, dropping an incomplete final quarter", () =
 
 test("a year or quarter missing one reading still converts, an open-ended one does not", () => {
   // NBS publishes January and February of industrial output together, so each year has eleven
-  // monthly points and each first quarter two.
+  // monthly points and each first quarter two. Such a series is marked combinedFebruary, which is
+  // what lets a period one reading short still count as whole.
   const noJanuary = (year: number): Track["points"] => Array.from({ length: 11 }, (_, i) => ({ t: Date.UTC(year, i + 1, 1), v: i + 1, p: `${year}-${String(i + 2).padStart(2, "0")}` }));
-  const track: Track = { ...monthly([]), points: [...noJanuary(2024), ...noJanuary(2025), { t: Date.UTC(2026, 1, 1), v: 1, p: "2026-02" }, { t: Date.UTC(2026, 2, 1), v: 3, p: "2026-03" }, { t: Date.UTC(2026, 3, 1), v: 5, p: "2026-04" }] };
+  const track: Track = { ...monthly([]), combinedFebruary: true, points: [...noJanuary(2024), ...noJanuary(2025), { t: Date.UTC(2026, 1, 1), v: 1, p: "2026-02" }, { t: Date.UTC(2026, 2, 1), v: 3, p: "2026-03" }, { t: Date.UTC(2026, 3, 1), v: 5, p: "2026-04" }] };
   expect(convertTrack(track, "Annual", "avg").points.map((p) => p.p)).toEqual(["2024", "2025"]);
   const quarters = convertTrack(track, "Quarterly", "avg").points.map((p) => p.p);
   expect(quarters.slice(0, 4)).toEqual(["2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"]);
@@ -95,4 +96,20 @@ test("the CSV header names the region when a series carries one", () => {
   // National series say nothing about a region, and two regions are listed together.
   expect(csvOf([meta], [track], []).split("\n")[1]).toBe("# Unit: Percent change from year ago");
   expect(csvOf([{ ...meta, region: "Beijing" }, { ...meta, region: "Shanghai" }], [track], []).split("\n")[1]).toBe("# Region: Beijing | Shanghai");
+});
+
+test("a quarter of two monthly readings counts only when February is the combined figure", () => {
+  const monthly = (dates: string[]): Track => ({
+    id: "t", name: "t", unit: "万人", frequency: "Monthly", color: "#000", dash: "",
+    points: dates.map((date) => ({ t: periodTime(date), v: 10, p: date })),
+  });
+  const firstQuarter = ["2026-02", "2026-03"];
+  // A series whose February is the combined January-February figure: the quarter is whole, and
+  // summing the two readings is the quarter's total.
+  const combined = { ...monthly(firstQuarter), combinedFebruary: true };
+  expect(convertTrack(combined, "Quarterly", "sum").points.map((point) => point.p)).toEqual(["2026-Q1"]);
+  expect(convertTrack(combined, "Quarterly", "sum").points[0]?.v).toBe(20);
+  // A series that publishes a single February and no January is short a month, so the quarter goes.
+  expect(convertTrack(monthly(firstQuarter), "Quarterly", "sum").points).toEqual([]);
+  expect(convertTrack(monthly(["2026-01", ...firstQuarter]), "Quarterly", "sum").points.map((point) => point.p)).toEqual(["2026-Q1"]);
 });

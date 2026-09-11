@@ -369,6 +369,9 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
         id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length === 1 ? displayTitle(result, results) : labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
+        // februaryFrom marks a February taken from the year-to-date sibling, which is the combined
+        // January-February figure; only such a series has a whole quarter in two monthly readings.
+        combinedFebruary: result.metadata?.februaryFrom !== undefined,
       });
     }
   }
