@@ -1917,3 +1917,42 @@ not from scratch. Rounds are small on purpose.
 - 2026-09-11 round 199: docs. AGENTS.md carries the gold series (193),
   configured labels on store reads (198) and the client's copy of the
   unit dictionary (197). Docs only, no deploy.
+- 2026-09-11 round 200: the CSV download, a surface no round had opened.
+  The header carried the series title, unit, source, notes and retrieval
+  date but never the region, so a file of Beijing's home prices was
+  indistinguishable from any other city's, and the same for a province's
+  GDP. A Region line is added when a series carries a non-national
+  region. The builder moved from app.tsx into lib.ts, where a test now
+  covers it. Deployed with `railway up`. Verified live: the Beijing
+  house price CSV reads "# Region: Beijing" above the unit, 193 lines,
+  last row 2026-07.
+- 2026-09-11 round 201: audited the revision trails of ten headline
+  series, the surface the append-only store exists for. Nine hold no
+  revisions. Money supply holds two, and they are not revisions: M1 and
+  M2 both read 0.0 for July 2026 at 09:02 on 10 September and the real
+  4.0 and 7.7 ten minutes later, so the mirror served a bad body and the
+  store archived it. The Eastmoney table pads nothing today, and the
+  parser already skips null and empty, so this was a transient. The
+  ingest now rejects a fetch whose every series reads exactly 0 for its
+  newest period where the store holds a non-zero value, logging it as an
+  error so the next run retries and a source that really published zeros
+  fails visibly rather than quietly rewriting the archive. Rows are
+  never deleted, so the two vintages stand, and the Revisions tab
+  reports them accurately. Test added. Deployed with `railway up`.
+  Verified live: no fetch has failed since, and the trail is unchanged
+  at two entries.
+- 2026-09-11 round 202: checked the site's own transforms against NBS's
+  published growth series, which no round had done. The year-over-year
+  transform was wrong for every monthly NBS activity series: it counted
+  twelve array positions back, and NBS publishes no January (January and
+  February come out together as the February point), so July was
+  compared with the previous June. On crude steel output the site read
+  +111.05% for February 2026 against NBS's published -3.60%, and all
+  fourteen of the last months missed by more than 0.6 points. The
+  comparison period is now looked up by its label (`shiftPeriod`,
+  handling "2026-Q2" from the catalog and "2026-06" from the mirror),
+  and a period whose comparison is missing yields no point, which also
+  removes the false February from "change from previous period". Tests
+  added; 136 pass. Deployed with `railway up`. Verified live against
+  NBS: all twelve shared months now agree, the largest gap 0.18 points
+  from the rounding in the published levels.
