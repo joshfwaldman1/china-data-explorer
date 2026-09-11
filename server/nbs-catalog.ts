@@ -164,6 +164,8 @@ export interface NbsCatalogEntry {
   family?: NbsFamily;
   /** Set on a served series whose February points came from the year-to-date sibling of the same table (the combined January-February figure). */
   februaryFrom?: string;
+  /** The growth series NBS publishes for the same table, when this series is a level. */
+  growthSibling?: { key: string; name: string };
   /** The stored history's first and last periods, attached at search time; absent until the series is stored. */
   firstPeriod?: string;
   lastPeriod?: string;
@@ -1177,6 +1179,23 @@ export function februarySiblingName(name: string): string | null {
   return null;
 }
 
+/**
+ * The name of the growth series NBS publishes for the same table, for a level series
+ * ("粗钢产量当期值 (万吨)" → "粗钢产量同比增长"), or null when the series is not a level.
+ * The unit is dropped: the level is in 万吨 and its growth rate in %, so only the stem matches.
+ */
+export function growthSiblingName(name: string): string | null {
+  const stem = name.replace(/\s*[（(][^（()）]*[)）]\s*$/, "");
+  if (/当期值$/.test(stem)) return stem.replace(/当期值$/, "同比增长");
+  if (/累计值$/.test(stem)) return stem.replace(/累计值$/, "累计增长");
+  return null;
+}
+
+/** A catalog title without its trailing unit, "粗钢产量同比增长 (%)" → "粗钢产量同比增长". */
+export function titleStem(name: string): string {
+  return name.replace(/\s*[（(][^（()）]*[)）]\s*$/, "");
+}
+
 /** The primary's points plus the sibling's February points it lacks, in date order. */
 export function fillFebruary(primary: SeriesPoint[], sibling: SeriesPoint[]): { points: SeriesPoint[]; filled: number } {
   const have = new Set(primary.map((point) => point.date));
@@ -1232,6 +1251,17 @@ export async function getNbsCatalogSeries(options: {
     }
   }
 
+  // A level series has a published growth rate of its own, computed on a comparable scope where
+  // arithmetic on the levels is not; the page links to it so a reader can take NBS's figure.
+  let growthSibling: { key: string; name: string } | undefined;
+  const growthName = growthSiblingName(options.entry.name);
+  if (growthName) {
+    const snapshot = await loadSnapshot();
+    const found = snapshot.entries.find((candidate) =>
+      candidate.cid === options.entry.cid && candidate.geography === options.entry.geography && titleStem(candidate.name) === growthName);
+    if (found) growthSibling = { key: found.key, name: found.nameEn || found.name };
+  }
+
   // Transform over the full history, then slice, so lagged transforms keep
   // their first year instead of losing it to the limit.
   const transformed = transformPoints(points, transform, options.entry.frequency).slice(-limit);
@@ -1239,7 +1269,7 @@ export async function getNbsCatalogSeries(options: {
   return {
     ...rawResult(options.entry, region, transformed),
     unit,
-    metadata: februaryFrom ? { ...options.entry, februaryFrom } : options.entry,
+    metadata: { ...options.entry, ...(februaryFrom ? { februaryFrom } : {}), ...(growthSibling ? { growthSibling } : {}) },
     region,
     transform,
     source,

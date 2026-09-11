@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween, transformPoints, shiftPeriod } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween, transformPoints, shiftPeriod, growthSiblingName, titleStem } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -310,4 +310,13 @@ test("a transform matches the comparison period by label, so a missing January d
   const change = transformPoints(points, "change", "Monthly");
   expect(change.some((point) => point.date === "2026-02")).toBe(false);
   expect(change.find((point) => point.date === "2026-03")?.value).toBe(11);
+});
+
+test("a level series names the growth rate NBS publishes for the same table", () => {
+  // The unit is dropped, since the level is in 万吨 and its growth rate in %.
+  expect(growthSiblingName("粗钢产量当期值 (万吨)")).toBe("粗钢产量同比增长");
+  expect(growthSiblingName("粗钢产量累计值 (万吨)")).toBe("粗钢产量累计增长");
+  expect(titleStem("粗钢产量同比增长 (%)")).toBe("粗钢产量同比增长");
+  expect(growthSiblingName("粗钢产量同比增长 (%)")).toBeNull();
+  expect(growthSiblingName("粗钢产量累计增长 (%)")).toBeNull();
 });

@@ -19,6 +19,7 @@ interface NbsCatalogEntry {
   noteEn?: string; annotationEn?: string; datasetEn?: string; categoriesEn?: string[];
   family?: { head: string; members: string[]; span: string };
   februaryFrom?: string;
+  growthSibling?: { key: string; name: string };
   firstPeriod?: string; lastPeriod?: string;
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
@@ -1064,6 +1065,10 @@ function SeriesPage(props: {
     ...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)),
     ...(curated?.endedNote ? [curated.endedNote] : []),
     ...(meta?.februaryFrom ? ["NBS publishes January and February together. The February point is the combined figure, taken from the year-to-date series of the same table; there is no January point."] : []),
+    // The published growth rate is computed on a comparable scope; the levels are not, because the
+    // set of enterprises above designated size changes each year. Crude steel differs by 0.2 points,
+    // integrated circuits by 12.
+    ...(meta?.growthSibling ? [`NBS publishes a growth rate for this table, ${meta.growthSibling.name}, computed on a scope held comparable with the year before. These levels are on the current scope, so a year-over-year change worked out from them will differ from the published rate.`] : []),
     // The pieces' nominal span is what NBS names them by; the Range row states what they hold, which
     // can start later (a 2003 piece with data from 2007) or leave years uncovered between pieces.
     ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces, nominally ${meta.family.span}; they are joined here into one series, and the Range below is what the pieces hold. Where two pieces overlap, the newer one is used.`] : []),
