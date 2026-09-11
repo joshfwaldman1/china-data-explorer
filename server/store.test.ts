@@ -12,7 +12,7 @@ import { join } from "node:path";
 process.env.CHINA_DB_PATH = join(mkdtempSync(join(tmpdir(), "china-store-")), "test.db");
 process.env.CHINA_SEED = "off"; // start from an empty store, not the seed
 
-const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh, dbHealth, dbStatus, dbStatusWithSeries } = await import("./db.ts");
+const { writeSeries, readSeries, readRevisions, listStoredSeries, seriesFreshness, logFetch, lastReleaseRefresh, dbHealth, dbStatus, dbStatusWithSeries, storedLatest } = await import("./db.ts");
 const { parseEsDataPoints } = await import("./nbs-catalog.ts");
 
 const NATIONAL = "000000000000";
@@ -24,6 +24,16 @@ function result(key: string, label: string, points: { date: string; value: numbe
     frequency: "Monthly", unit: "%", series: [{ label, points }],
   };
 }
+
+test("storedLatest reports the first period and the first non-zero period", () => {
+  writeSeries(result("zeros_t", "全国", [
+    { date: "2016-04", value: 0 }, { date: "2016-05", value: 0 }, { date: "2017-02", value: 3395.6 },
+  ]), NATIONAL, "2026-01-01T00:00:00.000Z");
+  const row = storedLatest("zeros_t").find((item) => item.key === "zeros_t");
+  expect(row?.firstPeriod).toBe("2016-04");
+  expect(row?.firstRealPeriod).toBe("2017-02");
+  expect(row?.lastPeriod).toBe("2017-02");
+});
 
 test("regions of one key are stored and read back separately", () => {
   const first = writeSeries(result("nbs_t", "全国", [

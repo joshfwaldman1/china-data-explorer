@@ -379,10 +379,13 @@ export function attachFamilies(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
  * non-zero value is dropped from a level or index series; a rate keeps its
  * zeros, which can be real, and an all-zero series is left as it came.
  */
-export function dropLeadingPlaceholders(points: SeriesPoint[], entry: Pick<NbsCatalogEntry, "unit" | "name">): SeriesPoint[] {
+export function isRateEntry(entry: Pick<NbsCatalogEntry, "unit" | "name">): boolean {
   const unit = entry.unit.trim();
-  const isRate = unit === "%" || unit === "百分点" || (unit === "无" && !/=\s*100/.test(entry.name));
-  if (isRate) return points;
+  return unit === "%" || unit === "百分点" || (unit === "无" && !/=\s*100/.test(entry.name));
+}
+
+export function dropLeadingPlaceholders(points: SeriesPoint[], entry: Pick<NbsCatalogEntry, "unit" | "name">): SeriesPoint[] {
+  if (isRateEntry(entry)) return points;
   const firstReal = points.findIndex((point) => point.value !== 0);
   return firstReal > 0 ? points.slice(firstReal) : points;
 }
@@ -714,13 +717,13 @@ export function queryVariants(query: string): string[] {
 
 // The stored range per series, refreshed every ten minutes: search ranks
 // current series above discontinued ones and shows each result's span.
-let rangeCache: { at: number; ranges: Map<string, { first: string; last: string }> } | null = null;
-function storedRanges(): Map<string, { first: string; last: string }> {
+let rangeCache: { at: number; ranges: Map<string, { first: string; firstReal: string; last: string }> } | null = null;
+function storedRanges(): Map<string, { first: string; firstReal: string; last: string }> {
   if (rangeCache && Date.now() - rangeCache.at < 10 * 60 * 1000) return rangeCache.ranges;
-  const ranges = new Map<string, { first: string; last: string }>();
+  const ranges = new Map<string, { first: string; firstReal: string; last: string }>();
   for (const row of storedLatest("nbs_")) {
     if (row.region !== "000000000000" || !row.firstPeriod || !row.lastPeriod) continue;
-    ranges.set(row.key, { first: row.firstPeriod, last: row.lastPeriod });
+    ranges.set(row.key, { first: row.firstPeriod, firstReal: row.firstRealPeriod ?? row.firstPeriod, last: row.lastPeriod });
   }
   rangeCache = { at: Date.now(), ranges };
   return ranges;
@@ -739,11 +742,14 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
   const withRange = (entry: NbsCatalogEntry): NbsCatalogEntry => {
     const own = ranges.get(entry.key);
     if (!own) return entry;
-    // A family head is served stitched with its older slices, so its range starts where the oldest slice starts.
-    let first = own.first;
+    // A family head is served stitched with its older slices, so its range starts where the oldest
+    // slice starts; for a level or index series that is the first non-zero value, the same rule
+    // the page applies when it drops NBS's leading placeholder zeros.
+    const startOf = (range: { first: string; firstReal: string }) => (isRateEntry(entry) ? range.first : range.firstReal);
+    let first = startOf(own);
     for (const member of entry.family?.members ?? []) {
       const range = ranges.get(member);
-      if (range && range.first < first) first = range.first;
+      if (range && startOf(range) < first) first = startOf(range);
     }
     return { ...entry, firstPeriod: first, lastPeriod: own.last };
   };
