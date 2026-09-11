@@ -1760,3 +1760,21 @@ not from scratch. Rounds are small on purpose.
   ranking without a height cap (173) and the Related section needing a
   sibling (177) are interface details needing no doc. Docs only, no
   deploy.
+- 2026-09-11 round 181: search quality, ten researcher queries on the
+  live site. Eight rank well (industrial profits, fixed asset
+  investment, trade surplus, housing starts, rail freight, urban income,
+  foreign direct investment, which honestly leads with the NBS series
+  that ended in 2019). Honestly limited: "consumer confidence" finds
+  only the OECD series because NBS's index is not in the snapshot, and
+  "local government revenue" finds nothing because the monthly tables
+  carry only the national figure. Defect: "soybean" and "egg" found no
+  NBS series while "soybeans" and "eggs" did, because Latin terms
+  matched on word boundaries and the gloss writes the plural. A term
+  now matches with an optional s or es, and a typed plural of four
+  letters or more also tries its singular; aliases for maize and soy
+  added. Test added; 130 pass. Deployed with `railway up`. Verified
+  live: soybean, egg, eggs and maize reach their series, and "house"
+  still does not match household. Also seen: every request from this
+  location pays about a second, of which TCP and TLS are 0.55 s and the
+  server's share about 0.15 s, so the floor is geography, not the site;
+  one `/health` call took 12.9 s during the boot ingest, as before.
