@@ -1878,3 +1878,42 @@ not from scratch. Rounds are small on purpose.
   English and Chinese names and links to the series and categories
   each updates, month navigation present. No fetch has failed since
   the round 175 deploy across five boot ingests. Nothing to fix.
+- 2026-09-11 round 193: the FX reserves page after round 188, rendered
+  headless: with gold at a tenth of the FX total on a shared axis the
+  FX line flattened to a band near 30,000 and gold hugged the floor.
+  Gold reserves are now their own curated series (Official Gold
+  Reserves, PBOC, US dollars, same Eastmoney report, off Home) with the
+  gold synonyms moved to it and a note that the dollar value moves with
+  the gold price as well as with purchases. Deployed with `railway
+  up`. Verified live after the boot ingest: the gold series serves from
+  the store (3,500.8 for August 2026), "gold reserves" leads with it,
+  and it is absent from Home.
+- 2026-09-11 round 194: the Browse page and Home's category section
+  titled every card with the Chinese name and put the English beneath,
+  the reverse of every other surface. The English name now leads where
+  one exists. Deployed with `railway up`. Verified live: the first
+  cards read "Industry 工业" and "Price indices 价格指数" on both pages.
+- 2026-09-11 round 195: the Energy category page showed the frequency
+  and dataset menus as "Monthly (8,776)" and "National monthly (8,776)"
+  beside 88 results, whole-catalog totals reading as counts within the
+  category. Counts now show only on the full list. Verified live: the
+  menus read "Monthly", "Quarterly", "National monthly" on the category
+  page.
+- 2026-09-11 round 196: dark mode on the Browse page after round 194:
+  cards, titles and glosses take the dark tokens (22,31,43 cards,
+  230,235,240 titles, 163,176,189 glosses). Nothing to fix.
+- 2026-09-11 round 197: a result line on the Energy category page read
+  "Monthly, NBS, 亿立方米" for gas output while the LPG line beside it
+  read "10,000 tonnes (万吨)": the client's unit dictionary lacked
+  fifteen of the server's entries. Added. Verified live: the gas line
+  reads "100 million m³ (亿立方米)".
+- 2026-09-11 round 198: the FX reserves page still drew the gold line
+  after round 193, because the store is append-only and the label
+  round 188 stored stayed. Store reads for curated keys now keep only
+  the configured labels (Eastmoney and AkShare fields, NBS ids, the
+  FRED label); the rows stay as the archive. Deployed with `railway up`
+  together with rounds 195 and 197. Verified live: FX reserves serves
+  one line from the store.
+- 2026-09-11 round 199: docs. AGENTS.md carries the gold series (193),
+  configured labels on store reads (198) and the client's copy of the
+  unit dictionary (197). Docs only, no deploy.
