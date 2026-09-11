@@ -24,11 +24,6 @@ not from scratch. Rounds are small on purpose.
   placeholders (textile operating revenue growth, 2016) and keep them,
   since a zero rate can be real; decide a rule, perhaps a run of three or
   more exact zeros before the first non-zero (raised 2026-09-11, round 182).
-- `/health` counts the observations table when its cache is cold, which on a
-  fresh container reads 450 MB from the volume: 12.9 to 15.9 s on the first
-  calls after each deploy today. MAX(rowid) is instant and close enough for
-  a health line; measure the first health call after the next deploy before
-  changing it (raised 2026-09-11, round 182).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -1811,3 +1806,16 @@ not from scratch. Rounds are small on purpose.
   rendered headless after today's deploys: the same values, periods and
   changes as round 172, the regional row naming Guangdong. Nothing to
   fix.
+- 2026-09-11 round 184: queue item, the cold health count. Sampled
+  through two deploys: `/health` took 12.9 to 15.9 s on the first calls
+  after each container switch and about a second otherwise, the cost of
+  COUNT(*) over 1.3 million rows read from a cold volume (the search and
+  status calls beside it were unaffected once the boot ingest ended).
+  The health line now reads MAX(rowid), instant on an append-only table,
+  and still adopts the status page's exact count when that is fresher.
+  Deployed with `railway up`. Verified live: health answers ok with
+  1,315,365 against the exact 1,315,277, the 88 rows a hand deletion
+  removed on 8 September, in under a second. The first call after a
+  switch is Railway's own healthcheck, which the edge hides, so its
+  timing cannot be sampled from outside; the count is gone from the path
+  either way.
