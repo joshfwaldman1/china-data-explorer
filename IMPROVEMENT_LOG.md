@@ -16,10 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Search results show a series' stored first period ("2016-04") where the
-  page now starts at the first real value (2017-02) because leading
-  placeholder zeros are dropped on read; give the results the same rule or
-  store the first real period. Small (raised 2026-09-11, round 182).
 - Rate series in the sliced industry tables carry the same leading 0.0
   placeholders (textile operating revenue growth, 2016) and keep them,
   since a zero rate can be real; decide a rule, perhaps a run of three or
@@ -1819,3 +1815,12 @@ not from scratch. Rounds are small on purpose.
   switch is Railway's own healthcheck, which the edge hides, so its
   timing cannot be sampled from outside; the count is gone from the path
   either way.
+- 2026-09-11 round 185: queue item, the search results' first period.
+  After round 182 the textile operating revenue page opened at February
+  2017 while its search result still said 2016-04, the stored first
+  period. The stored-latest query now also reports the first period
+  with a non-zero value, and search uses it for level and index series
+  (rates keep the stored first period, pending the rate rule). Store
+  test added; 132 pass. Deployed with `railway up`. Verified live: the
+  revenue level and its same-period-last-year sibling say 2017-02, the
+  growth rate still 2016-04, crude steel unchanged at 1989-02.
