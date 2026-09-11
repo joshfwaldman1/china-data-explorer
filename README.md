@@ -83,6 +83,9 @@ families already present in the published snapshot.
   frequency conversion, a combined January-February point), and the source
   and page URL in the footer,
   ready to paste into a tweet or a doc.
+- **Keyboard and screen readers** — every control is named, the chart is
+  focusable and the arrow keys step through its points, the Table tab lists
+  the values, and toasts and empty states are announced.
 
 ## Local JSON API
 
