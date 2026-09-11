@@ -1448,3 +1448,9 @@ not from scratch. Rounds are small on purpose.
   GLOSS_FORMAT bumped to 16; test added. Verified live on the
   construction and real estate value-added indices and the GDP index,
   with "CPI: food, same month a year earlier = 100" unchanged.
+- 2026-09-11 round 149: exercised Home's fallback on the live site, the
+  one Home path no round had run: with the single headline payload
+  blocked in the browser, the page fell back to one request per
+  indicator, eighteen in all, and every hero tile and list row filled
+  with the same values the payload gives (GDP 4.7, CPI 0.8,
+  unemployment 5.2, PMI 49.8, and the fourteen rows). Nothing to fix.
