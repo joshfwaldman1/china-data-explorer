@@ -1956,3 +1956,25 @@ not from scratch. Rounds are small on purpose.
   added; 136 pass. Deployed with `railway up`. Verified live against
   NBS: all twelve shared months now agree, the largest gap 0.18 points
   from the rounding in the published levels.
+- 2026-09-11 round 203: widened round 202's check to five more
+  level-and-growth pairs. Crude steel now agrees with NBS to 0.18
+  points, but passenger traffic was out by 50 points at February 2026.
+  Cause: the February fill. NBS publishes a single-month February for
+  that series in most years but not in 2024 and 2025, so the fill put
+  the year-to-date sibling's January-February total (276,370) beside
+  the series' own single February (139,505), mixing one-month and
+  two-month readings. Only a series that carries no February at all is
+  filled now. Test added. Deployed with `railway up`. Verified live:
+  the filled Februaries are gone, the page reports no `februaryFrom`,
+  and the false -49.5% year-over-year point is gone with them.
+- 2026-09-11 round 204: the gaps that remain between arithmetic
+  year-over-year on a level and NBS's published growth (cement 2.5
+  points, coal 1.7, electricity 2.1, integrated circuits 12.0) are not
+  a bug: the catalog's own annotation says the sample is enterprises
+  above designated size, whose membership changes every year, and NBS
+  computes growth on a scope held comparable with the year before while
+  publishing levels on the current scope. A level series now carries a
+  note naming the published growth series for its table, so a reader
+  can take NBS's figure instead of working one out. The sibling is
+  resolved by title stem, since the level is in tonnes and the rate in
+  percent. Tests added; 137 pass. Deployed with `railway up`.
