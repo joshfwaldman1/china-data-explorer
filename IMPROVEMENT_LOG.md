@@ -1481,3 +1481,15 @@ not from scratch. Rounds are small on purpose.
   are the 08:55 deploy's boot ingest, all ok. The first headline sweep
   of the day is at 10:10 China Standard Time, still ahead. Nothing to
   fix.
+- 2026-09-11 round 153: audited the share image with two live renders not
+  yet covered: a compare of quarterly GDP with the annual World Bank
+  dollar GDP, which converts the quarterly series to annual averages
+  with a note and drops the incomplete first year, and railway
+  passenger traffic shown as change from the previous period, carrying
+  the February note. Both render right. One wording gap on the second:
+  the transformed unit read "Change" on the page, the table and the
+  image, where the option that produces the view reads "Change from
+  previous period", and the percent view likewise. The labels now name
+  the period on both the catalog and the headline side. Verified live:
+  the API returns "Change from previous period" and "Percent change from
+  previous period", and the page's meta and stat lines carry the former.
