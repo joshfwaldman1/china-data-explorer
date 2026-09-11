@@ -1387,3 +1387,10 @@ not from scratch. Rounds are small on purpose.
   Verified live: the population aged 65 chart's labels 2016 to 2025 sit
   exactly at the line's two ends, and the monthly CPI chart's year ticks
   are unchanged. The mobile surface moves to the next round.
+- 2026-09-11 round 143: measured two chart states no mobile round had
+  covered at 390 px on the live site: the annual population aged 65
+  chart after round 142, whose axis thins to 2016, 2019, 2022 and 2025
+  with each label still on its point, and the four-province compare,
+  whose four chips, legend and "four series is the most" note wrap
+  inside the viewport. Both lay out at exactly 390 px with no element
+  past the edge. Nothing to fix.
