@@ -1464,3 +1464,14 @@ not from scratch. Rounds are small on purpose.
   Macao and Taiwan; the Tibet panel reads "6.3%, Q2 2026, year to date"
   with an eight-quarter sparkline matching the API's window. Nothing to
   fix.
+- 2026-09-11 round 151: audited the release calendar's failure paths on
+  the live site ahead of the first release day. With the calendar
+  request blocked in the browser, the page shows "Release calendar
+  unavailable. NBS didn't respond. The schedule is also published at
+  stats.gov.cn." with a working Try again. On the server, the release
+  plan is rebuilt a minute after boot and every six hours, so a failed
+  agenda fetch is retried within the day; timers are set for releases
+  within eight days and refreshed on each rebuild; and the fixed
+  headline sweeps at 10:10, 11:10 and 16:10 China Standard Time would
+  catch the 15 September data even if every plan fetch failed. Nothing
+  to fix.
