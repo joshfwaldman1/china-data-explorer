@@ -204,6 +204,13 @@ test("desk shorthand: 'ip' means industrial value added and 'nbs' drops out of a
   expect(pmi.results[0]?.name).toContain("采购经理指数");
 });
 
+test("a word's first alias is its primary meaning: 'investment' leads with fixed-asset investment, 'investment income' keeps its table", async () => {
+  const bare = await searchNbsCatalog({ query: "investment", limit: 3 });
+  expect(bare.results[0]?.name.startsWith("固定资产投资")).toBe(true);
+  const income = await searchNbsCatalog({ query: "investment income", limit: 3 });
+  expect(income.results[0]?.name.startsWith("投资收益")).toBe(true);
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");

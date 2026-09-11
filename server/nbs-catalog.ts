@@ -38,7 +38,7 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   wages: ["工资"],
   wage: ["工资"],
   savings: ["储蓄"],
-  investment: ["投资"],
+  investment: ["固定资产投资", "投资"],
   output: ["产量", "产值", "增加值"], make: ["产量"], makes: ["产量"], made: ["产量"], produce: ["产量"], produces: ["产量"], produced: ["产量"], manufacture: ["产量"], manufactures: ["产量"],
   production: ["生产", "产量", "增加值"],
   growth: ["增长", "增速"],
@@ -623,10 +623,13 @@ export function searchScore(entry: NbsCatalogEntry, query: string): number {
   const exactAliases = SEARCH_ALIASES[lowerQuery];
   const variants = exactAliases ?? [lowerQuery];
   let bestScore = 0;
-  for (const variant of variants) {
+  for (const [variantIndex, variant] of variants.entries()) {
     const terms = variant.split(/\s+/).filter(Boolean);
     if (!terms.every((term) => latinTermHit(haystack, pinyinJoined, term))) continue;
-    let score = 10;
+    // The first phrasing in a word's alias list is its primary meaning ("investment" is 固定资产投资
+    // before it is any 投资), so a hit on it edges out a hit on a later one that the shorter-title
+    // tie-break would otherwise favour.
+    let score = 10 + (variantIndex === 0 && variants.length > 1 ? 5 : 0);
     if (name === variant || nameEn === variant) score += 100;
     if (name.startsWith(variant) || nameEn.startsWith(variant)) score += 40;
     if (name.includes(variant) || nameEn.includes(variant)) score += 30;
