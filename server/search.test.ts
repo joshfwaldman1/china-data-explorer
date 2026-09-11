@@ -197,6 +197,13 @@ test("Chinese abbreviations: 社零 reaches retail sales and 汽车销量 the au
   expect(autos.results[0]?.name.startsWith("汽车销售量")).toBe(true);
 });
 
+test("desk shorthand: 'ip' means industrial value added and 'nbs' drops out of a query", async () => {
+  const ip = await searchNbsCatalog({ query: "ip", limit: 3 });
+  expect(ip.results[0]?.name.startsWith("工业增加值")).toBe(true);
+  const pmi = await searchNbsCatalog({ query: "nbs pmi", limit: 3 });
+  expect(pmi.results[0]?.name).toContain("采购经理指数");
+});
+
 test("PMI sub-indexes carry their table in the English title", async () => {
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "制造业采购经理指数"], nameEn: "New orders index" })).toBe("Manufacturing PMI: new orders index");
   expect(tableQualifiedTitle({ categories: ["采购经理指数", "非制造业采购经理指数"], nameEn: "Employment index" })).toBe("Non-manufacturing PMI: employment index");

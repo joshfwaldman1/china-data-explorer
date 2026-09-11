@@ -46,7 +46,7 @@ export interface SeriesResult {
 export const CURATED_SYNONYMS: Record<string, string[]> = {
   gdp: ["gdp", "growth", "output", "national accounts", "国内生产总值", "经济增长"],
   provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
-  industrial_production: ["industrial production", "industry", "value added", "factory output", "工业增加值", "工业生产"],
+  industrial_production: ["industrial production", "ip", "industry", "value added", "factory output", "工业增加值", "工业生产"],
   cpi: ["cpi", "inflation", "inflation rate", "consumer prices", "prices", "cost of living", "居民消费价格", "通胀", "物价"],
   ppi: ["ppi", "producer prices", "factory gate prices", "deflation", "工业生产者价格", "出厂价格"],
   unemployment: ["unemployment", "jobless", "joblessness", "youth unemployment", "labor market", "labour market", "employment", "失业率", "青年失业", "就业"],
