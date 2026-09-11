@@ -1559,3 +1559,9 @@ not from scratch. Rounds are small on purpose.
   the headline payload, the releases and the catalog list, 9 KB together
   and each answered in under half a second. Nothing on the page waits
   on anything but the script. Nothing to fix.
+- 2026-09-11 round 161: checked the provincial GDP data on the live site
+  against the national figure, the one plausibility check no Provinces
+  round had made. All 31 provinces carry Q2 2026: median 4.5, unweighted
+  mean 4.27, Tibet 6.3 at the top and Hainan 2.0 at the bottom, against
+  national growth of 4.7, which is consistent for an unweighted spread;
+  the regional store was refreshed at 09:51 today. Nothing to fix.
