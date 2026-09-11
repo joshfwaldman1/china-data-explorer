@@ -189,8 +189,9 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
   skipped with a clear message instead of probing localhost.
 - The three AkShare-backed series need AKTools (`python -m aktools` on :8080,
   `AKTOOLS_URL` to point elsewhere). Without it they serve from the store, the
-  catalog marks them `refreshBlocked`, and their pages say the series is
-  refreshed through AkShare, which the deployment does not run.
+  catalog marks them `refreshBlocked`, their pages say the series is
+  refreshed through AkShare, which the deployment does not run, and their
+  next-release row says the release will not be picked up here.
 
 ### Environment variables
 
