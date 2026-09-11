@@ -1680,3 +1680,16 @@ not from scratch. Rounds are small on purpose.
   region's English name when the payload is one region's series.
   Deployed with `railway up`. Verified live: the row reads "Guangdong,
   Real GDP, cumulative YTD (YoY %), NBS", the national rows unchanged.
+- 2026-09-11 round 173: audited the Provinces page and
+  `/api/regional/provincial_gdp` on the live site. The payload holds all
+  31 provinces on Q2 2026 with eight quarters each; the heading, lede
+  (measure, unit, what Q2 and Q4 mean, source), period picker, tile
+  labels (province and value for screen readers) and legend are right.
+  One defect: the ranking card was capped at 640 px with a scrolling
+  overflow, and macOS hides the scrollbar, so the page showed Tibet down
+  to Chongqing (18 rows) and gave no sign that the thirteen slowest
+  provinces sat below. The cap is removed. Deployed with `railway up`.
+  Verified live: the ranking renders 31 rows in 1,101 px with no
+  overflow, Hainan 2.0 last. Seen during the deploy: the Railway edge
+  answered `/api/releases` and `/api/schedule` with a 502 for a few
+  seconds at the container switch, while `/health` answered 200.
