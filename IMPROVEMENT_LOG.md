@@ -16,10 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- The comparable-scope note names the published growth series in prose but
-  does not link to it; the reading notes are plain strings. Make one note
-  linkable, or add the sibling to Related Series (raised 2026-09-11, round
-  205).
 - A January point could be derived for a monthly level series that publishes
   a single February and no January: the year-to-date sibling holds January
   plus February, so January is the difference (passenger traffic: 274,706
@@ -2027,3 +2023,14 @@ not from scratch. Rounds are small on purpose.
   up`. Verified live: 规模以上工业增加值 leads with Industrial Production
   (149 hits), 全国粗钢产量 with crude steel output, and 全国 alone and
   汽车产量 are unchanged.
+- 2026-09-12 round 209: the comparable-scope note named the published
+  growth series but provided no link, reproduced on the live crude-steel
+  current-period page (the note contained zero anchors). The growth name
+  now links directly to its series, preserving the source page's region.
+  The note is rendered as a paragraph alongside the other reading notes.
+  All 139 tests pass; the full TypeScript output has no china-explorer
+  errors, only existing errors elsewhere. Committed as 729326c, pushed to
+  china-data-explorer and deployed with railway up --detach. Railway
+  reports success. Verified in a live browser: the level heading renders,
+  the note links to nbs_1e7dfadac47f4d04b403d8f4f7516c4b with the national
+  region retained, and clicking it renders the published growth heading.
