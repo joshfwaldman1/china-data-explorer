@@ -1068,10 +1068,6 @@ function SeriesPage(props: {
     ...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)),
     ...(curated?.endedNote ? [curated.endedNote] : []),
     ...(meta?.februaryFrom ? ["NBS publishes January and February together. The February point is the combined figure, taken from the year-to-date series of the same table; there is no January point."] : []),
-    // The published growth rate is computed on a comparable scope; the levels are not, because the
-    // set of enterprises above designated size changes each year. Crude steel differs by 0.2 points,
-    // integrated circuits by 12.
-    ...(meta?.growthSibling ? [`NBS publishes a growth rate for this table, ${meta.growthSibling.name}, computed on a scope held comparable with the year before. These levels are on the current scope, so a year-over-year change worked out from them will differ from the published rate.`] : []),
     // The pieces' nominal span is what NBS names them by; the Range row states what they hold, which
     // can start later (a 2003 piece with data from 2007) or leave years uncovered between pieces.
     ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces, nominally ${meta.family.span}; they are joined here into one series, and the Range below is what the pieces hold. Where two pieces overlap, the newer one is used.`] : []),
@@ -1261,6 +1257,7 @@ function SeriesPage(props: {
           <h2>Notes</h2>
           {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">The source publishes no definition or methodology note for this series.</p> : null}
           {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
+          {meta?.growthSibling && <p>NBS publishes a growth rate for this table, <a href={seriesHash([meta.growthSibling.key], { region: primary.region?.value })}><Zh>{meta.growthSibling.name}</Zh></a>, computed on a scope held comparable with the year before. These levels are on the current scope, so a year-over-year change worked out from them will differ from the published rate.</p>}
           {readingNotesZh && <p><Zh className="gloss block">{readingNotesZh}</Zh></p>}
         </div>
         <div className="card">
