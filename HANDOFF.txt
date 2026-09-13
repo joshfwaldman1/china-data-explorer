@@ -129,14 +129,9 @@ Owner decisions are marked; do not take them unilaterally.
 1. The comparable-scope note names the published growth series in prose but
    does not link to it. The reading notes are plain strings, so this needs one
    note to become linkable, or the sibling added to Related Series.
-2. Derive a January point for a monthly level series that publishes a single
-   February and no January: the year-to-date sibling holds January plus
-   February, so January is the difference (passenger traffic 274,706 less
-   139,505 is 135,201, and March checks out). It would return the first
-   quarters that are now dropped. Held back because a series whose current-
-   period February is already the combined figure would derive a January of
-   zero, and because it puts a number on the page the bureau does not publish
-   directly. OWNER'S CALL.
+2. CLOSED by owner on 2026-09-13: do not derive January values. Keep missing
+   January readings absent as published and retain incomplete-quarter handling.
+
 3. Back up the Railway volume: a nightly upload of china.db to a bucket the
    owner controls. Blocked on a bucket. Rebuilding from the bureau takes about
    thirty minutes; the revision history is not rebuildable, which is the part

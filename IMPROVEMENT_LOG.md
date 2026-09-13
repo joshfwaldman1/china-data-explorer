@@ -16,14 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- A January point could be derived for a monthly level series that publishes
-  a single February and no January: the year-to-date sibling holds January
-  plus February, so January is the difference (passenger traffic: 274,706
-  less 139,505 is 135,201, and March checks out). It would return the first
-  quarters that round 206 drops. Held back because a series whose 当期值
-  February is already the combined figure would derive a January of zero,
-  and because it puts a number on the page that NBS does not publish
-  directly; an owner's call (raised 2026-09-11, round 207).
 - Backup of the Railway volume: nightly upload of `china.db` to a bucket the
   owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
   revision history is not rebuildable.
@@ -2034,3 +2026,7 @@ not from scratch. Rounds are small on purpose.
   reports success. Verified in a live browser: the level heading renders,
   the note links to nbs_1e7dfadac47f4d04b403d8f4f7516c4b with the national
   region retained, and clicking it renders the published growth heading.
+- 2026-09-13 owner decision: do not derive January values from the
+  January-February year-to-date total less February. Removed the proposal
+  from the queue. Keep missing January readings absent as published and
+  retain the existing incomplete-quarter handling. Documentation only.

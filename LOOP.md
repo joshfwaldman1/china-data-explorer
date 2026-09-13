@@ -68,6 +68,10 @@ until he stops the loop. Read this whole file before doing anything.
 
 ## Things that look like bugs but are not
 
+- Missing January readings stay absent as published. The owner declined
+  deriving January from the year-to-date total less February on 2026-09-13;
+  do not re-queue that proposal. Keep the existing incomplete-quarter rule.
+
 - Caixin PMI series end in September 2025: Caixin stopped sponsoring the
   survey. They carry an `ended` flag on purpose.
 - The Real Estate Climate Index stops at December 2025 in the mirror we use.
