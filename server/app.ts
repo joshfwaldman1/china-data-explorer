@@ -26,7 +26,7 @@ import {
   getNbsDimensions,
   isFrequency,
   nbsCatalogStats,
-  searchNbsCatalog,
+  searchNbsCatalogWithPlaces,
   transformLabel,
   transformPoints,
   type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery } from "./nbs-catalog";
@@ -252,7 +252,7 @@ const routes = {
       const featuredResults = featured.slice(requestedOffset, requestedOffset + requestedLimit);
       const nbsOffset = Math.max(0, requestedOffset - featured.length);
       const remainingLimit = requestedLimit - featuredResults.length;
-      const nbs = await searchNbsCatalog({
+      const nbs = await searchNbsCatalogWithPlaces({
         query: queryText,
         frequency,
         geography,
@@ -265,6 +265,9 @@ const routes = {
         total: featured.length + nbs.total,
         offset: requestedOffset,
         limit: requestedLimit,
+        // Set when the query named a province or city: the results are that
+        // place's series, and each carries the region to open at.
+        place: nbs.place,
         results: [...featuredResults, ...nbs.results.slice(0, remainingLimit)],
       });
     },

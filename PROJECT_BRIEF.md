@@ -20,7 +20,7 @@ And it handles the conventions that make naive copies of Chinese data wrong.
 |---|---|
 | Browsable series | 9,569, from a 15,403-entry catalog |
 | Observations stored | 1,315,565 across 15,078 series |
-| Headline series, curated by hand | 47 |
+| Headline series, curated by hand | 43 |
 | Provinces, quarterly real GDP | 31 |
 | Cities, new and existing home prices | 70 |
 | Store size | 455 MB on a mounted volume |
@@ -30,7 +30,7 @@ And it handles the conventions that make naive copies of Chinese data wrong.
 Sources: the statistics bureau's own portal for the catalog and for
 unemployment; the Eastmoney data centre, which republishes the bureau, the
 central bank and customs verbatim, for headline monthlies; the St. Louis Fed
-for the 25 series on China that come from the BIS, OECD, IMF, World Bank and US
+for the 24 series on China that come from the BIS, OECD, IMF, World Bank and US
 agencies; and the AkShare community library for three series nobody else
 mirrors.
 

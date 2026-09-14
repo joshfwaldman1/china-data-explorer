@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./styles.css";
+import { PROVINCE_PLACES } from "../shared/places.ts";
 import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -23,6 +24,8 @@ interface NbsCatalogEntry {
   firstPeriod?: string; lastPeriod?: string;
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
+  /** Set when the query named a place: the region this result should open at. */
+  region?: Region;
 }
 interface Series { label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
 interface Region { text: string; value: string; en?: string; }
@@ -77,7 +80,7 @@ function isBehind(period: string, frequency: string): boolean {
   const months = monthsOld(period);
   return frequency === "Monthly" ? months > 4 : frequency === "Quarterly" ? months > 10 : months > 24;
 }
-interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; }
+interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; place?: { text: string; en: string; kind: string }; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
 interface CatalogStats { generatedAt: string; seriesCount: number; storedCount?: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
 interface Release { id: string; date: string; title: string; en: string; keys: string[]; categories: string[]; }
@@ -87,7 +90,7 @@ interface Revised { label: string; period: string; vintages: Vintage[]; }
 type Route =
   | { view: "home" }
   | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string; freq: string; agg: string; lny: string }
-  | { view: "search"; q: string; freq: string; cat: string; dataset: string }
+  | { view: "search"; q: string; freq: string; cat: string; dataset: string; geo: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
   | { view: "regions"; period: string }
@@ -291,9 +294,9 @@ function parseRoute(hash: string): Route {
   if (head === "series" && parts[1]) {
     return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "", freq: query.get("freq") ?? "", agg: query.get("agg") ?? "", lny: query.get("lny") ?? "" };
   }
-  if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "" };
+  if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "", geo: query.get("geo") ?? "" };
   if (head === "browse") return { view: "browse", cat: "" };
-  if (head === "category" && parts[1]) return { view: "search", q: "", freq: "", cat: decodeURIComponent(parts[1]), dataset: "" };
+  if (head === "category" && parts[1]) return { view: "search", q: "", freq: "", cat: decodeURIComponent(parts[1]), dataset: "", geo: "" };
   if (head === "releases") return { view: "releases", month: query.get("month") ?? "" };
   if (head === "regions") return { view: "regions", period: query.get("period") ?? "" };
   if (head === "saved") return { view: "saved" };
@@ -305,7 +308,7 @@ function routeHash(route: Route): string {
   switch (route.view) {
     case "home": return "#/";
     case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to], ["freq", route.freq], ["agg", route.agg], ["lny", route.lny]])}`;
-    case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset]])}`;
+    case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset], ["geo", route.geo]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
     case "regions": return `#/regions${qs([["period", route.period]])}`;
@@ -491,7 +494,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
         <div className="side-list">
           <div className="group-label">Datasets</div>
           {props.stats?.datasets.map((dataset) => (
-            <a key={dataset.code} className="nav-row" href={routeHash({ view: "search", q: "", freq: "", cat: "", dataset: String(dataset.code) })} aria-current={activeDataset === String(dataset.code) ? "page" : undefined} aria-label={`${dataset.geography} ${dataset.frequency.toLowerCase()} dataset, ${dataset.count.toLocaleString("en-US")} series`}>
+            <a key={dataset.code} className="nav-row" href={routeHash({ view: "search", q: "", freq: "", cat: "", dataset: String(dataset.code), geo: "" })} aria-current={activeDataset === String(dataset.code) ? "page" : undefined} aria-label={`${dataset.geography} ${dataset.frequency.toLowerCase()} dataset, ${dataset.count.toLocaleString("en-US")} series`}>
               <span className="label"><span className="nav-title">{dataset.geography} {dataset.frequency.toLowerCase()}</span><small>{dataset.count.toLocaleString("en-US")} series</small></span>
             </a>
           ))}
@@ -575,7 +578,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
-        <div className="chips">Common searches:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "" })}>{term}</a>)}</div>
+        <div className="chips">Common searches:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "", geo: "" })}>{term}</a>)}</div>
       </section>
 
       <section className="section" aria-labelledby="h-headline">
@@ -665,6 +668,14 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   );
 }
 
+/** How the site names an NBS geography in a filter: what the series are published for. */
+function geographyLabel(geography: string): string {
+  if (geography === "National") return "National";
+  if (geography === "Province") return "By province";
+  if (geography === "City") return "By city";
+  return geography;
+}
+
 // ── Search & browse ───────────────────────────────────────────────────────────
 
 function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: CatalogStats | null; chartKeys: string[]; lang: string; navigate: (route: Route) => void }) {
@@ -676,6 +687,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
     if (props.route.freq) query.set("frequency", props.route.freq);
     if (props.route.cat) query.set("category", props.route.cat);
     if (props.route.dataset) query.set("dataset", props.route.dataset);
+    if (props.route.geo) query.set("geography", props.route.geo);
     return query;
   };
   useEffect(() => {
@@ -685,7 +697,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
       json(`/api/search?${params(0)}`).then((body) => { if (cancelled) return; if (isSearchResponse(body)) { setResponse(body); setStatus("ok"); } else setStatus("error"); }).catch(() => { if (!cancelled) setStatus("error"); });
     }, 160);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [props.route.q, props.route.freq, props.route.cat, props.route.dataset]);
+  }, [props.route.q, props.route.freq, props.route.cat, props.route.dataset, props.route.geo]);
   const loadMore = () => {
     if (!response) return;
     setMore(true);
@@ -706,17 +718,17 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
       <h1>{props.route.cat && catEn ? <>{catEn}<Zh className="gloss">{props.route.cat}</Zh></> : CJK.test(title) ? <Zh>{title}</Zh> : title}</h1>
       <div className="facets">
         <select aria-label="Frequency" value={props.route.freq} onChange={(event) => set({ freq: event.target.value })}><option value="">All frequencies</option>{freqs.map((freq) => <option key={freq} value={freq}>{withCount(freq, props.stats?.datasets.filter((dataset) => dataset.frequency === freq).reduce((sum, dataset) => sum + dataset.count, 0) ?? 0)}</option>)}</select>
-        {geos.length > 1 && <select aria-label="Region" value="" onChange={() => undefined}>{geos.map((geo) => <option key={geo}>{geo}</option>)}</select>}
+        {geos.length > 1 && <select aria-label="Geography" value={props.route.geo} onChange={(event) => set({ geo: event.target.value })}><option value="">All geographies</option>{geos.map((geo) => <option key={geo} value={geo}>{withCount(geographyLabel(geo), props.stats?.datasets.filter((dataset) => dataset.geography === geo).reduce((sum, dataset) => sum + dataset.count, 0) ?? 0)}</option>)}</select>}
         {props.stats && props.stats.datasets.length > 1 && <select aria-label="Dataset" value={props.route.dataset} onChange={(event) => set({ dataset: event.target.value })}><option value="">All datasets</option>{props.stats.datasets.map((dataset) => <option key={dataset.code} value={String(dataset.code)}>{withCount(`${dataset.geography} ${dataset.frequency.toLowerCase()}`, dataset.count)}</option>)}</select>}
-        {(props.route.freq || props.route.cat || props.route.dataset) && <button className="button" onClick={() => props.navigate({ view: "search", q: props.route.q, freq: "", cat: "", dataset: "" })}>Clear filters</button>}
+        {(props.route.freq || props.route.cat || props.route.dataset || props.route.geo) && <button className="button" onClick={() => props.navigate({ view: "search", q: props.route.q, freq: "", cat: "", dataset: "", geo: "" })}>Clear filters</button>}
       </div>
       <p className="result-count" role="status" aria-live="polite">{status === "loading" ? "Searching…" : status === "error" ? "" : response && response.total > 0 ? `Showing ${response.results.length.toLocaleString("en-US")} of ${response.total.toLocaleString("en-US")} series` : ""}</p>
       {status === "error" && <div className="state"><b>Search unavailable</b><p>The catalog did not respond. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button></div></div>}
       {status === "ok" && response && response.results.length === 0 && (
         <div className="state" role="status">
           <b>No series match {props.route.q ? `“${props.route.q}”` : "these filters"}</b>
-          <p>This catalog holds national monthly and quarterly NBS series ({(props.stats?.seriesCount ?? 0).toLocaleString("en-US")}). It does not yet include 70-city house prices, annual, provincial or city data.</p>
-          <p>Try a Chinese term such as <a href={routeHash({ view: "search", q: "失业率", freq: "", cat: "", dataset: "" })}>失业率</a> or <a href={routeHash({ view: "search", q: "居民消费价格", freq: "", cat: "", dataset: "" })}>居民消费价格</a>, or <a href="#/browse">browse the categories</a>. English matches common terms (GDP, CPI, PPI, exports, steel) and the headline indicators.</p>
+          <p>This catalog holds {(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} NBS series: national monthly, quarterly and annual, and the provincial and city tables. Filters narrow it; clearing them searches everything.</p>
+          <p>Try a Chinese term such as <a href={routeHash({ view: "search", q: "失业率", freq: "", cat: "", dataset: "", geo: "" })}>失业率</a> or <a href={routeHash({ view: "search", q: "居民消费价格", freq: "", cat: "", dataset: "", geo: "" })}>居民消费价格</a>, or <a href="#/browse">browse the categories</a>. English matches common terms (GDP, CPI, PPI, exports, steel) and the headline indicators.</p>
         </div>
       )}
       {status !== "error" && response && response.results.length > 0 && (
@@ -726,8 +738,8 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
             const zhFirst = props.lang === "zh" || !entry.nameEn;
             return (
               <article className="result" key={entry.key}>
-                <a className="main" href={seriesHash([entry.key])}>
-                  <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
+                <a className="main" href={entry.region ? seriesHash([entry.key], { region: entry.region.value }) : seriesHash([entry.key])}>
+                  <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}{entry.region ? ` — ${entry.region.en ?? entry.region.text}` : ""}</span>
                   {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
                   {!curated && <span className="path">{categoryPath(entry)}</span>}
                   <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : !curated ? <>, <span className="ended">no data published</span></> : null}</span>
@@ -1302,40 +1314,46 @@ function SeriesPage(props: {
 // on an eight-column grid.
 
 interface Province { code: string; abbr: string; en: string; zh: string; col: number; row: number; }
-const PROVINCES: Province[] = [
-  { code: "230000000000", abbr: "HLJ", en: "Heilongjiang", zh: "黑龙江", col: 8, row: 1 },
-  { code: "650000000000", abbr: "XJ", en: "Xinjiang", zh: "新疆", col: 1, row: 2 },
-  { code: "150000000000", abbr: "NMG", en: "Inner Mongolia", zh: "内蒙古", col: 5, row: 2 },
-  { code: "220000000000", abbr: "JL", en: "Jilin", zh: "吉林", col: 8, row: 2 },
-  { code: "620000000000", abbr: "GS", en: "Gansu", zh: "甘肃", col: 3, row: 3 },
-  { code: "640000000000", abbr: "NX", en: "Ningxia", zh: "宁夏", col: 4, row: 3 },
-  { code: "110000000000", abbr: "BJ", en: "Beijing", zh: "北京", col: 6, row: 3 },
-  { code: "120000000000", abbr: "TJ", en: "Tianjin", zh: "天津", col: 7, row: 3 },
-  { code: "210000000000", abbr: "LN", en: "Liaoning", zh: "辽宁", col: 8, row: 3 },
-  { code: "630000000000", abbr: "QH", en: "Qinghai", zh: "青海", col: 2, row: 4 },
-  { code: "610000000000", abbr: "SAX", en: "Shaanxi", zh: "陕西", col: 4, row: 4 },
-  { code: "140000000000", abbr: "SX", en: "Shanxi", zh: "山西", col: 5, row: 4 },
-  { code: "130000000000", abbr: "HEB", en: "Hebei", zh: "河北", col: 6, row: 4 },
-  { code: "370000000000", abbr: "SD", en: "Shandong", zh: "山东", col: 7, row: 4 },
-  { code: "540000000000", abbr: "XZ", en: "Tibet", zh: "西藏", col: 1, row: 5 },
-  { code: "510000000000", abbr: "SC", en: "Sichuan", zh: "四川", col: 3, row: 5 },
-  { code: "410000000000", abbr: "HEN", en: "Henan", zh: "河南", col: 5, row: 5 },
-  { code: "320000000000", abbr: "JS", en: "Jiangsu", zh: "江苏", col: 7, row: 5 },
-  { code: "310000000000", abbr: "SH", en: "Shanghai", zh: "上海", col: 8, row: 5 },
-  { code: "500000000000", abbr: "CQ", en: "Chongqing", zh: "重庆", col: 3, row: 6 },
-  { code: "420000000000", abbr: "HUB", en: "Hubei", zh: "湖北", col: 5, row: 6 },
-  { code: "340000000000", abbr: "AH", en: "Anhui", zh: "安徽", col: 6, row: 6 },
-  { code: "330000000000", abbr: "ZJ", en: "Zhejiang", zh: "浙江", col: 8, row: 6 },
-  { code: "530000000000", abbr: "YN", en: "Yunnan", zh: "云南", col: 2, row: 7 },
-  { code: "520000000000", abbr: "GZ", en: "Guizhou", zh: "贵州", col: 3, row: 7 },
-  { code: "430000000000", abbr: "HUN", en: "Hunan", zh: "湖南", col: 5, row: 7 },
-  { code: "360000000000", abbr: "JX", en: "Jiangxi", zh: "江西", col: 6, row: 7 },
-  { code: "350000000000", abbr: "FJ", en: "Fujian", zh: "福建", col: 7, row: 7 },
-  { code: "450000000000", abbr: "GX", en: "Guangxi", zh: "广西", col: 4, row: 8 },
-  { code: "440000000000", abbr: "GD", en: "Guangdong", zh: "广东", col: 5, row: 8 },
-  { code: "460000000000", abbr: "HI", en: "Hainan", zh: "海南", col: 4, row: 9 },
+
+// Only the grid position lives here; the names come from the shared place list
+// so the map, the region picker and the downloads all say the same thing.
+const TILES: { code: string; col: number; row: number }[] = [
+  { code: "230000000000", col: 8, row: 1 },
+  { code: "650000000000", col: 1, row: 2 },
+  { code: "150000000000", col: 5, row: 2 },
+  { code: "220000000000", col: 8, row: 2 },
+  { code: "620000000000", col: 3, row: 3 },
+  { code: "640000000000", col: 4, row: 3 },
+  { code: "110000000000", col: 6, row: 3 },
+  { code: "120000000000", col: 7, row: 3 },
+  { code: "210000000000", col: 8, row: 3 },
+  { code: "630000000000", col: 2, row: 4 },
+  { code: "610000000000", col: 4, row: 4 },
+  { code: "140000000000", col: 5, row: 4 },
+  { code: "130000000000", col: 6, row: 4 },
+  { code: "370000000000", col: 7, row: 4 },
+  { code: "540000000000", col: 1, row: 5 },
+  { code: "510000000000", col: 3, row: 5 },
+  { code: "410000000000", col: 5, row: 5 },
+  { code: "320000000000", col: 7, row: 5 },
+  { code: "310000000000", col: 8, row: 5 },
+  { code: "500000000000", col: 3, row: 6 },
+  { code: "420000000000", col: 5, row: 6 },
+  { code: "340000000000", col: 6, row: 6 },
+  { code: "330000000000", col: 8, row: 6 },
+  { code: "530000000000", col: 2, row: 7 },
+  { code: "520000000000", col: 3, row: 7 },
+  { code: "430000000000", col: 5, row: 7 },
+  { code: "360000000000", col: 6, row: 7 },
+  { code: "350000000000", col: 7, row: 7 },
+  { code: "450000000000", col: 4, row: 8 },
+  { code: "440000000000", col: 5, row: 8 },
+  { code: "460000000000", col: 4, row: 9 },
 ];
-const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
+const PROVINCES: Province[] = TILES.map((tile) => {
+  const place = PROVINCE_PLACES.find((item) => item.code === tile.code);
+  return { code: tile.code, abbr: place?.abbr ?? "", en: place?.en ?? tile.code, zh: place?.zh ?? "", col: tile.col, row: tile.row };
+});const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
 
 interface RegionalValue { region: Region; value: number | null; period: string | null; points: SeriesPoint[]; }
 interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
@@ -1568,7 +1586,7 @@ function App() {
   useEffect(() => {
     if (!draft.trim()) return;
     const timer = window.setTimeout(() => {
-      const current = route.view === "search" ? route : { view: "search" as const, q: "", freq: "", cat: "", dataset: "" };
+      const current = route.view === "search" ? route : { view: "search" as const, q: "", freq: "", cat: "", dataset: "", geo: "" };
       if (current.q !== draft.trim()) navigate({ ...current, q: draft.trim() });
     }, 220);
     return () => window.clearTimeout(timer);
@@ -1584,7 +1602,7 @@ function App() {
       <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); if (main) { main.focus(); main.scrollIntoView(); } }}>Skip to content</a>
       <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
         <a className="brand" href="#/"><span className="brand-mark" lang="zh-Hans" aria-hidden="true">数</span><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "", geo: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 15000).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
@@ -1597,7 +1615,7 @@ function App() {
       </header>
       <div className={route.view === "home" ? "body-grid no-sidebar" : "body-grid"}>
         {route.view !== "home" && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
-        {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "" })} />}
+        {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "", geo: "" })} />}
         {route.view === "series" && <SeriesPage route={route} curated={curated} saved={saved} releases={releases} lang={lang} onToggleSaved={toggleSaved} navigate={navigate} toast={setToast} />}
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
         {route.view === "browse" && <BrowsePage stats={stats} />}

@@ -4,12 +4,14 @@ import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
+import { catalogPath, readCatalogSnapshot } from "./catalog-file";
+import { collectedRegions, withEnglishNames } from "./regions";
+import { findPlaceInQuery } from "../shared/places.ts";
 import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, storedLatest, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
-const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const NATIONAL = { text: "全国", value: "000000000000" };
 const HMT_REGIONS = [
   { text: "香港特别行政区", value: "810000000000" },
@@ -271,7 +273,7 @@ const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 /** A version for the stored catalog: the snapshot and the two label files. */
 const GLOSS_FORMAT = 18; // 18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 async function catalogVersion(): Promise<string> {
-  const parts = await Promise.all([CATALOG_PATH, GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
+  const parts = await Promise.all([catalogPath(), GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
   }));
   // GLOSS_FORMAT bumps when glossTitle's output shape changes, so stored glosses rebuild.
@@ -488,7 +490,7 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
         return stored;
       }
       // Slow path: parse the snapshot, gloss it, and store the result.
-      const raw: unknown = await Bun.file(CATALOG_PATH).json();
+      const raw: unknown = await readCatalogSnapshot();
       const entriesRaw = objectValue(raw, "entries");
       if (!Array.isArray(entriesRaw)) throw new Error("NBS catalog is missing; run the catalog sync script");
       const [, , notesTable] = await Promise.all([warmGloss(), warmOfficialEnglish(), readNotesTable()]);
@@ -833,6 +835,42 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
   };
 }
 
+/**
+ * Search, reading a place name in the query as a place rather than a subject.
+ *
+ * "guangdong gdp" and "shenzhen new home prices" are the natural way to ask
+ * for a regional series, but the catalog has no per-province titles: a
+ * provincial series is one indicator published for 31 places. So a named place
+ * narrows the search to the datasets published for places of that kind, and
+ * each result carries the region it should open at.
+ *
+ * A place name that leads nowhere — no regional series matches the rest of the
+ * query — falls back to the ordinary search of the whole query, because the
+ * word may have been part of a subject after all.
+ */
+export async function searchNbsCatalogWithPlaces(filters: NbsSearchFilters): Promise<{
+  total: number; offset: number; limit: number;
+  results: (NbsCatalogEntry & { region?: NbsRegionOption })[];
+  place?: { text: string; en: string; kind: "Province" | "City" };
+}> {
+  const named = filters.query && !filters.geography ? findPlaceInQuery(filters.query) : undefined;
+  if (!named) return await searchNbsCatalog(filters);
+
+  const geography = named.kind === "Province" ? "Province" : "City";
+  const narrowed = await searchNbsCatalog({ ...filters, query: named.rest, geography });
+  if (narrowed.total === 0) return await searchNbsCatalog(filters);
+
+  const results = await Promise.all(narrowed.results.map(async (entry) => {
+    const regions = await getNbsDimensions(entry);
+    const region = regions.find((option) =>
+      option.en === named.place.en ||
+      option.text === named.place.zh ||
+      option.text.replace(/[市省]$/, "") === named.place.zh);
+    return region ? { ...entry, region } : entry;
+  }));
+  return { ...narrowed, results, place: { text: named.place.zh, en: named.place.en, kind: named.kind } };
+}
+
 /** Every catalog entry, in catalog order. The crawl walks this. */
 export async function listNbsCatalogEntries(): Promise<NbsCatalogEntry[]> {
   const snapshot = await loadSnapshot();
@@ -857,8 +895,9 @@ async function getJson(path: string): Promise<unknown> {
 }
 
 function fallbackDimensions(entry: NbsCatalogEntry): NbsRegionOption[] {
-  if (entry.geography === "Province") return NBS_PROVINCES;
-  if (entry.geography === "Hong Kong, Macao & Taiwan") return HMT_REGIONS;
+  if (entry.geography === "Province") return withEnglishNames(NBS_PROVINCES);
+  if (entry.geography === "Hong Kong, Macao & Taiwan") return withEnglishNames(HMT_REGIONS);
+  // A city table's own list of cities is only ever collected, never guessed.
   return [];
 }
 
@@ -866,6 +905,15 @@ export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegio
   if (entry.geography === "National") return [NATIONAL];
   const cached = dimensionsCache.get(entry.cid);
   if (cached && Date.now() - cached.at < 6 * 60 * 60 * 1000) return cached.data;
+
+  // The list collected for this table, if `bun run china:regions` has reached
+  // it. That is the only source that knows a city table's own cities; the live
+  // endpoint below is challenged from a plain client and usually declines.
+  const collected = await collectedRegions(entry.cid);
+  if (collected && collected.length > 0) {
+    dimensionsCache.set(entry.cid, { at: Date.now(), data: collected });
+    return collected;
+  }
 
   let treeRaw: unknown;
   try {
@@ -889,16 +937,20 @@ export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegio
   }
   const regions = objectValue(regionsRaw, "data");
   if (!Array.isArray(regions)) return fallbackDimensions(entry);
-  const parsed = regions.map((item) => ({
+  const parsed = withEnglishNames(regions.map((item) => ({
     text: stringValue(item, "show_name") || stringValue(item, "name_text"),
     value: stringValue(item, "name_value"),
-  })).filter((item) => item.text && item.value);
+  })).filter((item) => item.text && item.value));
   dimensionsCache.set(entry.cid, { at: Date.now(), data: parsed });
   return parsed;
 }
 
-function periodRange(frequency: NbsCatalogEntry["frequency"], limit: number): string {
-  const now = new Date();
+/**
+ * The `dts` range one esData request asks for, in the bureau's own period
+ * codes: 202601MM for a month, 202601SS for a quarter, 2026YY for a year.
+ * Exported for the tests that pin those three shapes.
+ */
+export function periodRange(frequency: NbsCatalogEntry["frequency"], limit: number, now = new Date()): string {
   if (frequency === "Monthly") {
     const endIndex = now.getFullYear() * 12 + now.getMonth();
     const startIndex = endIndex - Math.max(0, limit - 1);
@@ -911,12 +963,18 @@ function periodRange(frequency: NbsCatalogEntry["frequency"], limit: number): st
     const label = (index: number) => `${Math.floor(index / 4)}0${index % 4 + 1}SS`;
     return `${label(startIndex)}-${label(endIndex)}`;
   }
-  return `${now.getFullYear() - Math.max(0, limit - 1)}-${now.getFullYear()}`;
+  // Annual periods are written 2026YY. A plain year range ("2016-2026") is
+  // answered with HTTP 500, which is why annual series never returned anything
+  // before the annual and provincial datasets were added.
+  return `${now.getFullYear() - Math.max(0, limit - 1)}YY-${now.getFullYear()}YY`;
 }
 
-function periodLabel(code: string): string {
+/** One bureau period code as the site writes it: 2026-07, 2026-Q2, 2026. Exported for tests. */
+export function periodLabel(code: string): string {
   const quarter = code.match(/^(\d{4})0([1-4])SS$/);
   if (quarter) return `${quarter[1]}-Q${quarter[2]}`;
+  const annual = code.match(/^(\d{4})YY$/);
+  if (annual) return annual[1];
   const month = code.match(/^(\d{4})(\d{2})/);
   if (month) return `${month[1]}-${month[2]}`;
   return code;

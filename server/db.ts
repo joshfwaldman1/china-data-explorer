@@ -43,6 +43,76 @@ function seedStoreIfMissing(): void {
   console.log(`  Store seeded from ${SEED_PATH}`);
 }
 
+/**
+ * Bring an older observations table up to the storage the schema above
+ * describes: no separate lookup index, and the rows held once rather than
+ * twice.
+ *
+ * The first shipped schema carried an index on (key, region, label, period,
+ * fetched_at DESC), which is the primary key with the last column reversed —
+ * SQLite reads the primary-key index backwards perfectly well, so that index
+ * was a second copy of every row for nothing. The table itself was then a
+ * third copy, because an ordinary table stores the row and the primary key
+ * indexes it again.
+ *
+ * Rebuilding is a copy, so it needs room for a second table before the old one
+ * goes; a store too close to filling its volume is left alone and tried again
+ * on the next boot rather than failing to open. The work happens inside a
+ * transaction: an interrupted migration rolls back to the table it started
+ * with and no observation is lost.
+ */
+function migrateObservationsStorage(database: Database): void {
+  const schema = database.query<{ sql: string | null }, []>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'observations'",
+  ).get();
+  if (!schema?.sql) return;
+  const hasIndex = database.query<{ name: string }, []>(
+    "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_observations_lookup'",
+  ).get() !== null;
+  const rowidTable = !/WITHOUT\s+ROWID/i.test(schema.sql);
+  if (!hasIndex && !rowidTable) return;
+
+  if (hasIndex) {
+    database.exec("DROP INDEX idx_observations_lookup");
+    console.log("  Store: dropped the redundant observations index");
+  }
+  if (!rowidTable) return;
+
+  const rows = database.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM observations").get()?.n ?? 0;
+  console.log(`  Store: rebuilding ${rows.toLocaleString()} observations without a duplicate copy...`);
+  const startedAt = Date.now();
+  try {
+    database.exec("PRAGMA foreign_keys = OFF");
+    database.transaction(() => {
+      database.exec(`
+        CREATE TABLE observations_rebuilt (
+          key         TEXT NOT NULL,
+          region      TEXT NOT NULL DEFAULT '',
+          label       TEXT NOT NULL,
+          period      TEXT NOT NULL,
+          value       REAL,
+          fetched_at  TEXT NOT NULL,
+          PRIMARY KEY (key, region, label, period, fetched_at)
+        ) WITHOUT ROWID
+      `);
+      database.exec("INSERT INTO observations_rebuilt SELECT key, region, label, period, value, fetched_at FROM observations");
+      database.exec("DROP TABLE observations");
+      database.exec("ALTER TABLE observations_rebuilt RENAME TO observations");
+      // The rebuild is the one moment the whole table is counted anyway, so
+      // the running count starts out exact.
+      database.query("INSERT OR REPLACE INTO store_stats (id, observations) VALUES (1, ?)").run(rows);
+    })();
+    database.exec("VACUUM");
+    console.log(`  Store: rebuilt in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+  } catch (error) {
+    // Out of disk, most likely. The old table is still there and correct.
+    database.exec("DROP TABLE IF EXISTS observations_rebuilt");
+    console.warn(`  Store: rebuild postponed (${error instanceof Error ? error.message : String(error)})`);
+  } finally {
+    database.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
 export function db(): Database {
   if (handle) return handle;
 
@@ -70,6 +140,11 @@ export function db(): Database {
 
   // Append-only. `fetched_at` in the primary key is what makes a revision a
   // new row instead of an overwrite.
+  //
+  // WITHOUT ROWID because every column but `value` is in the primary key and
+  // every read is a prefix of it: an ordinary table would hold each row twice,
+  // once in the table and once in the automatic primary-key index. At the size
+  // the regional datasets take this store to, that duplication is gigabytes.
   database.exec(`
     CREATE TABLE IF NOT EXISTS observations (
       key         TEXT NOT NULL,
@@ -79,12 +154,19 @@ export function db(): Database {
       value       REAL,
       fetched_at  TEXT NOT NULL,
       PRIMARY KEY (key, region, label, period, fetched_at)
+    ) WITHOUT ROWID
+  `);
+
+  // A running count of stored observations, kept by the write path. The
+  // healthcheck needs a number without walking a table of millions of rows,
+  // and a WITHOUT ROWID table has no rowid to take the maximum of.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS store_stats (
+      id            INTEGER PRIMARY KEY CHECK (id = 1),
+      observations  INTEGER NOT NULL DEFAULT 0
     )
   `);
-  database.exec(`
-    CREATE INDEX IF NOT EXISTS idx_observations_lookup
-      ON observations (key, region, label, period, fetched_at DESC)
-  `);
+  migrateObservationsStorage(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
   // visible as a run that failed, not as a chart that quietly goes stale.
@@ -223,6 +305,12 @@ export function writeSeries(
         });
         changed += 1;
       }
+    }
+    // Same transaction as the rows themselves, so the count cannot drift from
+    // what was actually written.
+    if (changed > 0) {
+      database.query("INSERT INTO store_stats (id, observations) VALUES (1, $changed) ON CONFLICT (id) DO UPDATE SET observations = observations + $changed")
+        .run({ $changed: changed });
     }
   });
 
@@ -368,7 +456,6 @@ export function storedLatest(prefix: string): { key: string; region: string; fir
   `).all({ $prefix: prefix });
 }
 
-/** Keys whose most recent fetch attempts came back empty within `days`: discontinued NBS indicators the crawl should not retry daily. */
 /**
  * The last release-day refresh, read back from fetch_log where each one is
  * recorded under the key "release_refresh" (points = series that gained the
@@ -382,12 +469,21 @@ export function lastReleaseRefresh(): { en: string; at: string; attempts: number
   return row ? { en: row.message, at: row.finishedAt, attempts: row.attempts, advanced: row.advanced } : null;
 }
 
-export function recentlyEmptyKeys(prefix: string, days: number): Set<string> {
+
+/**
+ * (key, region) pairs whose recent fetches came back empty, as "key@region".
+ *
+ * Region matters here: an indicator the bureau lists for every province is
+ * often published for only some of them, so a crawl that skipped the whole
+ * series on one empty province would lose the provinces that do have it.
+ */
+export function recentlyEmptyTargets(prefix: string, days: number): Set<string> {
   const cutoff = new Date(Date.now() - days * 86400000).toISOString();
-  const rows = db().query<{ key: string }, Record<string, string>>(`
-    SELECT DISTINCT key FROM fetch_log WHERE status = 'empty' AND key LIKE $prefix || '%' AND finished_at > $cutoff
+  const rows = db().query<{ key: string; region: string }, Record<string, string>>(`
+    SELECT DISTINCT key, region FROM fetch_log
+    WHERE status = 'empty' AND key LIKE $prefix || '%' AND finished_at > $cutoff
   `).all({ $prefix: prefix, $cutoff: cutoff });
-  return new Set(rows.map((row) => row.key));
+  return new Set(rows.map((row) => `${row.key}@${row.region}`));
 }
 
 /** Every distinct (key, region) in the store whose key starts with `prefix`. */
@@ -416,12 +512,20 @@ export function dbHealth(): { ok: boolean; observations: number; lastFetch: stri
   const now = Date.now();
   if (cachedStatus && cachedStatusAt > healthCountAt) { healthCount = cachedStatus.totals.observations; healthCountAt = cachedStatusAt; }
   if (now - healthCountAt >= STATUS_TTL_MS) {
-    // The highest rowid, not COUNT(*): the table is append-only (rows are never deleted by code), so
-    // the two agree to within a handful of rows, and COUNT(*) walks the whole 450 MB table, which on
-    // a fresh container's cold volume took 13 to 16 s on the first health calls after each deploy.
+    // The running count, not COUNT(*): counting walks the whole store, which on a fresh
+    // container's cold volume took 13 to 16 s on the first health calls after each deploy.
+    // The count is kept by the write path (writeSeries) and seeded exactly when the
+    // observations table is rebuilt. A store that has neither — a seed copied in before this
+    // schema shipped — is counted once, here, and then kept up by the writes.
     // The status page's exact count replaces this figure whenever it is fresher (above).
-    const row = database.query<{ observations: number | null }, []>("SELECT MAX(rowid) AS observations FROM observations").get();
-    healthCount = row?.observations ?? 0;
+    const row = database.query<{ observations: number | null }, []>("SELECT observations FROM store_stats WHERE id = 1").get();
+    if (row) {
+      healthCount = row.observations ?? 0;
+    } else {
+      const counted = database.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM observations").get()?.n ?? 0;
+      database.query("INSERT OR REPLACE INTO store_stats (id, observations) VALUES (1, ?)").run(counted);
+      healthCount = counted;
+    }
     healthCountAt = now;
   }
   return { ok: true, observations: healthCount, lastFetch: last?.finishedAt ?? null };

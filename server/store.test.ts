@@ -154,3 +154,15 @@ test("a fetch whose every series reads 0 over stored values is rejected as a mir
   partial.series.push({ label: "M2", points: [{ date: "2026-07", value: 7.7 }] });
   expect(isZeroedFetch(partial, "", stored)).toBe(false);
 });
+
+test("period ranges use the bureau's own code for each frequency", async () => {
+  const { periodRange, periodLabel } = await import("./nbs-catalog.ts");
+  const now = new Date("2026-09-15T00:00:00.000Z");
+  expect(periodRange("Monthly", 3, now)).toBe("202607MM-202609MM");
+  expect(periodRange("Quarterly", 3, now)).toBe("202601SS-202603SS");
+  // An annual range written as plain years ("2024-2026") is answered with HTTP 500.
+  expect(periodRange("Annual", 3, now)).toBe("2024YY-2026YY");
+  expect(periodLabel("2026YY")).toBe("2026");
+  expect(periodLabel("202602SS")).toBe("2026-Q2");
+  expect(periodLabel("202607MM")).toBe("2026-07");
+});

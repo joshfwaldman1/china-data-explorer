@@ -16,8 +16,8 @@
  */
 
 import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions, type SeriesResult } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyKeys, storedLatest, storedValue } from "./db.ts";
-import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
+import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyTargets, storedLatest, storedValue } from "./db.ts";
+import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, getNbsDimensions, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { isDue } from "./due.ts";
 
 // Upstream sources are public and unauthenticated, so we stay well-mannered:
@@ -163,51 +163,93 @@ async function dueCatalogTargets(now = new Date()): Promise<{ key: string; regio
 const CRAWL_PAUSE_MS = Number(process.env.CRAWL_PAUSE_MS ?? 1200);
 const NATIONAL_REGION = { text: "全国", value: "000000000000" };
 
+/** One thing the crawl can fetch: an indicator, in one place. */
+interface CrawlTarget { entry: NbsCatalogEntry; region: { text: string; value: string } }
+
+/**
+ * Everything in the catalog the store does not hold yet, as (indicator, place)
+ * pairs. A national series is one target; a provincial series is one per
+ * province, because the bureau answers for a single place per request.
+ *
+ * Regional targets come after national ones so that a run always finishes the
+ * cheaper, more-read national catalog first, and the order within a dataset is
+ * table by table: the same forty indicators are then asked for across each
+ * place in turn, which is one request per place rather than per series.
+ */
+async function catalogTargets(budget: number): Promise<{ targets: CrawlTarget[]; remaining: number }> {
+  const stored = new Set(listStoredSeries("nbs_").map((row) => `${row.key}@${row.region}`));
+  // NBS's index tree lists indicators it no longer publishes (whole blocks of
+  // tax lines by industry return nothing). Once a pair has come back empty it
+  // waits a month before another try.
+  const empty = recentlyEmptyTargets("nbs_", 30);
+  const entries = await listNbsCatalogEntries();
+  const national: CrawlTarget[] = [];
+  const regional: CrawlTarget[] = [];
+  let remaining = 0;
+
+  for (const [index, entry] of entries.entries()) {
+    // Fifteen thousand synchronous iterations hold the event loop; yield
+    // often enough that page requests still get served during a crawl.
+    if (index > 0 && index % 500 === 0) await sleep(0);
+    if (entry.geography === "National") {
+      if (stored.has(`${entry.key}@${NATIONAL_REGION.value}`) || empty.has(`${entry.key}@${NATIONAL_REGION.value}`)) continue;
+      remaining += 1;
+      if (national.length < budget) national.push({ entry, region: NATIONAL_REGION });
+      continue;
+    }
+    // Cached per table, so this is one lookup per table rather than per series.
+    const regions = await getNbsDimensions(entry);
+    for (const region of regions) {
+      if (stored.has(`${entry.key}@${region.value}`) || empty.has(`${entry.key}@${region.value}`)) continue;
+      remaining += 1;
+      if (regional.length < budget) regional.push({ entry, region });
+    }
+  }
+  return { targets: [...national, ...regional].slice(0, budget), remaining };
+}
+
 /**
  * Fill the store with catalog series nobody has opened yet. Indicators are
- * grouped by table and fetched `NBS_BATCH_SIZE` at a time in one request
- * each, paced, up to `budget` indicators per run. Five failed requests in a
- * row pause the run for ten minutes; twenty end it. Returns what was done
- * and how many indicators remain.
+ * grouped by table and place and fetched `NBS_BATCH_SIZE` at a time in one
+ * request each, paced, up to `budget` indicators per run. Five failed requests
+ * in a row pause the run for ten minutes; twenty end it. Returns what was done
+ * and how many indicator-places remain.
  */
 export async function runCatalogCrawl(budget: number): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
   db();
-  const stored = new Set(listStoredSeries("nbs_").map((row) => row.key));
-  // NBS's index tree lists indicators it no longer publishes (whole blocks of
-  // tax lines by industry return nothing). Once an entry has come back empty
-  // it waits a month before another try.
-  const empty = recentlyEmptyKeys("nbs_", 30);
-  const entries = (await listNbsCatalogEntries()).filter((entry) => !stored.has(entry.key) && !empty.has(entry.key));
-  const tally = { ok: 0, error: 0, empty: 0, remaining: entries.length };
-  if (entries.length === 0) return tally;
+  const { targets, remaining } = await catalogTargets(budget);
+  const tally = { ok: 0, error: 0, empty: 0, remaining };
+  if (targets.length === 0) return tally;
 
-  // Same table, same frequency: one request per chunk.
-  const tables = new Map<string, NbsCatalogEntry[]>();
-  for (const entry of entries.slice(0, budget)) {
-    const tableKey = `${entry.cid}|${entry.rootId}|${entry.frequency}`;
-    tables.set(tableKey, [...(tables.get(tableKey) ?? []), entry]);
+  // Same table, same frequency, same place: one request per chunk.
+  const tables = new Map<string, CrawlTarget[]>();
+  for (const target of targets) {
+    const tableKey = `${target.entry.cid}|${target.entry.rootId}|${target.entry.frequency}|${target.region.value}`;
+    tables.set(tableKey, [...(tables.get(tableKey) ?? []), target]);
   }
-  const chunks: NbsCatalogEntry[][] = [];
+  const chunks: CrawlTarget[][] = [];
   for (const group of tables.values()) for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) chunks.push(group.slice(at, at + NBS_BATCH_SIZE));
-  console.log(`\nCrawling ${Math.min(budget, entries.length)} of ${entries.length} catalog series not yet stored, in ${chunks.length} table requests\n`);
+  console.log(`\nCrawling ${targets.length} of ${remaining} catalog series not yet stored, in ${chunks.length} table requests\n`);
 
   let consecutiveFailures = 0;
   for (const [index, chunk] of chunks.entries()) {
     const startedAt = new Date().toISOString();
+    const region = chunk[0]?.region ?? NATIONAL_REGION;
     try {
-      const points = await fetchNbsTableBatch(chunk, NATIONAL_REGION);
+      const points = await fetchNbsTableBatch(chunk.map((target) => target.entry), region);
       let okHere = 0;
-      for (const entry of chunk) {
-        const outcome = storeNbsPoints(entry, NATIONAL_REGION, points.get(entry.id) ?? [], startedAt);
+      for (const target of chunk) {
+        const outcome = storeNbsPoints(target.entry, region, points.get(target.entry.id) ?? [], startedAt);
         tally[outcome] += 1;
         tally.remaining -= 1;
         if (outcome === "ok") okHere += 1;
       }
       consecutiveFailures = 0;
-      console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  ${(chunk[0]?.categories.slice(-1)[0] ?? "").slice(0, 40).padEnd(40)} ${okHere}/${chunk.length} with data`);
+      const where = region.value === NATIONAL_REGION.value ? "" : ` ${region.text}`;
+      console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  ${((chunk[0]?.entry.categories.slice(-1)[0] ?? "") + where).slice(0, 44).padEnd(44)} ${okHere}/${chunk.length} with data`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      for (const entry of chunk) logFetch({ key: entry.key, region: NATIONAL_REGION.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+      for (const target of chunk) logFetch({ key: target.entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
       tally.error += chunk.length;
       consecutiveFailures += 1;
       console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  FAILED  ${message.slice(0, 80)}`);

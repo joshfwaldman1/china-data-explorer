@@ -145,16 +145,31 @@ const browser = await chromium.launch({
   channel: option("channel") ?? "chrome",
   headless: option("headed") !== "true",
 });
-const portalPage = await browser.newPage({ locale: "zh-CN" });
-await portalPage.goto("https://data.stats.gov.cn/dg/website/page.html", {
-  waitUntil: "commit",
-  timeout: 60_000,
-});
-await portalPage.getByRole("menuitem", { name: /地区数据/ }).waitFor({ timeout: 60_000 });
+let portalPage = await browser.newPage({ locale: "zh-CN" });
+
+/**
+ * Load the portal so the collector holds the session a normal visitor holds.
+ * A long crawl outlives that session — the challenge comes back after an hour
+ * or so, and after a burst of requests — so this is called again whenever the
+ * anti-bot page appears rather than only at the start.
+ */
+async function openPortal(): Promise<void> {
+  if (!portalPage.isClosed()) await portalPage.close().catch(() => undefined);
+  portalPage = await browser.newPage({ locale: "zh-CN" });
+  await portalPage.goto("https://data.stats.gov.cn/dg/website/page.html", {
+    waitUntil: "commit",
+    timeout: 60_000,
+  });
+  await portalPage.getByRole("menuitem", { name: /地区数据/ }).waitFor({ timeout: 60_000 });
+}
+
+await openPortal();
+
+const ATTEMPTS = 8;
 
 async function getJson(path: string): Promise<unknown> {
   let lastError = "unknown response";
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
     requestCount += 1;
     try {
       const text = await portalPage.evaluate(async (url: string) => {
@@ -167,10 +182,14 @@ async function getJson(path: string): Promise<unknown> {
       return parsed;
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
-      if (attempt < 4) await Bun.sleep(delayMs * attempt * 2);
+      if (attempt >= ATTEMPTS) break;
+      // Back off, and from the third try on take a fresh session: the
+      // challenge is answered by loading the portal, not by waiting longer.
+      await Bun.sleep(Math.min(60_000, delayMs * 2 ** attempt));
+      if (attempt >= 2) await openPortal().catch(() => undefined);
     }
   }
-  throw new Error(`${path} -> ${lastError} after 4 attempts`);
+  throw new Error(`${path} -> ${lastError} after ${ATTEMPTS} attempts`);
 }
 
 async function children(pid: string, code: number): Promise<CatalogNode[]> {
@@ -231,7 +250,17 @@ async function writeSnapshot(targetPath = outputPath): Promise<void> {
 }
 
 for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset.code))) {
-  const roots = await children("", definition.code);
+  let roots: CatalogNode[];
+  try {
+    roots = await children("", definition.code);
+  } catch (error) {
+    // One dataset's index being unreachable is not a reason to throw away the
+    // datasets already collected, or the ones after it.
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push({ datasetCode: definition.code, nodeId: "", message });
+    console.warn(`Dataset ${definition.code}: ${message}`);
+    continue;
+  }
   for (const root of roots) {
     datasets.push({
       code: definition.code,
