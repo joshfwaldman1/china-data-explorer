@@ -1,7 +1,20 @@
 EconStats China Data Explorer - handoff
 Written 2026-09-12, updated 2026-09-15. Branch china-data-explorer.
 
-IN FLIGHT ON 15 SEPTEMBER
+STATE ON 15 SEPTEMBER, EVENING
+
+The annual national dataset landed: 60,323 series, catalog 79,756 entries,
+66,222 browsable, live. The faster-updates handoff's scheduling findings were
+reproduced in tests and fixed (see AGENTS.md: worker priorities, release
+targets, fetch windows). Not done from that handoff: durable release jobs
+across a restart (still in-process timers), the official release-page adapter
+in shadow mode, per-host rate limits shared across processes, and a Chinese
+working-day calendar (the retry window is elapsed time). 14,244 annual base
+concepts still lack an English gloss because the API account ran out of
+credit mid-run; `bun run china:translate --concurrency=8` resumes when credit
+is restored, then commit gloss-en.json and deploy.
+
+IN FLIGHT EARLIER ON 15 SEPTEMBER (now complete)
 
 The annual national dataset (NBS code 3, about 43,700 series) is being
 crawled into china-explorer/catalog/nbs-catalog-annual.json by
