@@ -133,6 +133,15 @@ function nbsDate(date: Date, endOfDay = false): string {
   return `${day} ${endOfDay ? "23:59:59" : "00:00:00"}`;
 }
 
+/**
+ * What the background crawl is doing, for /api/schedule. A run that has not
+ * started and a run that started and found nothing looked identical from
+ * outside, which is a bad way to operate something that takes days.
+ */
+const crawlState: { scheduled: boolean; startedAt: string | null; finishedAt: string | null; running: boolean; lastTally: { ok: number; error: number; empty: number; remaining: number } | null; lastError: string | null } = {
+  scheduled: false, startedAt: null, finishedAt: null, running: false, lastTally: null, lastError: null,
+};
+
 let scheduleStatus: () => { nextReleases: { en: string; at: string; keys: string[] }[]; lastReleaseRefresh: null | { en: string; at: string; attempts: number; advanced: number } } = () => ({ nextReleases: [], lastReleaseRefresh: null });
 
 const bootAt = Date.now();
@@ -181,7 +190,7 @@ const routes = {
       }
     },
     "/api/release-map": () => Response.json(RELEASE_MAP),
-    "/api/schedule": () => Response.json(scheduleStatus()),
+    "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState }),
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
     // Every place one series is published for, at one period: the tile map and
@@ -550,17 +559,24 @@ if (ingestEveryHours > 0) {
   const crawlEveryHours = Number(process.env.CRAWL_EVERY_HOURS ?? 6);
   if (process.env.CATALOG_CRAWL !== "off" && crawlBudget > 0) {
     const crawl = async () => {
-      // The boot-time ingest may still be running at the ten-minute mark; try again shortly rather than in six hours.
+      // The boot-time ingest may still be running at the first mark; try again shortly rather than in six hours.
       if (running) { setTimeout(crawl, 5 * 60 * 1000); return; }
       running = true;
+      crawlState.running = true;
+      crawlState.startedAt = new Date().toISOString();
       const started = Date.now();
       try {
         const tally = await runCatalogCrawl(crawlBudget);
+        crawlState.lastTally = tally;
+        crawlState.lastError = null;
         if (tally.ok + tally.error + tally.empty > 0) console.log(`  Catalog crawl: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty, ${tally.remaining} remaining, ${Math.round((Date.now() - started) / 1000)}s`);
       } catch (error) {
-        console.error("  Catalog crawl failed:", error instanceof Error ? error.message : String(error));
+        crawlState.lastError = error instanceof Error ? error.message : String(error);
+        console.error("  Catalog crawl failed:", crawlState.lastError);
       } finally {
         running = false;
+        crawlState.running = false;
+        crawlState.finishedAt = new Date().toISOString();
       }
     };
     // A restart cancels whatever the crawl was doing and the timer starts
@@ -570,6 +586,7 @@ if (ingestEveryHours > 0) {
     const firstRunMinutes = Number(process.env.CRAWL_FIRST_RUN_MINUTES ?? 3);
     setTimeout(crawl, firstRunMinutes * 60 * 1000);
     setInterval(crawl, crawlEveryHours * 60 * 60 * 1000);
+    crawlState.scheduled = true;
     console.log(`  Catalog crawl scheduled: ${crawlBudget} series every ${crawlEveryHours}h (first run in ${firstRunMinutes} minutes)`);
   }
 }
