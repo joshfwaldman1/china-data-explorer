@@ -34,6 +34,7 @@ import {
 import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
 import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-plan";
+import { PRIORITY, createWorker } from "./worker";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -151,6 +152,8 @@ function nbsDate(date: Date, endOfDay = false): string {
  * started and a run that started and found nothing looked identical from
  * outside, which is a bad way to operate something that takes days.
  */
+let workerState: () => { running: { label: string; priority: number; startedAt: string } | null; queued: { label: string; priority: number; waitingMs: number }[] } = () => ({ running: null, queued: [] });
+
 const crawlState: { scheduled: boolean; startedAt: string | null; finishedAt: string | null; running: boolean; lastTally: { ok: number; error: number; empty: number; remaining: number } | null; lastError: string | null } = {
   scheduled: false, startedAt: null, finishedAt: null, running: false, lastTally: null, lastError: null,
 };
@@ -203,7 +206,7 @@ const routes = {
       }
     },
     "/api/release-map": () => Response.json(RELEASE_MAP),
-    "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState }),
+    "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState, worker: workerState() }),
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
     // Every place one series is published for, at one period: the tile map and
@@ -473,18 +476,24 @@ nbsCatalogStats().catch(() => undefined).finally(() => {
 // development unless asked for; every 24 hours in production by default.
 const ingestEveryHours = Number(process.env.INGEST_EVERY_HOURS ?? (process.env.NODE_ENV === "production" ? 24 : 0));
 if (ingestEveryHours > 0) {
-  let running = false;
+  // One job at a time against the bureau's portal, most urgent first. A release
+  // check jumps the queue and the crawl yields to it between table requests.
+  const worker = createWorker();
+  workerState = () => worker.state();
+  let ingesting = false;
   const tick = async () => {
-    if (running) return;
-    running = true;
+    if (ingesting) return;
+    ingesting = true;
     const started = Date.now();
     try {
-      const tally = await runIngest();
-      console.log(`  Scheduled ingest: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty in ${Math.round((Date.now() - started) / 1000)}s`);
+      await worker.run("Scheduled ingest", PRIORITY.catchUp, async () => {
+        const tally = await runIngest();
+        console.log(`  Scheduled ingest: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty in ${Math.round((Date.now() - started) / 1000)}s`);
+      });
     } catch (error) {
       console.error("  Scheduled ingest failed:", error instanceof Error ? error.message : String(error));
     } finally {
-      running = false;
+      ingesting = false;
     }
   };
   setTimeout(tick, 2 * 60 * 1000);
@@ -502,9 +511,8 @@ if (ingestEveryHours > 0) {
   const scheduled = new Set<string>();
   const status = { nextReleases: [] as { en: string; at: string; keys: string[] }[], lastReleaseRefresh: lastReleaseRefresh() };
   const runWhenFree = async (job: () => Promise<void>, label: string): Promise<void> => {
-    if (running) { setTimeout(() => { void runWhenFree(job, label); }, 2 * 60 * 1000); return; }
-    running = true;
-    try { await job(); } catch (error) { console.error(`  ${label} failed:`, error instanceof Error ? error.message : String(error)); } finally { running = false; }
+    try { await worker.run(label, PRIORITY.release, job); }
+    catch (error) { console.error(`  ${label} failed:`, error instanceof Error ? error.message : String(error)); }
   };
   const releaseRefresh = async (item: AgendaItem, attempt: number) => {
     const startedAt = new Date().toISOString();
@@ -586,26 +594,31 @@ if (ingestEveryHours > 0) {
   const crawlEveryHours = Number(process.env.CRAWL_EVERY_HOURS ?? 6);
   if (process.env.CATALOG_CRAWL !== "off" && crawlBudget > 0) {
     const crawl = async () => {
-      // The boot-time ingest may still be running at the first mark; try again shortly rather than in six hours.
-      if (running) { setTimeout(crawl, 5 * 60 * 1000); return; }
-      running = true;
+      if (crawlState.running) return;
       crawlState.running = true;
       crawlState.startedAt = new Date().toISOString();
       const started = Date.now();
+      let yielded = false;
       try {
-        const tally = await runCatalogCrawl(crawlBudget);
-        crawlState.lastTally = tally;
-        crawlState.lastError = null;
-        if (tally.ok + tally.error + tally.empty > 0) console.log(`  Catalog crawl: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty, ${tally.remaining} remaining, ${Math.round((Date.now() - started) / 1000)}s`);
+        await worker.run("Catalog crawl", PRIORITY.backfill, async () => {
+          const tally = await runCatalogCrawl(crawlBudget, { shouldYield: () => worker.shouldYield(PRIORITY.backfill) });
+          crawlState.lastTally = tally;
+          crawlState.lastError = null;
+          yielded = tally.ok + tally.error + tally.empty < crawlBudget && tally.remaining > 0;
+          if (tally.ok + tally.error + tally.empty > 0) console.log(`  Catalog crawl: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty, ${tally.remaining} remaining, ${Math.round((Date.now() - started) / 1000)}s`);
+        });
       } catch (error) {
         crawlState.lastError = error instanceof Error ? error.message : String(error);
         console.error("  Catalog crawl failed:", crawlState.lastError);
       } finally {
-        running = false;
         crawlState.running = false;
         crawlState.finishedAt = new Date().toISOString();
       }
+      // A run that stopped short to let a release through picks up again
+      // shortly rather than waiting for the next six-hourly turn.
+      if (yielded) setTimeout(crawl, 10 * 60 * 1000);
     };
+
     // A restart cancels whatever the crawl was doing and the timer starts
     // again, so a day of deployments can mean a day of no crawling. Three
     // minutes is long enough for the boot ingest to get going and short enough

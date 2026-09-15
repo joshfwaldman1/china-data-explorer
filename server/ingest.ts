@@ -243,7 +243,7 @@ async function catalogTargets(budget: number): Promise<{ targets: CrawlTarget[];
  * in a row pause the run for ten minutes; twenty end it. Returns what was done
  * and how many indicator-places remain.
  */
-export async function runCatalogCrawl(budget: number): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
+export async function runCatalogCrawl(budget: number, options: { shouldYield?: () => boolean } = {}): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
   db();
   console.log("\nChoosing what to crawl...");
   const chooseStarted = Date.now();
@@ -264,6 +264,13 @@ export async function runCatalogCrawl(budget: number): Promise<{ ok: number; err
 
   let consecutiveFailures = 0;
   for (const [index, chunk] of chunks.entries()) {
+    // Between table requests, never inside one: a release check waiting behind
+    // a crawl of a hundred thousand series should not wait for all of it. What
+    // is stored is skipped next time, so stopping here loses nothing.
+    if (options.shouldYield?.()) {
+      console.log(`  Yielding after ${index} of ${chunks.length} table requests; more urgent work is waiting`);
+      break;
+    }
     const startedAt = new Date().toISOString();
     const region = chunk[0]?.region ?? NATIONAL_REGION;
     try {
