@@ -102,7 +102,12 @@ function migrateObservationsStorage(database: Database): void {
       // the running count starts out exact.
       database.query("INSERT OR REPLACE INTO store_stats (id, observations) VALUES (1, ?)").run(rows);
     })();
-    database.exec("VACUUM");
+    // No VACUUM. It would halve the file, but it rewrites the whole database
+    // while the process is blocked on it, and this runs at boot where a
+    // platform healthcheck is waiting. The pages the old table freed are
+    // reused by the next writes, and the regional crawl fills them within a
+    // day. `CHINA_VACUUM=1` asks for it anyway, for a maintenance run.
+    if (process.env.CHINA_VACUUM === "1") database.exec("VACUUM");
     console.log(`  Store: rebuilt in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
   } catch (error) {
     // Out of disk, most likely. The old table is still there and correct.
@@ -111,6 +116,27 @@ function migrateObservationsStorage(database: Database): void {
   } finally {
     database.exec("PRAGMA foreign_keys = ON");
   }
+}
+
+/**
+ * Fill series_range for a store that predates it, in the one pass the old
+ * query used to make on every search. A store where every series already has a
+ * row costs one indexed count.
+ */
+function backfillSeriesRanges(database: Database): void {
+  const missing = database.query<{ n: number }, []>(`
+    SELECT COUNT(*) AS n FROM series s
+    WHERE NOT EXISTS (SELECT 1 FROM series_range r WHERE r.key = s.key AND r.region = s.region)
+  `).get()?.n ?? 0;
+  if (missing === 0) return;
+  console.log(`  Store: summarising the range of ${missing.toLocaleString()} series...`);
+  const startedAt = Date.now();
+  database.exec(`
+    INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period)
+    SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period)
+    FROM observations GROUP BY key, region
+  `);
+  console.log(`  Store: summarised in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
 }
 
 export function db(): Database {
@@ -157,6 +183,22 @@ export function db(): Database {
     ) WITHOUT ROWID
   `);
 
+  // One row per (key, region): the first period stored, the first with a
+  // non-zero value, and the last. Kept by the write path. Without it, every
+  // search and every ingest run walks the whole observations table to find
+  // out where each series starts and ends, which is a scan of millions of
+  // rows for an answer that changes only when something is written.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS series_range (
+      key                TEXT NOT NULL,
+      region             TEXT NOT NULL DEFAULT '',
+      first_period       TEXT,
+      first_real_period  TEXT,
+      last_period        TEXT,
+      PRIMARY KEY (key, region)
+    ) WITHOUT ROWID
+  `);
+
   // A running count of stored observations, kept by the write path. The
   // healthcheck needs a number without walking a table of millions of rows,
   // and a WITHOUT ROWID table has no rowid to take the maximum of.
@@ -167,6 +209,7 @@ export function db(): Database {
     )
   `);
   migrateObservationsStorage(database);
+  backfillSeriesRanges(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
   // visible as a run that failed, not as a chart that quietly goes stale.
@@ -306,11 +349,16 @@ export function writeSeries(
         changed += 1;
       }
     }
-    // Same transaction as the rows themselves, so the count cannot drift from
-    // what was actually written.
+    // Same transaction as the rows themselves, so neither the count nor the
+    // range summary can drift from what was actually written.
     if (changed > 0) {
       database.query("INSERT INTO store_stats (id, observations) VALUES (1, $changed) ON CONFLICT (id) DO UPDATE SET observations = observations + $changed")
         .run({ $changed: changed });
+      database.query(`
+        INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period)
+        SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period)
+        FROM observations WHERE key = $key AND region = $region
+      `).run({ $key: result.key, $region: region });
     }
   });
 
@@ -446,11 +494,15 @@ export function storedValue(key: string, region: string, label: string, period: 
 }
 
 export function storedLatest(prefix: string): { key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }[] {
+  // Read from the summary kept by the write path, not from the observations
+  // themselves: the answer is the same and it does not walk the store.
   // firstRealPeriod is the first period with a non-zero value: NBS pads the months before an
   // indicator existed with 0.0, which the series page drops from level and index series.
   return db().query<{ key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }, Record<string, string>>(`
-    SELECT s.key AS key, s.region AS region, MIN(o.period) AS firstPeriod, MIN(CASE WHEN o.value <> 0 THEN o.period END) AS firstRealPeriod, MAX(o.period) AS lastPeriod, MAX(s.updated_at) AS updatedAt
-    FROM series s LEFT JOIN observations o ON o.key = s.key AND o.region = s.region
+    SELECT s.key AS key, s.region AS region,
+           r.first_period AS firstPeriod, r.first_real_period AS firstRealPeriod, r.last_period AS lastPeriod,
+           MAX(s.updated_at) AS updatedAt
+    FROM series s LEFT JOIN series_range r ON r.key = s.key AND r.region = s.region
     WHERE s.key LIKE $prefix || '%'
     GROUP BY s.key, s.region
   `).all({ $prefix: prefix });

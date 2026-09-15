@@ -166,3 +166,21 @@ test("period ranges use the bureau's own code for each frequency", async () => {
   expect(periodLabel("202602SS")).toBe("2026-Q2");
   expect(periodLabel("202607MM")).toBe("2026-07");
 });
+
+test("a series' range summary follows what is written, including a later period and a revision", () => {
+  writeSeries(result("range_t", "全国", [
+    { date: "2024-01", value: 0 }, { date: "2024-02", value: 3 },
+  ]), NATIONAL, "2026-01-01T00:00:00.000Z");
+  const first = storedLatest("range_t").find((row) => row.key === "range_t");
+  expect(first?.firstPeriod).toBe("2024-01");
+  expect(first?.firstRealPeriod).toBe("2024-02");
+  expect(first?.lastPeriod).toBe("2024-02");
+
+  // A later period extends the range; a revision of an existing one does not move it.
+  writeSeries(result("range_t", "全国", [
+    { date: "2024-02", value: 4 }, { date: "2024-03", value: 5 },
+  ]), NATIONAL, "2026-02-01T00:00:00.000Z");
+  const second = storedLatest("range_t").find((row) => row.key === "range_t");
+  expect(second?.firstPeriod).toBe("2024-01");
+  expect(second?.lastPeriod).toBe("2024-03");
+});

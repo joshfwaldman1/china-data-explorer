@@ -59,6 +59,34 @@ snapshot after each completed dataset root and keeps in-progress work in a
 When refreshing only selected families, pass `--merge=true` to retain the
 families already present in the published snapshot.
 
+A family at a time keeps a long crawl from spoiling a good snapshot, so each
+run writes its own file and they are combined into the one the site ships:
+
+```sh
+bun run china:catalog --codes=3 --out=china-explorer/catalog/nbs-catalog-annual.json
+bun run china:catalog-merge --out=china-explorer/catalog/nbs-catalog.json.gz \
+  china-explorer/catalog/nbs-catalog.json china-explorer/catalog/nbs-catalog-annual.json
+```
+
+The site reads `nbs-catalog.json.gz` in preference to the plain file, and
+`NBS_CATALOG_PATH` points it at another snapshot for a trial run.
+
+## Collect the places each regional table covers
+
+A provincial or city table is one indicator published for many places, and the
+endpoint that lists them is challenged from a plain HTTP client, so the running
+site cannot ask. Collect the lists once, alongside the catalog:
+
+```sh
+bun run china:regions                # every regional table in the snapshot
+bun run china:regions --merge=true   # only the tables not collected yet
+```
+
+This writes `catalog/nbs-regions.json`: the distinct place lists (31 provinces,
+the price-survey cities, Hong Kong, Macao and Taiwan), and which list each
+table uses. Without it a provincial table falls back to the standing province
+list and a city table has no places at all.
+
 ## FRED-style features
 
 - **Deep links** — every series has its own URL (`#/series/cpi`), so views can

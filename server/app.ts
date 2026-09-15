@@ -10,6 +10,7 @@
  */
 
 import index from "../client/index.html";
+import { regionCoverage } from "./regions";
 import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
@@ -301,7 +302,13 @@ const routes = {
     },
     // Coverage and recent ingest runs — a stale chart should be diagnosable.
     // The coverage list is heavy; it comes only with ?series=1.
-    "/api/status": (req: RouteRequest) => Response.json(new URL(req.url).searchParams.get("series") === "1" ? dbStatusWithSeries() : dbStatus()),
+    "/api/status": async (req: RouteRequest) => {
+      const status = new URL(req.url).searchParams.get("series") === "1" ? dbStatusWithSeries() : dbStatus();
+      // How much of the catalog is regional, and whether the places those
+      // tables cover have been collected: a table with no region list is a
+      // table the site cannot fetch.
+      return Response.json({ ...status, regions: await regionCoverage() });
+    },
     // The revision trail for one period: every value we have ever stored for
     // it, oldest first.
     "/api/revisions/:key": (req: RouteRequest) => {
