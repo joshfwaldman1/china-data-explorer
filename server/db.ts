@@ -640,12 +640,18 @@ function computePerSeries(limit: number, offset: number) {
 function computeStatus() {
   const database = db();
   const sizeBytes = (() => { try { return Bun.file(DB_PATH).size; } catch { return 0; } })();
-  const totals = database.prepare(`
-    SELECT COUNT(*) AS observations,
-           COUNT(DISTINCT key) AS keys,
-           MAX(fetched_at) AS lastFetch
-    FROM observations
-  `).get() as { observations: number; keys: number; lastFetch: string | null };
+  // From the summaries the write path keeps, not from the observations
+  // themselves: counting ten million rows took seconds and this route is
+  // called by anything watching the store, every five minutes.
+  const counted = database.query<{ observations: number | null }, []>("SELECT observations FROM store_stats WHERE id = 1").get();
+  const summary = database.query<{ keys: number; lastFetch: string | null }, []>(
+    "SELECT COUNT(DISTINCT key) AS keys, MAX(last_fetch) AS lastFetch FROM series_range",
+  ).get();
+  const totals = {
+    observations: counted?.observations ?? 0,
+    keys: summary?.keys ?? 0,
+    lastFetch: summary?.lastFetch ?? null,
+  };
 
   // The fetch log grows by a run per series on every boot ingest (about 140 rows), so its size is
   // reported here for the audit that decides when to prune it.
