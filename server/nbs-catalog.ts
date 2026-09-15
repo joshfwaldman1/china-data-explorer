@@ -277,7 +277,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 21; // 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 22; // 22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -368,21 +368,26 @@ export function tableQualifiedTitle(entry: Pick<NbsCatalogEntry, "categories" | 
  * same series published for several places, and the place is shown separately.
  */
 export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
+  // Keyed by title and frequency: the annual dataset publishes a yearly
+  // counterpart of most monthly series under the same name, and the frequency
+  // is already on every result row, so saying which table those came from adds
+  // length without telling anyone anything. Two tables at the same frequency
+  // are the case this is for.
   const seen = new Map<string, Set<string>>();
   // The English name of the table only. A Chinese table name inside an English
   // title reads as a mistake, and such a table is usually the title over again,
   // so a table with no gloss is better left off.
   const tableOf = (entry: NbsCatalogEntry) => entry.categoriesEn?.at(-1) ?? "";
   for (const entry of entries) {
-    const title = entry.nameEn || entry.name;
-    const tables = seen.get(title) ?? new Set<string>();
+    const key = `${entry.nameEn || entry.name}|${entry.frequency}`;
+    const tables = seen.get(key) ?? new Set<string>();
     tables.add(tableOf(entry));
-    seen.set(title, tables);
+    seen.set(key, tables);
   }
   return entries.map((entry) => {
     const title = entry.nameEn || entry.name;
     const table = tableOf(entry);
-    if (!table || (seen.get(title)?.size ?? 0) < 2) return entry;
+    if (!table || (seen.get(`${title}|${entry.frequency}`)?.size ?? 0) < 2) return entry;
     // A table whose name the title already carries adds nothing; a table name
     // that carries the title adds the words that tell the two apart.
     if (title.includes(table)) return entry;
@@ -394,7 +399,9 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
     const short = parenthetical && parenthetical[1] && table.includes(parenthetical[1])
       ? title.slice(0, parenthetical.index).trim()
       : title;
-    return { ...entry, nameEn: `${table}: ${short.charAt(0).toLocaleLowerCase()}${short.slice(1)}` };
+    // "CPI" keeps its capitals; an ordinary word does not start a clause.
+    const opens = /^[A-Z]{2,}\b/.test(short) ? short : `${short.charAt(0).toLocaleLowerCase()}${short.slice(1)}`;
+    return { ...entry, nameEn: `${table}: ${opens}` };
   });
 }
 
@@ -762,6 +769,18 @@ export function indexHitIsReal(entry: NbsCatalogEntry, query: string): boolean {
   return queryVariants(query).some((variant) => variant.split(/\s+/).filter(Boolean).every((term) => latinTermHit(haystack, pinyinJoined, term)));
 }
 
+/**
+ * Monthly before quarterly before annual, among matches that score the same.
+ *
+ * The annual dataset publishes a yearly counterpart of most monthly series, so
+ * without this a search for a subject returns the annual version as often as
+ * the one that has a reading for last month. A subject that is only annual —
+ * population, education, science — has nothing to be outranked by.
+ */
+function frequencyRank(entry: NbsCatalogEntry): number {
+  return entry.frequency === "Monthly" ? 0 : entry.frequency === "Quarterly" ? 1 : 2;
+}
+
 function band(score: number): number { return Math.round(score / 5) * 5; }
 /** Tie-break length: the English title when there is one, since units inflate the Chinese one ("(万吨)" vs "(%)"). */
 function titleLength(entry: NbsCatalogEntry): number {
@@ -946,6 +965,7 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       band(b.score) - band(a.score)
       || Number(isCurrent(ranges.get(b.entry.key)?.last)) - Number(isCurrent(ranges.get(a.entry.key)?.last))
       || Number(a.entry.geography !== "National") - Number(b.entry.geography !== "National")
+      || frequencyRank(a.entry) - frequencyRank(b.entry)
       || monthOnMonthBase(a.entry) - monthOnMonthBase(b.entry)
       || titleLength(a.entry) - titleLength(b.entry)
       || b.score - a.score

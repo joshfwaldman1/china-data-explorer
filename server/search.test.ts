@@ -59,11 +59,16 @@ test("a singular finds its plural in the gloss and the other way round: soybean,
 test("Latin terms match on word boundaries: house is not household", async () => {
   // The audit's case: the household-goods CPI glosses to "household …" and
   // used to rank first for "house prices" on a substring match.
-  const byTitle = await searchNbsCatalog({ query: "生活用品及服务类居民消费价格指数", limit: 5 });
+  // The monthly one: the annual dataset publishes a series of the same name.
+  const byTitle = await searchNbsCatalog({ query: "生活用品及服务类居民消费价格指数", datasetCode: 1, limit: 5 });
   const target = byTitle.results.find((entry) => entry.name.startsWith("生活用品及服务类居民消费价格指数"));
   expect(target).toBeDefined();
-  const household = await searchNbsCatalog({ query: "household", limit: 200 });
+  // Scoped to the national monthly dataset the series belongs to: "household"
+  // matches thousands of titles across a catalog of eighty thousand, so a place
+  // in the first two hundred of everything is not what this is testing.
+  const household = await searchNbsCatalog({ query: "household", datasetCode: 1, limit: 200 });
   expect(household.results.some((entry) => entry.key === target?.key)).toBe(true);
+  // "house" must not reach it at all, anywhere in the catalog.
   const house = await searchNbsCatalog({ query: "house", limit: 200 });
   expect(house.results.some((entry) => entry.key === target?.key)).toBe(false);
 });
