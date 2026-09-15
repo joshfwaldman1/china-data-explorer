@@ -163,6 +163,26 @@ async function dueCatalogTargets(now = new Date()): Promise<{ key: string; regio
 const CRAWL_PAUSE_MS = Number(process.env.CRAWL_PAUSE_MS ?? 1200);
 const NATIONAL_REGION = { text: "全国", value: "000000000000" };
 
+/**
+ * The bureau's own ordering of its subject headings, as the portal's menu
+ * lists them. The catalog snapshot is sorted by name, so without this the
+ * crawl would work through a hundred thousand regional series in alphabetical
+ * order of Chinese title, and the first day of fetching would be spent on
+ * whatever happens to sort early rather than on output, prices and population.
+ */
+const CATEGORY_ORDER = [
+  "综合", "国民经济核算", "人口", "就业人员和工资", "固定资产投资和房地产", "固定资产投资 (不含农户)",
+  "房地产", "对外经济贸易", "对外经济", "能源", "财政", "金融", "价格指数", "人民生活", "城市概况",
+  "资源和环境", "农业", "工业", "建筑业", "运输和邮电", "交通运输", "邮电通信",
+  "社会消费品零售总额", "国内贸易", "批发和零售业", "住宿和餐饮业", "旅游业",
+  "教育", "科技", "卫生", "社会服务", "文化", "体育", "公共管理、社会保障及其他",
+];
+
+function categoryRank(entry: NbsCatalogEntry): number {
+  const at = CATEGORY_ORDER.indexOf(entry.categories[0] ?? "");
+  return at < 0 ? CATEGORY_ORDER.length : at;
+}
+
 /** One thing the crawl can fetch: an indicator, in one place. */
 interface CrawlTarget { entry: NbsCatalogEntry; region: { text: string; value: string } }
 
@@ -202,9 +222,15 @@ async function catalogTargets(budget: number): Promise<{ targets: CrawlTarget[];
     for (const region of regions) {
       if (stored.has(`${entry.key}@${region.value}`) || empty.has(`${entry.key}@${region.value}`)) continue;
       remaining += 1;
-      if (regional.length < budget) regional.push({ entry, region });
+      // Every outstanding regional target is collected before any is chosen,
+      // because the choice is by subject and the catalog is sorted by name.
+      regional.push({ entry, region });
     }
   }
+  // Regional targets are fetched in the bureau's own order of subjects, and
+  // within a subject table by table, so each place gets its headline series
+  // before the crawl reaches the long tail.
+  regional.sort((a, b) => categoryRank(a.entry) - categoryRank(b.entry));
   return { targets: [...national, ...regional].slice(0, budget), remaining };
 }
 
