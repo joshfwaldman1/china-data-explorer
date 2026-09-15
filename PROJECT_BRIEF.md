@@ -4,9 +4,9 @@
 
 ## Summary
 
-A working FRED for Chinese official statistics. Nine and a half thousand
-browsable series, searchable in English or Chinese, charted, downloadable, and
-archived with every revision the source has made since the store opened. It
+A working FRED for Chinese official statistics. Sixty-six thousand browsable
+series, searchable in English or Chinese, charted, downloadable, and archived
+with every revision the source has made since the store opened. It
 runs unattended, refreshes itself on the statistics bureau's own release
 calendar, and costs a few dollars a month.
 
@@ -18,15 +18,16 @@ And it handles the conventions that make naive copies of Chinese data wrong.
 
 | | |
 |---|---|
-| Browsable series | 13,258, from a 19,433-entry catalog |
-| Observations stored | 1.32 million and climbing as the regional tables are fetched |
+| Browsable series | 66,222, from a 79,756-entry catalog |
+| Observations stored | 1.5 million and climbing as the regional tables are fetched |
 | Headline series, curated by hand | 43 |
 | Provinces, quarterly real GDP | 31 |
 | Cities, new and existing home prices | 70 |
 | Provincial and city tables, every indicator by place | 121,000 series being stored |
+| Annual national series, added 15 September | 60,323 |
 | Store size | 439 MB on a mounted volume, a third smaller than before the rebuild |
-| Tests | 153 |
-| Logged improvement rounds | 212 |
+| Tests | 159 |
+| Logged improvement rounds | 214 |
 
 Sources: the statistics bureau's own portal for the catalog and for
 unemployment; the Eastmoney data centre, which republishes the bureau, the
@@ -75,9 +76,10 @@ rather than its titles.
 
 ## What it is not yet
 
-- The bureau's annual national dataset, another forty thousand series, is being
-  crawled. The provincial and city tables are in the catalog and are being
-  stored place by place; until a place is stored its page fetches it live.
+- The provincial and city tables are in the catalog and are being stored place
+  by place; until a place is stored its page fetches it live on first view.
+- The census releases and the ministries' own datasets, which the bureau lists
+  separately from the ones crawled here.
 - Nothing is seasonally adjusted, and nothing corrects for the Lunar New Year,
   which moves between January and February and distorts every first quarter.
 - The store has no backup. Rebuilding the levels takes about thirty minutes.
