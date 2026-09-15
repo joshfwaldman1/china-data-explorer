@@ -11,7 +11,7 @@
 
 import index from "../client/index.html";
 import { regionCoverage } from "./regions";
-import { catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion, configuredLabels } from "./data";
+import { CATALOG, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
 function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult | null {
@@ -33,6 +33,7 @@ import {
   type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
 import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
+import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-plan";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -120,12 +121,24 @@ function cstToDate(text: string): Date | null {
 }
 
 /** The period a release publishes: the previous month, or the quarter that ended before it. */
-function releaseTarget(at: Date, quarterly: boolean): string {
-  const first = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
-  if (!quarterly) { const m = new Date(first.getTime() - 1); return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, "0")}`; }
-  let m = new Date(first.getTime() - 1);
-  while ((m.getUTCMonth() + 1) % 3 !== 0) m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth(), 1) - 1);
-  return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, "0")}`;
+/**
+ * How long to wait before checking a release again, by attempt number, or null
+ * when the window has been given up on. Every ten minutes for the first hour,
+ * every half hour to the end of the day, then hourly, then every six hours out
+ * to four days — the bureau allows itself about three working days for its
+ * database to carry everything a release announced.
+ */
+export function releaseRetryDelayMs(attempt: number): number | null {
+  if (attempt < 6) return 10 * 60 * 1000;
+  if (attempt < 30) return 30 * 60 * 1000;
+  if (attempt < 54) return 60 * 60 * 1000;
+  if (attempt < 66) return 6 * 60 * 60 * 1000;
+  return null;
+}
+
+/** The frequency of a curated key, for judging it against a release's targets. */
+function frequencyOfKey(key: string): string {
+  return CATALOG[key]?.frequency ?? "Monthly";
 }
 
 function nbsDate(date: Date, endOfDay = false): string {
@@ -496,22 +509,36 @@ if (ingestEveryHours > 0) {
   const releaseRefresh = async (item: AgendaItem, attempt: number) => {
     const startedAt = new Date().toISOString();
     const at = cstToDate(item.fb_time) ?? new Date();
-    const quarterly = /国内生产总值|居民收支|季度/.test(item.content);
-    const target = releaseTarget(at, quarterly);
-    const before = new Map(storedLatest("").filter((row) => item.keys.includes(row.key)).map((row) => [`${row.key}@${row.region}`, row.lastPeriod ?? ""]));
+    const targets = releaseTargets({ title: item.content, keys: item.keys, categories: item.categories }, at);
+    const covered = () => storedLatest("").filter((row) => item.keys.includes(row.key))
+      .map((row) => ({ key: row.key, region: row.region, frequency: frequencyOfKey(row.key), lastPeriod: row.lastPeriod }));
     await runWhenFree(async () => {
       if (item.keys.length > 0) await runIngest(item.keys);
-      const catalog = item.categories.length > 0 ? await refreshCatalogForRelease(item.categories, target, quarterly ? "Quarterly" : "Monthly") : { advanced: 0, checked: 0, requests: 0 };
-      const after = storedLatest("").filter((row) => item.keys.includes(row.key));
-      const headlineAdvanced = after.filter((row) => (row.lastPeriod ?? "") > (before.get(`${row.key}@${row.region}`) ?? "")).length;
-      // Already holding the period (a sweep or a page view got there first) counts as done, not as "nothing new".
-      const alreadyThere = after.length > 0 && after.every((row) => (row.lastPeriod ?? "") >= target);
-      const advanced = headlineAdvanced + catalog.advanced + (alreadyThere ? 1 : 0);
-      status.lastReleaseRefresh = { en: item.en || item.content, at: new Date().toISOString(), attempts: attempt, advanced };
-      logFetch({ key: "release_refresh", region: "", startedAt, finishedAt: status.lastReleaseRefresh.at, status: "ok", points: advanced, changed: attempt, message: item.en || item.content });
-      console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${headlineAdvanced} headline and ${catalog.advanced} of ${catalog.checked} catalog series gained ${target}`);
-      // Nothing new yet: the portal or its mirrors lag the announcement. Try again shortly, for up to three hours.
-      if (advanced === 0 && attempt < 12) setTimeout(() => { void releaseRefresh(item, attempt + 1); }, 15 * 60 * 1000);
+      const catalog = item.categories.length > 0
+        ? await refreshCatalogForRelease(item.categories, targets)
+        : { advanced: 0, checked: 0, requests: 0, pending: 0 };
+      const after = covered();
+      const behind = pendingSeries(targets, after);
+      // Finished when every series this release covers holds the period it
+      // reports, and every catalog series it touched did too. One series
+      // arriving early used to end the retries for all the others.
+      const done = behind.length === 0 && catalog.pending === 0 && (after.length > 0 || catalog.checked > 0);
+      status.lastReleaseRefresh = { en: item.en || item.content, at: new Date().toISOString(), attempts: attempt, advanced: catalog.advanced + (after.length - behind.length) };
+      logFetch({ key: "release_refresh", region: "", startedAt, finishedAt: status.lastReleaseRefresh.at, status: "ok", points: catalog.advanced, changed: attempt, message: item.en || item.content });
+      const periods = targets.map((target: ReleaseTarget) => `${target.frequency.toLowerCase()} ${target.period}`).join(" and ");
+      console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${after.length - behind.length}/${after.length} headline and ${catalog.advanced}/${catalog.checked} catalog series hold ${periods}${done ? "" : `; ${behind.length + catalog.pending} still behind`}`);
+      if (done) return;
+      // The bureau gives itself about three working days for every short-term
+      // indicator to reach its database, so a release that has not arrived is
+      // normally late rather than lost. Check often at first, then back off,
+      // and keep checking across that window instead of giving up after three
+      // hours.
+      const wait = releaseRetryDelayMs(attempt);
+      if (wait === null) {
+        console.log(`  Release refresh (${item.en || item.content}): still incomplete after ${attempt} attempts; leaving it to the due check`);
+        return;
+      }
+      setTimeout(() => { void releaseRefresh(item, attempt + 1); }, wait);
     }, "Release refresh");
   };
   const planReleases = async () => {

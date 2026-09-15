@@ -18,7 +18,8 @@
 import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions, type SeriesResult } from "./data.ts";
 import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyTargets, storedLatest, storedValue } from "./db.ts";
 import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, getNbsDimensions, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
-import { isDue } from "./due.ts";
+import { comparablePeriod, isDue } from "./due.ts";
+import type { ReleaseTarget } from "./release-plan.ts";
 
 // Upstream sources are public and unauthenticated, so we stay well-mannered:
 // one series at a time with a pause between, rather than a burst of parallel
@@ -339,39 +340,82 @@ export async function fillRegionalSeries(key: string, limit = 40): Promise<{ fet
  * Returns how many series gained a period, so the caller knows whether the
  * portal has the new numbers yet.
  */
-export async function refreshCatalogForRelease(categories: string[], targetPeriod: string, frequency: "Monthly" | "Quarterly"): Promise<{ advanced: number; checked: number; requests: number }> {
+/**
+ * After a release: re-fetch the stored catalog series in the categories that
+ * release covers and that do not yet hold the period it reports.
+ *
+ * Three things this has to get right, each of which it used to get wrong.
+ *
+ * A series is a (key, region) pair. Keying the work by indicator alone meant
+ * one province standing in for all of them, and every request going out for the
+ * national figure — which, on a table published only by province or city, is a
+ * grid of zeroes the bureau will happily return.
+ *
+ * Periods arrive in two shapes: "2026-Q2" from the catalog, "2026-06" from the
+ * mirrors. "2026-Q2" > "2026-06" as strings, so every quarterly series counted
+ * as current and was never refreshed after a quarterly release.
+ *
+ * One event can report a month and a quarter — the national economy briefing in
+ * January, April, July and October does — so the caller passes a target per
+ * frequency rather than one target and one frequency.
+ */
+export async function refreshCatalogForRelease(
+  categories: string[],
+  targets: ReleaseTarget[],
+  options: { fetchBatch?: typeof fetchNbsTableBatch; pauseMs?: number; entries?: NbsCatalogEntry[] } = {},
+): Promise<{ advanced: number; checked: number; requests: number; pending: number }> {
   db();
-  const latest = new Map(storedLatest("nbs_").map((row) => [row.key, row.lastPeriod ?? ""]));
-  const wanted: NbsCatalogEntry[] = [];
-  for (const entry of await listNbsCatalogEntries()) {
-    if (entry.frequency !== frequency || !latest.has(entry.key)) continue;
-    if (!categories.includes(entry.categories[0] ?? "")) continue;
-    if ((latest.get(entry.key) ?? "") >= targetPeriod) continue;
-    wanted.push(entry);
+  const fetchBatch = options.fetchBatch ?? fetchNbsTableBatch;
+  const pauseMs = options.pauseMs ?? CRAWL_PAUSE_MS;
+  const targetFor = (frequency: string) => targets.find((target) => target.frequency === frequency);
+
+  // Stored series, by indicator and place, so a place that is behind is
+  // refreshed even when its neighbours are current.
+  const stored = new Map<string, { region: string; lastPeriod: string }>();
+  for (const row of storedLatest("nbs_")) stored.set(`${row.key}@${row.region}`, { region: row.region, lastPeriod: row.lastPeriod ?? "" });
+
+  const wanted: { entry: NbsCatalogEntry; region: { text: string; value: string } }[] = [];
+  for (const entry of options.entries ?? await listNbsCatalogEntries()) {
+    const target = targetFor(entry.frequency);
+    if (!target || !categories.includes(entry.categories[0] ?? "")) continue;
+    const regions = entry.geography === "National" ? [NATIONAL_REGION] : await getNbsDimensions(entry, { offline: true });
+    for (const region of regions) {
+      const held = stored.get(`${entry.key}@${region.value}`);
+      if (!held) continue; // never stored: the crawl's job, not the release's
+      if (comparablePeriod(held.lastPeriod) >= target.period) continue;
+      wanted.push({ entry, region });
+    }
   }
-  const tables = new Map<string, NbsCatalogEntry[]>();
-  for (const entry of wanted) {
-    const tableKey = `${entry.cid}|${entry.rootId}`;
-    tables.set(tableKey, [...(tables.get(tableKey) ?? []), entry]);
+
+  // One request per table, frequency and place.
+  const tables = new Map<string, { entry: NbsCatalogEntry; region: { text: string; value: string } }[]>();
+  for (const item of wanted) {
+    const tableKey = `${item.entry.cid}|${item.entry.rootId}|${item.entry.frequency}|${item.region.value}`;
+    tables.set(tableKey, [...(tables.get(tableKey) ?? []), item]);
   }
-  const result = { advanced: 0, checked: wanted.length, requests: 0 };
+
+  const result = { advanced: 0, checked: wanted.length, requests: 0, pending: 0 };
   for (const group of tables.values()) {
     for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) {
       const chunk = group.slice(at, at + NBS_BATCH_SIZE);
+      const region = chunk[0]?.region ?? NATIONAL_REGION;
       const startedAt = new Date().toISOString();
       try {
-        const points = await fetchNbsTableBatch(chunk, NATIONAL_REGION);
+        const points = await fetchBatch(chunk.map((item) => item.entry), region);
         result.requests += 1;
-        for (const entry of chunk) {
-          const fetched = points.get(entry.id) ?? [];
-          storeNbsPoints(entry, NATIONAL_REGION, fetched, startedAt);
-          if ((fetched.at(-1)?.date ?? "") >= targetPeriod) result.advanced += 1;
+        for (const item of chunk) {
+          const fetched = points.get(item.entry.id) ?? [];
+          storeNbsPoints(item.entry, region, fetched, startedAt);
+          const target = targetFor(item.entry.frequency);
+          if (target && comparablePeriod(fetched.at(-1)?.date ?? "") >= target.period) result.advanced += 1;
+          else result.pending += 1;
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        for (const entry of chunk) logFetch({ key: entry.key, region: NATIONAL_REGION.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+        for (const item of chunk) logFetch({ key: item.entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+        result.pending += chunk.length;
       }
-      await sleep(CRAWL_PAUSE_MS);
+      await sleep(pauseMs);
     }
   }
   return result;

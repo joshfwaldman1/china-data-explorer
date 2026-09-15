@@ -52,7 +52,10 @@ test("regions of one key are stored and read back separately", () => {
   // No region filter still returns every region, which is what the curated
   // path relies on.
   expect(readSeries("nbs_t", 600)?.series).toHaveLength(2);
-  expect(listStoredSeries("nbs_")).toEqual([
+  // Scoped to this key: other tests in this suite write nbs_ keys of their own
+  // into the same store, and what this is checking is that one key's regions
+  // are listed separately.
+  expect(listStoredSeries("nbs_").filter((row) => row.key === "nbs_t")).toEqual([
     { key: "nbs_t", region: NATIONAL }, { key: "nbs_t", region: GUANGDONG },
   ]);
   expect(seriesFreshness("nbs_t", GUANGDONG)).toBe("2026-01-01T00:00:00.000Z");
