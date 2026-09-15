@@ -334,3 +334,10 @@ test("a scope qualifier NBS keeps in its annotations is dropped from a query", a
   const result = await searchNbsCatalog({ query: "规模以上工业增加值", limit: 5 });
   expect(result.results.some((entry) => entry.name.includes("工业增加值"))).toBe(true);
 });
+
+test("a phrase inside a longer query is still read as a phrase", async () => {
+  // "home prices" is 住宅销售价格; "home" and "prices" apart are the wrong tables.
+  expect(queryVariants("new home prices")).toContain("住宅销售价格");
+  const result = await searchNbsCatalog({ query: "new home prices", limit: 10 });
+  expect(result.results.some((entry) => entry.name.includes("销售价格"))).toBe(true);
+});

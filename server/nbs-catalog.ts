@@ -793,12 +793,26 @@ export function normalizeQuery(query: string): string {
   return out;
 }
 
-/** Every phrasing the dictionary offers for a query, plus the query itself. */
+/**
+ * Every phrasing the dictionary offers for a query, plus the query itself.
+ *
+ * Phrases are looked up as well as single words, because the useful entries
+ * are phrases: "home prices" is 住宅销售价格, while "home" and "prices" apart
+ * are 房地产 and 价格 and find the wrong tables. A query the dictionary knows
+ * in full still wins; "shenzhen new home prices" reaches the sales price index
+ * through its "home prices" phrase.
+ */
 export function queryVariants(query: string): string[] {
   const lower = query.toLocaleLowerCase();
   const direct = SEARCH_ALIASES[lower] ?? [];
-  const perWord = lower.split(/\s+/).filter((word) => word && !SEARCH_STOP_WORDS.has(word)).flatMap((word) => SEARCH_ALIASES[word] ?? []);
-  return [...new Set([lower, ...direct, ...perWord])];
+  const words = lower.split(/\s+/).filter((word) => word && !SEARCH_STOP_WORDS.has(word));
+  const phrases: string[] = [];
+  for (let size = Math.min(4, words.length); size >= 2; size -= 1) {
+    for (let at = 0; at + size <= words.length; at += 1) phrases.push(words.slice(at, at + size).join(" "));
+  }
+  const fromPhrases = phrases.flatMap((phrase) => SEARCH_ALIASES[phrase] ?? []);
+  const perWord = words.flatMap((word) => SEARCH_ALIASES[word] ?? []);
+  return [...new Set([lower, ...direct, ...fromPhrases, ...perWord])];
 }
 
 // The stored range per series, refreshed every ten minutes: search ranks
