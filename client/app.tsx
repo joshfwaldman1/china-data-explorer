@@ -93,7 +93,7 @@ type Route =
   | { view: "search"; q: string; freq: string; cat: string; dataset: string; geo: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
-  | { view: "regions"; period: string }
+  | { view: "regions"; period: string; key: string }
   | { view: "saved" }
   | { view: "recent" };
 
@@ -298,7 +298,7 @@ function parseRoute(hash: string): Route {
   if (head === "browse") return { view: "browse", cat: "" };
   if (head === "category" && parts[1]) return { view: "search", q: "", freq: "", cat: decodeURIComponent(parts[1]), dataset: "", geo: "" };
   if (head === "releases") return { view: "releases", month: query.get("month") ?? "" };
-  if (head === "regions") return { view: "regions", period: query.get("period") ?? "" };
+  if (head === "regions") return { view: "regions", period: query.get("period") ?? "", key: query.get("key") ?? "" };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -311,7 +311,7 @@ function routeHash(route: Route): string {
     case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset], ["geo", route.geo]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
-    case "regions": return `#/regions${qs([["period", route.period]])}`;
+    case "regions": return `#/regions${qs([["period", route.period], ["key", route.key]])}`;
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -1233,6 +1233,8 @@ function SeriesPage(props: {
           </div>}
           controls={<>
           {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{regionLabel(item) === item.text ? item.text : `${regionLabel(item)} ${item.text}`}</option>)}</select></label>}
+          {/* Every place at once: the map and ranking, for a series published by place. */}
+          {regions.length > 4 && props.route.keys.length === 1 && <a className="button" href={routeHash({ view: "regions", period: "", key: splitSpec(props.route.keys[0] ?? "").key })}>All places</a>}
           <button className="button" aria-expanded={optionsOpen} aria-controls="chart-options" onClick={() => setOptionsOpen((value) => !value)}>Options</button>
           <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
           </>}
@@ -1353,10 +1355,12 @@ const TILES: { code: string; col: number; row: number }[] = [
 const PROVINCES: Province[] = TILES.map((tile) => {
   const place = PROVINCE_PLACES.find((item) => item.code === tile.code);
   return { code: tile.code, abbr: place?.abbr ?? "", en: place?.en ?? tile.code, zh: place?.zh ?? "", col: tile.col, row: tile.row };
-});const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
+});
+
+const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
 
 interface RegionalValue { region: Region; value: number | null; period: string | null; points: SeriesPoint[]; }
-interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
+interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; geography?: string; stored?: number; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
 
 function isRegionalResponse(value: unknown): value is RegionalResponse {
   return typeof obj(value, "key") === "string" && Array.isArray(obj(value, "values")) && Array.isArray(obj(value, "periods"));
@@ -1372,9 +1376,13 @@ function stepFor(value: number, breaks: number[]): number { let step = 0; for (c
 
 function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; navigate: (route: Route) => void; toast: (text: string) => void }) {
   const [data, setData] = useState<RegionalResponse | null>(null);
+  // Provincial GDP is the page's own series; any other regional series in the
+  // catalog can be mapped by naming it in the URL.
+  const key = props.route.key || "provincial_gdp";
+  const gdp = key === "provincial_gdp";
   // The period lives in the URL, so a view of Q1 2020 can be shared and bookmarked.
   const period = props.route.period;
-  const setPeriod = (value: string) => props.navigate({ view: "regions", period: value });
+  const setPeriod = (value: string) => props.navigate({ view: "regions", period: value, key: props.route.key });
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [selected, setSelected] = useState<string>("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -1382,21 +1390,26 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; naviga
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
-    json(`/api/regional/provincial_gdp${period ? `?period=${encodeURIComponent(period)}` : ""}`).then((body) => {
+    json(`/api/regional/${encodeURIComponent(key)}${period ? `?period=${encodeURIComponent(period)}` : ""}`).then((body) => {
       if (cancelled) return;
       if (isRegionalResponse(body)) { setData(body); setStatus("ok"); } else setStatus("error");
     }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
-  }, [period, attempt]);
+  }, [key, period, attempt]);
   // A link to a quarter the store lacks (a stale bookmark, a typo) falls back to the latest quarter and says so,
   // rather than drawing an empty map under that quarter's heading.
   useEffect(() => {
     if (status !== "ok" || !period || !data || data.values.some((item) => item.value !== null)) return;
-    props.toast(`No provincial data for ${periodPretty(period)}; showing the latest quarter`);
-    props.navigate({ view: "regions", period: "" });
+    props.toast(`Nothing published for ${periodPretty(period)}; showing the latest period`);
+    props.navigate({ view: "regions", period: "", key: props.route.key });
   }, [status, data, period]);
 
-  const rows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.province && item.value !== null);
+  const unit = data?.unit ?? "%";
+  const rows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.value !== null);
+  // The tile map is a map of the provinces; a city series has no tiles, so it
+  // gets the ranking alone rather than a map with most of the country missing.
+  const mapped = rows.filter((item) => item.province);
+  const hasMap = mapped.length >= rows.length / 2 && mapped.length > 4;
   const values = rows.map((item) => item.value ?? 0);
   const breaks = breaksFor(values);
   const max = Math.max(0, ...values);
@@ -1410,89 +1423,101 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; naviga
 
   return (
     <main id="main" tabIndex={-1} className="page">
-      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Provinces</span></div>
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span>{gdp ? <span>Provinces</span> : <><a href="#/regions">Provinces</a><span aria-hidden="true">›</span><span>{data?.title ?? "Series"}</span></>}</div>
       <div className="series-head">
         <div>
-          <h1>Real GDP Growth by Province</h1>
-          <p className="lede">Year-to-date real GDP, % change from the same period a year earlier: Q2 is first-half growth, Q4 is full-year growth. Source: provincial statistical bureaus, via NBS.</p>
+          <h1>{gdp ? "Real GDP Growth by Province" : `${data?.title ?? "Series"} by ${data?.geography === "City" ? "City" : "Province"}`}</h1>
+          <p className="lede">{gdp
+            ? "Year-to-date real GDP, % change from the same period a year earlier: Q2 is first-half growth, Q4 is full-year growth. Source: provincial statistical bureaus, via NBS."
+            : `${unitLabel(unit)}, ${(data?.frequency ?? "").toLowerCase()}. Source: National Bureau of Statistics.`}</p>
         </div>
         <div className="actions">
           <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
         </div>
       </div>
 
-      {status === "loading" && <div className="state" role="status"><span className="loader" aria-hidden="true" />Loading provinces…</div>}
-      {status === "error" && <div className="state" role="alert"><b>Provincial data unavailable</b><p>The provincial series did not load. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => setAttempt(attempt + 1)}>Try again</button></div></div>}
-      {status === "ok" && data && (
-        <div className="regional-grid">
-          <section className="card" aria-label="Map of provinces">
-            <div className="card-head"><h2>Tile map</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, approximate geography</span></div>
-            <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
-              {rows.map((item) => {
-                const province = item.province;
-                if (!province) return null;
-                const step = stepFor(item.value ?? 0, breaks);
-                return (
-                  <button key={province.code} className={`ptile ${step >= 3 ? "dark" : "light"}`} style={{ gridColumn: province.col, gridRow: province.row, background: RAMP[step] }} aria-pressed={selected === province.code} aria-label={`${province.en}, ${fmt(item.value ?? 0, "%")}%`} onClick={() => setSelected(selected === province.code ? "" : province.code)} onMouseEnter={() => undefined}>
-                    <span>{province.abbr}</span><b>{fmt(item.value ?? 0, "%")}</b>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="ramp" aria-hidden="true">
-              <span>% change</span>
-              <div>
-                <div className="steps">{RAMP.map((color) => <i key={color} style={{ background: color }} />)}</div>
-                <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge.toFixed(1)}</span>)}</div>
+      {status === "loading" && <div className="state" role="status"><span className="loader" aria-hidden="true" />Loading places…</div>}
+      {status === "error" && <div className="state" role="alert"><b>Regional data unavailable</b><p>The series did not load. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => setAttempt(attempt + 1)}>Try again</button></div></div>}
+      {status === "ok" && data && rows.length === 0 && (
+        <div className="state" role="status">
+          <b>Nothing stored for this series yet</b>
+          <p>The catalog lists it for {(data.values.length).toLocaleString("en-US")} places; the crawl fetches place by place and has not reached this table. Open the series itself to fetch one place now.</p>
+          <div className="actions"><a className="button" href={seriesHash([key])}>Open series</a></div>
+        </div>
+      )}
+      {status === "ok" && data && rows.length > 0 && (
+        <div className={hasMap ? "regional-grid" : "regional-grid one-column"}>
+          {hasMap && (
+            <section className="card" aria-label="Map of provinces">
+              <div className="card-head"><h2>Tile map</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, approximate geography</span></div>
+              <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
+                {mapped.map((item) => {
+                  const province = item.province;
+                  if (!province) return null;
+                  const step = stepFor(item.value ?? 0, breaks);
+                  return (
+                    <button key={province.code} className={`ptile ${step >= 3 ? "dark" : "light"}`} style={{ gridColumn: province.col, gridRow: province.row, background: RAMP[step] }} aria-pressed={selected === province.code} aria-label={`${province.en}, ${fmt(item.value ?? 0, unit)}`} onClick={() => setSelected(selected === province.code ? "" : province.code)}>
+                      <span>{province.abbr}</span><b>{fmt(item.value ?? 0, unit)}</b>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </section>
+              <div className="ramp" aria-hidden="true">
+                <span>{unitLabel(unit)}</span>
+                <div>
+                  <div className="steps">{RAMP.map((color) => <i key={color} style={{ background: color }} />)}</div>
+                  <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge.toFixed(1)}</span>)}</div>
+                </div>
+              </div>
+            </section>
+          )}
           <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
-            {current && current.province && (
+            {current && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
-                <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{current.province.en} <Zh className="gloss">{current.province.zh}</Zh></h2></div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, "%")}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>%, {shownPeriod ? periodPretty(shownPeriod) : ""}, year to date</span></div>
+                <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{regionLabel(current.region)} <Zh className="gloss">{current.region.text}</Zh></h2></div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, unit)}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>{unitLabel(unit)}, {shownPeriod ? periodPretty(shownPeriod) : ""}{gdp ? ", year to date" : ""}</span></div>
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
-                  <a className="button" href={seriesHash(["provincial_gdp"], { region: current.province.code })}>Open series</a>
-                  {picked.includes(current.province.code)
-                    ? <button className="button" onClick={() => setPicked(picked.filter((code) => code !== current.province?.code))}>Remove from comparison</button>
-                    : <button className="button" disabled={picked.length >= 4} onClick={() => setPicked([...picked, current.province?.code ?? ""].filter(Boolean))}>{picked.length >= 4 ? "Comparison is full" : "Add to comparison"}</button>}
+                  <a className="button" href={seriesHash([key], { region: current.region.value })}>Open series</a>
+                  {picked.includes(current.region.value)
+                    ? <button className="button" onClick={() => setPicked(picked.filter((code) => code !== current.region.value))}>Remove from comparison</button>
+                    : <button className="button" disabled={picked.length >= 4} onClick={() => setPicked([...picked, current.region.value])}>{picked.length >= 4 ? "Comparison is full" : "Add to comparison"}</button>}
                 </div>
               </section>
             )}
             {picked.length > 0 && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
-                <div className="section-head" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Compare Provinces</h2><span>{picked.length} of 4</span></div>
-                <div className="chip-row" style={{ margin: "0 0 10px" }}>{picked.map((code) => { const province = PROVINCES.find((item) => item.code === code); return <span className="chip" key={code}>{province?.en ?? code}<button onClick={() => setPicked(picked.filter((item) => item !== code))} aria-label={`Remove ${province?.en ?? code}`}>×</button></span>; })}</div>
+                <div className="section-head" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Compare Places</h2><span>{picked.length} of 4</span></div>
+                <div className="chip-row" style={{ margin: "0 0 10px" }}>{picked.map((code) => { const place = rows.find((item) => item.region.value === code)?.region; return <span className="chip" key={code}>{place ? regionLabel(place) : code}<button onClick={() => setPicked(picked.filter((item) => item !== code))} aria-label={`Remove ${place ? regionLabel(place) : code}`}>×</button></span>; })}</div>
                 {picked.length < 2
                   ? <button className="button" type="button" disabled>Pick at least two</button>
-                  : <a className="button" href={seriesHash(picked.map((code) => `provincial_gdp@${code}`), { range: "10y" })}>Chart {picked.length} provinces together</a>}
+                  : <a className="button" href={seriesHash(picked.map((code) => `${key}@${code}`), { range: "10y" })}>Chart {picked.length} places together</a>}
               </section>
             )}
             <section className="card">
               <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, highest to lowest</span></div>
-              <div className="ranked" role="group" aria-label="Provinces ranked highest to lowest; select one to see its series">
+              <div className="ranked" role="group" aria-label="Places ranked highest to lowest; select one to see its series">
                 {ranked.map((item) => {
-                  const province = item.province;
-                  if (!province) return null;
                   const step = stepFor(item.value ?? 0, breaks);
+                  const code = item.region.value;
                   return (
-                    <button key={province.code} className={`r${selected === province.code ? " selected" : ""}`} aria-label={`${province.en}, ${fmt(item.value ?? 0, "%")}%`} style={{ border: 0, background: selected === province.code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === province.code ? "" : province.code)} aria-pressed={selected === province.code}>
-                      <span>{province.en}</span>
+                    <button key={code} className={`r${selected === code ? " selected" : ""}`} aria-label={`${regionLabel(item.region)}, ${fmt(item.value ?? 0, unit)}`} style={{ border: 0, background: selected === code ? "var(--panel-2)" : "none", textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => setSelected(selected === code ? "" : code)} aria-pressed={selected === code}>
+                      <span>{regionLabel(item.region)}</span>
                       <span className="bar">{zeroPct > 0 && zeroPct < 100 && <b style={{ left: `${zeroPct}%` }} />}<i style={{ left: `${Math.min(zeroPct, ((item.value ?? 0) - low) / span * 100)}%`, width: `${Math.abs((item.value ?? 0) / span) * 100}%`, background: RAMP[step] }} /></span>
-                      <span className="val">{fmt(item.value ?? 0, "%")}</span>
+                      <span className="val">{fmt(item.value ?? 0, unit)}</span>
                     </button>
                   );
                 })}
               </div>
             </section>
             <section className="card" style={{ padding: 16 }}>
-              <h2>Notes on Provincial Data</h2>
+              <h2>Notes on Regional Data</h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
-                <li>NBS publishes provincial GDP growth as 本期累计, cumulative for the year. Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total, so treat the ranking as indicative.</li>
-                <li>Growth in small western provinces moves on a low base, so a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>
-                <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are not in this series.</li>
+                {gdp && <li>NBS publishes provincial GDP growth as 本期累计, cumulative for the year. Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total, so treat the ranking as indicative.</li>}
+                {gdp && <li>Growth in small western provinces moves on a low base, so a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>}
+                {!gdp && <li>Provincial and city figures are compiled by local bureaus to the national definition. A level series is published on each year's own reporting scope, so a place's history is not always a like-for-like run.</li>}
+                {!gdp && data.stored !== undefined && data.stored < data.values.length && <li>{data.stored} of {data.values.length} places are stored so far. The crawl fills the rest in over the following days.</li>}
+                <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are in their own dataset, not this one.</li>
               </ul>
             </section>
           </div>

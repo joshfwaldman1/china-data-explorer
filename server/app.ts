@@ -183,10 +183,17 @@ const routes = {
     "/api/schedule": () => Response.json(scheduleStatus()),
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
-    "/api/regional/:key": (req: RouteRequest) => {
+    // Every place one series is published for, at one period: the tile map and
+    // the ranking. Curated regional series and NBS regional tables alike, so a
+    // provincial indicator from the catalog gets the same treatment as
+    // provincial GDP.
+    "/api/regional/:key": async (req: RouteRequest) => {
       const key = req.params.key;
-      const regions = key ? seriesRegions(key) : [];
-      if (!key || regions.length === 0) return Response.json({ error: "Not a regional series" }, { status: 404 });
+      if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
+      const entry = key.startsWith("nbs_") ? await getNbsCatalogEntry(key) : null;
+      const regions = entry && entry.geography !== "National" ? await getNbsDimensions(entry) : seriesRegions(key);
+      if (regions.length === 0) return Response.json({ error: "Not a regional series" }, { status: 404 });
+      const geography = entry ? entry.geography : seriesGeography(key);
       const period = new URL(req.url).searchParams.get("period") ?? "";
       const periods = new Set<string>();
       const values = regions.map((region) => {
@@ -200,8 +207,16 @@ const routes = {
         return { region, value: chosen?.value ?? null, period: chosen?.date ?? null, points: window };
       });
       const meta = readSeries(key, 1, regions[0]?.value);
-      return Response.json({ key, title: meta?.title ?? key, unit: meta?.unit ?? "", frequency: meta?.frequency ?? "", agency: meta?.agency ?? "",
-        updatedAt: meta?.updatedAt ?? null, periods: [...periods].sort().reverse(), values });
+      return Response.json({
+        key, geography,
+        title: (entry ? entry.nameEn ?? entry.name : meta?.title) ?? key,
+        unit: meta?.unit ?? entry?.unit ?? "",
+        frequency: meta?.frequency ?? entry?.frequency ?? "",
+        agency: meta?.agency ?? "National Bureau of Statistics",
+        updatedAt: meta?.updatedAt ?? null,
+        // A place with nothing stored yet is still listed, so the map shows a gap rather than dropping a province.
+        stored: values.filter((item) => item.points.length > 0).length,
+        periods: [...periods].sort().reverse(), values });
     },
     // One entry by key — curated or catalog — for pages that hold only keys
     // (saved, recent) and need titles.

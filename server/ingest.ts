@@ -307,6 +307,54 @@ export async function refreshCatalogForRelease(categories: string[], targetPerio
 }
 
 /** One full ingest pass. `requested` is the CLI argument list; empty means everything. */
+/**
+ * Re-fetch stored catalog series that are due, batched by table and place.
+ *
+ * The bureau answers for one table and one place per request but for as many
+ * of that table's indicators as are asked for, so a sweep over a catalog this
+ * size has to be grouped rather than walked: one request per forty series,
+ * paced, instead of one per series. A series whose entry has left the catalog
+ * snapshot is counted as an error and skipped, not fetched blind.
+ */
+export async function refreshCatalogTargets(targets: { key: string; region: string }[]): Promise<{ ok: number; error: number; empty: number }> {
+  const tally = { ok: 0, error: 0, empty: 0 };
+  const tables = new Map<string, { entry: NbsCatalogEntry; region: { text: string; value: string } }[]>();
+  for (const target of targets) {
+    const entry = await getNbsCatalogEntry(target.key);
+    if (!entry) { tally.error += 1; continue; }
+    const regions = await getNbsDimensions(entry);
+    const region = regions.find((option) => option.value === target.region)
+      ?? (target.region ? { text: target.region, value: target.region } : NATIONAL_REGION);
+    const tableKey = `${entry.cid}|${entry.rootId}|${entry.frequency}|${region.value}`;
+    tables.set(tableKey, [...(tables.get(tableKey) ?? []), { entry, region }]);
+  }
+  const chunks: { entry: NbsCatalogEntry; region: { text: string; value: string } }[][] = [];
+  for (const group of tables.values()) for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) chunks.push(group.slice(at, at + NBS_BATCH_SIZE));
+  console.log(`  ${chunks.length} table requests for ${targets.length} series`);
+
+  for (const [index, chunk] of chunks.entries()) {
+    const region = chunk[0]?.region ?? NATIONAL_REGION;
+    const startedAt = new Date().toISOString();
+    try {
+      const points = await fetchNbsTableBatch(chunk.map((item) => item.entry), region);
+      let okHere = 0;
+      for (const item of chunk) {
+        const outcome = storeNbsPoints(item.entry, region, points.get(item.entry.id) ?? [], startedAt);
+        tally[outcome] += 1;
+        if (outcome === "ok") okHere += 1;
+      }
+      console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  ${(chunk[0]?.entry.categories.slice(-1)[0] ?? "").slice(0, 40).padEnd(40)} ${okHere}/${chunk.length} refreshed`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      for (const item of chunk) logFetch({ key: item.entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+      tally.error += chunk.length;
+      console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  FAILED  ${message.slice(0, 80)}`);
+    }
+    if (index < chunks.length - 1) await sleep(CRAWL_PAUSE_MS);
+  }
+  return tally;
+}
+
 export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
   let curatedKeys = requested.length > 0
     ? requested.filter((spec) => !spec.startsWith("nbs_"))
@@ -357,12 +405,23 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
 
   // Stored catalog series are re-checked when the NBS calendar says a new
   // period should be out, or after 45 days for revisions (see due.ts), not
-  // all 15,000 every day.
+  // the whole store every day.
   if (catalogTargets.length > 0) {
+    const named = requested.length > 0;
     console.log(`\nRefreshing ${catalogTargets.length} stored catalog series that are due\n`);
-    for (const [index, target] of catalogTargets.entries()) {
-      tally[await refreshOne(target.key, target.region)] += 1;
-      if (index < catalogTargets.length - 1) await sleep(PAUSE_MS);
+    // A handful of series named on the command line are fetched one by one so
+    // the output names each; a due sweep is batched by table and place, which
+    // is one request per forty series instead of forty.
+    if (named && catalogTargets.length <= NBS_BATCH_SIZE) {
+      for (const [index, target] of catalogTargets.entries()) {
+        tally[await refreshOne(target.key, target.region)] += 1;
+        if (index < catalogTargets.length - 1) await sleep(PAUSE_MS);
+      }
+    } else {
+      const batched = await refreshCatalogTargets(catalogTargets);
+      tally.ok += batched.ok;
+      tally.error += batched.error;
+      tally.empty += batched.empty;
     }
   }
 

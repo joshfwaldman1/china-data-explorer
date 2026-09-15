@@ -12,9 +12,9 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { resolve } from "node:path";
+import { readCatalogSnapshot } from "../server/catalog-file.ts";
 import { baseConcepts } from "../server/gloss";
 
-const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const GLOSS_PATH = resolve(import.meta.dir, "../catalog/gloss-en.json");
 const BATCH = 120;
 const limitArg = process.argv.find((arg) => arg.startsWith("--limit="));
@@ -46,7 +46,7 @@ async function translate(batch: string[]): Promise<Record<string, string>> {
   return out;
 }
 
-const catalog: unknown = await Bun.file(CATALOG_PATH).json();
+const catalog: unknown = await readCatalogSnapshot();
 const entries = typeof catalog === "object" && catalog !== null ? Reflect.get(catalog, "entries") : undefined;
 if (!Array.isArray(entries)) throw new Error("catalog snapshot missing");
 const names = entries.map((entry) => (typeof entry === "object" && entry !== null && typeof Reflect.get(entry, "name") === "string" ? Reflect.get(entry, "name") : "")).filter(Boolean);

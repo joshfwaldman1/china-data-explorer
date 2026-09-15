@@ -13,8 +13,8 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { resolve } from "node:path";
+import { readCatalogSnapshot } from "../server/catalog-file.ts";
 
-const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const NOTES_PATH = resolve(import.meta.dir, "../catalog/notes-en.json");
 const BATCH = 40;
 const CONCURRENCY = 4;
@@ -53,7 +53,7 @@ function stringAt(value: unknown, key: string): string {
   return typeof found === "string" ? found.trim() : "";
 }
 
-const catalog: unknown = await Bun.file(CATALOG_PATH).json();
+const catalog: unknown = await readCatalogSnapshot();
 const entries = typeof catalog === "object" && catalog !== null ? Reflect.get(catalog, "entries") : undefined;
 if (!Array.isArray(entries)) throw new Error("catalog snapshot missing");
 

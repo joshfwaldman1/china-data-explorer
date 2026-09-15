@@ -185,6 +185,8 @@ export interface NbsCatalogEntry {
 export interface NbsRegionOption {
   text: string;
   value: string;
+  /** English name, where the site knows one for this place. */
+  en?: string;
 }
 
 export interface NbsSearchFilters {
@@ -211,6 +213,10 @@ type NbsSeriesResult = SeriesResult & {
 };
 
 let snapshotCache: { version: string; snapshot: CatalogSnapshot } | undefined;
+// Key and bureau id to entry, built once per snapshot. A linear scan per lookup
+// was tolerable over fifteen thousand entries; the ingest looks one up for
+// every stored series on every run, and the catalog is now far larger than that.
+let entryIndex: { version: string; byKey: Map<string, NbsCatalogEntry> } | undefined;
 let snapshotPromise: Promise<CatalogSnapshot> | undefined;
 const dimensionsCache = new Map<string, { at: number; data: NbsRegionOption[] }>();
 
@@ -272,12 +278,23 @@ const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
 const GLOSS_FORMAT = 18; // 18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+let versionCache: { at: number; version: string } | undefined;
+const VERSION_TTL_MS = 5_000;
+
 async function catalogVersion(): Promise<string> {
+  // Four file stats per call is nothing on its own, but every catalog lookup
+  // asks, and an ingest run looks up one entry per stored series. Holding the
+  // answer for a few seconds keeps "the snapshot file changed" working while
+  // costing one stat per five seconds instead of four per lookup.
+  const now = Date.now();
+  if (versionCache && now - versionCache.at < VERSION_TTL_MS) return versionCache.version;
   const parts = await Promise.all([catalogPath(), GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
     try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
   }));
   // GLOSS_FORMAT bumps when glossTitle's output shape changes, so stored glosses rebuild.
-  return [...parts, `gloss-format:${GLOSS_FORMAT}`].join("|");
+  const version = [...parts, `gloss-format:${GLOSS_FORMAT}`].join("|");
+  versionCache = { at: now, version };
+  return version;
 }
 
 function isLabelSource(value: unknown): value is EnglishLabelSource {
@@ -879,7 +896,16 @@ export async function listNbsCatalogEntries(): Promise<NbsCatalogEntry[]> {
 
 export async function getNbsCatalogEntry(key: string): Promise<NbsCatalogEntry | null> {
   const snapshot = await loadSnapshot();
-  return snapshot.entries.find((entry) => entry.key === key || entry.id === key) ?? null;
+  const version = await catalogVersion();
+  if (entryIndex?.version !== version) {
+    const byKey = new Map<string, NbsCatalogEntry>();
+    for (const entry of snapshot.entries) {
+      byKey.set(entry.key, entry);
+      if (!byKey.has(entry.id)) byKey.set(entry.id, entry);
+    }
+    entryIndex = { version, byKey };
+  }
+  return entryIndex.byKey.get(key) ?? null;
 }
 
 async function getJson(path: string): Promise<unknown> {
@@ -905,44 +931,44 @@ export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegio
   if (entry.geography === "National") return [NATIONAL];
   const cached = dimensionsCache.get(entry.cid);
   if (cached && Date.now() - cached.at < 6 * 60 * 60 * 1000) return cached.data;
+  const remember = (regions: NbsRegionOption[]): NbsRegionOption[] => {
+    // Every answer is cached, including a fallback and an empty one. A crawl
+    // asks once per series, and a table whose region list cannot be had would
+    // otherwise spend two timed-out requests on every one of its indicators.
+    dimensionsCache.set(entry.cid, { at: Date.now(), data: regions });
+    return regions;
+  };
 
   // The list collected for this table, if `bun run china:regions` has reached
   // it. That is the only source that knows a city table's own cities; the live
   // endpoint below is challenged from a plain client and usually declines.
   const collected = await collectedRegions(entry.cid);
-  if (collected && collected.length > 0) {
-    dimensionsCache.set(entry.cid, { at: Date.now(), data: collected });
-    return collected;
-  }
+  if (collected && collected.length > 0) return remember(collected);
 
   let treeRaw: unknown;
   try {
-    treeRaw = await getJson(
-      `/new/getDaCatalogTreeByIndicatorCid?indicatorCid=${encodeURIComponent(entry.cid)}`,
-    );
+    treeRaw = await getJson(`/getDaCatalogTreeByIndicatorCid?indicatorCid=${encodeURIComponent(entry.cid)}`);
   } catch {
-    return fallbackDimensions(entry);
+    return remember(fallbackDimensions(entry));
   }
   const tree = objectValue(treeRaw, "data");
-  if (!Array.isArray(tree) || tree.length === 0) return fallbackDimensions(entry);
+  if (!Array.isArray(tree) || tree.length === 0) return remember(fallbackDimensions(entry));
   const preferred = tree.find((item) => stringValue(item, "name").includes("全部")) ?? tree[0];
   const daCid = stringValue(preferred, "_id");
-  if (!daCid) return fallbackDimensions(entry);
+  if (!daCid) return remember(fallbackDimensions(entry));
 
   let regionsRaw: unknown;
   try {
-    regionsRaw = await getJson(`/new/getDasByDaCatalogId?daCid=${encodeURIComponent(daCid)}`);
+    regionsRaw = await getJson(`/getDasByDaCatalogId?daCid=${encodeURIComponent(daCid)}`);
   } catch {
-    return fallbackDimensions(entry);
+    return remember(fallbackDimensions(entry));
   }
   const regions = objectValue(regionsRaw, "data");
-  if (!Array.isArray(regions)) return fallbackDimensions(entry);
-  const parsed = withEnglishNames(regions.map((item) => ({
+  if (!Array.isArray(regions)) return remember(fallbackDimensions(entry));
+  return remember(withEnglishNames(regions.map((item) => ({
     text: stringValue(item, "show_name") || stringValue(item, "name_text"),
     value: stringValue(item, "name_value"),
-  })).filter((item) => item.text && item.value));
-  dimensionsCache.set(entry.cid, { at: Date.now(), data: parsed });
-  return parsed;
+  })).filter((item) => item.text && item.value)));
 }
 
 /**
@@ -974,7 +1000,7 @@ export function periodLabel(code: string): string {
   const quarter = code.match(/^(\d{4})0([1-4])SS$/);
   if (quarter) return `${quarter[1]}-Q${quarter[2]}`;
   const annual = code.match(/^(\d{4})YY$/);
-  if (annual) return annual[1];
+  if (annual) return annual[1] ?? code;
   const month = code.match(/^(\d{4})(\d{2})/);
   if (month) return `${month[1]}-${month[2]}`;
   return code;

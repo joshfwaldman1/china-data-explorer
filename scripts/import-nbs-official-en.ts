@@ -11,8 +11,8 @@
 import { dirname, resolve } from "node:path";
 import { mkdir, rename } from "node:fs/promises";
 import { parseOfficialEnglishSnapshot } from "../server/official-english";
+import { readCatalogSnapshot } from "../server/catalog-file.ts";
 
-const CATALOG_PATH = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
 
 function option(name: string): string | undefined {
@@ -33,7 +33,7 @@ const input = option("in");
 if (!input) throw new Error("pass a reviewed snapshot with --in=path/to/file.json");
 const output = resolve(option("out") ?? DEFAULT_OUTPUT);
 
-const catalogRaw: unknown = await Bun.file(CATALOG_PATH).json();
+const catalogRaw: unknown = await readCatalogSnapshot();
 const catalogEntries = objectValue(catalogRaw, "entries");
 if (!Array.isArray(catalogEntries)) throw new Error("current NBS catalog is missing its entries array");
 const currentNames = new Map<string, string>();
