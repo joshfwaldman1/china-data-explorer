@@ -18,6 +18,13 @@ in `DATASET_QUEUE.md`, before doing anything.
   fixture-parsed table for a new source, a value cross-checked against the
   publisher's own figure for a new series, a behaviour test for scheduling.
   A round without a test is not finished.
+- **Every new curated headline adds a concordance pair** in
+  `server/concordance.ts`: the series against an independent reading of the
+  same statistic (a catalog entry, another publisher, or the publisher's
+  year-to-date companion for a period rate). A series with no independent
+  reading says so in a comment next to its catalog entry. Cumulative and
+  period rates are never served under one label; when a source publishes
+  both, both are served and the period rate leads.
 - Measure before optimising, and say what was measured. Attribute series to
   the publisher (Customs, PBOC, MOF, NEA, SAFE), never to a mirror. Cumulative
   year-to-date stays labelled as such. A proxy is labelled a proxy. No January
@@ -33,6 +40,14 @@ in `DATASET_QUEUE.md`, before doing anything.
 
 1. `git pull --ff-only origin main`. Read `DATASET_QUEUE.md` and the last
    entries of `IMPROVEMENT_LOG.md`.
+   Then run the concordance audit on the live site,
+   `curl -s <site>/api/audit/concordance`, and read every result. A
+   `mismatch` is this round's item before anything in the queue: either a
+   curated series is not what its label says (fix the series, as the GDP
+   quarterly/year-to-date mislabel of 15 September 2026 was fixed) or the two
+   readings differ for a reason (record it in the pair's `note` in
+   `server/concordance.ts`). A `missing` or `no-overlap` result means the
+   reference is not stored yet; leave it unless it has stayed so for a week.
 2. Pick the top item whose prerequisites are met. Re-read its acceptance test
    before writing code; it is the definition of done.
 3. For a new source, probe first with one or two requests and keep the answer

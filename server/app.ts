@@ -35,6 +35,7 @@ import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
 import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-plan";
 import { PRIORITY, createWorker } from "./worker";
+import { formatResult, runConcordance } from "./concordance";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -206,6 +207,13 @@ const routes = {
       }
     },
     "/api/release-map": () => Response.json(RELEASE_MAP),
+    // Every curated headline against an independent reading of the same
+    // statistic, from the store (server/concordance.ts). A mismatch is a
+    // mislabel or a documented difference; the nightly run logs them.
+    "/api/audit/concordance": () => {
+      const results = runConcordance();
+      return Response.json({ ranAt: new Date().toISOString(), findings: results.filter((result) => result.status === "mismatch").length, results });
+    },
     "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState, worker: workerState() }),
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
@@ -574,6 +582,27 @@ if (ingestEveryHours > 0) {
   };
   setTimeout(() => { void planReleases(); }, 60 * 1000);
   setInterval(() => { void planReleases(); }, 6 * 60 * 60 * 1000);
+
+  // The concordance audit, nightly and once after boot. Store reads only; each
+  // finding goes to fetch_log under the key "concordance" so it outlives the
+  // process log and the CLI (china:audit) shows the same thing.
+  const audit = () => {
+    const startedAt = new Date().toISOString();
+    try {
+      const results = runConcordance();
+      const findings = results.filter((result) => result.status === "mismatch");
+      for (const result of findings) console.warn(`  Concordance: ${formatResult(result)}`);
+      console.log(`  Concordance: ${results.length} pairs, ${findings.length} findings`);
+      for (const result of results) {
+        if (result.status === "ok") continue;
+        logFetch({ key: "concordance", region: result.name, startedAt, finishedAt: new Date().toISOString(), status: result.status === "mismatch" ? "error" : "empty", points: result.compared, changed: result.disagreements.length, message: formatResult(result) });
+      }
+    } catch (error) {
+      console.error("  Concordance audit failed:", error instanceof Error ? error.message : String(error));
+    }
+  };
+  setTimeout(audit, 5 * 60 * 1000);
+  setInterval(audit, 24 * 60 * 60 * 1000);
 
   // Fixed sweeps of the headline series at the usual publication hours (UTC).
   const sweepHours = [2, 3, 8];
