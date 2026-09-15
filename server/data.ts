@@ -478,11 +478,21 @@ export const CITIES_70: NbsRegion[] = [
 
 export const CATALOG: Record<string, Indicator> = {
   gdp: {
-    kind: "eastmoney", group: "Growth & Output",
+    kind: "nbs", group: "Growth & Output",
     title: "Gross Domestic Product", agency: "National Bureau of Statistics",
     frequency: "Quarterly", unit: "Percent change from year ago",
-    reportName: "RPT_ECONOMY_GDP",
-    fields: [{ field: "SUM_SAME", label: "Real GDP (YoY %)" }],
+    // NBS publishes two rates for every quarter: the quarter's own growth
+    // (当季) and growth for the year so far (累计). Q2 2026 was 4.3 on the first
+    // and 4.7 on the second, and the site showed the second under a quarterly
+    // label until 15 September 2026 — the Eastmoney mirror's row is the
+    // cumulative one. Both are served now, from NBS's own index table, and
+    // the quarterly rate leads.
+    cid: "f9b694c9b79e4ce5958bc88c6410fa67",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "170e7f00f8c24ede863c0526b42ae81f", valueOffset: -100, label: "Real GDP, quarter (YoY %)" },
+      { id: "f5b82b2b6ad345a29a337d256a9d5ded", valueOffset: -100, label: "Real GDP, year to date (YoY %)" },
+    ],
   },
   provincial_gdp: {
     kind: "nbs", group: "Regional",
