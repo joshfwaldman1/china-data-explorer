@@ -260,6 +260,8 @@ export interface CustomsIndicator {
   endedNote?: string;
   table: CustomsTable;
   regions: NbsRegion[];
+  /** Day of the month by which the previous month's tables are out (server/due.ts). */
+  releaseDay?: number;
 }
 
 /**

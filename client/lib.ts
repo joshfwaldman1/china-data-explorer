@@ -26,6 +26,13 @@ export function fmtTick(value: number): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
+/** "14th", "21st", "2nd": the day of the month as English writes it. */
+export function ordinal(day: number): string {
+  const rest = day % 100;
+  const suffix = rest >= 11 && rest <= 13 ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
+  return `${day}${suffix}`;
+}
+
 export function fmtDate(iso: string | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);

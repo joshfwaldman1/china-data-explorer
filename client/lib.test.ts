@@ -129,3 +129,8 @@ test("a regional cross-section downloads as a row per place", () => {
   // A place with nothing published keeps its row and an empty value.
   expect(lines).toContain('"Tibet","西藏自治区","540000000000",');
 });
+
+test("ordinal writes the day of the month as English does", async () => {
+  const { ordinal } = await import("./lib.ts");
+  expect([1, 2, 3, 4, 11, 12, 13, 14, 21, 22, 23, 31].map(ordinal)).toEqual(["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "14th", "21st", "22nd", "23rd", "31st"]);
+});

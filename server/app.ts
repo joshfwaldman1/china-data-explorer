@@ -36,6 +36,7 @@ import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runInges
 import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-plan";
 import { PRIORITY, createWorker } from "./worker";
 import { formatResult, runConcordance } from "./concordance";
+import { fetchCustomsReleases } from "./customs-calendar";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -109,10 +110,22 @@ async function fetchAgenda(startDate: string, endDate: string): Promise<{ data: 
       items.push({ _id: typeof id === "string" ? id : `${when} ${content}`, fb_time: when, content, en: described?.en ?? "", keys: described?.keys ?? [], categories: described?.categories ?? [] });
     }
   }
+  // Customs is not on NBS's calendar. Its own calendar, when the English
+  // site has the year's, adds the preliminary releases (the trade tables) as
+  // items of the same shape; a Customs outage must not take NBS's agenda down.
+  try {
+    items.push(...await fetchCustomsReleases(startDate.slice(0, 10), endDate.slice(0, 10), CUSTOMS_KEYS));
+    items.sort((a, b) => a.fb_time.localeCompare(b.fb_time));
+  } catch (error) {
+    console.warn(`  Customs calendar unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
   const payload = { data: items };
   releaseCache.set(cacheKey, { at: Date.now(), body: payload });
   return payload;
 }
+
+/** The curated series Customs' preliminary release moves: its own tables and the mirror of its headline rates. */
+const CUSTOMS_KEYS = Object.entries(CATALOG).filter(([, entry]) => entry.agency === "General Administration of Customs").map(([key]) => key);
 
 /** "2026-09-09 09:30:00" in China Standard Time to a Date. */
 function cstToDate(text: string): Date | null {

@@ -150,6 +150,8 @@ interface EastmoneyIndicator {
   regionAverage?: NbsRegion;
   /** How many 500-row pages to pull for the full history. */
   pages?: number;
+  /** Day of the month by which the publisher's release is out, when it is not NBS's 20th (server/due.ts). */
+  releaseDay?: number;
 }
 interface FredIndicator {
   kind: "fred";
@@ -578,6 +580,7 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "EXIT_BASE_SAME", label: "Exports (YoY %)" },
       { field: "IMPORT_BASE_SAME", label: "Imports (YoY %)" },
     ],
+    releaseDay: 14, // Customs' preliminary release; the mirror follows it the same day
   },
   forex_reserves: {
     kind: "eastmoney", group: "Trade & External",
@@ -672,6 +675,9 @@ export const CATALOG: Record<string, Indicator> = {
     // imports as published, in USD, which is the denomination Customs leads with.
     table: "by-country",
     regions: CUSTOMS_PARTNERS,
+    // Out with the preliminary release, the 7th to the 14th of the next month
+    // on Customs' calendars for 2024 and 2025 (server/customs-calendar.ts).
+    releaseDay: 14,
   },
   major_exports: {
     kind: "customs", group: "Trade & External", home: false,
@@ -679,6 +685,7 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Million USD",
     table: "major-exports",
     regions: CUSTOMS_EXPORT_COMMODITIES,
+    releaseDay: 14,
   },
   major_imports: {
     kind: "customs", group: "Trade & External", home: false,
@@ -686,6 +693,7 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Million USD",
     table: "major-imports",
     regions: CUSTOMS_IMPORT_COMMODITIES,
+    releaseDay: 14,
   },
   real_estate: {
     kind: "aktools", group: "Property",
@@ -816,6 +824,8 @@ export interface CatalogEntry {
   refreshBlocked?: string;
   /** Where the numbers come from: the page counts its sources honestly rather than by whether a series is on the home page. */
   source: Indicator["kind"];
+  /** Day of the month by which the publisher's release is normally out, for publishers off the NBS calendar. */
+  releaseDay?: number;
   home?: boolean;
 }
 
@@ -826,6 +836,7 @@ export function catalogList(): CatalogEntry[] {
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     ...(c.home === false ? { home: false } : {}),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
+    ...((c.kind === "customs" || c.kind === "eastmoney") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
   }));
 }
 

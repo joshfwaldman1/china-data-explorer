@@ -67,3 +67,15 @@ test("a series checked after its window closed waits for the revision interval, 
   const now = new Date("2026-09-25T00:00:00Z");
   expect(dueReason("Monthly", "2026-07", "2026-09-24T00:00:00Z", now)).toBeNull();
 });
+
+describe("a publisher's own release day", () => {
+  // Customs' preliminary release is out by the 14th; NBS's month closes on the 20th.
+  const on14September = on("2026-09-14T06:00:00Z");
+  const checkedOn9th = "2026-09-09T03:00:00Z";
+  test("Customs' August tables are due on the 14th; NBS's August figures are not", () => {
+    expect(dueReason("Monthly", "2026-07", checkedOn9th, on14September, 14)).toBe("new-period");
+    expect(dueReason("Monthly", "2026-07", checkedOn9th, on14September)).toBeNull();
+    expect(expectedPeriod("Monthly", on14September, 14)).toBe("2026-08");
+    expect(expectedPeriod("Monthly", on14September)).toBe("2026-07");
+  });
+});

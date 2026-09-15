@@ -14,8 +14,12 @@
  */
 
 export const REVISION_CHECK_DAYS = 45;
-/** Day of month by which a month's or quarter's NBS releases are normally all out. */
-const RELEASE_DAY = 20;
+/**
+ * Day of month by which a month's or quarter's NBS releases are normally all
+ * out. Another publisher passes its own: Customs' preliminary release is out
+ * by the 14th (server/customs-calendar.ts).
+ */
+export const RELEASE_DAY = 20;
 
 /** "YYYY-MM" of the month `offset` months before `now` (offset 1 = last month). */
 function monthBefore(now: Date, offset: number): string {
@@ -24,16 +28,16 @@ function monthBefore(now: Date, offset: number): string {
 }
 
 /** The latest period whose NBS release window has closed, in the store's period form. */
-export function expectedPeriod(frequency: string, now: Date): string {
+export function expectedPeriod(frequency: string, now: Date, releaseDay = RELEASE_DAY): string {
   const day = now.getUTCDate();
-  if (frequency === "Monthly") return monthBefore(now, day >= RELEASE_DAY ? 1 : 2);
+  if (frequency === "Monthly") return monthBefore(now, day >= releaseDay ? 1 : 2);
   if (frequency === "Quarterly") {
     // Walk back to the most recent quarter end whose release day has passed.
     for (let offset = 1; offset <= 4; offset += 1) {
       const candidate = monthBefore(now, offset);
       const month = Number(candidate.slice(5, 7));
       if (month % 3 !== 0) continue;
-      const releaseMonth = new Date(Date.UTC(Number(candidate.slice(0, 4)), month, RELEASE_DAY)); // month index = quarter-end month + 1
+      const releaseMonth = new Date(Date.UTC(Number(candidate.slice(0, 4)), month, releaseDay)); // month index = quarter-end month + 1
       if (now.getTime() >= releaseMonth.getTime()) return candidate;
     }
     return monthBefore(now, 6);
@@ -61,34 +65,34 @@ export function comparablePeriod(period: string): string {
  * one that has to ask for the whole history: a restatement of 2019 is invisible
  * in a recent window.
  */
-export function dueReason(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date): "new-period" | "revision" | null {
-  if (!isDue(frequency, lastPeriod, lastChecked, now)) return null;
+export function dueReason(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date, releaseDay = RELEASE_DAY): "new-period" | "revision" | null {
+  if (!isDue(frequency, lastPeriod, lastChecked, now, releaseDay)) return null;
   if (!lastPeriod || !lastChecked) return "new-period";
   const checked = new Date(lastChecked).getTime();
   if (!Number.isFinite(checked)) return "new-period";
-  if (comparablePeriod(lastPeriod) < expectedPeriod(frequency, now)) return "new-period";
+  if (comparablePeriod(lastPeriod) < expectedPeriod(frequency, now, releaseDay)) return "new-period";
   return "revision";
 }
 
-export function isDue(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date): boolean {
+export function isDue(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date, releaseDay = RELEASE_DAY): boolean {
   if (!lastPeriod || !lastChecked) return true;
   const checked = new Date(lastChecked).getTime();
   if (!Number.isFinite(checked)) return true;
   if (now.getTime() - checked > REVISION_CHECK_DAYS * 86400000) return true;
-  const expected = expectedPeriod(frequency, now);
+  const expected = expectedPeriod(frequency, now, releaseDay);
   if (comparablePeriod(lastPeriod) >= expected) return false;
   // Behind the calendar. Worth a check once the window for the expected
   // period has closed, but not every day after: thousands of catalog series
   // are discontinued or are year-range slices that will never gain a period,
   // and checking those daily is the whole crawl's cost for nothing. After a
   // check made since the window closed, wait for the revision interval.
-  return checked < windowClosedAt(frequency, expected).getTime();
+  return checked < windowClosedAt(frequency, expected, releaseDay).getTime();
 }
 
 /** When the release window for `period` closed: the 20th of the month after its last month (the next spring for a year). */
-export function windowClosedAt(frequency: string, period: string): Date {
-  if (frequency === "Annual") return new Date(Date.UTC(Number(period) + 1, 2, RELEASE_DAY));
+export function windowClosedAt(frequency: string, period: string, releaseDay = RELEASE_DAY): Date {
+  if (frequency === "Annual") return new Date(Date.UTC(Number(period) + 1, 2, releaseDay));
   const last = comparablePeriod(period);
   const year = Number(last.slice(0, 4)), month = Number(last.slice(5, 7));
-  return new Date(Date.UTC(year, month, RELEASE_DAY)); // month index = last month + 1
+  return new Date(Date.UTC(year, month, releaseDay)); // month index = last month + 1
 }

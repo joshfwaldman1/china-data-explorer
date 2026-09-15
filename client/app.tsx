@@ -6,14 +6,14 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -1314,7 +1314,7 @@ function SeriesPage(props: {
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
             <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${observationLabel(headline.points[0]?.date ?? "", primary.frequency)} to ${observationLabel(headline.points[headline.points.length - 1]?.date ?? "", primary.frequency)}` : "—"}</dd>
             <dt>Updated</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
-            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}${curated?.refreshBlocked ? `; not refreshed on this deployment, which does not run ${curated.refreshBlocked}` : ""}` : /National Bureau of Statistics/.test(primary.agency) ? "Not in the NBS calendar for this month or next" : `Not in the NBS calendar; published by ${primary.agency}`}</dd>
+            <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}${curated?.refreshBlocked ? `; not refreshed on this deployment, which does not run ${curated.refreshBlocked}` : ""}` : /National Bureau of Statistics/.test(primary.agency) ? "Not in the NBS calendar for this month or next" : curated?.releaseDay ? `Published by ${primary.agency} by about the ${ordinal(curated.releaseDay)} of the following month; its calendar for this period is not on its site yet` : `Not in the NBS calendar; published by ${primary.agency}`}</dd>
             <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>
             {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl
               ? <a href={meta.nameEnSourceUrl} target="_blank" rel="noreferrer">Official NBS English catalog</a>
