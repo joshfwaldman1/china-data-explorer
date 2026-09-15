@@ -284,6 +284,14 @@ const routes = {
         limit: Math.max(1, remainingLimit),
         offset: nbsOffset,
       });
+      // A headline series leads the results, except where an NBS series is
+      // exactly what was asked for: "birth rate" put the World Bank fertility
+      // rate first, on the strength of "births" in its synonyms, above the
+      // bureau's own birth rate.
+      const nbsResults = nbs.results.slice(0, remainingLimit);
+      const asked = queryText.trim().toLocaleLowerCase();
+      const exactIndex = asked ? nbsResults.findIndex((entry) => (entry.nameEn ?? "").toLocaleLowerCase() === asked) : -1;
+      const exact = exactIndex >= 0 ? nbsResults.splice(exactIndex, 1) : [];
       return Response.json({
         total: featured.length + nbs.total,
         offset: requestedOffset,
@@ -291,7 +299,7 @@ const routes = {
         // Set when the query named a province or city: the results are that
         // place's series, and each carries the region to open at.
         place: nbs.place,
-        results: [...featuredResults, ...nbs.results.slice(0, remainingLimit)],
+        results: [...exact, ...featuredResults, ...nbsResults],
       });
     },
     "/api/dimensions/:key": async (req: RouteRequest) => {

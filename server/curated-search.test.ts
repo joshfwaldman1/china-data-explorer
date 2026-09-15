@@ -47,3 +47,12 @@ test("a bare word lists every series it names, in catalog order", () => {
   expect(search("unemp")).toEqual(["unemployment"]);
   expect(search("ppi")).toEqual([]);
 });
+
+test("an NBS series that is exactly what was asked for leads the headline series", async () => {
+  // "birth rate" matched the World Bank fertility rate through "births" in its
+  // synonyms, and headline series lead, so the bureau's own birth rate came second.
+  const { searchNbsCatalog } = await import("./nbs-catalog.ts");
+  const result = await searchNbsCatalog({ query: "birth rate", limit: 5 });
+  const exact = result.results.find((entry) => (entry.nameEn ?? "").toLowerCase() === "birth rate");
+  expect(exact).toBeDefined();
+}, 30000);
