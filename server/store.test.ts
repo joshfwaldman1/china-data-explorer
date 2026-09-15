@@ -184,3 +184,14 @@ test("a series' range summary follows what is written, including a later period 
   expect(second?.firstPeriod).toBe("2024-01");
   expect(second?.lastPeriod).toBe("2024-03");
 });
+
+test("an answer with no period grid is a busy portal, not an empty series", async () => {
+  const { hasPeriodGrid, parseEsDataPoints } = await import("./nbs-catalog.ts");
+  // What the portal sends when it is throttling: 200, and nothing in it.
+  expect(hasPeriodGrid({ data: [] })).toBe(false);
+  expect(hasPeriodGrid({})).toBe(false);
+  // What a discontinued indicator looks like: the grid is there, the cells are blank.
+  const discontinued = { data: [{ code: "2025YY", values: [{ _id: "x", value: "", da: "000000000000" }] }] };
+  expect(hasPeriodGrid(discontinued)).toBe(true);
+  expect(parseEsDataPoints(discontinued, "x", "000000000000")).toEqual([]);
+});

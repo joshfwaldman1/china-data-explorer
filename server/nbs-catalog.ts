@@ -1144,6 +1144,20 @@ function historyLimit(frequency: NbsCatalogEntry["frequency"]): number {
  * zero. Values tagged with another region's `da` are ignored, which is what
  * stops a province request from being quietly answered with national figures.
  */
+/**
+ * Whether a response carries a period grid at all.
+ *
+ * Under load the portal answers HTTP 200 with no periods, which is not the
+ * same thing as a series with nothing in it: a discontinued indicator comes
+ * back as a full grid of blank cells. Telling the two apart is what stops a
+ * throttled minute from marking hundreds of live series as empty and skipping
+ * them for a month.
+ */
+export function hasPeriodGrid(raw: unknown): boolean {
+  const periods = objectValue(raw, "data");
+  return Array.isArray(periods) && periods.length > 0;
+}
+
 export function parseEsDataPoints(raw: unknown, indicatorId: string, regionValue: string): SeriesPoint[] {
   const periods = objectValue(raw, "data");
   const points: SeriesPoint[] = [];
@@ -1186,6 +1200,7 @@ async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption
     body: JSON.stringify(payload),
   }, { timeoutMs: 60_000 });
   if (!response.ok) throw new Error(`NBS esData -> HTTP ${response.status}`);
+  if (!hasPeriodGrid(response.json)) throw new Error("NBS esData returned no period grid; the portal was busy rather than the series being empty");
   return parseEsDataPoints(response.json, entry.id, region.value);
 }
 
@@ -1287,6 +1302,7 @@ export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: Nbs
   }, { timeoutMs: 120_000 });
   if (!response.ok) throw new Error(`NBS esData -> HTTP ${response.status}`);
   const raw = response.json;
+  if (!hasPeriodGrid(raw)) throw new Error("NBS esData returned no period grid; the portal was busy rather than the table being empty");
   return new Map(entries.map((entry) => [entry.id, parseEsDataPoints(raw, entry.id, region.value)]));
 }
 
