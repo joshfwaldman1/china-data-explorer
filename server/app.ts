@@ -32,7 +32,7 @@ import {
   transformPoints,
   type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
-import { refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
+import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -208,6 +208,13 @@ const routes = {
         return { region, value: chosen?.value ?? null, period: chosen?.date ?? null, points: window };
       });
       const meta = readSeries(key, 1, regions[0]?.value);
+      const stored = values.filter((item) => item.points.length > 0).length;
+      // Opening the map is the signal that this series matters more than its
+      // place in the crawl's queue. The missing places are fetched behind the
+      // response, so the next visit is complete.
+      if (entry && stored < values.length) {
+        void fillRegionalSeries(key).catch(() => undefined);
+      }
       return Response.json({
         key, geography,
         title: (entry ? entry.nameEn ?? entry.name : meta?.title) ?? key,
@@ -216,7 +223,7 @@ const routes = {
         agency: meta?.agency ?? "National Bureau of Statistics",
         updatedAt: meta?.updatedAt ?? null,
         // A place with nothing stored yet is still listed, so the map shows a gap rather than dropping a province.
-        stored: values.filter((item) => item.points.length > 0).length,
+        stored,
         periods: [...periods].sort().reverse(), values });
     },
     // One entry by key — curated or catalog — for pages that hold only keys

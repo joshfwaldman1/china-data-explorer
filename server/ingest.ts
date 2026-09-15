@@ -289,6 +289,47 @@ export async function runCatalogCrawl(budget: number): Promise<{ ok: number; err
 }
 
 /**
+ * Fetch the places of one regional series that the store does not hold yet.
+ *
+ * The crawl works through the whole catalog in the bureau's subject order, so
+ * a series someone opens today may not be reached for days. Opening its map is
+ * a signal that this one matters: the missing places are fetched in the
+ * background, paced like the crawl, and the page fills in for the next visitor.
+ * One series at a time, and never the same series twice at once.
+ */
+const fillingRegions = new Set<string>();
+export async function fillRegionalSeries(key: string, limit = 40): Promise<{ fetched: number; failed: number }> {
+  const tally = { fetched: 0, failed: 0 };
+  if (fillingRegions.has(key) || fillingRegions.size > 0) return tally;
+  const entry = await getNbsCatalogEntry(key);
+  if (!entry || entry.geography === "National") return tally;
+  fillingRegions.add(key);
+  try {
+    const stored = new Set(listStoredSeries(key).filter((row) => row.key === key).map((row) => row.region));
+    const empty = recentlyEmptyTargets(key, 30);
+    const missing = (await getNbsDimensions(entry))
+      .filter((region) => !stored.has(region.value) && !empty.has(`${key}@${region.value}`))
+      .slice(0, limit);
+    for (const [index, region] of missing.entries()) {
+      const startedAt = new Date().toISOString();
+      try {
+        const points = await fetchNbsTableBatch([entry], region);
+        if (storeNbsPoints(entry, region, points.get(entry.id) ?? [], startedAt) === "ok") tally.fetched += 1;
+      } catch (error) {
+        logFetch({ key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message: error instanceof Error ? error.message : String(error) });
+        tally.failed += 1;
+        // A portal that is refusing will refuse the next thirty too.
+        if (tally.failed >= 3) break;
+      }
+      if (index < missing.length - 1) await sleep(CRAWL_PAUSE_MS);
+    }
+  } finally {
+    fillingRegions.delete(key);
+  }
+  return tally;
+}
+
+/**
  * After an NBS release: re-fetch the stored catalog series in the categories
  * that release covers and that still lack `targetPeriod`, batched by table.
  * Returns how many series gained a period, so the caller knows whether the
