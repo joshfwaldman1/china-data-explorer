@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 export function PageHeader(props: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
@@ -18,10 +18,32 @@ export interface ActionMenuItem {
   onSelect: () => void;
 }
 
+/** Every open action menu on the page other than `except` is closed. */
+function closeOtherMenus(except: HTMLDetailsElement | null): void {
+  for (const other of document.querySelectorAll<HTMLDetailsElement>("details.action-menu[open]")) {
+    if (other !== except) other.open = false;
+  }
+}
+
 export function ActionMenu(props: { label: string; items: ActionMenuItem[] }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  // A click anywhere outside an open menu closes it. The Download and Share
+  // menus sat open side by side, one over the other, until 15 September 2026:
+  // a details element stays open until something closes it.
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const details = ref.current;
+      if (!details?.open || (event.target instanceof Node && details.contains(event.target))) return;
+      details.open = false;
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
   return (
     <details
+      ref={ref}
       className="action-menu"
+      onToggle={(event) => { if (event.currentTarget.open) closeOtherMenus(event.currentTarget); }}
       onKeyDown={(event) => {
         // Escape closes the menu and returns focus to its button, as a menu should.
         if (event.key !== "Escape") return;
