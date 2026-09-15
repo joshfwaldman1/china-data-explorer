@@ -1209,12 +1209,13 @@ export function seriesRegions(key: string): NbsRegion[] {
  * Fetch one region of a multi-region curated series. The store keys these
  * by the NBS `das` code, the same convention as catalog series.
  */
-export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 120): Promise<SeriesResult | null> {
+export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 120, options: { oldestStored?: string | null } = {}): Promise<SeriesResult | null> {
   const cfg = CATALOG[key];
   if (!cfg) return null;
   if (cfg.kind === "nbs") return fetchNbs(key, { ...cfg, region }, limit);
   if (cfg.kind === "eastmoney" && cfg.regions) return fetchEastmoneyRegion(key, cfg, region, limit);
-  if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, region, limit);
+  // Customs walks its archive a slice at a time; the store's oldest month says where the slice starts.
+  if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, region, limit, options);
   return null;
 }
 

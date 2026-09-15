@@ -63,3 +63,23 @@ test("region codes are stable slugs of the published names", () => {
   expect(slugOf("Hong Kong, China")).toBe("hong-kong-china");
   expect(slugOf("Crude petroleum oils")).toBe("crude-petroleum-oils");
 });
+
+test("the by-country table is read in every header layout Customs has used since 2023", async () => {
+  // 2024: the label cells span columns, so the first header row is short.
+  const y2024 = parseByCountry(await fixture("by-country-2024-08-usd.html"));
+  expect(y2024[0]).toMatchObject({ name: "Total", exports: 308647.3 });
+  expect(y2024.find((row) => row.name === "United States")?.exports).toBeGreaterThan(0);
+  // 2023: one merged label cell, and a second header row that begins with the month number.
+  const y2023 = parseByCountry(await fixture("by-country-2023-09-usd.html"));
+  expect(y2023[0]).toMatchObject({ name: "Total", exports: 299129.7 });
+  expect(y2023.some((row) => /^\d/.test(row.name))).toBe(false);
+  expect(y2023.length).toBeGreaterThan(25);
+});
+
+test("the commodity tables kept one layout across years", async () => {
+  for (const name of ["major-imports-2024-08-usd.html", "major-imports-2023-09-usd.html", "major-exports-2023-09-usd.html"]) {
+    const rows = parseCommodities(await fixture(name));
+    expect(rows.length).toBeGreaterThan(25);
+    expect(rows[0]?.name).toMatch(/^Agricultur/);
+  }
+});

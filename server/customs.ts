@@ -102,13 +102,19 @@ export function parseByCountry(html: string): PartnerRow[] {
   const rows = rowsOf(html);
   const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
   if (!/USD\s*1\s*Milli/i.test(unit)) throw new Error(`by-country table: unexpected unit line "${unit}"`);
-  const header = rows.find((row) => row.length >= 7 && /Export\s*&\s*Import/i.test(row[1] ?? "") && /^Export$/i.test(row[3] ?? ""));
+  // The header has been written three ways since 2023: two label rows
+  // ("Import Source" / "Export Destination"), the same with merged cells, and
+  // one merged label cell over a row that begins with the month number. All
+  // of them name the source column and say "Export & Import" beside it, and
+  // the data rows beneath are the same seven columns in every year.
+  const header = rows.find((row) => /Import Source/i.test(row[0] ?? "") && row.some((cell) => /Export\s*&\s*Import/i.test(cell)));
   if (!header) throw new Error("by-country table: header not recognised");
   const out: PartnerRow[] = [];
   for (const row of rows) {
-    // "Unit:" is the unit line; "United States" is a partner.
+    // "Unit:" is the unit line; "United States" is a partner. A partner has
+    // letters in its name; the month-number row of the 2023 layout does not.
     if (row.length < 7 || !row[0] || /^(Unit\s*:|Note|Import Source|Export Destinati)/i.test(row[0])) continue;
-    if (row[0].startsWith("(") || /^\d/.test(row[1] ?? "") === false) continue;
+    if (row[0].startsWith("(") || !/[A-Za-z]/.test(row[0]) || /^\d/.test(row[1] ?? "") === false) continue;
     out.push({
       name: partnerName(row[0]),
       total: cellNumber(row[1] ?? ""), ytdTotal: cellNumber(row[2] ?? ""),
@@ -158,12 +164,16 @@ async function fetchText(url: string): Promise<string> {
 const listingCache = new Map<number, { at: number; entries: ListingEntry[] }>();
 const tableCache = new Map<string, { at: number; html: string }>();
 
+// Pacing belongs to the fetch, not to the loop that asks: a cached page or
+// table costs the portal nothing and should cost the caller nothing. A run over
+// thirty partners reads each table once and each listing page once.
 async function listingPage(page: number): Promise<ListingEntry[]> {
   const hit = listingCache.get(page);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.entries;
   const html = await fetchText(`${CUSTOMS_BASE}/Statistics/Statistics?ColumnId=${LISTING_COLUMN}&page=${page}`);
   const entries = parseListing(html);
   listingCache.set(page, { at: Date.now(), entries });
+  await Bun.sleep(PAUSE_MS);
   return entries;
 }
 
@@ -173,16 +183,21 @@ async function listingPage(page: number): Promise<ListingEntry[]> {
  * month two years back is some twenty-five pages in; each page is read once
  * per six hours.
  */
-export async function findTable(table: CustomsTable, month: string, maxPages = 80): Promise<ListingEntry | null> {
+export async function findTable(table: CustomsTable, month: string, options: { maxPages?: number; pages?: (page: number) => Promise<ListingEntry[]> } = {}): Promise<ListingEntry | null> {
+  const { maxPages = 120, pages = listingPage } = options;
   let sawOlder = false;
+  let previous = "";
   for (let page = 1; page <= maxPages; page += 1) {
-    const entries = await listingPage(page);
-    if (entries.length === 0) return null;
+    const entries = await pages(page);
+    // Past the last page the site serves the last page again; a page that
+    // repeats the one before it is the end of the archive.
+    const signature = entries.map((entry) => entry.href).join("|");
+    if (entries.length === 0 || signature === previous) return null;
+    previous = signature;
     const found = entries.find((entry) => entry.table === table && entry.usd && entry.month === month);
     if (found) return found;
     if (entries.some((entry) => entry.month && entry.month < month)) sawOlder = true;
     if (sawOlder && entries.every((entry) => !entry.month || entry.month < month)) return null;
-    await Bun.sleep(PAUSE_MS);
   }
   return null;
 }
@@ -192,6 +207,7 @@ async function tableHtml(entry: ListingEntry): Promise<string> {
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.html;
   const html = await fetchText(entry.href);
   tableCache.set(entry.href, { at: Date.now(), html });
+  await Bun.sleep(PAUSE_MS);
   return html;
 }
 
@@ -203,6 +219,33 @@ function recentMonths(limit: number, now = new Date()): string[] {
     months.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
   }
   return months;
+}
+
+/** How many months back a first view or a page read goes; the ingest goes further, a slice at a time. */
+export const RECENT_MONTHS = 36;
+/** How many months older than the store's oldest one ingest run adds. */
+export const BACKFILL_MONTHS_PER_RUN = 24;
+
+/**
+ * The months one fetch should ask for, newest first.
+ *
+ * The recent window is always asked for, so revisions to the last three years
+ * are seen. When the store's oldest month for this series is known, a further
+ * slice of `backfillPerRun` months older than it is added, so each ingest run
+ * carries the history back a bounded step — to 2022, where Customs' English
+ * listing begins — instead of one run walking the whole archive.
+ */
+export function monthsToFetch(limit: number, oldestStored: string | null, now = new Date(), backfillPerRun = BACKFILL_MONTHS_PER_RUN): string[] {
+  const recent = recentMonths(Math.min(limit, RECENT_MONTHS), now);
+  if (!oldestStored || limit <= RECENT_MONTHS) return recent;
+  const older: string[] = [];
+  const [year, month] = oldestStored.split("-").map(Number);
+  if (!year || !month) return recent;
+  for (let back = 1; back <= backfillPerRun && recent.length + older.length < limit; back += 1) {
+    const date = new Date(Date.UTC(year, month - 1 - back, 1));
+    older.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  return [...recent, ...older.filter((item) => !recent.includes(item))];
 }
 
 export interface CustomsIndicator {
@@ -225,8 +268,8 @@ export interface CustomsIndicator {
  * first fetch of a two-year window is about fifty requests; every table read
  * is cached, so the second partner in the same table costs nothing.
  */
-export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, region: NbsRegion, limit: number): Promise<SeriesResult> {
-  const months = recentMonths(Math.min(limit, 36));
+export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, region: NbsRegion, limit: number, options: { oldestStored?: string | null } = {}): Promise<SeriesResult> {
+  const months = monthsToFetch(limit, options.oldestStored ?? null);
   const points: Record<string, SeriesPoint[]> = {};
   const push = (label: string, date: string, value: number | null) => {
     if (value === null) return;
@@ -235,7 +278,10 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
   let missing = 0;
   for (const month of months) {
     const entry = await findTable(cfg.table, month);
+    // Three missing in a row is the end of the archive (or a table Customs did
+    // not publish that year); a single gap is skipped.
     if (!entry) { missing += 1; if (missing >= 3) break; continue; }
+    missing = 0;
     const html = await tableHtml(entry);
     if (cfg.table === "by-country") {
       const row = parseByCountry(html).find((item) => slugOf(item.name) === region.value);
@@ -249,7 +295,6 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
       push("Value", month, row.value);
       if (row.quantityUnit) push(`Quantity (${row.quantityUnit})`, month, row.quantity);
     }
-    await Bun.sleep(PAUSE_MS);
   }
   const series = Object.entries(points).map(([label, list]) => ({ label, points: list.sort((a, b) => a.date.localeCompare(b.date)) }));
   return {

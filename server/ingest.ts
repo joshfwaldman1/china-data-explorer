@@ -32,11 +32,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 /** One region of a multi-region curated series, keyed by its NBS code. */
-async function ingestRegion(key: string, region: { text: string; value: string }): Promise<"ok" | "error" | "empty"> {
+async function ingestRegion(key: string, region: { text: string; value: string }, oldestStored: string | null = null): Promise<"ok" | "error" | "empty"> {
   const startedAt = new Date().toISOString();
   const label = `${key}@${region.value}`;
   try {
-    const result = await fetchLiveRegion(key, region, HISTORY_LIMIT);
+    const result = await fetchLiveRegion(key, region, HISTORY_LIMIT, { oldestStored });
     const finishedAt = new Date().toISOString();
     if (!result || result.series.every((s) => s.points.length === 0)) {
       logFetch({ key, region: region.value, startedAt, finishedAt, status: "empty", points: 0, changed: 0, message: "source returned no points" });
@@ -524,9 +524,12 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
       const regions = seriesRegions(key);
       if (regions.length > 0) {
         // One request per region, paced like everything else. A failure in
-        // one province does not discard the others.
+        // one province does not discard the others. A source with an archive
+        // to walk (Customs) is told the oldest month already stored, so each
+        // run carries the history back a bounded step.
+        const oldest = new Map(storedLatest(key).filter((row) => row.key === key).map((row) => [row.region, row.firstPeriod]));
         for (const [regionIndex, region] of regions.entries()) {
-          tally[await ingestRegion(key, region)] += 1;
+          tally[await ingestRegion(key, region, oldest.get(region.value) ?? null)] += 1;
           if (regionIndex < regions.length - 1) await sleep(PAUSE_MS);
         }
       } else {

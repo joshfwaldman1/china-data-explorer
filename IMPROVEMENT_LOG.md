@@ -2085,3 +2085,11 @@ not from scratch. Rounds are small on purpose.
   the month-end close of the 1-, 2-, 5-, 10- and 30-year as `cgb_yields`.
   Tests: fixture of August 2026 (315 records, 21 trading days), month-end
   rule per tenor, malformed input. Live: 10-year 1.6879 at end-August.
+- 2026-09-15 (dataset loop, round 2): Customs trade held the last 36 months.
+  Each ingest run now adds 24 older months beyond the store's oldest, per
+  partner, until the listing ends. Found on the way: three header layouts for
+  the by-country table since 2023 (the parser refused two of them, as
+  designed — fixtures and tests added), and a listing walk that slept 800 ms
+  per cached page, which made a thirty-partner run take an hour; pacing now
+  applies to real fetches only. Acceptance: two runs, 81 s and 136 s, US back
+  to 2021-09, August 2025 US exports 31,604 stored against 31,604 published.
