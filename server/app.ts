@@ -20,7 +20,7 @@ function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult 
   const kept = stored.series.filter((series) => labels.includes(series.label));
   return kept.length > 0 ? { ...stored, series: kept } : stored;
 }
-import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, backupStore, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -314,6 +314,35 @@ const routes = {
         geography: entry.geography,
         regions: await getNbsDimensions(entry),
       });
+    },
+    // A copy of the whole store, for whoever holds the token. The archive of
+    // what the bureau published and when is the one thing here that cannot be
+    // rebuilt from the source, and a mounted volume is not a backup. Off unless
+    // BACKUP_TOKEN is set, so a deployment without one exposes nothing.
+    "/api/backup": async (req: RouteRequest) => {
+      const token = process.env.BACKUP_TOKEN;
+      if (!token) return new Response("Not found", { status: 404 });
+      const offered = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? new URL(req.url).searchParams.get("token") ?? "";
+      // Constant-time enough for a secret that is never guessed a character at a time.
+      if (offered.length !== token.length || offered !== token) return new Response("Unauthorized", { status: 401 });
+      const path = `${(process.env.CHINA_DB_PATH ?? "").replace(/[^/]*$/, "") || "/tmp/"}backup-${Date.now()}.db`;
+      try {
+        const bytes = backupStore(path);
+        const file = Bun.file(path);
+        return new Response(file.stream(), {
+          headers: {
+            "Content-Type": "application/vnd.sqlite3",
+            "Content-Length": String(bytes),
+            "Content-Disposition": `attachment; filename="china-${new Date().toISOString().slice(0, 10)}.db"`,
+          },
+        });
+      } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+      } finally {
+        // The copy is streamed from the open handle; unlinking now keeps the
+        // volume from filling with copies if a download is abandoned.
+        setTimeout(() => { void Bun.file(path).delete().catch(() => undefined); }, 10 * 60 * 1000);
+      }
     },
     // Coverage and recent ingest runs — a stale chart should be diagnosable.
     // The coverage list is heavy; it comes only with ?series=1.

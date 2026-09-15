@@ -675,3 +675,17 @@ function computeStatus() {
   return { sizeBytes,
     path: DB_PATH, totals, fetchLog, recentRuns, recentFailures };
 }
+
+/**
+ * Write a consistent copy of the store to `path` and return its size.
+ *
+ * `VACUUM INTO` takes the copy inside a read transaction, so an ingest writing
+ * at the same time cannot tear it, and the copy comes out compact rather than
+ * carrying the free pages the running store keeps. It is the supported way to
+ * back up SQLite while it is in use; copying the file with the operating system
+ * is not, because the write-ahead log lives beside it.
+ */
+export function backupStore(path: string): number {
+  db().query("VACUUM INTO ?").run(path);
+  return Bun.file(path).size;
+}

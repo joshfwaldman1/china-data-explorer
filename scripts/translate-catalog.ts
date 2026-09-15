@@ -57,9 +57,12 @@ try { const raw: unknown = await Bun.file(GLOSS_PATH).json(); if (typeof raw ===
 const bases = baseConcepts(names).filter((base) => !table[base]).slice(0, Number.isFinite(LIMIT) ? LIMIT : undefined);
 console.log(`${Object.keys(table).length} already translated; ${bases.length} to do in batches of ${BATCH}`);
 
-// A few batches in flight at once; the table is written after each group so
-// an interrupted run loses at most one group.
-const CONCURRENCY = 4;
+// Batches in flight at once; the table is written after each group so an
+// interrupted run loses at most one group. The annual dataset brought twenty-nine
+// thousand concepts to translate, which at four at a time is three hours, so this
+// is settable: `--concurrency=8`.
+const concurrencyArg = process.argv.find((arg) => arg.startsWith("--concurrency="));
+const CONCURRENCY = Math.min(16, Math.max(1, Number(concurrencyArg?.slice("--concurrency=".length) ?? 4)));
 let done = 0;
 const batches: string[][] = [];
 for (let index = 0; index < bases.length; index += BATCH) batches.push(bases.slice(index, index + BATCH));

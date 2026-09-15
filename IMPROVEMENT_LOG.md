@@ -16,9 +16,11 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Backup of the Railway volume: nightly upload of `china.db` to a bucket the
-  owner controls. Blocked on a bucket; rebuilding from NBS is thirty minutes,
-  revision history is not rebuildable.
+- Backup of the Railway volume: somewhere to put the nightly copy. `GET
+  /api/backup` now streams a consistent copy to whoever holds `BACKUP_TOKEN`
+  (2026-09-15), so what is left is the owner setting that variable and choosing
+  where the copy lands. Rebuilding levels from NBS is thirty minutes; the
+  revision history is not rebuildable at all.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Merge `china-data-explorer` into `main` (owner's call).

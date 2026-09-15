@@ -195,3 +195,18 @@ test("an answer with no period grid is a busy portal, not an empty series", asyn
   expect(hasPeriodGrid(discontinued)).toBe(true);
   expect(parseEsDataPoints(discontinued, "x", "000000000000")).toEqual([]);
 });
+
+test("a backup copy holds the same observations and can be opened on its own", async () => {
+  const { backupStore } = await import("./db.ts");
+  const { Database } = await import("bun:sqlite");
+  writeSeries(result("backup_t", "全国", [
+    { date: "2026-01", value: 1 }, { date: "2026-02", value: 2 },
+  ]), NATIONAL, "2026-03-01T00:00:00.000Z");
+  const path = join(mkdtempSync(join(tmpdir(), "china-backup-")), "copy.db");
+  const bytes = backupStore(path);
+  expect(bytes).toBeGreaterThan(0);
+  const copy = new Database(path, { readonly: true });
+  const rows = copy.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM observations WHERE key = 'backup_t'").get();
+  expect(rows?.n).toBe(2);
+  copy.close();
+});

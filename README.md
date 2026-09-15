@@ -133,6 +133,18 @@ list and a city table has no places at all.
   mapped to the series it updates.
   A bare date for `start` or `end` takes the start or end of its day.
 - `GET /api/release-map` — the title-to-series mapping behind that calendar.
+- `GET /api/backup` — a consistent copy of the whole store as one SQLite file,
+  for whoever holds `BACKUP_TOKEN` (`Authorization: Bearer …`, or `?token=`).
+  The route does not exist unless that variable is set. The copy is taken with
+  `VACUUM INTO`, so an ingest writing at the same time cannot tear it:
+
+  ```sh
+  curl -fsS -H "Authorization: Bearer $BACKUP_TOKEN" \
+    https://econstats-china-production.up.railway.app/api/backup > china-$(date +%F).db
+  ```
+
+  The archive of what the bureau published and when is the one thing here that
+  cannot be rebuilt from the source, and a mounted volume is not a backup.
 - `GET /api/schedule` — upcoming mapped releases and the last release-day
   refresh.
 - `GET /api/revisions/:key?label=&period=` — locally stored revision history.
