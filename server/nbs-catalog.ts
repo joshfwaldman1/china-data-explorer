@@ -676,14 +676,69 @@ async function expandQuery(query: string): Promise<string[]> {
 }
 
 /** Latin terms match on a word boundary — "house" must not hit "household". */
+// One compiled expression per term, not one per term per entry. A query is
+// matched against every entry in the catalog, so compiling inside that loop was
+// most of the cost of a Latin search.
+const termExpressions = new Map<string, RegExp>();
+
+function termExpression(term: string): RegExp {
+  const cached = termExpressions.get(term);
+  if (cached) return cached;
+  // A word matches its plural too: "soybean" finds "Market price of soybeans", "egg" finds "Eggs".
+  const expression = new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:e?s)?(?![a-z0-9])`, "i");
+  // Terms come from queries, so the set is unbounded over a long run; a few
+  // thousand is far more than any page of results needs.
+  if (termExpressions.size > 5_000) termExpressions.clear();
+  termExpressions.set(term, expression);
+  return expression;
+}
+
 function hasTerm(text: string, term: string): boolean {
   if (!/^[a-z0-9][a-z0-9 .'-]*$/i.test(term)) return text.includes(term);
-  // A word matches its plural too: "soybean" finds "Market price of soybeans", "egg" finds "Eggs".
-  return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:e?s)?(?![a-z0-9])`, "i").test(text);
+  return termExpression(term).test(text);
+}
+
+/**
+ * The lowercased text a search looks through, built once per entry.
+ *
+ * Scoring used to lowercase five fields and concatenate a haystack for every
+ * entry on every query. Over sixty thousand entries that is the whole cost of a
+ * search, and it is the same answer every time; the entry objects live as long
+ * as the catalog snapshot does, so the work is cached against them.
+ */
+interface SearchText {
+  name: string;
+  shortName: string;
+  path: string;
+  nameEn: string;
+  haystack: string;
+  pinyinJoined: string;
+}
+
+const searchTextCache = new WeakMap<NbsCatalogEntry, SearchText>();
+
+function searchTextOf(entry: NbsCatalogEntry): SearchText {
+  const cached = searchTextCache.get(entry);
+  if (cached) return cached;
+  const name = entry.name.toLocaleLowerCase();
+  const shortName = entry.shortName.toLocaleLowerCase();
+  const path = entry.categories.join(" ").toLocaleLowerCase();
+  const nameEn = (entry.nameEn ?? "").toLocaleLowerCase();
+  const pinyin = (entry.pinyin ?? "").toLocaleLowerCase();
+  const text: SearchText = {
+    name,
+    shortName,
+    path,
+    nameEn,
+    haystack: `${name} ${shortName} ${path} ${entry.dataset.toLocaleLowerCase()} ${nameEn} ${pinyin}`,
+    pinyinJoined: pinyin.replaceAll(" ", ""),
+  };
+  searchTextCache.set(entry, text);
+  return text;
 }
 
 function haystackOf(entry: NbsCatalogEntry): string {
-  return `${entry.name} ${entry.shortName} ${entry.categories.join(" ")} ${entry.dataset} ${entry.nameEn ?? ""} ${entry.pinyin ?? ""}`.toLocaleLowerCase();
+  return searchTextOf(entry).haystack;
 }
 
 /**
@@ -720,12 +775,7 @@ function monthOnMonthBase(entry: NbsCatalogEntry): number {
 
 export function searchScore(entry: NbsCatalogEntry, query: string): number {
   if (!query) return 1;
-  const name = entry.name.toLocaleLowerCase();
-  const shortName = entry.shortName.toLocaleLowerCase();
-  const path = entry.categories.join(" ").toLocaleLowerCase();
-  const nameEn = (entry.nameEn ?? "").toLocaleLowerCase();
-  const haystack = haystackOf(entry);
-  const pinyinJoined = (entry.pinyin ?? "").replaceAll(" ", "");
+  const { name, shortName, path, nameEn, haystack, pinyinJoined } = searchTextOf(entry);
   const lowerQuery = query.toLocaleLowerCase().replace(/^nbs_/, "");
   // An ID is only a match when enough of it is typed to be one — otherwise
   // any two-character query lights up random hashes.
