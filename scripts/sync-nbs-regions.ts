@@ -106,21 +106,41 @@ try {
       const tree = await portal.getJson(`/getDaCatalogTreeByIndicatorCid?indicatorCid=${encodeURIComponent(cid)}`);
       const nodes = objectValue(tree, "data");
       if (!Array.isArray(nodes) || nodes.length === 0) throw new Error("no region catalog for this table");
-      const preferred = nodes.find((node) => textValue(node, "name").includes("全部")) ?? nodes[0];
-      const daCid = textValue(preferred, "_id");
-      if (!daCid) throw new Error("region catalog has no identifier");
 
-      if (!collected.sets[daCid]) {
-        const raw = await portal.getJson(`/getDasByDaCatalogId?daCid=${encodeURIComponent(daCid)}`);
+      // Some tables hold their places one level down: the city price tables
+      // offer "主要城市月度", which is empty, with "全国" (36 cities) and
+      // "全国70个大中城市" (71) beneath it. Ask the tree in order until a node
+      // answers with places, preferring the ones that name a full set.
+      const candidates: { id: string; name: string }[] = [];
+      const walk = (list: unknown[], depth: number) => {
+        for (const node of list) {
+          const id = textValue(node, "_id");
+          const name = textValue(node, "show_name") || textValue(node, "name") || textValue(node, "_name");
+          if (id) candidates.push({ id, name });
+          const children = objectValue(node, "children");
+          if (Array.isArray(children) && depth < 2) walk(children, depth + 1);
+        }
+      };
+      walk(nodes, 0);
+      candidates.sort((a, b) => Number(/全部|全国/.test(b.name)) - Number(/全部|全国/.test(a.name)));
+
+      let daCid = "";
+      for (const candidate of candidates) {
+        if (collected.sets[candidate.id]) { daCid = candidate.id; break; }
+        const raw = await portal.getJson(`/getDasByDaCatalogId?daCid=${encodeURIComponent(candidate.id)}`);
         const places = objectValue(raw, "data");
-        if (!Array.isArray(places)) throw new Error("region list came back empty");
-        const options = places
-          .map((place) => ({ text: textValue(place, "show_name") || textValue(place, "name_text"), value: textValue(place, "name_value") }))
-          .filter((place) => place.text && place.value);
-        if (options.length === 0) throw new Error("region list came back empty");
-        collected.sets[daCid] = options;
-        console.log(`  new region list ${daCid}: ${options.length} places (${options.slice(0, 3).map((place) => place.text).join(", ")}...)`);
+        const options = Array.isArray(places)
+          ? places
+            .map((place) => ({ text: textValue(place, "show_name") || textValue(place, "name_text"), value: textValue(place, "name_value") }))
+            .filter((place) => place.text && place.value)
+          : [];
+        if (options.length === 0) continue;
+        collected.sets[candidate.id] = options;
+        daCid = candidate.id;
+        console.log(`  new region list ${candidate.id} (${candidate.name}): ${options.length} places (${options.slice(0, 3).map((place) => place.text).join(", ")}...)`);
+        break;
       }
+      if (!daCid) throw new Error("no node in this table's region catalog has any places");
       collected.tables[cid] = daCid;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

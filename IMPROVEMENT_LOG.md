@@ -2057,3 +2057,25 @@ not from scratch. Rounds are small on purpose.
   province. Annual national (another 43,000 series) is still being crawled; the
   portal throttles hard, so the collector now caches its answers and can be
   restarted without starting over.
+
+- 2026-09-15 (regional audit and the annual dataset): audited the regional
+  surface against the live site, twenty-one series across all six regional
+  datasets. Everything fetched except the city tables whose place lists could
+  not be collected, and those were being answered for the nation: the endpoint
+  accepts the national code on a city table and returns a grid of zeroes, which
+  the page showed under a 全国 label. A regional entry with no known places now
+  fails rather than returning something untrue. Also this round: a provincial
+  level series names the index NBS publishes as its growth (Guangdong's GDP
+  index reads 3.9 percent for 2025); the Provinces page takes a series picker
+  and downloads its cross-section as CSV; "population by province" is read as a
+  geography filter rather than a subject; a series whose title is exactly the
+  query leads the results ("birth rate" no longer opens with the World Bank
+  fertility rate); a shared title leads with its table's English name and 501
+  more category names were translated so that works at all; the frequency
+  options offer only what a chart can convert to. Performance: search stopped
+  lowercasing the whole catalog on every query (91 ms to 56 ms per query at
+  19,433 entries) and /api/status stopped counting every observation to answer.
+  GET /api/backup streams a consistent copy of the store to whoever holds
+  BACKUP_TOKEN, which is half of the queued backup item. The annual national
+  dataset crawl finished at 53,000 series, which takes the catalog past 70,000
+  entries and about 59,000 browsable.
