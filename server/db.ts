@@ -132,8 +132,9 @@ function backfillSeriesRanges(database: Database): void {
   console.log(`  Store: summarising the range of ${missing.toLocaleString()} series...`);
   const startedAt = Date.now();
   database.exec(`
-    INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period)
-    SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period)
+    INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period, periods, last_fetch)
+    SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period),
+           COUNT(DISTINCT period), MAX(fetched_at)
     FROM observations GROUP BY key, region
   `);
   console.log(`  Store: summarised in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
@@ -195,6 +196,8 @@ export function db(): Database {
       first_period       TEXT,
       first_real_period  TEXT,
       last_period        TEXT,
+      periods            INTEGER NOT NULL DEFAULT 0,
+      last_fetch         TEXT,
       PRIMARY KEY (key, region)
     ) WITHOUT ROWID
   `);
@@ -209,6 +212,13 @@ export function db(): Database {
     )
   `);
   migrateObservationsStorage(database);
+  // The summary gained its coverage columns after it first shipped.
+  const rangeColumns = database.query<{ name: string }, []>("PRAGMA table_info(series_range)").all();
+  if (!rangeColumns.some((column) => column.name === "periods")) {
+    database.exec("ALTER TABLE series_range ADD COLUMN periods INTEGER NOT NULL DEFAULT 0");
+    database.exec("ALTER TABLE series_range ADD COLUMN last_fetch TEXT");
+    database.exec("DELETE FROM series_range");
+  }
   backfillSeriesRanges(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
@@ -355,8 +365,9 @@ export function writeSeries(
       database.query("INSERT INTO store_stats (id, observations) VALUES (1, $changed) ON CONFLICT (id) DO UPDATE SET observations = observations + $changed")
         .run({ $changed: changed });
       database.query(`
-        INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period)
-        SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period)
+        INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period, periods, last_fetch)
+        SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period),
+               COUNT(DISTINCT period), MAX(fetched_at)
         FROM observations WHERE key = $key AND region = $region
       `).run({ $key: result.key, $region: region });
     }
@@ -603,26 +614,27 @@ export function dbStatus() {
 }
 
 /** The summary plus coverage per (key, region), for `/api/status?series=1`. */
-export function dbStatusWithSeries() {
-  const now = Date.now();
-  if (!cachedPerSeries || now - cachedPerSeriesAt >= STATUS_TTL_MS) { cachedPerSeries = computePerSeries(); cachedPerSeriesAt = now; }
-  return { ...dbStatus(), perSeries: cachedPerSeries };
+export function dbStatusWithSeries(limit = 2000, offset = 0) {
+  const total = db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM series_range").get()?.n ?? 0;
+  const page = Math.min(Math.max(1, limit), 20000);
+  const from = Math.max(0, offset);
+  return { ...dbStatus(), coverage: { total, limit: page, offset: from }, perSeries: computePerSeries(page, from) };
 }
 
-let cachedPerSeries: ReturnType<typeof computePerSeries> | null = null;
-let cachedPerSeriesAt = 0;
 
-function computePerSeries() {
-  return db().prepare(`
-    SELECT key, region,
-           COUNT(DISTINCT period) AS periods,
-           MIN(period) AS firstPeriod,
-           MAX(period) AS lastPeriod,
-           MAX(fetched_at) AS lastFetch
-    FROM observations
-    GROUP BY key, region
+/**
+ * Coverage per (key, region), a page at a time, from the summary the write
+ * path keeps. Reading it from the observations themselves was a group-by over
+ * the whole store and, at the size the regional datasets bring, a response of
+ * tens of megabytes.
+ */
+function computePerSeries(limit: number, offset: number) {
+  return db().query(`
+    SELECT key, region, periods, first_period AS firstPeriod, last_period AS lastPeriod, last_fetch AS lastFetch
+    FROM series_range
     ORDER BY key, region
-  `).all();
+    LIMIT $limit OFFSET $offset
+  `).all({ $limit: limit, $offset: offset });
 }
 
 function computeStatus() {

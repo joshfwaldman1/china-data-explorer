@@ -138,7 +138,8 @@ list and a city table has no places at all.
 - `GET /api/revisions/:key?label=&period=` — locally stored revision history.
 - `GET /api/status` — store size, totals, the fetch log's size, the last runs
   and the failed fetches of the past week; add `?series=1` for coverage per
-  series (a 2.6 MB list).
+  (key, region), two thousand at a time (`&limit=`, `&offset=`, up to 20,000),
+  with the total in `coverage.total`.
 
 ## Optional: AKTools (AkShare) for extra breadth
 

@@ -303,7 +303,12 @@ const routes = {
     // Coverage and recent ingest runs — a stale chart should be diagnosable.
     // The coverage list is heavy; it comes only with ?series=1.
     "/api/status": async (req: RouteRequest) => {
-      const status = new URL(req.url).searchParams.get("series") === "1" ? dbStatusWithSeries() : dbStatus();
+      const params = new URL(req.url).searchParams;
+      // Coverage is a page of the store's series, not all of them: there are
+      // more than a hundred thousand once the regional tables are stored.
+      const status = params.get("series") === "1"
+        ? dbStatusWithSeries(Number(params.get("limit") ?? "2000"), Number(params.get("offset") ?? "0"))
+        : dbStatus();
       // How much of the catalog is regional, and whether the places those
       // tables cover have been collected: a table with no region list is a
       // table the site cannot fetch.
