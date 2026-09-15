@@ -57,7 +57,21 @@ export async function openPortal(options: PortalOptions = {}): Promise<PortalSes
     await page.getByRole("menuitem", { name: /地区数据/ }).waitFor({ timeout: 60_000 });
   }
 
-  await load();
+  // The portal is slow to render when it is throttling a visitor, and a
+  // collector that gives up on the first try cannot be run beside another.
+  let opened = false;
+  for (let attempt = 1; attempt <= 3 && !opened; attempt += 1) {
+    try {
+      await load();
+      opened = true;
+    } catch (error) {
+      if (attempt === 3) {
+        await browser.close();
+        throw error;
+      }
+      await Bun.sleep(delayMs * 5 * attempt);
+    }
+  }
 
   async function getJson(path: string): Promise<unknown> {
     if (cacheDir) {

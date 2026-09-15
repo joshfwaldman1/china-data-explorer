@@ -1218,9 +1218,23 @@ async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption
   return parseEsDataPoints(response.json, entry.id, region.value);
 }
 
+/**
+ * The place a request is for: the one asked for, else the table's first.
+ *
+ * A table published by place is never answered for the nation. The endpoint
+ * accepts the national code on a city table and returns a grid of zeroes, and
+ * the site was serving that, labelled 全国, as if it were the city's figures.
+ * A table whose places have not been collected (scripts/sync-nbs-regions.ts)
+ * therefore fails here rather than returning something untrue.
+ */
 async function resolveNbsRegion(entry: NbsCatalogEntry, regionValue?: string): Promise<NbsRegionOption> {
   const dimensions = await getNbsDimensions(entry);
-  return dimensions.find((item) => item.value === regionValue) ?? dimensions[0] ?? NATIONAL;
+  const found = dimensions.find((item) => item.value === regionValue) ?? dimensions[0];
+  if (found) return found;
+  if (entry.geography !== "National") {
+    throw new Error(`the places ${entry.dataset} publishes this table for have not been collected; run bun run china:regions`);
+  }
+  return NATIONAL;
 }
 
 function rawResult(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[]): SeriesResult {
