@@ -5,60 +5,53 @@ carries the test that defines it as done. Prerequisites in brackets.
 
 ## Queue
 
-1. **A Trade section on the home page.** `trade_partners` on the home list
-   with the US, EU and ASEAN rows named; the Provinces-style ranking page
-   reached from it ("All places") ranking partners by exports, imports or
-   balance for the chosen month.
-   *Test:* headless render of `#/` shows the Trade group; `#/regions?key=trade_partners`
-   renders a ranking of 30 rows and its CSV download has 30 data rows.
-
-2. **NEA electricity demand.** Map the news listing on nea.gov.cn to the
+1. **NEA electricity demand.** Map the news listing on nea.gov.cn to the
    monthly "全国电力工业统计数据" item, parse 全社会用电量 (month and year to
    date, 亿千瓦时) and consumption by the three industries and households;
    curated key `electricity_demand`, agency National Energy Administration.
    *Test:* a fixture of one release parses to the four figures; the latest
    month's total matches the release text; the series page renders.
 
-3. **PBOC total social financing.** Probe pbc.gov.cn's monthly statistics
+2. **PBOC total social financing.** Probe pbc.gov.cn's monthly statistics
    release (社会融资规模存量/增量) for a foreign-reachable table; if blocked,
    record it and fall back to the Eastmoney or jin10 report AkShare uses
    (`macro_china_shrzgm`), labelled by channel. Keys `tsf_stock`, `tsf_flow`.
    *Test:* fixture parse; the latest stock matches the PBOC release to one
    decimal (trillion yuan).
 
-4. **MOF fiscal revenue, expenditure and land sales.** mof.gov.cn monthly
+3. **MOF fiscal revenue, expenditure and land sales.** mof.gov.cn monthly
    release; keys `fiscal_revenue`, `fiscal_expenditure`, `land_sale_revenue`,
    cumulative year to date and labelled so.
    *Test:* fixture parse; latest cumulative revenue matches the release.
 
-5. **SAFE balance of payments.** Quarterly Excel from safe.gov.cn: current
+4. **SAFE balance of payments.** Quarterly Excel from safe.gov.cn: current
    account, goods, services, primary income, financial account, reserve
    assets. Key `balance_of_payments` with six labels, USD billion.
    *Test:* fixture (one Excel) parses to six figures for the latest quarter;
    the current account matches SAFE's headline release.
 
-6. **MOFCOM FDI actual use.** Monthly cumulative, CNY, from
+5. **MOFCOM FDI actual use.** Monthly cumulative, CNY, from
    data.mofcom.gov.cn (AkShare reads it). Key `fdi_actual_use`.
    *Test:* fixture parse; latest matches the ministry's release.
 
-7. **Customs in CNY.** The same three Customs tables in CNY (the
+6. **Customs in CNY.** The same three Customs tables in CNY (the
     denomination the bureau's growth rates are quoted in), as separate keys
     with `_cny` suffixes; never mixed with the USD series.
     *Test:* August 2026 US exports in CNY equal the CNY table.
 
-8. **NBS international datasets.** Probe `queryIndexTreeAsync?code=11..14`
+7. **NBS international datasets.** Probe `queryIndexTreeAsync?code=11..14`
     through `scripts/portal.ts` for 三大经济体月度数据 and 主要国家年度数据;
     if they exist, add the codes to `sync-nbs-catalog.ts`, crawl, merge.
     *Test:* the merged catalog gains a dataset with geography
     "International" and a series page renders for one of its entries.
 
-9. **Remaining English glosses.** [needs API credit] `bun run
+8. **Remaining English glosses.** [needs API credit] `bun run
     china:translate --concurrency=8` for the 14,244 annual base concepts
     still on the token dictionary, then `china:translate-notes`.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-10. **Trade growth from Customs' own release.** The `trade` headline
+9. **Trade growth from Customs' own release.** The `trade` headline
     (exports and imports, YoY %) comes from the Eastmoney mirror, which holds
     the first print while NBS's table carries Customs' revision (June 2026:
     26.9 against 27.0). Serve it from NBS's monthly table (出口总值同比增长,
@@ -66,7 +59,7 @@ carries the test that defines it as done. Prerequisites in brackets.
     the concordance pair back to 0.05.
     *Test:* the exports pair passes at tolerance 0.05 over six months.
 
-11. **Concordance pairs for the rest of the curated set.** PMI, new loans, FX
+10. **Concordance pairs for the rest of the curated set.** PMI, new loans, FX
     reserves, house prices, electricity output and the Phase A series have
     no pair yet; find each one's catalog entry (FX reserves and GDP levels
     are not in the monthly national dataset under the names tried) or its
@@ -74,12 +67,20 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* every curated key with an NBS or PBOC source appears in
     `CONCORDANCE_PAIRS` or carries a comment saying why not.
 
-12. **High-frequency group.** Freight index (`macro_china_freight_index`)
+11. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-15 — Trade section: US, EU and ASEAN rows on the home page; the
+  partner ranking page ranks by exports, imports or balance, names Customs,
+  and sets the Total apart. First headless render test in the repo
+  (`trade-home.test.ts`, Playwright on the installed Chrome). Live: US
+  exports August 2026 42,475.3 million USD on the home page; 30 partners in
+  the ranking API. Surfaced: groupings (Belt and Road, RCEP, APEC) rank beside
+  countries; a filter could separate them.
 
 - 2026-09-15 — Customs release-day timing: `server/customs-calendar.ts` reads
   the year's calendar from the English site and merges the preliminary

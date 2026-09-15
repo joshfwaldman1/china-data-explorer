@@ -2142,3 +2142,31 @@ not from scratch. Rounds are small on purpose.
   carries the 8 September item with the four keys beside 11 NBS items; the
   default window is 26 NBS items and no Customs ones; `/api/catalog` shows
   `releaseDay: 14` on trade, trade_partners, major_exports, major_imports.
+
+- 2026-09-15 (menus): the Download and Share menus on a series page could
+  both stand open, one over the other; they are details elements and nothing
+  closed one when the other opened or when the reader clicked away. Opening a
+  menu now closes the others and a pointer-down outside closes it. Verified by
+  the deployed bundle carrying the change; no browser test harness existed at
+  the time (one arrived with the next round).
+
+- 2026-09-15 (dataset loop, round 4: Trade section): trade by partner was one
+  home row for the Total and a ranking page written for provinces ("by City",
+  source NBS, the Total ranked against countries, exports only). The home page
+  now lists the United States, the European Union and ASEAN as their own rows
+  (`homeRegions` on the indicator; `/api/home` keys them key@region); the
+  ranking page takes a line to rank by (exports, imports, balance), names
+  Customs, sets the month's Total apart in the lede and puts it first in the
+  CSV; Customs tables have geography Partner or Commodity. Test: the first
+  headless render test in the repo (`trade-home.test.ts`, Playwright on the
+  installed Chrome, as scripts/portal.ts does): a server on a scratch store
+  seeded from the August 2026 fixture; the three rows on the home page and no
+  Total row; 29 ranked partners with the Total in the lede ("All partners,
+  Aug 2026: 401,441 Million USD"); re-rank by imports; CSV of 30 rows with
+  Total first. Live: `/api/home` carries trade_partners@united-states
+  (42,475.3 million USD exports, August 2026), @european-union (55,106.3),
+  @asean (74,377.2); `/api/regional/trade_partners?label=Imports` answers
+  geography Partner, labels Exports/Imports/Balance, 30 values, Total imports
+  282,355.8. Surfaced: Customs' partner table lists groupings (Belt and Road,
+  RCEP, APEC, the EU, ASEAN) beside countries and they rank together; a
+  grouping filter is a possible refinement.
