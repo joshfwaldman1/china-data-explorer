@@ -30,6 +30,12 @@ test("a title several tables share says which table it came from", async () => {
   ]);
   expect(out[0]?.nameEn).toBe("Population by household registration: population");
   expect(out[1]?.nameEn).toBe("Age composition and dependency ratio: population");
+  // A qualifier the table already carries is not said twice.
+  const sampled = qualifyDuplicateTitles([
+    entry("d", "Population (population sample survey)", ["人口", "按户口登记状况分人口数 (人口抽样调查)"], ["Population", "Population by household registration status (population sample survey)"]),
+    entry("e", "Population (population sample survey)", ["人口", "人口年龄构成和抚养比 (人口抽样调查)"], ["Population", "Age composition and dependency ratio (population sample survey)"]),
+  ]);
+  expect(sampled[0]?.nameEn).toBe("Population by household registration status (population sample survey): population");
   // A unique title is left alone, and so is a table whose name repeats the title.
   expect(out[2]?.nameEn).toBe("Birth rate");
 });

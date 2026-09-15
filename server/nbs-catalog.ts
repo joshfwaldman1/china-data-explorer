@@ -277,7 +277,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 20; // 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 21; // 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -386,9 +386,15 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
     // A table whose name the title already carries adds nothing; a table name
     // that carries the title adds the words that tell the two apart.
     if (title.includes(table)) return entry;
-    // The table leads, as it does for the PMI tables: "Population by household
-    // registration: population (population sample survey)".
-    return { ...entry, nameEn: `${table}: ${title.charAt(0).toLocaleLowerCase()}${title.slice(1)}` };
+    // The table leads, as it does for the PMI tables. A qualifier the table
+    // already carries is dropped from the title rather than said twice:
+    // "Population by household registration status (population sample survey):
+    // population".
+    const parenthetical = title.match(/\s*\(([^()]*)\)\s*$/);
+    const short = parenthetical && parenthetical[1] && table.includes(parenthetical[1])
+      ? title.slice(0, parenthetical.index).trim()
+      : title;
+    return { ...entry, nameEn: `${table}: ${short.charAt(0).toLocaleLowerCase()}${short.slice(1)}` };
   });
 }
 
