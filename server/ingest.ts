@@ -217,8 +217,9 @@ async function catalogTargets(budget: number): Promise<{ targets: CrawlTarget[];
       if (national.length < budget) national.push({ entry, region: NATIONAL_REGION });
       continue;
     }
-    // Cached per table, so this is one lookup per table rather than per series.
-    const regions = await getNbsDimensions(entry);
+    // Cached per table, so this is one lookup per table rather than per series,
+    // and offline: selection must not wait on the portal.
+    const regions = await getNbsDimensions(entry, { offline: true });
     for (const region of regions) {
       if (stored.has(`${entry.key}@${region.value}`) || empty.has(`${entry.key}@${region.value}`)) continue;
       remaining += 1;
@@ -243,7 +244,10 @@ async function catalogTargets(budget: number): Promise<{ targets: CrawlTarget[];
  */
 export async function runCatalogCrawl(budget: number): Promise<{ ok: number; error: number; empty: number; remaining: number }> {
   db();
+  console.log("\nChoosing what to crawl...");
+  const chooseStarted = Date.now();
   const { targets, remaining } = await catalogTargets(budget);
+  console.log(`  ${targets.length} targets chosen from ${remaining} outstanding in ${((Date.now() - chooseStarted) / 1000).toFixed(1)}s`);
   const tally = { ok: 0, error: 0, empty: 0, remaining };
   if (targets.length === 0) return tally;
 

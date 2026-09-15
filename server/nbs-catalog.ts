@@ -1049,7 +1049,7 @@ function fallbackDimensions(entry: NbsCatalogEntry): NbsRegionOption[] {
   return [];
 }
 
-export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegionOption[]> {
+export async function getNbsDimensions(entry: NbsCatalogEntry, options: { offline?: boolean } = {}): Promise<NbsRegionOption[]> {
   if (entry.geography === "National") return [NATIONAL];
   const cached = dimensionsCache.get(entry.cid);
   if (cached && Date.now() - cached.at < 6 * 60 * 60 * 1000) return cached.data;
@@ -1066,6 +1066,12 @@ export async function getNbsDimensions(entry: NbsCatalogEntry): Promise<NbsRegio
   // endpoint below is challenged from a plain client and usually declines.
   const collected = await collectedRegions(entry.cid);
   if (collected && collected.length > 0) return remember(collected);
+
+  // Choosing what to crawl walks the whole catalog, and a table whose list was
+  // never collected would otherwise spend two timed-out requests there before
+  // the crawl has fetched anything. Selection asks offline; a page view, which
+  // is one table at a time, still tries the live endpoint.
+  if (options.offline) return remember(fallbackDimensions(entry));
 
   let treeRaw: unknown;
   try {
