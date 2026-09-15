@@ -183,14 +183,23 @@ Parsers are fixture-tested and refuse a changed layout. Still to do: a
 backfill to 2022 through the ingest, the Customs release calendar as a due
 rule, and the CNY-denominated tables.
 
-**C. Credit and the bond market — about a week.** ChinaBond yields (1y, 2y,
-5y, 10y, 30y) daily; TSF stock and flow, PBOC balance sheet and deposits from
-PBOC's release tables; RRR as a stepped series from the event table.
+**C. Credit and the bond market — source verified 15 September.** The
+government bond yield curve comes from CFETS/ChinaMoney, not ChinaBond:
+`POST https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/ClsYldCurvHis`
+(`bondType=CYCC000`, `reference=1`, a date range, `termId` for one tenor,
+`pageSize` up to 1000) answers a foreign address with clean JSON — 103 tenors
+per trading day from one month to fifty years, back years. The adapter to
+build: 1y, 2y, 5y, 10y and 30y, stored as daily closes and served at month
+end for the site's monthly frame. Then TSF stock and flow, the PBOC balance
+sheet and deposits from PBOC's release tables; RRR as a stepped series.
 
-**D. Energy and fiscal — a week together.** NEA electricity consumption and
-installed capacity; MOF revenue, expenditure and land sales; a curated
-"Energy" group joining NEA demand with NBS generation by source and Customs
-imports.
+**D. Energy and fiscal — a week together.** nea.gov.cn answers a foreign
+address (the CEC site does not); the monthly electricity release is a press
+item ("1-N月份全国电力工业统计数据"), so the adapter needs the news listing
+mapped and a fixture-tested parser like the Customs one. MOF revenue,
+expenditure and land sales; a curated "Energy" group joining NEA demand with
+NBS generation by source and Customs' crude, coal and gas imports (the last
+three are in `major_imports` now).
 
 **E. External balance — a few days.** SAFE BoP quarterly and FX settlement
 monthly (Excel), MOFCOM FDI and ODI, CFETS index.
