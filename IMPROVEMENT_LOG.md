@@ -2030,3 +2030,28 @@ not from scratch. Rounds are small on purpose.
   January-February year-to-date total less February. Removed the proposal
   from the queue. Keep missing January readings absent as published and
   retain the existing incomplete-quarter handling. Documentation only.
+
+- 2026-09-15 (regional and annual datasets): the catalog covered the national
+  monthly and quarterly datasets only. It now carries all eight families the
+  bureau publishes that we can reach: national monthly and quarterly, provincial
+  monthly, quarterly and annual, city monthly and annual, and Hong Kong, Macao
+  and Taiwan, 19,433 entries in a 1.6 MB gzipped snapshot where the two national
+  ones alone were 12.7 MB. 13,258 browsable series, up from 9,569, and 121,000
+  (indicator, place) pairs for the crawl to store. Found and fixed on the way:
+  annual series had never worked, because the observations endpoint writes an
+  annual period as 2026YY and answers a plain year range with HTTP 500; the
+  endpoint returns one place per request whatever the request asks for, so the
+  crawl and the due sweep now walk (indicator, place) pairs and batch by table
+  and place; a busy portal answers 200 with no period grid, which the crawl had
+  been storing as "this series is empty" and skipping for a month. The store
+  was rebuilt WITHOUT ROWID with the duplicate index dropped (455 MB to 439 MB
+  with three times the headroom), and where each series starts and ends is now
+  a summary kept by the write path rather than a group-by over every
+  observation. Search reads a place name in the query ("guangdong gdp"), the
+  geography filter works, the Provinces page takes any regional series, and a
+  title several tables share says which table it came from. Verified live:
+  provincial GDP for Guangdong reads 145,846.8 亿元 for 2025, the store
+  migrated in 18.5s on the volume, and the crawl is storing province by
+  province. Annual national (another 43,000 series) is still being crawled; the
+  portal throttles hard, so the collector now caches its answers and can be
+  restarted without starting over.

@@ -12,6 +12,7 @@
  * not challenged, which is why the running site needs no browser.
  */
 
+import { mkdir } from "node:fs/promises";
 import { chromium, type Browser, type Page } from "playwright";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
@@ -32,10 +33,19 @@ export interface PortalOptions {
   /** Base pause between retries, doubled each attempt. */
   delayMs?: number;
   attempts?: number;
+  /**
+   * Directory to keep answered requests in. A crawl of the whole index takes
+   * hours because the portal throttles a visitor who asks a lot, and an
+   * interrupted crawl otherwise starts from nothing; with a cache the second
+   * run replays what it already knows and only asks for the rest.
+   */
+  cacheDir?: string;
 }
 
 export async function openPortal(options: PortalOptions = {}): Promise<PortalSession> {
-  const { channel = "chrome", headless = true, delayMs = 1000, attempts = 8 } = options;
+  const { channel = "chrome", headless = true, delayMs = 1000, attempts = 8, cacheDir } = options;
+  if (cacheDir) await mkdir(cacheDir, { recursive: true });
+  const cachePath = (path: string) => `${cacheDir}/${Bun.hash(path).toString(16)}.json`;
   const browser: Browser = await chromium.launch({ channel, headless });
   let page: Page = await browser.newPage({ locale: "zh-CN" });
   let requests = 0;
@@ -50,6 +60,12 @@ export async function openPortal(options: PortalOptions = {}): Promise<PortalSes
   await load();
 
   async function getJson(path: string): Promise<unknown> {
+    if (cacheDir) {
+      const cached = Bun.file(cachePath(path));
+      if (await cached.exists()) {
+        try { return await cached.json() as unknown; } catch { /* rewrite it below */ }
+      }
+    }
     let lastError = "unknown response";
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       requests += 1;
@@ -60,7 +76,9 @@ export async function openPortal(options: PortalOptions = {}): Promise<PortalSes
           return response.text();
         }, `${API}${path}`);
         if (!text.trimStart().startsWith("{")) throw new Error("received the portal anti-bot page");
-        return JSON.parse(text) as unknown;
+        const parsed: unknown = JSON.parse(text);
+        if (cacheDir) await Bun.write(cachePath(path), text);
+        return parsed;
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
         if (attempt >= attempts) break;

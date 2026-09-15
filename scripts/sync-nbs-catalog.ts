@@ -1,6 +1,6 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { chromium } from "playwright";
+import { openPortal } from "./portal.ts";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
@@ -135,62 +135,20 @@ const requestedCodes = new Set(
     .map(Number)
     .filter(Number.isFinite),
 );
-let requestCount = 0;
 
-// The metadata endpoints occasionally return a JavaScript challenge to plain
-// HTTP clients. Loading the official portal once gives this collector the same
-// session cookies as a normal visitor, then all metadata requests stay on the
-// portal's own origin.
-const browser = await chromium.launch({
-  channel: option("channel") ?? "chrome",
+// The metadata endpoints answer a plain HTTP client with a JavaScript
+// challenge, so every request is made from inside a real browser session on
+// the portal (scripts/portal.ts). `--cache=<dir>` keeps the answers: the
+// portal throttles a visitor who asks for the whole index, so a crawl that
+// has to be restarted replays what it already collected instead of asking
+// again.
+const portal = await openPortal({
+  channel: option("channel"),
   headless: option("headed") !== "true",
+  delayMs,
+  cacheDir: option("cache") ? resolve(option("cache") ?? "") : undefined,
 });
-let portalPage = await browser.newPage({ locale: "zh-CN" });
-
-/**
- * Load the portal so the collector holds the session a normal visitor holds.
- * A long crawl outlives that session — the challenge comes back after an hour
- * or so, and after a burst of requests — so this is called again whenever the
- * anti-bot page appears rather than only at the start.
- */
-async function openPortal(): Promise<void> {
-  if (!portalPage.isClosed()) await portalPage.close().catch(() => undefined);
-  portalPage = await browser.newPage({ locale: "zh-CN" });
-  await portalPage.goto("https://data.stats.gov.cn/dg/website/page.html", {
-    waitUntil: "commit",
-    timeout: 60_000,
-  });
-  await portalPage.getByRole("menuitem", { name: /地区数据/ }).waitFor({ timeout: 60_000 });
-}
-
-await openPortal();
-
-const ATTEMPTS = 8;
-
-async function getJson(path: string): Promise<unknown> {
-  let lastError = "unknown response";
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    requestCount += 1;
-    try {
-      const text = await portalPage.evaluate(async (url: string) => {
-        const response = await fetch(url, { headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.text();
-      }, `${API}${path}`);
-      if (!text.trimStart().startsWith("{")) throw new Error("received the portal anti-bot page");
-      const parsed: unknown = JSON.parse(text);
-      return parsed;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-      if (attempt >= ATTEMPTS) break;
-      // Back off, and from the third try on take a fresh session: the
-      // challenge is answered by loading the portal, not by waiting longer.
-      await Bun.sleep(Math.min(60_000, delayMs * 2 ** attempt));
-      if (attempt >= 2) await openPortal().catch(() => undefined);
-    }
-  }
-  throw new Error(`${path} -> ${lastError} after ${ATTEMPTS} attempts`);
-}
+const getJson = portal.getJson;
 
 async function children(pid: string, code: number): Promise<CatalogNode[]> {
   const raw = await getJson(`/new/queryIndexTreeAsync?pid=${encodeURIComponent(pid)}&code=${code}`);
@@ -238,7 +196,7 @@ async function writeSnapshot(targetPath = outputPath): Promise<void> {
   const snapshot = {
     generatedAt: new Date().toISOString(),
     source: "National Bureau of Statistics of China",
-    requestCount,
+    requestCount: portal.requestCount(),
     datasets,
     entries,
     errors,
@@ -321,6 +279,6 @@ for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset
 
 await writeSnapshot();
 await rm(`${outputPath}.partial`, { force: true });
-await browser.close();
+await portal.close();
 console.log(`Wrote ${entries.length.toLocaleString()} indicators to ${outputPath}`);
 if (errors.length > 0) console.warn(`${errors.length} catalog nodes failed; see snapshot.errors`);

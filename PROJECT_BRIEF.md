@@ -1,6 +1,6 @@
 # EconStats China: what exists, and what more would take
 
-14 September 2026. Live at https://econstats-china-production.up.railway.app
+15 September 2026. Live at https://econstats-china-production.up.railway.app
 
 ## Summary
 
@@ -18,13 +18,14 @@ And it handles the conventions that make naive copies of Chinese data wrong.
 
 | | |
 |---|---|
-| Browsable series | 9,569, from a 15,403-entry catalog |
-| Observations stored | 1,315,565 across 15,078 series |
+| Browsable series | 13,258, from a 19,433-entry catalog |
+| Observations stored | 1.32 million and climbing as the regional tables are fetched |
 | Headline series, curated by hand | 43 |
 | Provinces, quarterly real GDP | 31 |
 | Cities, new and existing home prices | 70 |
-| Store size | 455 MB on a mounted volume |
-| Tests | 139 |
+| Provincial and city tables, every indicator by place | 121,000 series being stored |
+| Store size | 439 MB on a mounted volume, a third smaller than before the rebuild |
+| Tests | 153 |
 | Logged improvement rounds | 212 |
 
 Sources: the statistics bureau's own portal for the catalog and for
@@ -74,8 +75,9 @@ rather than its titles.
 
 ## What it is not yet
 
-- Coverage is the national monthly and quarterly datasets. The bureau's annual
-  dataset and its regional tables beyond provincial GDP are not crawled.
+- The bureau's annual national dataset, another forty thousand series, is being
+  crawled. The provincial and city tables are in the catalog and are being
+  stored place by place; until a place is stored its page fetches it live.
 - Nothing is seasonally adjusted, and nothing corrects for the Lunar New Year,
   which moves between January and February and distorts every first quarter.
 - The store has no backup. Rebuilding the levels takes about thirty minutes.

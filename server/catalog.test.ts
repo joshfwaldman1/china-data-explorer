@@ -21,7 +21,7 @@ test("a title several tables share says which table it came from", async () => {
   const entry = (key: string, nameEn: string, categories: string[], categoriesEn: string[]) => ({
     key, id: key, name: "人口数", shortName: "人口数", nameEn, unit: "人", note: "", annotation: "",
     datasetCode: 6, dataset: "分省年度数据", frequency: "Annual" as const, geography: "Province" as const,
-    cid: key, rootId: "r", categories, categoriesEn,
+    cid: key, rootId: "r", categories, categoriesEn, precision: null,
   });
   const out = qualifyDuplicateTitles([
     entry("a", "Population", ["人口", "按户口登记状况分人口数"], ["Population", "Population by household registration"]),
@@ -39,7 +39,8 @@ test("the same title in the same table is one series published for several place
   const entry = (key: string) => ({
     key, id: key, name: "地区生产总值", shortName: "地区生产总值", nameEn: "Gross regional product", unit: "亿元",
     note: "", annotation: "", datasetCode: 6, dataset: "分省年度数据", frequency: "Annual" as const,
-    geography: "Province" as const, cid: "same-table", rootId: "r", categories: ["综合", "地区生产总值"], categoriesEn: ["Overview", "Gross regional product"],
+    geography: "Province" as const, cid: "same-table", rootId: "r", categories: ["综合", "地区生产总值"],
+    categoriesEn: ["Overview", "Gross regional product"], precision: null,
   });
   const out = qualifyDuplicateTitles([entry("a"), entry("b")]);
   expect(out[0]?.nameEn).toBe("Gross regional product");
