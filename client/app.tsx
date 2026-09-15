@@ -568,8 +568,10 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     return () => { cancelled = true; };
   }, [homeFailed, props.curated.map((entry) => entry.key).join(",")]);
   const upcoming = props.releases.filter((release) => isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
-  const monthly = props.stats?.datasets.find((dataset) => dataset.frequency === "Monthly")?.count ?? 0;
-  const quarterly = props.stats?.datasets.find((dataset) => dataset.frequency === "Quarterly")?.count ?? 0;
+  // The datasets the catalog actually holds, largest first, so this list stays
+  // true as families are added rather than naming two of them by hand.
+  const datasets = [...(props.stats?.datasets ?? [])].sort((a, b) => b.count - a.count);
+  const hasNationalAnnual = datasets.some((dataset) => dataset.geography === "National" && dataset.frequency === "Annual");
   return (
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
@@ -645,8 +647,18 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="card">
           <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li>{props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} of them stored locally; the other {(props.stats.seriesCount - props.stats.storedCount).toLocaleString("en-US")} are tables NBS lists but has published no data for, retried monthly</li>}<li>{headlineEntries.length} headline indicators with notes and revision history: {byAgency("National Bureau of Statistics")} of the NBS series above, plus {byAgency("People's Bank of China")} from the People's Bank of China, {byAgency("Customs")} from Customs and {byAgency("Caixin")} from Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.source === "fred").length} international series via FRED: BIS, OECD, IMF, World Bank, US Census, US Treasury and BLS</li></ul></div>
-            <div><h3>Not included</h3><ul><li>Provincial series beyond GDP, and city series beyond home prices</li><li>Annual NBS series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
+            <div><h3>Included</h3><ul>
+              {datasets.map((dataset) => <li key={dataset.code}>{dataset.count.toLocaleString("en-US")} {dataset.geography === "National" ? "national" : dataset.geography === "Province" ? "provincial" : dataset.geography === "City" ? "city" : dataset.geography} {dataset.frequency.toLowerCase()} NBS series{dataset.geography === "Province" ? ", each published for 31 provinces" : dataset.geography === "City" ? ", each published for the surveyed cities" : ""}</li>)}
+              {props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} stored locally; the rest are fetched on first view, and tables NBS lists but has published no data for are retried monthly</li>}
+              <li>{headlineEntries.length} headline indicators with notes and revision history: {byAgency("National Bureau of Statistics")} of the NBS series above, plus {byAgency("People's Bank of China")} from the People's Bank of China, {byAgency("Customs")} from Customs and {byAgency("Caixin")} from Caixin</li>
+              <li>Quarterly GDP for all 31 provinces, back to 2005, and new and existing home prices for the 70 surveyed cities</li>
+              <li>{props.curated.filter((entry) => entry.source === "fred").length} international series via FRED: BIS, OECD, IMF, World Bank, US Census, US Treasury and BLS</li>
+            </ul></div>
+            <div><h3>Not included</h3><ul>
+              {!hasNationalAnnual && <li>The annual national dataset, which is being collected</li>}
+              <li>Census releases and the ministries' own datasets, which NBS lists separately</li>
+              <li>Seasonal adjustment, and any correction for the Lunar New Year moving between January and February</li>
+            </ul></div>
           </div>
         </div>
       </section>
