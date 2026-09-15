@@ -563,8 +563,13 @@ if (ingestEveryHours > 0) {
         running = false;
       }
     };
-    setTimeout(crawl, 10 * 60 * 1000);
+    // A restart cancels whatever the crawl was doing and the timer starts
+    // again, so a day of deployments can mean a day of no crawling. Three
+    // minutes is long enough for the boot ingest to get going and short enough
+    // that a deployment costs almost nothing.
+    const firstRunMinutes = Number(process.env.CRAWL_FIRST_RUN_MINUTES ?? 3);
+    setTimeout(crawl, firstRunMinutes * 60 * 1000);
     setInterval(crawl, crawlEveryHours * 60 * 60 * 1000);
-    console.log(`  Catalog crawl scheduled: ${crawlBudget} series every ${crawlEveryHours}h (first run in 10 minutes)`);
+    console.log(`  Catalog crawl scheduled: ${crawlBudget} series every ${crawlEveryHours}h (first run in ${firstRunMinutes} minutes)`);
   }
 }
