@@ -13,7 +13,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -574,7 +574,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.filter((entry) => entry.home !== false && !entry.agency.includes("National Bureau of Statistics")).length} indicators from the People's Bank of China, Customs and Caixin, and {props.curated.filter((entry) => entry.home === false).length} international series on China via FRED.</p>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.filter((entry) => entry.home !== false && !entry.agency.includes("National Bureau of Statistics")).length} indicators from the People's Bank of China, Customs and Caixin, and {props.curated.filter((entry) => entry.source === "fred").length} international series on China via FRED.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
@@ -645,7 +645,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <div className="card">
           <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
-            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li>{props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} of them stored locally; the other {(props.stats.seriesCount - props.stats.storedCount).toLocaleString("en-US")} are tables NBS lists but has published no data for, retried monthly</li>}<li>{headlineEntries.length} headline indicators with notes and revision history: {byAgency("National Bureau of Statistics")} of the NBS series above, plus {byAgency("People's Bank of China")} from the People's Bank of China, {byAgency("Customs")} from Customs and {byAgency("Caixin")} from Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.home === false).length} international series via FRED: BIS, OECD, IMF, World Bank, US Census, US Treasury and BLS</li></ul></div>
+            <div><h3>Included</h3><ul><li>{monthly.toLocaleString("en-US")} national monthly NBS series</li><li>{quarterly.toLocaleString("en-US")} national quarterly NBS series</li>{props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} of them stored locally; the other {(props.stats.seriesCount - props.stats.storedCount).toLocaleString("en-US")} are tables NBS lists but has published no data for, retried monthly</li>}<li>{headlineEntries.length} headline indicators with notes and revision history: {byAgency("National Bureau of Statistics")} of the NBS series above, plus {byAgency("People's Bank of China")} from the People's Bank of China, {byAgency("Customs")} from Customs and {byAgency("Caixin")} from Caixin</li><li>Quarterly GDP for all 31 provinces, back to 2005</li><li>New and existing home prices for the 70 surveyed cities</li><li>{props.curated.filter((entry) => entry.source === "fred").length} international series via FRED: BIS, OECD, IMF, World Bank, US Census, US Treasury and BLS</li></ul></div>
             <div><h3>Not included</h3><ul><li>Provincial series beyond GDP, and city series beyond home prices</li><li>Annual NBS series</li><li>Hong Kong, Macao and Taiwan</li></ul></div>
           </div>
         </div>

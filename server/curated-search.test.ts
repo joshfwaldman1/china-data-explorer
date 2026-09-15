@@ -19,9 +19,9 @@ const { matchCurated } = await import("./data.ts");
 const { normalizeQuery, SEARCH_STOP_WORDS } = await import("./nbs-catalog.ts");
 
 const entries: CatalogEntry[] = [
-  { key: "us_imports_from_china", title: "US Imports from China", group: "Trade & External", agency: "US Census Bureau", frequency: "Monthly", unit: "Millions of US dollars" },
-  { key: "us_exports_to_china", title: "US Exports to China", group: "Trade & External", agency: "US Census Bureau", frequency: "Monthly", unit: "Millions of US dollars" },
-  { key: "unemployment", title: "Surveyed Urban Unemployment Rate", group: "Labor", agency: "National Bureau of Statistics", frequency: "Monthly", unit: "Percent" },
+  { key: "us_imports_from_china", title: "US Imports from China", group: "Trade & External", agency: "US Census Bureau", frequency: "Monthly", unit: "Millions of US dollars", source: "fred" },
+  { key: "us_exports_to_china", title: "US Exports to China", group: "Trade & External", agency: "US Census Bureau", frequency: "Monthly", unit: "Millions of US dollars", source: "fred" },
+  { key: "unemployment", title: "Surveyed Urban Unemployment Rate", group: "Labor", agency: "National Bureau of Statistics", frequency: "Monthly", unit: "Percent", source: "nbs" },
 ];
 
 function search(query: string): string[] {

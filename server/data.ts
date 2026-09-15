@@ -594,13 +594,15 @@ export interface CatalogEntry {
   endedNote?: string;
   /** Set when this deployment cannot refresh the series (AkShare without AKTools); it serves from the store. */
   refreshBlocked?: string;
+  /** Where the numbers come from: the page counts its sources honestly rather than by whether a series is on the home page. */
+  source: Indicator["kind"];
   home?: boolean;
 }
 
 export function catalogList(): CatalogEntry[] {
   return Object.entries(CATALOG).map(([key, c]) => ({
     key, title: c.title, group: c.group, agency: c.agency,
-    frequency: c.frequency, unit: c.unit,
+    frequency: c.frequency, unit: c.unit, source: c.kind,
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     ...(c.home === false ? { home: false } : {}),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
