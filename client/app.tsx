@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -1464,6 +1464,13 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
           {/* Any series published by province can be mapped, not only GDP. */}
           <AddSeries keys={[]} lang={props.lang} navigate={props.navigate} label="Map another series" geography={data?.geography === "City" ? "City" : "Province"}
             onPick={(entry) => props.navigate({ view: "regions", period: "", key: entry.key })} />
+          {rows.length > 0 && <button className="button" onClick={() => downloadBlob(
+            `econstats-china-${key}-${shownPeriod || "latest"}.csv`,
+            new Blob([regionalCsv(
+              { title: data?.title ?? key, unit: unitLabel(unit), period: shownPeriod ? periodPretty(shownPeriod) : "", agency: data?.agency ?? "National Bureau of Statistics" },
+              ranked.map((item) => ({ en: regionLabel(item.region), zh: item.region.text, code: item.region.value, value: item.value })),
+            )], { type: "text/csv;charset=utf-8" }),
+          )}>Download CSV</button>}
         </div>
       </div>
 

@@ -196,3 +196,29 @@ export function csvOf(results: CsvSeriesMeta[], tracks: Track[], notes: string[]
   }
   return [...head, ...lines].join("\n");
 }
+
+export interface RegionalCsvRow { en: string; zh: string; code: string; value: number | null }
+
+/**
+ * One period of a regional series as CSV: a row per place, in the order shown.
+ *
+ * The period-by-series shape (csvOf) cannot carry this — thirty-one provinces
+ * at one date is a cross-section, not a time series — and a cross-section is
+ * what someone reading the map wants to take away.
+ */
+export function regionalCsv(meta: { title: string; unit: string; period: string; agency: string; notes?: string[] }, rows: RegionalCsvRow[]): string {
+  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const head = [
+    `# Series: ${meta.title}`,
+    `# Unit: ${meta.unit}`,
+    `# Period: ${meta.period}`,
+    `# Source: ${meta.agency}`,
+    ...(meta.notes ?? []).map((note) => `# Note: ${note}`),
+    `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
+  ];
+  const lines = [["place", "place_zh", "nbs_code", "value"].map(quote).join(",")];
+  for (const row of rows) {
+    lines.push([quote(row.en), quote(row.zh), quote(row.code), row.value === null ? "" : String(row.value)].join(","));
+  }
+  return [...head, ...lines].join("\n");
+}

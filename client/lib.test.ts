@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { canonicalPeriod, convertTrack, csvOf, deltaText, coarsestFrequency, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, releaseTime, type Track } from "./lib.ts";
+import { canonicalPeriod, convertTrack, csvOf, deltaText, coarsestFrequency, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -112,4 +112,20 @@ test("a quarter of two monthly readings counts only when February is the combine
   // A series that publishes a single February and no January is short a month, so the quarter goes.
   expect(convertTrack(monthly(firstQuarter), "Quarterly", "sum").points).toEqual([]);
   expect(convertTrack(monthly(["2026-01", ...firstQuarter]), "Quarterly", "sum").points.map((point) => point.p)).toEqual(["2026-Q1"]);
+});
+
+test("a regional cross-section downloads as a row per place", () => {
+  const csv = regionalCsv(
+    { title: "Gross regional product", unit: "100 million yuan", period: "2024", agency: "National Bureau of Statistics" },
+    [
+      { en: "Guangdong", zh: "广东省", code: "440000000000", value: 141489.2 },
+      { en: "Tibet", zh: "西藏自治区", code: "540000000000", value: null },
+    ],
+  );
+  const lines = csv.split("\n");
+  expect(lines[0]).toBe("# Series: Gross regional product");
+  expect(lines).toContain('"place","place_zh","nbs_code","value"');
+  expect(lines).toContain('"Guangdong","广东省","440000000000",141489.2');
+  // A place with nothing published keeps its row and an empty value.
+  expect(lines).toContain('"Tibet","西藏自治区","540000000000",');
 });
