@@ -44,6 +44,11 @@ export interface SeriesResult {
  * reach the English-titled series too.
  */
 export const CURATED_SYNONYMS: Record<string, string[]> = {
+  consumer_confidence: ["consumer confidence", "sentiment", "消费者信心指数", "消费者信心"],
+  enterprise_boom: ["business confidence", "enterprise boom", "企业景气指数", "景气"],
+  tax_revenue: ["tax revenue", "taxes", "fiscal revenue", "税收收入", "税收"],
+  forex_loans: ["foreign currency loans", "fx loans", "外汇贷款"],
+  commodity_prices: ["commodity prices", "commodity price index", "ccpi", "大宗商品价格指数", "大宗商品"],
   gdp: ["gdp", "growth", "output", "national accounts", "国内生产总值", "经济增长"],
   provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
   industrial_production: ["industrial production", "ip", "industry", "value added", "factory output", "工业增加值", "工业生产"],
@@ -466,6 +471,59 @@ export const CATALOG: Record<string, Indicator> = {
     // since gold at a tenth of the FX total flattened the FX line on a shared axis.
     reportName: "RPT_ECONOMY_GOLD_CURRENCY",
     fields: [{ field: "GOLD_RESERVES", label: "Gold reserves (100M USD)" }],
+  },
+  consumer_confidence: {
+    kind: "eastmoney", group: "Sentiment",
+    title: "Consumer Confidence Index", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Index (100 = neutral)",
+    // NBS's monthly consumer survey: the headline index with its two components.
+    // Below 100 since April 2022; the level, not the change, is the story.
+    reportName: "RPT_ECONOMY_FAITH_INDEX",
+    fields: [
+      { field: "CONSUMERS_FAITH_INDEX", label: "Consumer confidence" },
+      { field: "CONSUMERS_EXPECT_INDEX", label: "Expectations" },
+      { field: "CONSUMERS_ASTIS_INDEX", label: "Satisfaction" },
+    ],
+  },
+  enterprise_boom: {
+    kind: "eastmoney", group: "Sentiment", home: false,
+    title: "Enterprise Boom Index", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Index (100 = neutral)",
+    // NBS's quarterly survey of enterprise conditions. The entrepreneur confidence
+    // column in the same table stopped being filled; only the boom index is served.
+    reportName: "RPT_ECONOMY_BOOM_INDEX",
+    fields: [{ field: "BOOM_INDEX", label: "Enterprise boom index" }],
+  },
+  tax_revenue: {
+    kind: "eastmoney", group: "Public Finance", home: false,
+    title: "Tax Revenue, Year to Date", agency: "Ministry of Finance",
+    frequency: "Quarterly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The finance ministry publishes cumulative totals: the Q2 figure is January
+    // to June, Q4 the full year. Not a single-quarter series.
+    reportName: "RPT_ECONOMY_TAX",
+    fields: [{ field: "TAX_INCOME", label: "Tax revenue, year to date" }],
+  },
+  forex_loans: {
+    kind: "eastmoney", group: "Money & Credit", home: false,
+    title: "Foreign Currency Loans Outstanding", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元)",
+    // The balance at month end. The same table's monthly change is small and noisy.
+    reportName: "RPT_ECONOMY_FOREX_LOAN",
+    fields: [{ field: "BASE_ACCUMULATE", label: "FX loans outstanding" }],
+  },
+  commodity_prices: {
+    kind: "eastmoney", group: "Prices", home: false,
+    title: "Commodity Price Index (CCPI)", agency: "Ministry of Commerce",
+    frequency: "Monthly", unit: "Index",
+    // The commerce ministry's China Commodity Price Index and its energy,
+    // mineral and farm components.
+    reportName: "RPT_ECONOMY_GOODS_INDEX",
+    fields: [
+      { field: "BASE", label: "All commodities" },
+      { field: "ENERGY_BASE", label: "Energy" },
+      { field: "MINERAL_BASE", label: "Minerals" },
+      { field: "FARM_BASE", label: "Farm products" },
+    ],
   },
   real_estate: {
     kind: "aktools", group: "Property",

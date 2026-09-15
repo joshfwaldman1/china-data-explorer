@@ -161,11 +161,14 @@ releases, HTML), and semiconductor import value by product (Customs).
 
 Value per effort, with the adapter each step needs.
 
-**A. Existing Eastmoney adapter, one entry each in `data.ts` — days.**
-Consumer confidence, enterprise boom index, FDI actual use, tax revenue, FX
-loans and deposits, stock market statistics, the commodity price index
-(`RPT_ECONOMY_GOODS_INDEX`). Eight to ten curated series, all verified to
-exist on the mirror, no new code paths.
+**A. Existing Eastmoney adapter — done 15 September.** Added: consumer
+confidence (headline, expectations, satisfaction), enterprise boom index, tax
+revenue year to date, foreign-currency loans outstanding, and the commerce
+ministry's commodity price index with its energy, mineral and farm components.
+Checked and left out: `RPT_ECONOMY_FDI` stops at July 2023 (the ministry
+ended the monthly USD release), `RPT_ECONOMY_FOREX_DEPOSIT` carries a balance
+column whose unit could not be reconciled with any published figure, and
+`RPT_ECONOMY_STOCK_STATISTICS` is now null except for index highs and lows.
 
 **B. Trade by partner and commodity — about a week.** A UN Comtrade adapter
 (monthly, partner × HS chapter, cached, back to 2010) and a curated "Trade"
