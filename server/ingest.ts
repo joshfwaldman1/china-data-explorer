@@ -370,7 +370,7 @@ export async function fillRegionalSeries(key: string, limit = 40): Promise<{ fet
 export async function refreshCatalogForRelease(
   categories: string[],
   targets: ReleaseTarget[],
-  options: { fetchBatch?: typeof fetchNbsTableBatch; pauseMs?: number; entries?: NbsCatalogEntry[] } = {},
+  options: { fetchBatch?: typeof fetchNbsTableBatch; pauseMs?: number; entries?: NbsCatalogEntry[]; maxRequests?: number } = {},
 ): Promise<{ advanced: number; checked: number; requests: number; pending: number }> {
   db();
   const fetchBatch = options.fetchBatch ?? fetchNbsTableBatch;
@@ -402,10 +402,16 @@ export async function refreshCatalogForRelease(
     tables.set(tableKey, [...(tables.get(tableKey) ?? []), item]);
   }
 
+  // A release in a category with provincial tables behind it can imply
+  // thousands of requests, one per place. Each attempt takes a bounded slice
+  // and reports the rest as pending, so the next attempt continues rather than
+  // one attempt running for hours.
+  const maxRequests = options.maxRequests ?? Number(process.env.RELEASE_MAX_REQUESTS ?? 400);
   const result = { advanced: 0, checked: wanted.length, requests: 0, pending: 0 };
   for (const group of tables.values()) {
     for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) {
       const chunk = group.slice(at, at + NBS_BATCH_SIZE);
+      if (result.requests >= maxRequests) { result.pending += chunk.length; continue; }
       const region = chunk[0]?.region ?? NATIONAL_REGION;
       const startedAt = new Date().toISOString();
       try {

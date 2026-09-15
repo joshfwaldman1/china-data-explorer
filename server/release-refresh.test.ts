@@ -115,3 +115,23 @@ test("a table that answers without the period is counted as still pending, so th
   expect(result.advanced).toBe(0);
   expect(result.pending).toBe(1);
 });
+
+test("one attempt takes a bounded slice and leaves the rest pending", async () => {
+  // Thirty places behind on the same table: a release attempt asks for a few
+  // and reports the rest, rather than running through all of them at once.
+  const provincial = entry("nbs_reltest_many", "Monthly", "Province");
+  // Real province codes: a place the table is not published for is not a target.
+  const regions = ["110000000000", "120000000000", "130000000000", "140000000000", "150000000000", "210000000000"];
+  for (const region of regions) stored(provincial.key, region, region, "2026-07", 1);
+
+  let calls = 0;
+  const result = await refreshCatalogForRelease(["工业"], releaseTargets({ title: "国民经济运行情况", keys: [], categories: ["工业"] }, new Date("2026-09-15T02:00:00Z")), {
+    entries: [provincial],
+    pauseMs: 0,
+    maxRequests: 2,
+    fetchBatch: async (entries) => { calls += 1; return new Map(entries.map((item) => [item.id, [{ date: "2026-08", value: 2 }]])); },
+  });
+  expect(calls).toBe(2);
+  expect(result.advanced).toBe(2);
+  expect(result.pending).toBe(4);
+});
