@@ -1067,6 +1067,10 @@ function SeriesPage(props: {
   const chosenFrequency = isTargetFrequency(props.route.freq) ? props.route.freq : "";
   const autoFrequency = chosenFrequency ? "" : coarsestFrequency(built.tracks);
   const targetFrequency: TargetFrequency | "" = chosenFrequency || autoFrequency;
+  // The frequencies this chart can actually be converted to: coarser than the
+  // finest series on it. Everything here is annual once the annual datasets land.
+  const finestRank = Math.min(...built.tracks.map((track) => FREQUENCY_RANK[track.frequency] ?? 1), 3);
+  const coarserFrequencies = (["Quarterly", "Annual"] satisfies TargetFrequency[]).filter((item) => (FREQUENCY_RANK[item] ?? 0) > finestRank);
   const aggregation: Aggregation = isAggregation(props.route.agg) ? props.route.agg : "avg";
   const nativeTracks = targetFrequency ? built.tracks.map((track) => convertTrack(track, targetFrequency, aggregation)) : built.tracks;
   const converted = targetFrequency ? built.tracks.filter((track) => (FREQUENCY_RANK[track.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)) : [];
@@ -1262,7 +1266,9 @@ function SeriesPage(props: {
           </>}
         />
         {optionsOpen && <div className="chart-options" id="chart-options">
-          <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select></label>
+          {/* Only frequencies coarser than what is on the chart: an annual
+              series cannot be shown quarterly, and offering it does nothing. */}
+          <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option>{coarserFrequencies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
