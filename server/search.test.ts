@@ -15,7 +15,7 @@ process.env.CHINA_CATALOG_DB_PATH = join(scratch, "catalog.db");
 process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
-const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween, transformPoints, shiftPeriod, growthSiblingName, titleStem } = await import("./nbs-catalog.ts");
+const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween, transformPoints, shiftPeriod, growthSiblingNames, titleStem } = await import("./nbs-catalog.ts");
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
@@ -316,13 +316,18 @@ test("a transform matches the comparison period by label, so a missing January d
   expect(change.find((point) => point.date === "2026-03")?.value).toBe(11);
 });
 
-test("a level series names the growth rate NBS publishes for the same table", () => {
+test("a level series names the growth series NBS publishes for it", () => {
   // The unit is dropped, since the level is in 万吨 and its growth rate in %.
-  expect(growthSiblingName("粗钢产量当期值 (万吨)")).toBe("粗钢产量同比增长");
-  expect(growthSiblingName("粗钢产量累计值 (万吨)")).toBe("粗钢产量累计增长");
+  expect(growthSiblingNames("粗钢产量当期值 (万吨)")).toEqual(["粗钢产量同比增长"]);
+  expect(growthSiblingNames("粗钢产量累计值 (万吨)")).toEqual(["粗钢产量累计增长"]);
   expect(titleStem("粗钢产量同比增长 (%)")).toBe("粗钢产量同比增长");
-  expect(growthSiblingName("粗钢产量同比增长 (%)")).toBeNull();
-  expect(growthSiblingName("粗钢产量累计增长 (%)")).toBeNull();
+  // The annual and provincial tables publish growth as an index instead.
+  expect(growthSiblingNames("地区生产总值 (亿元)")).toEqual(["地区生产总值指数"]);
+  // A series that is already a rate, an index or a share has no growth series of its own.
+  expect(growthSiblingNames("粗钢产量同比增长 (%)")).toEqual([]);
+  expect(growthSiblingNames("粗钢产量累计增长 (%)")).toEqual([]);
+  expect(growthSiblingNames("地区生产总值指数 (上年=100)")).toEqual([]);
+  expect(growthSiblingNames("城镇调查失业率 (%)")).toEqual([]);
 });
 
 test("a scope qualifier NBS keeps in its annotations is dropped from a query", async () => {

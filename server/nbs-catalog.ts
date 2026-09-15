@@ -1360,15 +1360,24 @@ export function februarySiblingName(name: string): string | null {
 }
 
 /**
- * The name of the growth series NBS publishes for the same table, for a level series
- * ("粗钢产量当期值 (万吨)" → "粗钢产量同比增长"), or null when the series is not a level.
- * The unit is dropped: the level is in 万吨 and its growth rate in %, so only the stem matches.
+ * The names of the series NBS publishes as the growth of a level series.
+ *
+ * Monthly activity tables carry it as a rate beside the level ("粗钢产量当期值"
+ * → "粗钢产量同比增长"). The annual and provincial tables carry it as an index
+ * instead ("地区生产总值" → "地区生产总值指数"), often in a table of its own —
+ * which matters here because most of a provincial dataset is levels, and
+ * arithmetic on a level is not the growth rate NBS publishes.
+ *
+ * The unit is dropped: the level is in 万吨 or 亿元 and its growth in % or as
+ * an index, so only the stem matches. Returns nothing for a series that is
+ * already a rate, an index, a share or a ratio.
  */
-export function growthSiblingName(name: string): string | null {
+export function growthSiblingNames(name: string): string[] {
   const stem = name.replace(/\s*[（(][^（()）]*[)）]\s*$/, "");
-  if (/当期值$/.test(stem)) return stem.replace(/当期值$/, "同比增长");
-  if (/累计值$/.test(stem)) return stem.replace(/累计值$/, "累计增长");
-  return null;
+  if (/当期值$/.test(stem)) return [stem.replace(/当期值$/, "同比增长")];
+  if (/累计值$/.test(stem)) return [stem.replace(/累计值$/, "累计增长")];
+  if (/(指数|增长|增速|率|比重|占比|比例)$/.test(stem)) return [];
+  return [`${stem}指数`];
 }
 
 /** A catalog title without its trailing unit, "粗钢产量同比增长 (%)" → "粗钢产量同比增长". */
@@ -1434,11 +1443,18 @@ export async function getNbsCatalogSeries(options: {
   // A level series has a published growth rate of its own, computed on a comparable scope where
   // arithmetic on the levels is not; the page links to it so a reader can take NBS's figure.
   let growthSibling: { key: string; name: string } | undefined;
-  const growthName = growthSiblingName(options.entry.name);
-  if (growthName) {
+  const growthNames = growthSiblingNames(options.entry.name);
+  if (growthNames.length > 0) {
     const snapshot = await loadSnapshot();
-    const found = snapshot.entries.find((candidate) =>
-      candidate.cid === options.entry.cid && candidate.geography === options.entry.geography && titleStem(candidate.name) === growthName);
+    const matches = snapshot.entries.filter((candidate) =>
+      candidate.datasetCode === options.entry.datasetCode &&
+      candidate.geography === options.entry.geography &&
+      growthNames.includes(titleStem(candidate.name)));
+    // Prefer the growth series in the same table, then one on a year-earlier
+    // base: an index against 1978 or the previous month is not the growth rate.
+    const found = matches.find((candidate) => candidate.cid === options.entry.cid)
+      ?? matches.find((candidate) => /上年/.test(candidate.name))
+      ?? matches[0];
     // The English title ends ", %", which reads badly inside a sentence naming the series.
     if (found) growthSibling = { key: found.key, name: (found.nameEn || found.name).replace(/,\s*%$/, "") };
   }
