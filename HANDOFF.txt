@@ -1,5 +1,27 @@
 EconStats China Data Explorer - handoff
-Written 2026-09-12. Branch china-data-explorer, at commit d717b72.
+Written 2026-09-12, updated 2026-09-15. Branch china-data-explorer.
+
+IN FLIGHT ON 15 SEPTEMBER
+
+The annual national dataset (NBS code 3, about 43,700 series) is being
+crawled into china-explorer/catalog/nbs-catalog-annual.json by
+
+  bun run china:catalog --codes=3 --out=china-explorer/catalog/nbs-catalog-annual.json \
+    --cache=<scratch>/nbs-cache --concurrency=2 --delay=1200
+
+The portal throttles hard, so this takes hours; the --cache directory means a
+restart replays what it already collected. When it finishes:
+
+  1. bun run china:catalog-merge --out=china-explorer/catalog/nbs-catalog.json.gz \
+       china-explorer/catalog/nbs-catalog.json.gz china-explorer/catalog/nbs-catalog-annual.json
+  2. NBS_CATALOG_PATH=china-explorer/catalog/nbs-catalog-annual.json bun run china:translate
+     (English glosses for the new base concepts; resumable, writes gloss-en.json)
+  3. bun test && bunx tsc --noEmit -p tsconfig.json | grep china-explorer
+  4. git commit, git push, railway up --detach
+
+The provincial and city tables are already live; the production crawl is
+storing their 121,000 (indicator, place) pairs at 20,000 every six hours, in
+the bureau's own subject order.
 
 
 WHAT THIS IS
