@@ -55,3 +55,13 @@ test("an empty side and a disjoint pair are reported, not counted as agreement",
   expect(compareValues("X", [], [{ date: "2026-08", value: 1 }], { tolerance: 0.05 }).status).toBe("missing");
   expect(compareValues("X", [{ date: "2025-01", value: 1 }], [{ date: "2026-08", value: 1 }], { tolerance: 0.05 }).status).toBe("no-overlap");
 });
+
+test("an unlabelled reference reads the line that reaches furthest when a catalog name changed between crawls", async () => {
+  const { writeSeries } = await import("./db.ts");
+  const { readSide } = await import("./concordance.ts");
+  const base = { key: "nbs_renamed_t", title: "t", agency: "NBS", sourceUrl: "", frequency: "Monthly", unit: "%" };
+  writeSeries({ ...base, series: [{ label: "old name", points: [{ date: "2024-01", value: 1 }, { date: "2024-02", value: 2 }] }] }, "000000000000", "2025-01-01T00:00:00.000Z");
+  writeSeries({ ...base, series: [{ label: "new name", points: [{ date: "2026-07", value: 3 }] }] }, "000000000000", "2026-08-01T00:00:00.000Z");
+  expect(readSide({ key: "nbs_renamed_t" })).toEqual([{ date: "2026-07", value: 3 }]);
+  expect(readSide({ key: "nbs_renamed_t", label: "old name" }).length).toBe(2);
+});

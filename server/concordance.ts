@@ -126,8 +126,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     name: "Exports (YoY %)", kind: "value",
     left: { key: "trade", label: "Exports (YoY %)" },
     right: { key: "nbs_788f44b0f310403fbd308b77d6f83890" }, // 出口总值同比增长 (%)
-    tolerance: 0.05,
-    note: "Customs quotes the rate in USD terms on its English site and CNY on its Chinese one; NBS's table carries the USD rate.",
+    // Customs revises the previous month with each release and the two paths
+    // pick up the revision at different times: on 15 September 2026 the
+    // mirror held 26.9, 19.2 and 14.0 for June, May and April against NBS's
+    // 27.0, 19.4 and 14.1, with July equal on both. A tenth or two is that;
+    // anything larger is a different statistic.
+    tolerance: 0.25,
+    note: "Customs quotes the rate in USD terms on its English site and CNY on its Chinese one; NBS's table carries the USD rate. Revised months can differ by 0.1-0.2 pp between the mirror and NBS.",
   },
   {
     name: "Surveyed urban unemployment (%)", kind: "value",
@@ -195,13 +200,20 @@ export function compareCumulative(name: string, period: SeriesPoint[], yearToDat
 
 function round(value: number): number { return Math.round(value * 1000) / 1000; }
 
-/** The stored points of one side, from the store only. */
+/**
+ * The stored points of one side, from the store only. A catalog series can
+ * hold more than one line when its NBS name changed between crawls (the store
+ * keeps the old label's points), so an unlabelled reference reads the line
+ * that reaches furthest.
+ */
 export function readSide(ref: SeriesRef, limit = 24): SeriesPoint[] {
   const catalog = ref.key.startsWith("nbs_");
   const stored = readSeries(ref.key, limit, catalog ? CATALOG_NATION : "");
   if (!stored) return [];
-  const line = ref.label ? stored.series.find((series) => series.label === ref.label) : stored.series[0];
-  return line?.points ?? [];
+  if (ref.label) return stored.series.find((series) => series.label === ref.label)?.points ?? [];
+  const lines = stored.series.filter((series) => series.points.length > 0);
+  lines.sort((a, b) => (b.points.at(-1)?.date ?? "").localeCompare(a.points.at(-1)?.date ?? ""));
+  return lines[0]?.points ?? [];
 }
 
 /** Run every pair against the store. */
