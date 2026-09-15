@@ -277,7 +277,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 18; // 18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 19; // 19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -352,6 +352,38 @@ export function tableQualifiedTitle(entry: Pick<NbsCatalogEntry, "categories" | 
   const table = PMI_TABLES[entry.categories[1] ?? ""];
   if (!table || /\bPMI\b/.test(title)) return title;
   return `${table}: ${title.charAt(0).toLocaleLowerCase()}${title.slice(1)}`;
+}
+
+/**
+ * Tell apart series the bureau gives the same name.
+ *
+ * The same indicator name appears in several tables — 人口数 (人口抽样调查) is
+ * published by household registration status, by age composition, and on its
+ * own — and in a catalog of this size a search returns them as three identical
+ * rows. Where a title is shared, the table it comes from is added to it, which
+ * is the distinction the bureau itself is drawing. A title already unique is
+ * left exactly as it was.
+ *
+ * Entries that share both a title and a table are left alone: those are the
+ * same series published for several places, and the place is shown separately.
+ */
+export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
+  const seen = new Map<string, Set<string>>();
+  const tableOf = (entry: NbsCatalogEntry) => entry.categoriesEn?.at(-1) || entry.categories.at(-1) || "";
+  for (const entry of entries) {
+    const title = entry.nameEn || entry.name;
+    const tables = seen.get(title) ?? new Set<string>();
+    tables.add(tableOf(entry));
+    seen.set(title, tables);
+  }
+  return entries.map((entry) => {
+    const title = entry.nameEn || entry.name;
+    const table = tableOf(entry);
+    if (!table || (seen.get(title)?.size ?? 0) < 2) return entry;
+    // A table whose name is already inside the title adds nothing to it.
+    if (title.includes(table)) return entry;
+    return { ...entry, nameEn: `${title}, in ${table.charAt(0).toLocaleLowerCase()}${table.slice(1)}` };
+  });
 }
 
 /** Group year-range slices of the same table into families; returns the entries with `family` set on members. */
@@ -518,7 +550,7 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
           const labelled = { ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
           return withProseEnglish({ ...labelled, nameEn: tableQualifiedTitle(labelled) }, notesTable);
         });
-      const stitched = attachFamilies(entries);
+      const stitched = qualifyDuplicateTitles(attachFamilies(entries));
       const snapshot = {
         generatedAt: stringValue(raw, "generatedAt"),
         source: stringValue(raw, "source"),
@@ -831,9 +863,17 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
       return { entry, score };
     }).filter((item) => item.score > 0).sort((a, b) =>
       // Keyword score decides in bands of five (the full-text tiebreak is worth at most two points),
-      // then a series that still publishes beats one that stopped, then a year-earlier index base beats
-      // a previous-month one, then the shorter English title.
-      band(b.score) - band(a.score) || Number(isCurrent(ranges.get(b.entry.key)?.last)) - Number(isCurrent(ranges.get(a.entry.key)?.last)) || monthOnMonthBase(a.entry) - monthOnMonthBase(b.entry) || titleLength(a.entry) - titleLength(b.entry) || b.score - a.score || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
+      // then a series that still publishes beats one that stopped, then the national figure beats
+      // the same indicator published for one province or city (a query that names a place is
+      // routed to that place's tables before this), then a year-earlier index base beats a
+      // previous-month one, then the shorter English title.
+      band(b.score) - band(a.score)
+      || Number(isCurrent(ranges.get(b.entry.key)?.last)) - Number(isCurrent(ranges.get(a.entry.key)?.last))
+      || Number(a.entry.geography !== "National") - Number(b.entry.geography !== "National")
+      || monthOnMonthBase(a.entry) - monthOnMonthBase(b.entry)
+      || titleLength(a.entry) - titleLength(b.entry)
+      || b.score - a.score
+      || a.entry.name.localeCompare(b.entry.name, "zh-CN"));
   };
 
   let scored = rank([]);

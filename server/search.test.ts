@@ -19,10 +19,13 @@ const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, d
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();
-  // 15,403 entries collapse to about 9,700 once year-range slices of one series count as one.
+  // Entries collapse to fewer series because year-range slices of one series count as one.
   expect(stats.seriesCount).toBeGreaterThan(9000);
-  expect(stats.seriesCount).toBeLessThan(11000);
-  expect(stats.datasets.map((dataset) => dataset.code)).toEqual([1, 2]);
+  // The national monthly and quarterly datasets, and the regional ones beside them.
+  expect(stats.datasets.map((dataset) => dataset.code)).toContain(1);
+  expect(stats.datasets.map((dataset) => dataset.code)).toContain(2);
+  const national = stats.datasets.filter((dataset) => dataset.geography === "National");
+  expect(national.reduce((sum, dataset) => sum + dataset.count, 0)).toBeGreaterThan(9000);
 }, 30000);
 
 test("a specific concept outranks a long generic title on a two-character term", async () => {
@@ -86,7 +89,8 @@ test("a plain output series outranks a ratio of it on a bare noun", async () => 
 });
 
 test("year-range slices of one NBS table form a family and search shows only the newest", async () => {
-  const result = await searchNbsCatalog({ query: "居民消费价格指数 (上月=100)", limit: 20 });
+  // National only: the provincial monthly dataset publishes a series of the same name.
+  const result = await searchNbsCatalog({ query: "居民消费价格指数 (上月=100)", geography: "National", limit: 20 });
   const same = result.results.filter((entry) => entry.name === "居民消费价格指数 (上月=100)");
   expect(same.length).toBe(1);
   const head = same[0];
