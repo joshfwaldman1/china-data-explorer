@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
 import { catalogPath, readCatalogSnapshot } from "./catalog-file";
 import { collectedRegions, withEnglishNames } from "./regions";
-import { findPlaceInQuery } from "../shared/places.ts";
+import { findGeographyInQuery, findPlaceInQuery } from "../shared/places.ts";
 import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, storedLatest, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
@@ -930,6 +930,12 @@ export async function searchNbsCatalogWithPlaces(filters: NbsSearchFilters): Pro
   results: (NbsCatalogEntry & { region?: NbsRegionOption })[];
   place?: { text: string; en: string; kind: "Province" | "City" };
 }> {
+  const asked = filters.query && !filters.geography ? findGeographyInQuery(filters.query) : undefined;
+  if (asked) {
+    // "population by province": the phrase is the filter, the rest is the subject.
+    const byGeography = await searchNbsCatalog({ ...filters, query: asked.rest, geography: asked.geography });
+    if (byGeography.total > 0) return byGeography;
+  }
   const named = filters.query && !filters.geography ? findPlaceInQuery(filters.query) : undefined;
   if (!named) return await searchNbsCatalog(filters);
 

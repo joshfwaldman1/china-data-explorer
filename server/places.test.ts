@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from "bun:test";
-import { findPlaceInQuery, englishPlace } from "../shared/places.ts";
+import { findGeographyInQuery, findPlaceInQuery, englishPlace } from "../shared/places.ts";
 
 test("a province in an English query is read as a place, and the subject survives", () => {
   const found = findPlaceInQuery("guangdong gdp");
@@ -52,4 +52,18 @@ test("region codes and Chinese labels resolve to English names", () => {
   expect(englishPlace("110000000000", "北京")).toBe("Beijing");
   expect(englishPlace("", "石家庄")).toBe("Shijiazhuang");
   expect(englishPlace("", "某个不存在的地方")).toBeUndefined();
+});
+
+test("a query asking for a geography is read as a filter, not a subject", () => {
+  const byProvince = findGeographyInQuery("population by province");
+  expect(byProvince?.geography).toBe("Province");
+  expect(byProvince?.rest).toBe("population");
+  expect(findGeographyInQuery("provincial gdp")?.geography).toBe("Province");
+  expect(findGeographyInQuery("house prices by city")?.rest).toBe("house prices");
+  expect(findGeographyInQuery("分省 人口")?.geography).toBe("Province");
+  // Nothing but the phrase keeps its text, so the query still searches.
+  expect(findGeographyInQuery("by province")?.rest).toBe("by province");
+  // A word that merely contains one of the phrases is not a geography request.
+  expect(findGeographyInQuery("electricity")).toBeUndefined();
+  expect(findGeographyInQuery("provincially owned enterprises")).toBeUndefined();
 });

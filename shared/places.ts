@@ -191,3 +191,43 @@ export function findPlaceInQuery(query: string): { place: Place; kind: "Province
   }
   return best ? { place: best.place, kind: best.kind, rest: best.rest } : undefined;
 }
+
+/**
+ * A query that asks for a geography rather than a place: "population by
+ * province", "city house prices", "provincial gdp". The bureau publishes these
+ * as whole datasets, so the phrase is a filter, not a subject — searched as a
+ * subject it matches nothing, because no title contains the words "by
+ * province".
+ *
+ * Returns the geography and the query with the phrase removed. A query that is
+ * nothing but the phrase keeps its text, so "by province" alone still searches.
+ */
+const GEOGRAPHY_PHRASES: { phrase: string; geography: "Province" | "City" }[] = [
+  { phrase: "by province", geography: "Province" },
+  { phrase: "by provinces", geography: "Province" },
+  { phrase: "per province", geography: "Province" },
+  { phrase: "by region", geography: "Province" },
+  { phrase: "provincial", geography: "Province" },
+  { phrase: "分省", geography: "Province" },
+  { phrase: "各省", geography: "Province" },
+  { phrase: "by city", geography: "City" },
+  { phrase: "by cities", geography: "City" },
+  { phrase: "per city", geography: "City" },
+  { phrase: "分城市", geography: "City" },
+  { phrase: "各城市", geography: "City" },
+];
+
+export function findGeographyInQuery(query: string): { geography: "Province" | "City"; rest: string } | undefined {
+  const lower = query.toLowerCase();
+  for (const { phrase, geography } of GEOGRAPHY_PHRASES) {
+    const at = lower.indexOf(phrase);
+    if (at < 0) continue;
+    const before = at === 0 ? "" : lower[at - 1] ?? "";
+    const after = lower[at + phrase.length] ?? "";
+    // A word boundary for the English phrases; the Chinese ones need none.
+    if (/[a-z]/.test(before) || /[a-z]/.test(after)) continue;
+    const rest = `${query.slice(0, at)} ${query.slice(at + phrase.length)}`.replace(/\s+/g, " ").trim();
+    return { geography, rest: rest || query };
+  }
+  return undefined;
+}
