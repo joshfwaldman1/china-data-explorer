@@ -65,3 +65,10 @@ test("an unlabelled reference reads the line that reaches furthest when a catalo
   expect(readSide({ key: "nbs_renamed_t" })).toEqual([{ date: "2026-07", value: 3 }]);
   expect(readSide({ key: "nbs_renamed_t", label: "old name" }).length).toBe(2);
 });
+
+test("a disjoint pair reports what each side holds", async () => {
+  const { compareValues, formatResult } = await import("./concordance.ts");
+  const result = compareValues("PPI", [{ date: "2026-07", value: 3.5 }], [{ date: "2013-11", value: 98.6 }, { date: "2013-12", value: 98.6 }], { tolerance: 0.05 });
+  expect(result.sides).toEqual({ left: { first: "2026-07", last: "2026-07", points: 1 }, right: { first: "2013-11", last: "2013-12", points: 2 } });
+  expect(formatResult(result)).toBe("no-overlap PPI [2026-07..2026-07 vs 2013-11..2013-12]");
+});

@@ -67,12 +67,36 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-11. **High-frequency group.** Freight index (`macro_china_freight_index`)
+11. **Trade growth from Customs' own release.** The `trade` headline
+    (exports and imports, YoY %) comes from the Eastmoney mirror, which holds
+    the first print while NBS's table carries Customs' revision (June 2026:
+    26.9 against 27.0). Serve it from NBS's monthly table (出口总值同比增长,
+    进口总值同比增长) or from the Customs English headline table, and tighten
+    the concordance pair back to 0.05.
+    *Test:* the exports pair passes at tolerance 0.05 over six months.
+
+12. **Concordance pairs for the rest of the curated set.** PMI, new loans, FX
+    reserves, house prices, electricity output and the Phase A series have
+    no pair yet; find each one's catalog entry (FX reserves and GDP levels
+    are not in the monthly national dataset under the names tried) or its
+    publisher's companion and add it.
+    *Test:* every curated key with an NBS or PBOC source appears in
+    `CONCORDANCE_PAIRS` or carries a comment saying why not.
+
+13. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-15 — Concordance audit, after the owner found GDP serving the
+  half-year rate (4.7) under a quarterly label (4.3 is the quarter). GDP is
+  now NBS's own quarterly table, quarter and year to date both served.
+  `server/concordance.ts` pairs each curated headline with an independent
+  reading and `/api/audit/concordance` runs the pairs; every round starts
+  there. Surfaced: the mirror's export growth trails NBS's by 0.1-0.2 pp in
+  revised months (item added below).
 
 - 2026-09-15 — Customs backfill: the ingest tells the adapter the oldest month
   stored per partner and each run adds 24 older months, oldest first, until

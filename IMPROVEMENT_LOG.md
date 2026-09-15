@@ -2093,3 +2093,29 @@ not from scratch. Rounds are small on purpose.
   per cached page, which made a thirty-partner run take an hour; pacing now
   applies to real fetches only. Acceptance: two runs, 81 s and 136 s, US back
   to 2021-09, August 2025 US exports 31,604 stored against 31,604 published.
+
+- 2026-09-15 (concordance): the GDP page said Q2 2026 grew 4.7 percent in
+  the stat line and 4.3 in the chart, seen by the owner. The curated series
+  came from Eastmoney's RPT_ECONOMY_GDP, whose quarterly row carries the
+  year-to-date rate (第1-2季度), so the site served cumulative growth under a
+  quarterly label. GDP now comes from NBS's quarterly index table with the
+  quarter's rate first and the year-to-date rate as a second line; live,
+  2026-Q2 reads 4.3 and 4.7. A sweep of the other curated Eastmoney reports
+  found only TAX also cumulative, and it was labelled year to date already.
+  The systemic answer is `server/concordance.ts`: eight pairs of curated
+  headline against an independent reading (the NBS catalog crawl for CPI, PPI,
+  industrial production, retail sales, M2, exports, unemployment; GDP's
+  quarterly line against its year-to-date line under the rule that a period
+  series equal to the cumulative one everywhere is the cumulative one). Six
+  tests. Served at `/api/audit/concordance`, run nightly with findings in
+  `fetch_log` under `concordance`, and as `bun run china:audit`. The first live
+  run found two things: PPI read as "no overlap" because the pair named a
+  2007-2013 year slice of the table (the monthly dataset carries the same
+  table sliced by years and once unsliced; results now report each side's
+  range so this reads off the report), and exports differed by 0.1-0.2 pp in
+  revised months between the mirror and NBS (tolerance 0.25, reason recorded
+  in the pair).
+  Live after the fix: eight pairs, zero findings; CPI 0.8 vs 0.8 (2026-08),
+  M2 7.7 vs 7.7, retail 0.6 vs 0.6, IP 4.5 vs 4.5 (2026-07). The loop protocol
+  now starts every round with the audit and requires a pair for every new
+  curated headline.

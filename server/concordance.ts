@@ -74,7 +74,16 @@ export interface ConcordanceResult {
   disagreements: Disagreement[];
   /** The latest period compared and its two values, for the report line. */
   latest?: Disagreement;
+  /** What each side holds, so a missing or disjoint pair can be read from the report. */
+  sides: { left: SideRange; right: SideRange };
   note?: string;
+}
+
+export interface SideRange { first: string | null; last: string | null; points: number }
+
+function rangeOf(points: SeriesPoint[]): SideRange {
+  const dates = points.map((point) => point.date).sort();
+  return { first: dates[0] ?? null, last: dates.at(-1) ?? null, points: points.length };
 }
 
 /**
@@ -100,7 +109,10 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
   {
     name: "PPI (YoY %)", kind: "value",
     left: { key: "ppi", label: "PPI (YoY %)" },
-    right: { key: "nbs_962228822a9c4001bea4f3254d442dca", offset: -100 }, // 工业生产者出厂价格指数 (上年同月=100)
+    // The monthly dataset also carries this table in year slices (2007-2013,
+    // 2014-2017, 2018-2025, 2026-); the first live run paired a slice and
+    // found no common period. This is the unsliced entry.
+    right: { key: "nbs_150633e52b9a470a9a9fd1b296dd6c5b", offset: -100 }, // 工业生产者出厂价格指数 (上年同月=100)
     tolerance: 0.05,
   },
   {
@@ -162,7 +174,7 @@ function commonPeriods(left: Map<string, number>, right: Map<string, number>, li
  * `readSide`, so this is what the tests exercise.
  */
 export function compareValues(name: string, left: SeriesPoint[], right: SeriesPoint[], options: { tolerance: number; periods?: number; leftOffset?: number; rightOffset?: number; note?: string }): ConcordanceResult {
-  const base = { name, kind: "value" as const, note: options.note };
+  const base = { name, kind: "value" as const, note: options.note, sides: { left: rangeOf(left), right: rangeOf(right) } };
   if (left.length === 0 || right.length === 0) return { ...base, status: "missing", compared: 0, disagreements: [] };
   const a = byPeriod(left, options.leftOffset), b = byPeriod(right, options.rightOffset);
   const periods = commonPeriods(a, b, options.periods ?? 6);
@@ -179,7 +191,7 @@ export function compareValues(name: string, left: SeriesPoint[], right: SeriesPo
  * every period is the cumulative one under the wrong label.
  */
 export function compareCumulative(name: string, period: SeriesPoint[], yearToDate: SeriesPoint[], options: { tolerance: number; periods?: number; note?: string }): ConcordanceResult {
-  const base = { name, kind: "cumulative" as const, note: options.note };
+  const base = { name, kind: "cumulative" as const, note: options.note, sides: { left: rangeOf(period), right: rangeOf(yearToDate) } };
   if (period.length === 0 || yearToDate.length === 0) return { ...base, status: "missing", compared: 0, disagreements: [] };
   const a = byPeriod(period), b = byPeriod(yearToDate);
   const periods = commonPeriods(a, b, options.periods ?? 8);
@@ -227,7 +239,9 @@ export function runConcordance(pairs: ConcordancePair[] = CONCORDANCE_PAIRS): Co
 export function formatResult(result: ConcordanceResult): string {
   const latest = result.latest ? ` ${result.latest.period}: ${result.latest.left} vs ${result.latest.right}` : "";
   const bad = result.disagreements.length > 0 ? ` (${result.disagreements.map((row) => `${row.period} ${row.left}≠${row.right}`).join(", ")})` : "";
-  return `${result.status.padEnd(10)} ${result.name}${latest}${bad}`;
+  const side = (range: SideRange) => range.points === 0 ? "nothing" : `${range.first}..${range.last}`;
+  const ranges = result.status === "missing" || result.status === "no-overlap" ? ` [${side(result.sides.left)} vs ${side(result.sides.right)}]` : "";
+  return `${result.status.padEnd(10)} ${result.name}${latest}${bad}${ranges}`;
 }
 
 if (import.meta.main) {
