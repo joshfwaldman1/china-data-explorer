@@ -675,6 +675,7 @@ export const CATALOG: Record<string, Indicator> = {
     // imports as published, in USD, which is the denomination Customs leads with.
     table: "by-country",
     regions: CUSTOMS_PARTNERS,
+    homeRegions: ["united-states", "european-union", "asean"],
     // Out with the preliminary release, the 7th to the 14th of the next month
     // on Customs' calendars for 2024 and 2025 (server/customs-calendar.ts).
     releaseDay: 14,
@@ -826,6 +827,8 @@ export interface CatalogEntry {
   source: Indicator["kind"];
   /** Day of the month by which the publisher's release is normally out, for publishers off the NBS calendar. */
   releaseDay?: number;
+  /** Regions of a multi-region series that get their own home-page rows. */
+  homeRegions?: string[];
   home?: boolean;
 }
 
@@ -837,6 +840,7 @@ export function catalogList(): CatalogEntry[] {
     ...(c.home === false ? { home: false } : {}),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
     ...((c.kind === "customs" || c.kind === "eastmoney") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
+    ...(c.kind === "customs" && c.homeRegions ? { homeRegions: c.homeRegions } : {}),
   }));
 }
 
@@ -1211,9 +1215,11 @@ export function seriesRegion(key: string): string {
 }
 
 /** What kind of place a regional series is split by. */
-export function seriesGeography(key: string): "Province" | "City" {
+export type SeriesGeography = "Province" | "City" | "Partner" | "Commodity";
+export function seriesGeography(key: string): SeriesGeography {
   const cfg = CATALOG[key];
-  if (cfg && cfg.kind === "customs") return "City"; // no tile map: partners and commodities rank, they are not mapped
+  // No tile map for these: partners and commodities rank, they are not mapped.
+  if (cfg && cfg.kind === "customs") return cfg.table === "by-country" ? "Partner" : "Commodity";
   return cfg && cfg.kind === "eastmoney" && cfg.regions ? "City" : "Province";
 }
 

@@ -262,6 +262,8 @@ export interface CustomsIndicator {
   regions: NbsRegion[];
   /** Day of the month by which the previous month's tables are out (server/due.ts). */
   releaseDay?: number;
+  /** Region codes listed as their own rows on the home page: the partners a reader looks for first. */
+  homeRegions?: string[];
 }
 
 /**

@@ -198,9 +198,16 @@ const routes = {
       for (const entry of catalogList()) {
         if (entry.home === false) continue;
         const regions = seriesRegions(entry.key);
-        const region = regions.length > 0 ? (regions.find((item) => item.value === seriesRegion(entry.key)) ?? regions[0]) : undefined;
-        const stored = onlyConfigured(entry.key, readSeries(entry.key, 24, region?.value));
-        if (stored && stored.series.some((s) => s.points.length > 0)) out[entry.key] = { ...stored, region, source: "store", transform: "raw" };
+        // A series that names home regions (trade by partner: the US, the EU,
+        // ASEAN) is one row per region, keyed key@region, in place of its default.
+        const wanted = entry.homeRegions
+          ? entry.homeRegions.map((code) => regions.find((item) => item.value === code)).filter((item): item is NonNullable<typeof item> => item !== undefined)
+          : [regions.length > 0 ? (regions.find((item) => item.value === seriesRegion(entry.key)) ?? regions[0]) : undefined];
+        for (const region of wanted) {
+          const stored = onlyConfigured(entry.key, readSeries(entry.key, 24, region?.value));
+          if (!stored || !stored.series.some((s) => s.points.length > 0)) continue;
+          out[entry.homeRegions && region ? `${entry.key}@${region.value}` : entry.key] = { ...stored, region, source: "store", transform: "raw" };
+        }
       }
       return Response.json(out);
     },
@@ -241,11 +248,17 @@ const routes = {
       const regions = entry && entry.geography !== "National" ? await getNbsDimensions(entry) : seriesRegions(key);
       if (regions.length === 0) return Response.json({ error: "Not a regional series" }, { status: 404 });
       const geography = entry ? entry.geography : seriesGeography(key);
-      const period = new URL(req.url).searchParams.get("period") ?? "";
+      const params = new URL(req.url).searchParams;
+      const period = params.get("period") ?? "";
+      // A series with several lines (exports, imports, balance) ranks by the
+      // line asked for; the response names the lines so the page can offer them.
+      const configured = entry ? null : configuredLabels(key);
+      const labels = entry ? [] : configured && configured.length > 0 ? configured : (readSeries(key, 1, regions[0]?.value)?.series.map((line) => line.label) ?? []);
+      const label = labels.find((name) => name === params.get("label")) ?? labels[0];
       const periods = new Set<string>();
       const values = regions.map((region) => {
         const stored = readSeries(key, 120, region.value);
-        const points = stored?.series[0]?.points ?? [];
+        const points = (label ? stored?.series.find((line) => line.label === label) : stored?.series[0])?.points ?? [];
         for (const point of points) periods.add(point.date);
         const chosenIndex = period ? points.findIndex((point) => point.date === period) : points.length - 1;
         const chosen = chosenIndex >= 0 ? points[chosenIndex] : undefined;
@@ -270,6 +283,7 @@ const routes = {
         updatedAt: meta?.updatedAt ?? null,
         // A place with nothing stored yet is still listed, so the map shows a gap rather than dropping a province.
         stored,
+        labels, label: label ?? null,
         periods: [...periods].sort().reverse(), values });
     },
     // One entry by key — curated or catalog — for pages that hold only keys

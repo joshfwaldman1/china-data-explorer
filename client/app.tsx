@@ -13,7 +13,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -605,20 +605,26 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
           {[...new Set(props.curated.filter((entry) => !HERO_KEYS.includes(entry.key) && entry.home !== false).map((entry) => entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
             <section key={group} aria-label={group}>
               <h3>{group}</h3>
-              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key) && entry.home !== false).map((entry) => {
-                const result = headline.get(entry.key);
+              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key) && entry.home !== false).flatMap((entry) => {
+                // A series that names home regions (trade by partner) is one row per
+                // region, named for the region; the rest are one row each.
+                const rows = entry.homeRegions ? entry.homeRegions.map((code) => ({ entry, spec: `${entry.key}@${code}`, region: code })) : [{ entry, spec: entry.key, region: "" }];
+                return rows.map(({ spec, region }) => {
+                const result = headline.get(spec);
                 const first = result?.series[0];
                 const latest = first?.points[first.points.length - 1];
                 const previous = first?.points[first.points.length - 2];
+                const name = region ? (result?.region ? regionLabel(result.region) : region) : entry.title;
                 return (
-                  <a key={entry.key} className="indicator-row" href={seriesHash([entry.key])}>
-                    <span className="name">{entry.title}<small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
+                  <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
+                    <span className="name">{name}<small>{region ? `${first?.label ?? ""}${first ? ", " : ""}${entry.title}, ` : regionPrefix(result)}{!region && first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
                     <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} />}</span>
                   </a>
                 );
+                });
               })}
             </section>
           ))}
@@ -1260,7 +1266,7 @@ function SeriesPage(props: {
           controls={<>
           {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{regionLabel(item) === item.text ? item.text : `${regionLabel(item)} ${item.text}`}</option>)}</select></label>}
           {/* Every place at once: the map and ranking, for a series published by place. */}
-          {regions.length > 4 && props.route.keys.length === 1 && <a className="button" href={routeHash({ view: "regions", period: "", key: splitSpec(props.route.keys[0] ?? "").key })}>All places</a>}
+          {regions.length > 4 && props.route.keys.length === 1 && <a className="button" href={routeHash({ view: "regions", period: "", key: splitSpec(props.route.keys[0] ?? "").key })}>{curated?.source === "customs" ? (curated.key === "trade_partners" ? "All partners" : "All commodities") : "All places"}</a>}
           <button className="button" aria-expanded={optionsOpen} aria-controls="chart-options" onClick={() => setOptionsOpen((value) => !value)}>Options</button>
           <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
           </>}
@@ -1388,7 +1394,7 @@ const PROVINCES: Province[] = TILES.map((tile) => {
 const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
 
 interface RegionalValue { region: Region; value: number | null; period: string | null; points: SeriesPoint[]; }
-interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; geography?: string; stored?: number; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
+interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; geography?: string; stored?: number; labels?: string[]; label?: string | null; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
 
 function isRegionalResponse(value: unknown): value is RegionalResponse {
   return typeof obj(value, "key") === "string" && Array.isArray(obj(value, "values")) && Array.isArray(obj(value, "periods"));
@@ -1415,15 +1421,18 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   const [selected, setSelected] = useState<string>("");
   const [picked, setPicked] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
+  // The line ranked, for a series with several (exports, imports, balance).
+  const [label, setLabel] = useState("");
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
-    json(`/api/regional/${encodeURIComponent(key)}${period ? `?period=${encodeURIComponent(period)}` : ""}`).then((body) => {
+    const query = [period ? `period=${encodeURIComponent(period)}` : "", label ? `label=${encodeURIComponent(label)}` : ""].filter(Boolean).join("&");
+    json(`/api/regional/${encodeURIComponent(key)}${query ? `?${query}` : ""}`).then((body) => {
       if (cancelled) return;
       if (isRegionalResponse(body)) { setData(body); setStatus("ok"); } else setStatus("error");
     }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
-  }, [key, period, attempt]);
+  }, [key, period, label, attempt]);
   // A link to a quarter the store lacks (a stale bookmark, a typo) falls back to the latest quarter and says so,
   // rather than drawing an empty map under that quarter's heading.
   useEffect(() => {
@@ -1433,7 +1442,13 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   }, [status, data, period]);
 
   const unit = data?.unit ?? "%";
-  const rows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.value !== null);
+  // Trade by partner and by commodity rank rather than map, and their copy names
+  // the publisher; the "Total" row of the partner table is the whole month, shown apart.
+  const trade = data?.geography === "Partner" || data?.geography === "Commodity";
+  const what = data?.geography === "Partner" ? "partner" : data?.geography === "Commodity" ? "commodity" : data?.geography === "City" ? "city" : "province";
+  const allRows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.value !== null);
+  const total = trade ? allRows.find((item) => item.region.value === "total") : undefined;
+  const rows = total ? allRows.filter((item) => item !== total) : allRows;
   // The tile map is a map of the provinces; a city series has no tiles, so it
   // gets the ranking alone rather than a map with most of the country missing.
   const mapped = rows.filter((item) => item.province);
@@ -1451,15 +1466,16 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
 
   return (
     <main id="main" tabIndex={-1} className="page">
-      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span>{gdp ? <span>Provinces</span> : <><a href="#/regions">Provinces</a><span aria-hidden="true">›</span><span>{data?.title ?? "Series"}</span></>}</div>
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span>{gdp ? <span>Provinces</span> : trade ? <><a href={seriesHash([key])}>{data?.title ?? "Series"}</a><span aria-hidden="true">›</span><span>By {what}</span></> : <><a href="#/regions">Provinces</a><span aria-hidden="true">›</span><span>{data?.title ?? "Series"}</span></>}</div>
       <div className="series-head">
         <div>
-          <h1>{gdp ? "Real GDP Growth by Province" : `${data?.title ?? "Series"} by ${data?.geography === "City" ? "City" : "Province"}`}</h1>
+          <h1>{gdp ? "Real GDP Growth by Province" : `${data?.title ?? "Series"} by ${what.charAt(0).toUpperCase()}${what.slice(1)}`}</h1>
           <p className="lede">{gdp
             ? "Year-to-date real GDP, % change from the same period a year earlier: Q2 is first-half growth, Q4 is full-year growth. Source: provincial statistical bureaus, via NBS."
-            : `${unitLabel(unit)}, ${(data?.frequency ?? "").toLowerCase()}. Source: National Bureau of Statistics.`}</p>
+            : `${data?.label ? `${data.label}, ` : ""}${unitLabel(unit)}, ${(data?.frequency ?? "").toLowerCase()}. Source: ${data?.agency ?? "National Bureau of Statistics"}.${total && shownPeriod ? ` All partners, ${periodPretty(shownPeriod)}: ${fmt(total.value ?? 0, unit)} ${unitLabel(unit)}.` : ""}`}</p>
         </div>
         <div className="actions">
+          {(data?.labels?.length ?? 0) > 1 && <label className="button" style={{ gap: 8 }}>Rank by<select aria-label="Line to rank by" value={data?.label ?? ""} onChange={(event) => setLabel(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.labels ?? []).map((name) => <option key={name} value={name}>{name}</option>)}</select></label>}
           <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
           {/* Any series published by province can be mapped, not only GDP. */}
           <AddSeries keys={[]} lang={props.lang} navigate={props.navigate} label="Map another series" geography={data?.geography === "City" ? "City" : "Province"}
@@ -1467,8 +1483,8 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
           {rows.length > 0 && <button className="button" onClick={() => downloadBlob(
             `econstats-china-${key}-${shownPeriod || "latest"}.csv`,
             new Blob([regionalCsv(
-              { title: data?.title ?? key, unit: unitLabel(unit), period: shownPeriod ? periodPretty(shownPeriod) : "", agency: data?.agency ?? "National Bureau of Statistics" },
-              ranked.map((item) => ({ en: regionLabel(item.region), zh: item.region.text, code: item.region.value, value: item.value })),
+              { title: data?.label ? `${data.title}: ${data.label}` : (data?.title ?? key), unit: unitLabel(unit), period: shownPeriod ? periodPretty(shownPeriod) : "", agency: data?.agency ?? "National Bureau of Statistics" },
+              [...(total ? [total] : []), ...ranked].map((item) => ({ en: regionLabel(item.region), zh: item.region.text, code: item.region.value, value: item.value })),
             )], { type: "text/csv;charset=utf-8" }),
           )}>Download CSV</button>}
         </div>
@@ -1533,7 +1549,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
               </section>
             )}
             <section className="card">
-              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, highest to lowest</span></div>
+              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, {data.label ? `${data.label.toLowerCase()}, ` : ""}highest to lowest</span></div>
               <div className="ranked" role="group" aria-label="Places ranked highest to lowest; select one to see its series">
                 {ranked.map((item) => {
                   const step = stepFor(item.value ?? 0, breaks);
@@ -1549,13 +1565,15 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
               </div>
             </section>
             <section className="card" style={{ padding: 16 }}>
-              <h2>Notes on Regional Data</h2>
+              <h2>{trade ? "Notes on Trade Data" : "Notes on Regional Data"}</h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 {gdp && <li>NBS publishes provincial GDP growth as 本期累计, cumulative for the year. Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total, so treat the ranking as indicative.</li>}
                 {gdp && <li>Growth in small western provinces moves on a low base, so a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>}
-                {!gdp && <li>Provincial and city figures are compiled by local bureaus to the national definition. A level series is published on each year's own reporting scope, so a place's history is not always a like-for-like run.</li>}
-                {!gdp && data.stored !== undefined && data.stored < data.values.length && <li>{data.stored} of {data.values.length} places are stored so far. The crawl fills the rest in over the following days.</li>}
-                <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are in their own dataset, not this one.</li>
+                {trade && <li>Customs' preliminary release, in US dollars, for the month; the following release can revise it. The balance is exports less imports as published.</li>}
+                {trade && total && <li>The Total row is the whole month across every partner and is shown above the ranking rather than in it.</li>}
+                {!gdp && !trade && <li>Provincial and city figures are compiled by local bureaus to the national definition. A level series is published on each year's own reporting scope, so a place's history is not always a like-for-like run.</li>}
+                {!gdp && !trade && data.stored !== undefined && data.stored < data.values.length && <li>{data.stored} of {data.values.length} places are stored so far. The crawl fills the rest in over the following days.</li>}
+                {!trade && <li>Hong Kong, Macao and Taiwan publish through their own statistical offices and are in their own dataset, not this one.</li>}
               </ul>
             </section>
           </div>
