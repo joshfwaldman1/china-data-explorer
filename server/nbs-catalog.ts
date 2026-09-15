@@ -277,7 +277,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json"
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 19; // 19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 20; // 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -369,7 +369,10 @@ export function tableQualifiedTitle(entry: Pick<NbsCatalogEntry, "categories" | 
  */
 export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
   const seen = new Map<string, Set<string>>();
-  const tableOf = (entry: NbsCatalogEntry) => entry.categoriesEn?.at(-1) || entry.categories.at(-1) || "";
+  // The English name of the table only. A Chinese table name inside an English
+  // title reads as a mistake, and such a table is usually the title over again,
+  // so a table with no gloss is better left off.
+  const tableOf = (entry: NbsCatalogEntry) => entry.categoriesEn?.at(-1) ?? "";
   for (const entry of entries) {
     const title = entry.nameEn || entry.name;
     const tables = seen.get(title) ?? new Set<string>();
@@ -380,9 +383,12 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
     const title = entry.nameEn || entry.name;
     const table = tableOf(entry);
     if (!table || (seen.get(title)?.size ?? 0) < 2) return entry;
-    // A table whose name is already inside the title adds nothing to it.
+    // A table whose name the title already carries adds nothing; a table name
+    // that carries the title adds the words that tell the two apart.
     if (title.includes(table)) return entry;
-    return { ...entry, nameEn: `${title}, in ${table.charAt(0).toLocaleLowerCase()}${table.slice(1)}` };
+    // The table leads, as it does for the PMI tables: "Population by household
+    // registration: population (population sample survey)".
+    return { ...entry, nameEn: `${table}: ${title.charAt(0).toLocaleLowerCase()}${title.slice(1)}` };
   });
 }
 

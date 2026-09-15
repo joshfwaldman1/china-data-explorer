@@ -28,10 +28,23 @@ test("a title several tables share says which table it came from", async () => {
     entry("b", "Population", ["人口", "人口年龄构成和抚养比"], ["Population", "Age composition and dependency ratio"]),
     entry("c", "Birth rate", ["人口", "人口出生率"], ["Population", "Birth rate"]),
   ]);
-  expect(out[0]?.nameEn).toBe("Population, in population by household registration");
-  expect(out[1]?.nameEn).toBe("Population, in age composition and dependency ratio");
+  expect(out[0]?.nameEn).toBe("Population by household registration: population");
+  expect(out[1]?.nameEn).toBe("Age composition and dependency ratio: population");
   // A unique title is left alone, and so is a table whose name repeats the title.
   expect(out[2]?.nameEn).toBe("Birth rate");
+});
+
+test("a shared title whose table has no English name is left as it is", async () => {
+  const { qualifyDuplicateTitles } = await import("./nbs-catalog.ts");
+  const entry = (key: string, categories: string[]) => ({
+    key, id: key, name: "人口数 (人口抽样调查)", shortName: "人口数", nameEn: "Population (population sample survey)",
+    unit: "人", note: "", annotation: "", datasetCode: 6, dataset: "分省年度数据", frequency: "Annual" as const,
+    geography: "Province" as const, cid: key, rootId: "r", categories, precision: null,
+  });
+  const out = qualifyDuplicateTitles([entry("a", ["人口", "人口数 (人口抽样调查)"]), entry("b", ["人口", "按户口登记状况分人口数"])]);
+  // Chinese inside an English title reads as a mistake; both keep the plain gloss.
+  expect(out[0]?.nameEn).toBe("Population (population sample survey)");
+  expect(out[1]?.nameEn).toBe("Population (population sample survey)");
 });
 
 test("the same title in the same table is one series published for several places, and is left alone", async () => {

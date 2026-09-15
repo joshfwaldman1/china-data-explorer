@@ -881,7 +881,12 @@ function ReleasesPage(props: { route: Extract<Route, { view: "releases" }>; cura
 // The same search as the search page, inline on the chart, so a comparison
 // starts where the reader already is. Picking a result appends it to the URL.
 
-function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Route) => void }) {
+/**
+ * The search box that puts another series on a chart, and — with `onPick` — any
+ * other place a series has to be chosen, such as the map on the Provinces page.
+ * `geography` narrows the search to the tables published for places.
+ */
+function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Route) => void; label?: string; geography?: string; onPick?: (entry: NbsCatalogEntry) => void }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [results, setResults] = useState<NbsCatalogEntry[]>([]);
@@ -901,26 +906,31 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
     let cancelled = false;
     setBusy(true);
     const timer = window.setTimeout(() => {
-      json(`/api/search?q=${encodeURIComponent(draft.trim())}&limit=8`).then((body) => {
+      json(`/api/search?q=${encodeURIComponent(draft.trim())}&limit=8${props.geography ? `&geography=${encodeURIComponent(props.geography)}` : ""}`).then((body) => {
         if (cancelled) return;
         if (isSearchResponse(body)) setResults(body.results.filter((entry) => !props.keys.includes(entry.key)));
       }).catch(() => { if (!cancelled) setResults([]); }).finally(() => { if (!cancelled) setBusy(false); });
     }, 180);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [draft, props.keys.join(",")]);
-  if (props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
-  if (!open) return <button ref={buttonRef} className="button" onClick={() => setOpen(true)} aria-expanded={false}>Add series</button>;
+  }, [draft, props.keys.join(","), props.geography]);
+  if (!props.onPick && props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
+  if (!open) return <button ref={buttonRef} className="button" onClick={() => setOpen(true)} aria-expanded={false}>{props.label ?? "Add series"}</button>;
   return (
     <>
-    <button ref={buttonRef} className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>Add series</button>
+    <button ref={buttonRef} className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>{props.label ?? "Add series"}</button>
     <div className="add-series" role="search">
       <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese" /></div>
       <div className="add-series-results" role="listbox" aria-label="Matching series" aria-busy={busy}>
-        {draft.trim() && !busy && results.length === 0 && <p className="add-series-note">No series match “{draft.trim()}”. The catalog holds national monthly and quarterly NBS series.</p>}
+        {draft.trim() && !busy && results.length === 0 && <p className="add-series-note">No series match “{draft.trim()}”{props.geography === "Province" ? " among the series published by province" : props.geography === "City" ? " among the series published by city" : ""}.</p>}
         {results.map((entry) => {
           const zhFirst = props.lang === "zh" || !entry.nameEn || entry.datasetCode === 0;
           return (
-            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => { setOpen(false); setDraft(""); props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" }); }}>
+            <button key={entry.key} role="option" aria-selected={false} className="add-series-row" onClick={() => {
+              setOpen(false);
+              setDraft("");
+              if (props.onPick) props.onPick(entry);
+              else props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" });
+            }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
               {entry.datasetCode !== 0 && entry.categories.length > 0 && <span className="meta"><Zh>{(entry.categoriesEn?.every(Boolean) ? entry.categoriesEn : entry.categories).slice(-2).join(" › ")}</Zh></span>}
@@ -1386,7 +1396,7 @@ function breaksFor(values: number[]): number[] {
 }
 function stepFor(value: number, breaks: number[]): number { let step = 0; for (const edge of breaks) if (value >= edge) step += 1; return Math.min(step, RAMP.length - 1); }
 
-function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; navigate: (route: Route) => void; toast: (text: string) => void }) {
+function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: string; navigate: (route: Route) => void; toast: (text: string) => void }) {
   const [data, setData] = useState<RegionalResponse | null>(null);
   // Provincial GDP is the page's own series; any other regional series in the
   // catalog can be mapped by naming it in the URL.
@@ -1445,6 +1455,9 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; naviga
         </div>
         <div className="actions">
           <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
+          {/* Any series published by province can be mapped, not only GDP. */}
+          <AddSeries keys={[]} lang={props.lang} navigate={props.navigate} label="Map another series" geography={data?.geography === "City" ? "City" : "Province"}
+            onPick={(entry) => props.navigate({ view: "regions", period: "", key: entry.key })} />
         </div>
       </div>
 
@@ -1657,7 +1670,7 @@ function App() {
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
         {route.view === "browse" && <BrowsePage stats={stats} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
-        {route.view === "regions" && <RegionsPage route={route} navigate={navigate} toast={setToast} />}
+        {route.view === "regions" && <RegionsPage route={route} lang={lang} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
