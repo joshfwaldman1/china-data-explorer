@@ -1,5 +1,7 @@
 EconStats China Data Explorer - handoff
-Written 2026-09-12, updated 2026-09-15. Branch china-data-explorer.
+Written 2026-09-12, updated 2026-09-15. Branch: main (the explorer became the
+repository's main on 15 September; the agent app that was main moved to
+github.com/joshfwaldman1/econstats-agent).
 
 STATE ON 15 SEPTEMBER, EVENING
 

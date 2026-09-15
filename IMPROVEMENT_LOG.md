@@ -23,7 +23,6 @@ not from scratch. Rounds are small on purpose.
   revision history is not rebuildable at all.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
-- Merge `china-data-explorer` into `main` (owner's call).
 - Legibility: split `client/app.tsx` (1,603 lines, 57 functions) into one
   file per page plus a shared chart file, and `server/nbs-catalog.ts`
   (1,193 lines) into loading, families, search and glossing; reflow the

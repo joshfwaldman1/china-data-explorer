@@ -7,8 +7,10 @@ until he stops the loop. Read this whole file before doing anything.
 
 ## Ground rules
 
-- Work on the `china-data-explorer` branch only. Never merge to `main`,
-  never force-push, never rewrite history.
+- Work on `main`. Since 15 September 2026 the explorer is the repository's
+  main branch (the earlier agent app moved to
+  github.com/joshfwaldman1/econstats-agent); `china-data-explorer` is kept
+  as a name for the same history. Never force-push, never rewrite history.
 - One improvement per round. Small beats ambitious. If a change would take
   more than about 150 lines, log it as a queue item instead and pick
   something smaller.
@@ -26,7 +28,7 @@ until he stops the loop. Read this whole file before doing anything.
 
 ## The round
 
-1. `git pull --ff-only origin china-data-explorer`. Read
+1. `git pull --ff-only origin main`. Read
    `china-explorer/IMPROVEMENT_LOG.md`: the queue and the last rounds.
 2. Pick the highest-value item you can finish in this round. If the queue
    has nothing suitable, audit one surface instead and fix what it shows.
