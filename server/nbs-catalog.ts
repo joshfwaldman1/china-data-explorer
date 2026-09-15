@@ -88,6 +88,21 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   "food prices": ["食品价格"],
   "trade balance": ["进出口差额", "贸易差额"],
   "provincial gdp": ["地区生产总值"],
+  // The annual dataset carries the bureau's social statistics, which people ask
+  // for in English words its titles do not contain.
+  university: ["高等学校", "高校"],
+  universities: ["高等学校", "高校"],
+  college: ["高等学校", "高校"],
+  colleges: ["高等学校", "高校"],
+  "university students": ["高等学校在校学生", "高等教育在校学生"],
+  tourism: ["国内旅游", "入境旅游", "旅游"],
+  tourists: ["旅游人数", "入境游客"],
+  hospitals: ["医院"],
+  hospital: ["医院"],
+  doctors: ["执业医师", "卫生技术人员"],
+  patents: ["专利"],
+  pensions: ["养老保险", "离退休"],
+  "pension fund": ["养老保险基金"],
   // Common English queries a researcher types first; each maps to the NBS wording.
   "home prices": ["住宅销售价格", "商品房销售", "住宅销售", "房价"],
   "youth unemployment": ["16—24岁", "16-24岁", "青年失业"],
@@ -101,7 +116,6 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   "cars": ["汽车"],
   "maize": ["玉米"], "soy": ["大豆"],
   "power": ["发电量", "电力"],
-  "tourism": ["旅游"],
   "rail": ["铁路"],
   "ports": ["港口"],
 };
