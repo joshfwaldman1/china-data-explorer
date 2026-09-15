@@ -170,12 +170,18 @@ ended the monthly USD release), `RPT_ECONOMY_FOREX_DEPOSIT` carries a balance
 column whose unit could not be reconciled with any published figure, and
 `RPT_ECONOMY_STOCK_STATISTICS` is now null except for index highs and lows.
 
-**B. Trade by partner and commodity — about a week.** A UN Comtrade adapter
-(monthly, partner × HS chapter, cached, back to 2010) and a curated "Trade"
-group: exports to the US, EU, ASEAN, Japan, Korea, Russia; imports of crude,
-iron ore, soybeans, chips; total by denomination. Then the GAC release-table
-parser for release-day partner headlines, built as the first official-release
-adapter (shadow mode first, per the faster-updates handoff).
+**B. Trade by partner and commodity — first version shipped 15 September.**
+Measured before building: UN Comtrade's monthly data for China ends at
+December 2024, and Customs' Chinese site and statistics portal answer a
+foreign address with HTTP 412. Customs' **English** site does not, and carries
+the whole preliminary release as HTML tables, paginated monthly back to 2022.
+`server/customs.ts` is the site's first official-release-table adapter: three
+curated keys, `trade_partners` (30 partners and blocs, exports, imports and
+balance, USD millions), `major_exports` (31 commodities) and `major_imports`
+(34, including crude, iron ore, soybeans, copper and coal, with quantities).
+Parsers are fixture-tested and refuse a changed layout. Still to do: a
+backfill to 2022 through the ingest, the Customs release calendar as a due
+rule, and the CNY-denominated tables.
 
 **C. Credit and the bond market — about a week.** ChinaBond yields (1y, 2y,
 5y, 10y, 30y) daily; TSF stock and flow, PBOC balance sheet and deposits from

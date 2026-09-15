@@ -11,6 +11,7 @@
  */
 
 import { fetchJson } from "./http";
+import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -44,6 +45,9 @@ export interface SeriesResult {
  * reach the English-titled series too.
  */
 export const CURATED_SYNONYMS: Record<string, string[]> = {
+  trade_partners: ["trade by country", "exports by country", "imports by country", "trade partners", "bilateral trade", "分国别", "国别贸易"],
+  major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品"],
+  major_imports: ["imports by commodity", "major imports", "import commodities", "主要进口商品", "crude oil imports", "soybean imports", "iron ore imports"],
   consumer_confidence: ["consumer confidence", "sentiment", "消费者信心指数", "消费者信心"],
   enterprise_boom: ["business confidence", "enterprise boom", "企业景气指数", "景气"],
   tax_revenue: ["tax revenue", "taxes", "fiscal revenue", "税收收入", "税收"],
@@ -234,7 +238,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -255,6 +259,113 @@ const GUANGDONG = nbsProvince("广东省", "440000");
 // zeroes. Three live captures (Beijing, Shanghai, and Guangdong) confirmed the
 // format. Keep the complete mainland province-level mapping here so additional
 // regional series can be added without another round of code discovery.
+/** The partners and blocs in Customs' monthly by-country table, as published in August 2026. */
+export const CUSTOMS_PARTNERS: NbsRegion[] = [
+  { text: "Total", value: "total", en: "Total" },
+  { text: "European Union", value: "european-union", en: "European Union" },
+  { text: "Germany", value: "germany", en: "Germany" },
+  { text: "Netherlands", value: "netherlands", en: "Netherlands" },
+  { text: "France", value: "france", en: "France" },
+  { text: "Italy", value: "italy", en: "Italy" },
+  { text: "United States", value: "united-states", en: "United States" },
+  { text: "ASEAN", value: "asean", en: "ASEAN" },
+  { text: "Vietnam", value: "vietnam", en: "Vietnam" },
+  { text: "Malaysia", value: "malaysia", en: "Malaysia" },
+  { text: "Thailand", value: "thailand", en: "Thailand" },
+  { text: "Singapore", value: "singapore", en: "Singapore" },
+  { text: "Indonesia", value: "indonesia", en: "Indonesia" },
+  { text: "Philippines", value: "philippines", en: "Philippines" },
+  { text: "Japan", value: "japan", en: "Japan" },
+  { text: "Hong Kong, China", value: "hong-kong-china", en: "Hong Kong, China" },
+  { text: "R. O. Korea", value: "r-o-korea", en: "R. O. Korea" },
+  { text: "Taiwan, China", value: "taiwan-china", en: "Taiwan, China" },
+  { text: "Australia", value: "australia", en: "Australia" },
+  { text: "Russian Federation", value: "russian-federation", en: "Russian Federation" },
+  { text: "India", value: "india", en: "India" },
+  { text: "United Kingdom", value: "united-kingdom", en: "United Kingdom" },
+  { text: "Canada", value: "canada", en: "Canada" },
+  { text: "New Zealand", value: "new-zealand", en: "New Zealand" },
+  { text: "Latin America", value: "latin-america", en: "Latin America" },
+  { text: "Brazil", value: "brazil", en: "Brazil" },
+  { text: "Africa", value: "africa", en: "Africa" },
+  { text: "South Africa", value: "south-africa", en: "South Africa" },
+  { text: "Regional Comprehensive Economic Partnership", value: "regional-comprehensive-economic-partnership", en: "Regional Comprehensive Economic Partnership" },
+  { text: "Jointly build the countries along Belt and Road Routes", value: "jointly-build-the-countries-along-belt-and-road-routes", en: "Jointly build the countries along Belt and Road Routes" },
+];
+
+/** The commodities in Customs' major exports table. */
+export const CUSTOMS_EXPORT_COMMODITIES: NbsRegion[] = [
+  { text: "Agriculture products*", value: "agriculture-products", en: "Agriculture products*" },
+  { text: "Aquatic products", value: "aquatic-products", en: "Aquatic products" },
+  { text: "Grain food", value: "grain-food", en: "Grain food" },
+  { text: "Refined petroleum products", value: "refined-petroleum-products", en: "Refined petroleum products" },
+  { text: "Rare-earth ore, metals, compounds", value: "rare-earth-ore-metals-compounds", en: "Rare-earth ore, metals, compounds" },
+  { text: "Medical and pharmaceutical products", value: "medical-and-pharmaceutical-products", en: "Medical and pharmaceutical products" },
+  { text: "Fertilizers", value: "fertilizers", en: "Fertilizers" },
+  { text: "Plastic articles", value: "plastic-articles", en: "Plastic articles" },
+  { text: "Suit-cases, hand bags and similar containers", value: "suit-cases-hand-bags-and-similar-containers", en: "Suit-cases, hand bags and similar containers" },
+  { text: "Textile yarn, fabrics and articles thereof", value: "textile-yarn-fabrics-and-articles-thereof", en: "Textile yarn, fabrics and articles thereof" },
+  { text: "Garments and clothing accessories", value: "garments-and-clothing-accessories", en: "Garments and clothing accessories" },
+  { text: "Footwear", value: "footwear", en: "Footwear" },
+  { text: "Ceramic products", value: "ceramic-products", en: "Ceramic products" },
+  { text: "Products, of steel or iron", value: "products-of-steel-or-iron", en: "Products, of steel or iron" },
+  { text: "Unwrought aluminium and aluminium products", value: "unwrought-aluminium-and-aluminium-products", en: "Unwrought aluminium and aluminium products" },
+  { text: "Furniture and parts thereof", value: "furniture-and-parts-thereof", en: "Furniture and parts thereof" },
+  { text: "Toys", value: "toys", en: "Toys" },
+  { text: "Mechanical and electrical products *", value: "mechanical-and-electrical-products", en: "Mechanical and electrical products *" },
+  { text: "General machines", value: "general-machines", en: "General machines" },
+  { text: "Automatic data processing machines and parts thereof", value: "automatic-data-processing-machines-and-parts-thereof", en: "Automatic data processing machines and parts thereof" },
+  { text: "Mobile phones", value: "mobile-phones", en: "Mobile phones" },
+  { text: "Electric appliances of household type", value: "electric-appliances-of-household-type", en: "Electric appliances of household type" },
+  { text: "Audio or video devices and parts thereof", value: "audio-or-video-devices-and-parts-thereof", en: "Audio or video devices and parts thereof" },
+  { text: "Electronic integrated circuits", value: "electronic-integrated-circuits", en: "Electronic integrated circuits" },
+  { text: "Motor vehicles（including chassis fitted with engines)", value: "motor-vehicles-including-chassis-fitted-with-engines", en: "Motor vehicles（including chassis fitted with engines)" },
+  { text: "Parts and accessories of vehicle", value: "parts-and-accessories-of-vehicle", en: "Parts and accessories of vehicle" },
+  { text: "Ships", value: "ships", en: "Ships" },
+  { text: "Flat panel display modules of liquid crystals", value: "flat-panel-display-modules-of-liquid-crystals", en: "Flat panel display modules of liquid crystals" },
+  { text: "Medical or surgical instruments and apparatuses", value: "medical-or-surgical-instruments-and-apparatuses", en: "Medical or surgical instruments and apparatuses" },
+  { text: "Lamps and lighting fittings and parts thereof", value: "lamps-and-lighting-fittings-and-parts-thereof", en: "Lamps and lighting fittings and parts thereof" },
+  { text: "Hi-tech products*", value: "hi-tech-products", en: "Hi-tech products*" },
+];
+
+/** The commodities in Customs' major imports table. */
+export const CUSTOMS_IMPORT_COMMODITIES: NbsRegion[] = [
+  { text: "Agriculture products*", value: "agriculture-products", en: "Agriculture products*" },
+  { text: "Meat(including  meat offal)", value: "meat-including-meat-offal", en: "Meat(including  meat offal)" },
+  { text: "Fresh or dried fruit and nuts", value: "fresh-or-dried-fruit-and-nuts", en: "Fresh or dried fruit and nuts" },
+  { text: "Grain food", value: "grain-food", en: "Grain food" },
+  { text: "Soya beans", value: "soya-beans", en: "Soya beans" },
+  { text: "Edible vegetable oil", value: "edible-vegetable-oil", en: "Edible vegetable oil" },
+  { text: "Iron ores and concentrates", value: "iron-ores-and-concentrates", en: "Iron ores and concentrates" },
+  { text: "Copper ores and concentrates", value: "copper-ores-and-concentrates", en: "Copper ores and concentrates" },
+  { text: "Coal and lignite", value: "coal-and-lignite", en: "Coal and lignite" },
+  { text: "Crude petroleum oils", value: "crude-petroleum-oils", en: "Crude petroleum oils" },
+  { text: "Refined petroleum products", value: "refined-petroleum-products", en: "Refined petroleum products" },
+  { text: "Natural gases", value: "natural-gases", en: "Natural gases" },
+  { text: "Rare-earth ore, metals, compounds", value: "rare-earth-ore-metals-compounds", en: "Rare-earth ore, metals, compounds" },
+  { text: "Medicinal materials and pharmaceutical products", value: "medicinal-materials-and-pharmaceutical-products", en: "Medicinal materials and pharmaceutical products" },
+  { text: "Fertilizers", value: "fertilizers", en: "Fertilizers" },
+  { text: "Make-ups or personal care and toiletries", value: "make-ups-or-personal-care-and-toiletries", en: "Make-ups or personal care and toiletries" },
+  { text: "Plastics in primary forms", value: "plastics-in-primary-forms", en: "Plastics in primary forms" },
+  { text: "Natural and synthetic rubber(including Latex)", value: "natural-and-synthetic-rubber-including-latex", en: "Natural and synthetic rubber(including Latex)" },
+  { text: "Wood Logs and Lumber", value: "wood-logs-and-lumber", en: "Wood Logs and Lumber" },
+  { text: "Paper pulp", value: "paper-pulp", en: "Paper pulp" },
+  { text: "Textile yarn, fabrics and articles thereof", value: "textile-yarn-fabrics-and-articles-thereof", en: "Textile yarn, fabrics and articles thereof" },
+  { text: "Products, of steel or iron", value: "products-of-steel-or-iron", en: "Products, of steel or iron" },
+  { text: "Unwrought copper and copper products", value: "unwrought-copper-and-copper-products", en: "Unwrought copper and copper products" },
+  { text: "Mechanical and electrical products *", value: "mechanical-and-electrical-products", en: "Mechanical and electrical products *" },
+  { text: "Machine tools", value: "machine-tools", en: "Machine tools" },
+  { text: "Automatic data processing machines and parts thereof", value: "automatic-data-processing-machines-and-parts-thereof", en: "Automatic data processing machines and parts thereof" },
+  { text: "Diodes and similar semiconductors", value: "diodes-and-similar-semiconductors", en: "Diodes and similar semiconductors" },
+  { text: "Electronic integrated circuits", value: "electronic-integrated-circuits", en: "Electronic integrated circuits" },
+  { text: "Motor vehicles（including chassis fitted with engines)", value: "motor-vehicles-including-chassis-fitted-with-engines", en: "Motor vehicles（including chassis fitted with engines)" },
+  { text: "Parts and accessories of vehicle", value: "parts-and-accessories-of-vehicle", en: "Parts and accessories of vehicle" },
+  { text: "Aircraft of an unladen weight exceeding 2T", value: "aircraft-of-an-unladen-weight-exceeding-2t", en: "Aircraft of an unladen weight exceeding 2T" },
+  { text: "Flat panel display modules of liquid crystals", value: "flat-panel-display-modules-of-liquid-crystals", en: "Flat panel display modules of liquid crystals" },
+  { text: "Medical or surgical instruments and apparatuses", value: "medical-or-surgical-instruments-and-apparatuses", en: "Medical or surgical instruments and apparatuses" },
+  { text: "Hi-tech products*", value: "hi-tech-products", en: "Hi-tech products*" },
+];
+
 export const NBS_PROVINCES: NbsRegion[] = [
   nbsProvince("北京市", "110000"),
   nbsProvince("天津市", "120000"),
@@ -524,6 +635,30 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "MINERAL_BASE", label: "Minerals" },
       { field: "FARM_BASE", label: "Farm products" },
     ],
+  },
+  trade_partners: {
+    kind: "customs", group: "Trade & External",
+    title: "Trade by Partner", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Million USD",
+    // Customs' preliminary release, the table of exports and imports by
+    // country and region. One series per partner; the balance is exports less
+    // imports as published, in USD, which is the denomination Customs leads with.
+    table: "by-country",
+    regions: CUSTOMS_PARTNERS,
+  },
+  major_exports: {
+    kind: "customs", group: "Trade & External", home: false,
+    title: "Major Exports by Commodity", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Million USD",
+    table: "major-exports",
+    regions: CUSTOMS_EXPORT_COMMODITIES,
+  },
+  major_imports: {
+    kind: "customs", group: "Trade & External", home: false,
+    title: "Major Imports by Commodity", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Million USD",
+    table: "major-imports",
+    regions: CUSTOMS_IMPORT_COMMODITIES,
   },
   real_estate: {
     kind: "aktools", group: "Property",
@@ -998,6 +1133,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "nbs") data = await fetchNbs(key, cfg, limit);
   else if (cfg.kind === "aktools") data = await fetchAktools(key, cfg, limit);
   else if (cfg.kind === "fred") data = await fetchFred(key, cfg, limit);
+  else if (cfg.kind === "customs") data = await fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1022,6 +1158,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "eastmoney" || cfg.kind === "aktools") return cfg.fields.map((field) => field.label);
   if (cfg.kind === "nbs") return cfg.ids.map((id) => id.label);
   if (cfg.kind === "fred") return [cfg.label];
+  // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
 
@@ -1029,12 +1166,14 @@ export function seriesRegion(key: string): string {
   const cfg = CATALOG[key];
   if (cfg && cfg.kind === "nbs" && cfg.region) return cfg.regions ? cfg.region.value : cfg.region.text;
   if (cfg && cfg.kind === "eastmoney" && cfg.regions) return (cfg.regionAverage ?? cfg.regions[0])?.value ?? "";
+  if (cfg && cfg.kind === "customs") return cfg.regions[0]?.value ?? "";
   return "";
 }
 
 /** What kind of place a regional series is split by. */
 export function seriesGeography(key: string): "Province" | "City" {
   const cfg = CATALOG[key];
+  if (cfg && cfg.kind === "customs") return "City"; // no tile map: partners and commodities rank, they are not mapped
   return cfg && cfg.kind === "eastmoney" && cfg.regions ? "City" : "Province";
 }
 
@@ -1043,6 +1182,7 @@ export function seriesRegions(key: string): NbsRegion[] {
   const cfg = CATALOG[key];
   if (cfg && cfg.kind === "nbs" && cfg.regions) return cfg.regions;
   if (cfg && cfg.kind === "eastmoney" && cfg.regions) return cfg.regionAverage ? [cfg.regionAverage, ...cfg.regions] : cfg.regions;
+  if (cfg && cfg.kind === "customs") return cfg.regions;
   return [];
 }
 
@@ -1055,6 +1195,7 @@ export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 12
   if (!cfg) return null;
   if (cfg.kind === "nbs") return fetchNbs(key, { ...cfg, region }, limit);
   if (cfg.kind === "eastmoney" && cfg.regions) return fetchEastmoneyRegion(key, cfg, region, limit);
+  if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, region, limit);
   return null;
 }
 
@@ -1068,6 +1209,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "nbs") return fetchNbs(key, cfg, limit);
   if (cfg.kind === "aktools") return fetchAktools(key, cfg, limit);
   if (cfg.kind === "fred") return fetchFred(key, cfg, limit);
+  if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }

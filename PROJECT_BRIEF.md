@@ -20,7 +20,7 @@ And it handles the conventions that make naive copies of Chinese data wrong.
 |---|---|
 | Browsable series | 66,222, from a 79,756-entry catalog |
 | Observations stored | 1.5 million and climbing as the regional tables are fetched |
-| Headline series, curated by hand | 48 |
+| Headline series, curated by hand | 51, of which three are Customs tables with 95 partners and commodities |
 | Provinces, quarterly real GDP | 31 |
 | Cities, new and existing home prices | 70 |
 | Provincial and city tables, every indicator by place | 121,000 series being stored |
