@@ -2078,3 +2078,10 @@ not from scratch. Rounds are small on purpose.
   BACKUP_TOKEN, which is half of the queued backup item. The annual national
   dataset crawl finished at 53,000 series, which takes the catalog past 70,000
   entries and about 59,000 browsable.
+- 2026-09-15 (dataset loop, round 1): the site had no government bond yield,
+  the most-quoted Chinese financial variable. Source: CFETS's closing curve
+  history endpoint (chinamoney.com.cn, POST only), which returns every key
+  tenor for every trading day of a requested month. `server/cfets.ts` serves
+  the month-end close of the 1-, 2-, 5-, 10- and 30-year as `cgb_yields`.
+  Tests: fixture of August 2026 (315 records, 21 trading days), month-end
+  rule per tenor, malformed input. Live: 10-year 1.6879 at end-August.

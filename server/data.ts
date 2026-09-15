@@ -12,6 +12,7 @@
 
 import { fetchJson } from "./http";
 import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
+import { fetchCfets, type CfetsIndicator } from "./cfets";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -45,6 +46,7 @@ export interface SeriesResult {
  * reach the English-titled series too.
  */
 export const CURATED_SYNONYMS: Record<string, string[]> = {
+  cgb_yields: ["bond yields", "government bond yield", "10-year yield", "10y", "treasury yield", "yield curve", "cgb", "国债收益率", "十年期国债"],
   trade_partners: ["trade by country", "exports by country", "imports by country", "trade partners", "bilateral trade", "分国别", "国别贸易"],
   major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品"],
   major_imports: ["imports by commodity", "major imports", "import commodities", "主要进口商品", "crude oil imports", "soybean imports", "iron ore imports"],
@@ -238,7 +240,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -634,6 +636,21 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "ENERGY_BASE", label: "Energy" },
       { field: "MINERAL_BASE", label: "Minerals" },
       { field: "FARM_BASE", label: "Farm products" },
+    ],
+  },
+  cgb_yields: {
+    kind: "cfets", group: "Interest Rates",
+    title: "Government Bond Yields", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Percent, month-end close",
+    // The closing yield curve for Chinese government bonds, published every
+    // trading day; the last close of each month is what the monthly frame
+    // carries. The 10-year is the benchmark everyone quotes.
+    tenors: [
+      { term: "10.0", label: "10-year" },
+      { term: "1.0", label: "1-year" },
+      { term: "2.0", label: "2-year" },
+      { term: "5.0", label: "5-year" },
+      { term: "30.0", label: "30-year" },
     ],
   },
   trade_partners: {
@@ -1134,6 +1151,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   else if (cfg.kind === "aktools") data = await fetchAktools(key, cfg, limit);
   else if (cfg.kind === "fred") data = await fetchFred(key, cfg, limit);
   else if (cfg.kind === "customs") data = await fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
+  else if (cfg.kind === "cfets") data = await fetchCfets(key, cfg, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1158,6 +1176,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "eastmoney" || cfg.kind === "aktools") return cfg.fields.map((field) => field.label);
   if (cfg.kind === "nbs") return cfg.ids.map((id) => id.label);
   if (cfg.kind === "fred") return [cfg.label];
+  if (cfg.kind === "cfets") return cfg.tenors.map((tenor) => tenor.label);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
@@ -1210,6 +1229,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "aktools") return fetchAktools(key, cfg, limit);
   if (cfg.kind === "fred") return fetchFred(key, cfg, limit);
   if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
+  if (cfg.kind === "cfets") return fetchCfets(key, cfg, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }
