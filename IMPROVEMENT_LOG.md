@@ -2119,3 +2119,26 @@ not from scratch. Rounds are small on purpose.
   M2 7.7 vs 7.7, retail 0.6 vs 0.6, IP 4.5 vs 4.5 (2026-07). The loop protocol
   now starts every round with the audit and requires a pair for every new
   curated headline.
+
+- 2026-09-15 (dataset loop, round 3: Customs release timing): Customs is not
+  on NBS's calendar, so its tables were picked up by the daily sweeps and a
+  series page could only say "not in the NBS calendar". Customs' English site
+  publishes a calendar per year (preliminary release on the 7th to the 14th
+  of the next month, bulletin the 18th, online tables the 20th; January and
+  February together in March), and the numbered tables this site reads come
+  with the preliminary release. `server/customs-calendar.ts` parses the
+  year's page and yields agenda items in NBS's shape, merged into
+  `/api/releases`, so the release plan fires a refresh ten minutes after each
+  and the page names the next one. The release hour is not published; items
+  are placed at 10:00 CST. The English site carries 2019-2025 and not yet
+  2026 (2025's appeared on 6 February, 2024's on 12 March), so a missing year
+  contributes nothing and the page says "by about the 14th of the following
+  month" from the new `releaseDay` on the four Customs-sourced keys; `due.ts`
+  takes a release day per source. Tests: 2024 and 2025 fixtures parse to the
+  twelve preliminary days each, the listing links 2024 and 2025 and not 2026,
+  September 2025 yields one item reporting August, a missing year yields none;
+  `dueReason("Monthly", "2026-07", checked 9 Sept, on 14 Sept, 14)` is
+  new-period and null for NBS. Live: `/api/releases?start=2025-09-01&end=2025-09-30`
+  carries the 8 September item with the four keys beside 11 NBS items; the
+  default window is 26 NBS items and no Customs ones; `/api/catalog` shows
+  `releaseDay: 14` on trade, trade_partners, major_exports, major_imports.
