@@ -52,6 +52,24 @@ export function comparablePeriod(period: string): string {
  * True when the store's latest period for a series is older than what NBS
  * should have published by `now`, or when it has not been checked for a while.
  */
+/**
+ * Why a series is due, or null when it is not.
+ *
+ * "new-period" means the calendar says another observation should exist, which
+ * is answered by asking for the last two years. "revision" means the series is
+ * current but has not been re-read within the revision interval, which is the
+ * one that has to ask for the whole history: a restatement of 2019 is invisible
+ * in a recent window.
+ */
+export function dueReason(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date): "new-period" | "revision" | null {
+  if (!isDue(frequency, lastPeriod, lastChecked, now)) return null;
+  if (!lastPeriod || !lastChecked) return "new-period";
+  const checked = new Date(lastChecked).getTime();
+  if (!Number.isFinite(checked)) return "new-period";
+  if (comparablePeriod(lastPeriod) < expectedPeriod(frequency, now)) return "new-period";
+  return "revision";
+}
+
 export function isDue(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date): boolean {
   if (!lastPeriod || !lastChecked) return true;
   const checked = new Date(lastChecked).getTime();

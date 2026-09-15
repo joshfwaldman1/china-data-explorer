@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { comparablePeriod, expectedPeriod, isDue } from "./due";
+import { comparablePeriod, expectedPeriod, isDue, dueReason } from "./due";
 
 const on = (iso: string) => new Date(iso);
 
@@ -40,4 +40,30 @@ describe("isDue", () => {
   test("a current series unchecked for 45 days is due for a revision check", () => {
     expect(isDue("Monthly", "2026-07", "2026-07-01T00:00:00Z", now)).toBe(true);
   });
+});
+
+test("why a series is due decides how much history to ask for", () => {
+  const now = new Date("2026-09-25T00:00:00Z");
+  // Behind the calendar and last looked at before that period's window closed:
+  // a new observation should exist, which a recent window answers.
+  expect(dueReason("Monthly", "2026-07", "2026-09-15T00:00:00Z", now)).toBe("new-period");
+  // Current, but not looked at within the revision interval: the whole history
+  // has to be asked for, because a restatement of an old year is not in a
+  // recent window.
+  expect(dueReason("Monthly", "2026-08", "2026-07-01T00:00:00Z", now)).toBe("revision");
+  // Current and checked recently: not due at all.
+  expect(dueReason("Monthly", "2026-08", "2026-09-24T00:00:00Z", now)).toBeNull();
+  // Never stored: due, and everything is new.
+  expect(dueReason("Monthly", null, null, now)).toBe("new-period");
+});
+
+test("a series checked after its window closed waits for the revision interval, even if it is still behind", () => {
+  // The known coarseness of the calendar fallback, pinned so a change to it is
+  // deliberate: thousands of catalog entries are discontinued or are year-range
+  // slices, and checking every one of them daily is the whole crawl's cost for
+  // nothing. A table that publishes late is checked again at the next window or
+  // at the 45-day revision check, whichever comes first. Release-day work does
+  // not depend on this: a release schedules its own targets.
+  const now = new Date("2026-09-25T00:00:00Z");
+  expect(dueReason("Monthly", "2026-07", "2026-09-24T00:00:00Z", now)).toBeNull();
 });

@@ -17,8 +17,8 @@
 
 import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions, type SeriesResult } from "./data.ts";
 import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyTargets, storedLatest, storedValue } from "./db.ts";
-import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, getNbsDimensions, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type NbsCatalogEntry } from "./nbs-catalog.ts";
-import { comparablePeriod, isDue } from "./due.ts";
+import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, getNbsDimensions, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type FetchWindow, type NbsCatalogEntry } from "./nbs-catalog.ts";
+import { comparablePeriod, dueReason } from "./due.ts";
 import type { ReleaseTarget } from "./release-plan.ts";
 
 // Upstream sources are public and unauthenticated, so we stay well-mannered:
@@ -146,9 +146,9 @@ async function refreshOne(key: string, region: string): Promise<"ok" | "error" |
 }
 
 /** Stored catalog series whose next period should be out, or that have not been checked in 45 days. */
-async function dueCatalogTargets(now = new Date()): Promise<{ key: string; region: string }[]> {
+async function dueCatalogTargets(now = new Date()): Promise<{ key: string; region: string; reason: "new-period" | "revision" }[]> {
   const rows = storedLatest("nbs_");
-  const targets: { key: string; region: string }[] = [];
+  const targets: { key: string; region: string; reason: "new-period" | "revision" }[] = [];
   for (const [index, row] of rows.entries()) {
     // Fifteen thousand rows of synchronous lookups held the event loop for
     // about eight seconds at the start of every ingest, so page requests
@@ -156,7 +156,8 @@ async function dueCatalogTargets(now = new Date()): Promise<{ key: string; regio
     if (index > 0 && index % 500 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     const entry = await getNbsCatalogEntry(row.key);
     if (!entry) continue;
-    if (isDue(entry.frequency, row.lastPeriod, row.updatedAt, now)) targets.push({ key: row.key, region: row.region });
+    const reason = dueReason(entry.frequency, row.lastPeriod, row.updatedAt, now);
+    if (reason) targets.push({ key: row.key, region: row.region, reason });
   }
   return targets;
 }
@@ -408,7 +409,7 @@ export async function refreshCatalogForRelease(
       const region = chunk[0]?.region ?? NATIONAL_REGION;
       const startedAt = new Date().toISOString();
       try {
-        const points = await fetchBatch(chunk.map((item) => item.entry), region);
+        const points = await fetchBatch(chunk.map((item) => item.entry), region, "recent");
         result.requests += 1;
         for (const item of chunk) {
           const fetched = points.get(item.entry.id) ?? [];
@@ -438,19 +439,23 @@ export async function refreshCatalogForRelease(
  * paced, instead of one per series. A series whose entry has left the catalog
  * snapshot is counted as an error and skipped, not fetched blind.
  */
-export async function refreshCatalogTargets(targets: { key: string; region: string }[]): Promise<{ ok: number; error: number; empty: number }> {
+export async function refreshCatalogTargets(targets: { key: string; region: string; reason?: "new-period" | "revision" }[]): Promise<{ ok: number; error: number; empty: number }> {
   const tally = { ok: 0, error: 0, empty: 0 };
-  const tables = new Map<string, { entry: NbsCatalogEntry; region: { text: string; value: string } }[]>();
+  const tables = new Map<string, { entry: NbsCatalogEntry; region: { text: string; value: string }; window: FetchWindow }[]>();
   for (const target of targets) {
     const entry = await getNbsCatalogEntry(target.key);
     if (!entry) { tally.error += 1; continue; }
     const regions = await getNbsDimensions(entry);
     const region = regions.find((option) => option.value === target.region)
       ?? (target.region ? { text: target.region, value: target.region } : NATIONAL_REGION);
-    const tableKey = `${entry.cid}|${entry.rootId}|${entry.frequency}|${region.value}`;
-    tables.set(tableKey, [...(tables.get(tableKey) ?? []), { entry, region }]);
+    // A series due because a new period should exist asks for the last two
+    // years; one due for its revision check asks for everything, because a
+    // restatement of an old year is invisible in a recent window.
+    const window: FetchWindow = target.reason === "revision" ? "full" : "recent";
+    const tableKey = `${entry.cid}|${entry.rootId}|${entry.frequency}|${region.value}|${window}`;
+    tables.set(tableKey, [...(tables.get(tableKey) ?? []), { entry, region, window }]);
   }
-  const chunks: { entry: NbsCatalogEntry; region: { text: string; value: string } }[][] = [];
+  const chunks: { entry: NbsCatalogEntry; region: { text: string; value: string }; window: FetchWindow }[][] = [];
   for (const group of tables.values()) for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) chunks.push(group.slice(at, at + NBS_BATCH_SIZE));
   console.log(`  ${chunks.length} table requests for ${targets.length} series`);
 
@@ -458,7 +463,7 @@ export async function refreshCatalogTargets(targets: { key: string; region: stri
     const region = chunk[0]?.region ?? NATIONAL_REGION;
     const startedAt = new Date().toISOString();
     try {
-      const points = await fetchNbsTableBatch(chunk.map((item) => item.entry), region);
+      const points = await fetchNbsTableBatch(chunk.map((item) => item.entry), region, chunk[0]?.window ?? "full");
       let okHere = 0;
       for (const item of chunk) {
         const outcome = storeNbsPoints(item.entry, region, points.get(item.entry.id) ?? [], startedAt);

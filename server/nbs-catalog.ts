@@ -1260,6 +1260,26 @@ function historyLimit(frequency: NbsCatalogEntry["frequency"]): number {
 }
 
 /**
+ * How much history one request asks for.
+ *
+ * "full" is everything the bureau has, which is what a series' first fetch and
+ * a revision audit need. "recent" is the last two years, which is what a check
+ * for a newly published period needs: on a dense table that is 560 KB and one
+ * second against 2.4 MB and four and a half (measured 15 September 2026, three
+ * tables, one request each), and the values agreed exactly on every overlapping
+ * period. Older observations already stored are untouched either way — the
+ * store only ever adds rows.
+ */
+export type FetchWindow = "full" | "recent";
+
+function windowLimit(frequency: NbsCatalogEntry["frequency"], window: FetchWindow): number {
+  if (window === "full") return historyLimit(frequency);
+  if (frequency === "Monthly") return 24;
+  if (frequency === "Quarterly") return 8;
+  return 5;
+}
+
+/**
  * Turn one esData response into raw points for a single indicator and region.
  * NBS returns every value as a string and marks a missing cell with "", so an
  * empty string is skipped rather than parsed — the alternative is a false
@@ -1302,14 +1322,14 @@ export function parseEsDataPoints(raw: unknown, indicatorId: string, regionValue
   return points;
 }
 
-async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption): Promise<SeriesPoint[]> {
+async function fetchNbsRawPoints(entry: NbsCatalogEntry, region: NbsRegionOption, window: FetchWindow = "full"): Promise<SeriesPoint[]> {
   const payload = {
     cid: entry.cid,
     indicatorIds: [entry.id],
     daCatalogId: "",
     das: [region],
     showType: "1",
-    dts: [periodRange(entry.frequency, historyLimit(entry.frequency))],
+    dts: [periodRange(entry.frequency, windowLimit(entry.frequency, window))],
     rootId: entry.rootId,
   };
   const response = await fetchJson(`${API}/stream/esData`, {
@@ -1415,7 +1435,7 @@ export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValu
  * rather than fifteen thousand.
  */
 export const NBS_BATCH_SIZE = 40;
-export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: NbsRegionOption = NATIONAL): Promise<Map<string, SeriesPoint[]>> {
+export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: NbsRegionOption = NATIONAL, window: FetchWindow = "full"): Promise<Map<string, SeriesPoint[]>> {
   const first = entries[0];
   if (!first) return new Map();
   const payload = {
@@ -1424,7 +1444,7 @@ export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: Nbs
     daCatalogId: "",
     das: [region],
     showType: "1",
-    dts: [periodRange(first.frequency, historyLimit(first.frequency))],
+    dts: [periodRange(first.frequency, windowLimit(first.frequency, window))],
     rootId: first.rootId,
   };
   const response = await fetchJson(`${API}/stream/esData`, {
