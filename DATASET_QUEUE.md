@@ -11,16 +11,7 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **SAFE's preliminary quarter.** SAFE publishes the quarter's preliminary
-   balance of payments two months after the quarter as a news release
-   (国际收支平衡表初步数; English "Preliminary") and the workbook only with the
-   final figures a month later; read the release so `balance_of_payments`
-   leads by a quarter, the point labelled preliminary until the workbook
-   replaces it.
-   *Test:* the Q2 2026 preliminary current account parses from the release
-   and the series carries it while the workbook ends at Q1.
-
-3. **PBOC's own monetary tables.** Money supply (M0, M1, M2) and financial
+2. **PBOC's own monetary tables.** Money supply (M0, M1, M2) and financial
    institutions' loans and deposits from the bank's statistics section (the
    same yearly index pages as 社会融资规模: 货币统计概览, 金融机构信贷收支统计),
    so `money_supply` and `new_loans` stop depending on the mirror; keep the
@@ -28,33 +19,38 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* July 2026 M2 growth from the bank's table equals the mirror's 7.7
    and NBS's.
 
-4. **SAFE reserves template.** Official reserve assets (foreign exchange,
+3. **SAFE reserves template.** Official reserve assets (foreign exchange,
    gold, SDRs, IMF position) from SAFE's monthly 官方储备资产 table, so
    `forex_reserves` and `gold_reserves` come from the publisher and gain a
    concordance pair against the mirror.
    *Test:* August 2026 FX reserves from the table equal the mirror's figure.
 
-5. **PMI sub-indices from NBS's table.** New orders, production, employment,
+4. **PMI sub-indices from NBS's table.** New orders, production, employment,
    supplier deliveries, inventories from the monthly database (采购经理指数
    category), as a key beside `pmi`.
    *Test:* August 2026 new orders parses and the headline PMI pair stays ok.
 
-6. **70-city house prices from NBS's own city table.** The city monthly
+5. **70-city house prices from NBS's own city table.** The city monthly
    dataset (code 7) carries 新建商品住宅销售价格指数 by city; serve the
    `house_prices` rows from it with the mirror kept for the audit.
    *Test:* Beijing August 2026 new-home index equals the mirror's row.
 
-7. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+6. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-8. **High-frequency group.** Freight index (`macro_china_freight_index`)
+7. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-16 — SAFE's preliminary quarter: the adapter reads the 初步数
+  release for the quarter the workbook lacks; seven items lead by a quarter.
+  Three fixtures, two tests. Live confirmation of the Q2 2026 point waits on
+  the next headline sweep (checked in the next round).
 
 - 2026-09-16 — Release days for NEA, PBOC, MOF and MOFCOM series (21st, 15th,
   25th, 22nd); the page names the day. One test. Live: 21 keys carry one.

@@ -2362,3 +2362,22 @@ not from scratch. Rounds are small on purpose.
   fuller 1-5月 release ("全国电力统计数据") carries capacity and utilisation
   as text but the consumption table as an image, so May stays absent — not
   derived from the year-to-date difference, by the loop's rule.
+
+- 2026-09-16 (dataset loop, round 15: SAFE's preliminary quarter): the
+  balance of payments ran a quarter behind SAFE's first print because the
+  workbook holds final figures only. The preliminary release, two months
+  after the quarter in the 外汇新闻 listing, carries a table with the same
+  BPM6 codes in 亿元, 亿美元 and SDR; the adapter walks the listing for
+  releases newer than the workbook and takes the seven items the release
+  prints outright (the current account and its four parts, the capital
+  account, reserve assets). Its financial account includes net errors and
+  omissions and is left out; it prints no portfolio or other investment, so
+  those lines end at the final quarter. A preliminary point gives way to the
+  final when the workbook catches up, the store keeping the earlier value as
+  a revision. Tests: two, on the Q1 and Q2 2026 releases and the listing —
+  Q2 current account 1,951 leading the final Q1 1,843.1, and Q1's own
+  preliminary 1,841 against that final. Deployed; the live page still serves
+  the stored copy through Q1 until the 08:10 UTC headline sweep refreshes it
+  (a stored quarterly series is not due), so the live Q2 point is confirmed
+  in the next round. The machine killed the deploy poll for low memory (8 GB
+  in use, none of it the loop's); verification ran by hand.
