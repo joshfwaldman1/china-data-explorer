@@ -317,6 +317,11 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     (points[label] ??= []).push({ date, value });
   };
   let missing = 0;
+  // A month whose table cannot be parsed is skipped and named, so one odd
+  // page does not empty the series; more than a third failing is a layout
+  // change and fails the run, as the parsers are written to.
+  const failed: string[] = [];
+  let parsed = 0;
   for (const month of months) {
     const entry = await findTable(cfg.table, month, { currency: cfg.currency ?? "USD" });
     // Three missing in a row is the end of the archive (or a table Customs did
@@ -324,6 +329,8 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     if (!entry) { missing += 1; if (missing >= 3) break; continue; }
     missing = 0;
     const html = await tableHtml(entry);
+    try {
+    parsed += 1;
     if (cfg.table === "totals") {
       const rows = parseTotals(html, cfg.currency ?? "USD");
       const of = (item: TotalsRow["item"]) => rows.find((row) => row.item === item);
@@ -351,7 +358,12 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
       push("Value", month, row.value);
       if (row.quantityUnit) push(`Quantity (${row.quantityUnit})`, month, row.quantity);
     }
+    } catch (error) {
+      failed.push(`${month} (${entry.href}): ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(`  Customs ${cfg.table} ${month}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
+  if (failed.length > 0 && failed.length * 3 > parsed) throw new Error(`Customs ${cfg.table}: ${failed.length} of ${parsed} months failed to parse; first: ${failed[0]}`);
   const series = Object.entries(points).map(([label, list]) => ({ label, points: list.sort((a, b) => a.date.localeCompare(b.date)) }));
   return {
     key, title: cfg.title, agency: cfg.agency, sourceUrl: `${CUSTOMS_BASE}/Statistics/Statistics?ColumnId=${LISTING_COLUMN}`,

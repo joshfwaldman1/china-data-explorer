@@ -564,6 +564,106 @@ export const CATALOG: Record<string, Indicator> = {
       { id: "7be5959c551e48deaaf2693e79291ed8", label: "Self-raised, year to date (YoY %)" },
     ],
   },
+  industrial_profits: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Industrial Profits Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // 工业企业利润总额 of industrial enterprises above designated size, cumulative for the year, from the by-industry table from 2018; published around the 27th, a week after the monthly bundle.
+    cid: "643feccdedb64e38a64c65a00c390646",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "9d63a27d727d4beeb32529078442cdd4", label: "Industrial profits, year to date (YoY %)" },
+      { id: "9a63bcb58c934cb2928861637d30303b", label: "Manufacturing, year to date (YoY %)" },
+      { id: "22d587f435aa479bb6592474253763d5", label: "Mining, year to date (YoY %)" },
+      { id: "b30af79333c649e58091bd1c65d55d95", label: "Utilities, year to date (YoY %)" },
+    ],
+  },
+  industrial_profits_value: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Industrial Profits, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The levels behind industrial_profits.
+    cid: "643feccdedb64e38a64c65a00c390646",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "e965cb01ee2c4115b2bc9fafe227edf3", label: "Industrial profits, year to date" },
+      { id: "0aed58c938af45b2830a01fea8ebeb84", label: "Manufacturing, year to date" },
+    ],
+  },
+  capacity_utilisation: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Industrial Capacity Utilisation", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Percent",
+    // 工业产能利用率, the quarter's rate, for industry and its three divisions.
+    cid: "56a7def4ab0749d8800eab2415f90b54",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "57ae79552303418087eee8f4f35b4368", label: "Industry, quarter (%)" },
+      { id: "b26d4afe7263486a8573e2d4f55b2f65", label: "Manufacturing, quarter (%)" },
+      { id: "f03e03480beb44999f818a3c4e80b946", label: "Mining, quarter (%)" },
+      { id: "8a44b35754164b1e8ce44f2c0135402f", label: "Utilities, quarter (%)" },
+    ],
+  },
+  output_crude_steel: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Crude Steel Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // 粗钢产量: the month against a year earlier, and the year to date.
+    cid: "c72e324de29447e1a6917acd99c2d5ac",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "1e7dfadac47f4d04b403d8f4f7516c4b", label: "Crude steel, month (YoY %)" },
+      { id: "7b9be081b7ca4bfdb4c4518a045d8200", label: "Crude steel, year to date (YoY %)" },
+    ],
+  },
+  output_cement: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Cement Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // 水泥产量.
+    cid: "266c750660954ea088db882a78103733",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "924d365b0a614637852fa5ae1369060d", label: "Cement, month (YoY %)" },
+      { id: "cff8b434fb7e49eda4b84562e9b9845d", label: "Cement, year to date (YoY %)" },
+    ],
+  },
+  output_autos: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Automobile Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // 汽车产量.
+    cid: "508bcbda312b4b1d9a6aba48f6c5c7eb",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "7cee2fa00ab44628a8da9118642f8170", label: "Automobiles, month (YoY %)" },
+      { id: "7c6b838fcdc044acbe160b0ef7738773", label: "Automobiles, year to date (YoY %)" },
+    ],
+  },
+  output_nev: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "New Energy Vehicle Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // 新能源汽车产量.
+    cid: "8dedd34d41004a03ae790313a34cb27f",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "bbb7c09f8de148b0a7887aea97ec9a34", label: "New energy vehicles, month (YoY %)" },
+      { id: "aa28390d65e34e44b9ed3943c80cf047", label: "New energy vehicles, year to date (YoY %)" },
+    ],
+  },
+  output_ics: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Integrated Circuit Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // 集成电路产量.
+    cid: "decec4300f1249e89e409a64ac403ad8",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "b262ee8b3a254edeb9c81487477d9eff", label: "Integrated circuits, month (YoY %)" },
+      { id: "97d00fbc4bc34f0896bb6b6285d935f4", label: "Integrated circuits, year to date (YoY %)" },
+    ],
+  },
   industrial_production: {
     kind: "eastmoney", group: "Growth & Output",
     title: "Industrial Production (Value-Added, Large Firms)", agency: "National Bureau of Statistics",

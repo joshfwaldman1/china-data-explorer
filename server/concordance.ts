@@ -278,6 +278,34 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "Industrial profits, year to date", kind: "value",
+    left: { key: "industrial_profits", label: "Industrial profits, year to date (YoY %)" },
+    right: { key: "nbs_9d63a27d727d4beeb32529078442cdd4" }, // 工业企业利润总额累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Industry, quarter", kind: "value",
+    left: { key: "capacity_utilisation", label: "Industry, quarter (%)" },
+    right: { key: "nbs_57ae79552303418087eee8f4f35b4368" }, // 工业产能利用率当季值 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Crude steel, month", kind: "value",
+    left: { key: "output_crude_steel", label: "Crude steel, month (YoY %)" },
+    right: { key: "nbs_1e7dfadac47f4d04b403d8f4f7516c4b" }, // 粗钢产量同比增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Automobiles, month", kind: "value",
+    left: { key: "output_autos", label: "Automobiles, month (YoY %)" },
+    right: { key: "nbs_7cee2fa00ab44628a8da9118642f8170" }, // 汽车产量同比增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
@@ -304,6 +332,10 @@ export const NO_PAIR: Record<string, string> = {
   fdi_growth: "The rates printed in the ministry's release; no second reading.",
   fdi_actual_use_usd: "Ended July 2023.",
   money_stock: "The levels; the pair is on money_stock_growth, computed from them.",
+  industrial_profits_value: "The levels; the pair is on industrial_profits.",
+  output_cement: "The same table as the paired output keys, by one path; a pair per product would only repeat the check.",
+  output_nev: "The same table as the paired output keys, by one path; a pair per product would only repeat the check.",
+  output_ics: "The same table as the paired output keys, by one path; a pair per product would only repeat the check.",
   property_investment_value: "The levels; the pair is on property_investment.",
   property_sales_area: "The level; the pair is on property_sales.",
   property_sales_value: "The level of a table whose growth the catalog serves as a transform; no second reading.",
