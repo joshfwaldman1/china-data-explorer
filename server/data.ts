@@ -638,6 +638,9 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Quarterly", unit: "Hundred million USD (亿美元)",
     // SAFE's BPM6 time series, final figures: the workbook is replaced with
     // each quarter's final release, about three months after the quarter.
+    // The quarter before that comes from the preliminary release (two months
+    // after the quarter) for the seven items it prints, and is replaced by
+    // the final figure when the workbook catches up.
     // BPM6 signs: a financial-account outflow and a rise in reserves are negative.
     // No concordance pair: nothing else on the site measures the balance of
     // payments, and Customs' goods balance is on a different basis.
