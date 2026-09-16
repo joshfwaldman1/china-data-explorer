@@ -2419,3 +2419,23 @@ not from scratch. Rounds are small on purpose.
   space sold −11.8, starts −24.0, completions −23.2, funds raised −20.3,
   domestic loans −32.1; 24 pairs, 0 findings, the four new ones "missing"
   until the sweep stores the keys.
+
+- 2026-09-16 (dataset loop, round 18: fixed-asset investment): the round
+  began with the queue's next item, developer financing and mortgages from
+  PBOC's quarterly 金融机构贷款投向统计报告, and could not find the report: the
+  survey-and-statistics department's sections (统计数据, 数据解读, 工作信息,
+  统计规章, 统计标准与制度, the questionnaire reports) and the bank's news
+  listing carry no item by that name, and the listings do not paginate under
+  index_N.html. Parked with that note; the round took investment instead.
+  Three keys from the catalog's 固定资产投资 (不含农户) tables, cumulative for
+  the year and titled so: `fai` (total, private, three sectors),
+  `fai_by_industry` (manufacturing, mining, utilities, railways, roads, water
+  and public facilities, real estate — the industries the bureau's
+  infrastructure aggregate is built from; the aggregate itself is published
+  only in the release) and `fai_funding` (funds in place by source). Three
+  pairs against the catalog crawl; a test resolves every id to its named
+  series from one table. Live: July 2026 investment −6.7 percent year to
+  date, private −9.4, manufacturing −1.7, real estate industry −20.4, funds
+  in place −10.6; 27 pairs, 0 findings. The trade headline was still served
+  live at 08:10 UTC: the sweep that stores it had begun a minute earlier and
+  walks Customs' archive first.
