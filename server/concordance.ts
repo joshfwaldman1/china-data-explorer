@@ -257,6 +257,27 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "Fixed-asset investment, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "fai", label: "Fixed-asset investment, year to date (YoY %)" },
+    right: { key: "nbs_7e570cf8071c4734a7d78d9f0a70fbe1" }, // 固定资产投资额累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Manufacturing, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "fai_by_industry", label: "Manufacturing, year to date (YoY %)" },
+    right: { key: "nbs_d17718248ba14e2ba7b34d39623001ea" }, // 制造业固定资产投资额累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Funds in place, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "fai_funding", label: "Funds in place, year to date (YoY %)" },
+    right: { key: "nbs_8d8010b8c1ba4dff88b0a9879b05ca27" }, // 固定资产投资本年资金来源小计累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)

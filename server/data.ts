@@ -518,6 +518,52 @@ export const CATALOG: Record<string, Indicator> = {
       valueOffset: -100,
     }],
   },
+  fai: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Fixed-Asset Investment Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // NBS's monthly 固定资产投资 (不含农户) release: cumulative for the year, as the bureau publishes it, with private investment and the three sectors.
+    cid: "5129067b149d4ddfbec1ffc478d35bfb",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "7e570cf8071c4734a7d78d9f0a70fbe1", label: "Fixed-asset investment, year to date (YoY %)" },
+      { id: "287f55a9520d43a9b3e045860a49fedd", label: "Private investment, year to date (YoY %)" },
+      { id: "14f9561997d84321bd606c97977086bb", label: "Primary industry, year to date (YoY %)" },
+      { id: "92f72710d3ec46e79c6cb0e647a7fa91", label: "Secondary industry, year to date (YoY %)" },
+      { id: "eea023b7fb454ae6aebcf1aefe50a936", label: "Tertiary industry, year to date (YoY %)" },
+    ],
+  },
+  fai_by_industry: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Fixed-Asset Investment Growth by Industry, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // The by-industry table from 2018 (按行业分固定资产投资增速): manufacturing, the industries the bureau's infrastructure aggregate is built from, and real estate. NBS publishes the infrastructure total in its release only.
+    cid: "9002859582574437a91914e0fd50166b",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "d17718248ba14e2ba7b34d39623001ea", label: "Manufacturing, year to date (YoY %)" },
+      { id: "26b38c5d662141f0a25aa3356d643270", label: "Mining, year to date (YoY %)" },
+      { id: "1a9363c7fb9749e1b636b8fdc2fe18c8", label: "Utilities, year to date (YoY %)" },
+      { id: "3cb0a5dc9962464591298ad9cb1b80cd", label: "Railways, year to date (YoY %)" },
+      { id: "bcaa12f2ee2840f2ae93f8b22949e223", label: "Roads, year to date (YoY %)" },
+      { id: "784615682a034f0cb873b015363e1ef4", label: "Water, environment and public facilities, year to date (YoY %)" },
+      { id: "30401aeb07b24782bf0e0d0c632a8557", label: "Real estate industry, year to date (YoY %)" },
+    ],
+  },
+  fai_funding: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Fixed-Asset Investment Funding Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // 固定资产投资 (不含农户) 资金来源: funds in place by source, cumulative for the year.
+    cid: "88077f9647ef499bac2e2e3350e3bab1",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "8d8010b8c1ba4dff88b0a9879b05ca27", label: "Funds in place, year to date (YoY %)" },
+      { id: "61d05768ca154935aa6727aa94960a2e", label: "State budget, year to date (YoY %)" },
+      { id: "13acfad5d58e40448b80bdd04d8ad914", label: "Domestic loans, year to date (YoY %)" },
+      { id: "7be5959c551e48deaaf2693e79291ed8", label: "Self-raised, year to date (YoY %)" },
+    ],
+  },
   industrial_production: {
     kind: "eastmoney", group: "Growth & Output",
     title: "Industrial Production (Value-Added, Large Firms)", agency: "National Bureau of Statistics",
