@@ -2273,3 +2273,21 @@ not from scratch. Rounds are small on purpose.
   4,383.3; the enterprise count 37,711 on both paths, and a concordance pair
   holds them together. Not on any calendar: the ministry publishes around the
   20th; queued with the other `releaseDay` follow-ups.
+
+- 2026-09-16 (dataset loop, round 10: Customs in CNY): the site read only
+  Customs' USD tables, while the bureau quotes its growth rates in yuan. The
+  listing now names each table's denomination ("(in USD)" / "(in CNY)"), the
+  table lookup takes the one asked for, and the parsers refuse a table in the
+  other denomination — the unit line reads "USD 1 Million" or "CNY 100
+  Million", so the CNY series are in 亿元. Keys `trade_partners_cny`,
+  `major_exports_cny`, `major_imports_cny`, off the home list, never mixed
+  with the USD keys; no concordance pair, since the two denominations differ
+  by the month's rate (said so beside the entries). Tests: four, over the
+  August 2026 CNY tables — the US row 2,886.1 亿元 of exports against
+  42,475.3 million USD (an implied 6.80 yuan per dollar), the listing's
+  denominations, the lookup by denomination, a USD table refused for CNY and
+  the reverse; the backfill test's listing entries gained the new field.
+  Live: `/api/series/trade_partners_cny?region=united-states` August 2026
+  exports 2,886.1, imports 903, balance 1,983.1; `major_exports_cny`
+  agriculture 623.2. The CNY commodity tables carry values only, no
+  quantities, so those keys have a Value line alone.
