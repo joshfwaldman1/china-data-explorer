@@ -685,6 +685,35 @@ export const CATALOG: Record<string, Indicator> = {
     reportName: "RPT_ECONOMY_PPI",
     fields: [{ field: "BASE_SAME", label: "PPI (YoY %)" }],
   },
+  cpi_detail: {
+    kind: "nbs", group: "Prices",
+    title: "Consumer Price Index by Category", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // NBS's 居民消费价格分类指数, each index on the same month a year earlier = 100, served as the change: core (excluding food and energy), food, tobacco and dining out, non-food, consumer goods, services, housing. The table is a 2026 slice; 2021-2025 is a separate table in the catalog.
+    cid: "5c7452825c7c4dcba391db5ca7f335c5",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "71be3d43d2fb44188199840272463ae0", valueOffset: -100, label: "Core CPI, excluding food and energy (YoY %)" },
+      { id: "42c2d9b5d1b749c4b68c2cbd2e3d4a42", valueOffset: -100, label: "Food, tobacco and dining out (YoY %)" },
+      { id: "f91a869a255949ccba0cd73cfa871340", valueOffset: -100, label: "Non-food (YoY %)" },
+      { id: "61a170ad7fa44fa4b2ff60fd708e516e", valueOffset: -100, label: "Consumer goods (YoY %)" },
+      { id: "c87191b714554e9eba8c2c062abfabb4", valueOffset: -100, label: "Services (YoY %)" },
+      { id: "4fb7ea343fc7403bb412cf48fb2f3f0e", valueOffset: -100, label: "Housing (YoY %)" },
+    ],
+  },
+  ppi_detail: {
+    kind: "nbs", group: "Prices",
+    title: "Producer Price Index by Stage", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // NBS's 工业生产者出厂价格分类指数: the headline beside producer goods (生产资料) and consumer goods (生活资料), each on a year earlier = 100, served as the change.
+    cid: "60e8b361f11c4a878c652a6487a25561",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "150633e52b9a470a9a9fd1b296dd6c5b", valueOffset: -100, label: "PPI (YoY %)" },
+      { id: "47f8464961184392bc4f6a4b8e5b1cb5", valueOffset: -100, label: "Producer goods (YoY %)" },
+      { id: "649b27dbffb14466a3f204e16f3c74ed", valueOffset: -100, label: "Consumer goods (YoY %)" },
+    ],
+  },
   unemployment: {
     kind: "nbs", group: "Labor",
     title: "Surveyed Urban Unemployment Rate", agency: "National Bureau of Statistics",

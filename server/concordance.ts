@@ -306,6 +306,20 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "Core CPI, excluding food and energy (YoY %)", kind: "value",
+    left: { key: "cpi_detail", label: "Core CPI, excluding food and energy (YoY %)" },
+    right: { key: "nbs_71be3d43d2fb44188199840272463ae0", offset: -100 }, // 不包括食品和能源居民消费价格指数 (上年同月=100)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "PPI (YoY %)", kind: "value",
+    left: { key: "ppi_detail", label: "PPI (YoY %)" },
+    right: { key: "nbs_150633e52b9a470a9a9fd1b296dd6c5b", offset: -100 }, // 工业生产者出厂价格指数 (上年同月=100)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
