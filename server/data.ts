@@ -14,6 +14,7 @@ import { fetchJson } from "./http";
 import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
 import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
+import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, type PbocIndicator } from "./pboc";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -243,7 +244,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -564,6 +565,29 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "BASIC_CURRENCY_SAME", label: "M2 (YoY %)" },
       { field: "CURRENCY_SAME", label: "M1 (YoY %)" },
     ],
+  },
+  tsf_flow: {
+    kind: "pboc", group: "Money & Credit",
+    title: "Aggregate Financing to the Real Economy (Flow)", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元)",
+    // The bank's 社会融资规模增量 table, the month's new financing by instrument.
+    table: "flow",
+    instruments: FLOW_COLUMNS.filter((column) => !/Asset-backed|written off/.test(column.label)),
+  },
+  tsf_stock: {
+    kind: "pboc", group: "Money & Credit", home: false,
+    title: "Aggregate Financing to the Real Economy (Stock)", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Trillion yuan (万亿元)",
+    table: "stock",
+    instruments: STOCK_ROWS.filter((row) => /^(Total|RMB loans|Government bonds|Corporate bonds)$/.test(row.label)),
+  },
+  tsf_stock_growth: {
+    kind: "pboc", group: "Money & Credit",
+    title: "Aggregate Financing Stock Growth", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // The growth the bank prints beside each month's stock, on a year earlier.
+    table: "stock_growth",
+    instruments: STOCK_ROWS.filter((row) => /^(Total|RMB loans|Government bonds|Corporate bonds)$/.test(row.label)),
   },
   new_loans: {
     kind: "eastmoney", group: "Money & Credit",
@@ -1194,6 +1218,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   else if (cfg.kind === "customs") data = await fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
   else if (cfg.kind === "cfets") data = await fetchCfets(key, cfg, limit);
   else if (cfg.kind === "nea") data = await fetchNea(key, cfg, limit);
+  else if (cfg.kind === "pboc") data = await fetchPboc(key, cfg, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1220,6 +1245,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "fred") return [cfg.label];
   if (cfg.kind === "cfets") return cfg.tenors.map((tenor) => tenor.label);
   if (cfg.kind === "nea") return neaLabels(cfg);
+  if (cfg.kind === "pboc") return cfg.instruments.map((instrument) => instrument.label);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
@@ -1277,6 +1303,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
   if (cfg.kind === "cfets") return fetchCfets(key, cfg, limit);
   if (cfg.kind === "nea") return fetchNea(key, cfg, limit);
+  if (cfg.kind === "pboc") return fetchPboc(key, cfg, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }
