@@ -184,6 +184,32 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Customs' first print against NBS's revised table; revised months differ by 0.1-0.2 pp.",
   },
   {
+    name: "Manufacturing PMI", kind: "value",
+    left: { key: "pmi", label: "Manufacturing PMI" },
+    right: { key: "nbs_a09aa989bdcf4cffa2021795722eb916" }, // 制造业采购经理指数 (%)
+    tolerance: 0.05,
+    note: "The mirror against NBS's own table.",
+  },
+  {
+    name: "Non-manufacturing PMI", kind: "value",
+    left: { key: "pmi", label: "Non-manufacturing PMI" },
+    right: { key: "nbs_88a150208f6e4a1db8babe41ae700f66" }, // 非制造业商务活动指数 (%)
+    tolerance: 0.05,
+  },
+  {
+    name: "M1 (YoY %)", kind: "value",
+    left: { key: "money_supply", label: "M1 (YoY %)" },
+    right: { key: "nbs_640401d3351b4b868dea28f89f410a54" }, // 货币 (M1) 供应量_同比增长 (%)
+    tolerance: 0.05,
+  },
+  {
+    name: "Electricity output (YoY %)", kind: "value",
+    left: { key: "electricity_output", label: "Electricity output (YoY %)" },
+    right: { key: "nbs_5cc686f383d84ed9bd11f4293ab4170e" }, // 发电量同比增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
@@ -191,6 +217,44 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
 ];
+
+/**
+ * Curated series from a domestic publisher that have no pair, each with the
+ * reason: no second reading reaches the site, or the reading that does is a
+ * different statistic. The coverage test holds every such key to a line here
+ * or to a pair; a new curated headline must land in one or the other.
+ */
+export const NO_PAIR: Record<string, string> = {
+  provincial_gdp: "Provincial bureaus' figures reach the site by one path (NBS's provincial quarterly table); nothing else on the site carries them.",
+  tsf_flow: "PBOC's own table is the only source of 社会融资规模; the mirror's copy is not served.",
+  tsf_stock: "As tsf_flow.",
+  tsf_stock_growth: "As tsf_flow; the growth printed beside the stock is the bank's, not a computed rate.",
+  new_loans: "New yuan loans of financial institutions (the mirror of PBOC's release) and TSF's RMB loans to the real economy are different aggregates.",
+  trade_values: "Customs' totals table is its only source on the site; trade_partners' Total row is the same table by another path but a different release cut.",
+  balance_of_payments: "Nothing else on the site measures the balance of payments; Customs' goods balance is on a different basis.",
+  fdi_actual_use: "The renminbi figure is published only in the ministry's release; the enterprise count beside it is paired under fdi_new_enterprises.",
+  fdi_growth: "The rates printed in the ministry's release; no second reading.",
+  fdi_actual_use_usd: "Ended July 2023.",
+  forex_reserves: "PBOC's reserve template is not read yet (queued); NBS carries reserves annually only, in ten thousand dollars.",
+  gold_reserves: "As forex_reserves.",
+  consumer_confidence: "NBS publishes the index in its release, not in the monthly database the catalog crawls.",
+  enterprise_boom: "As consumer_confidence.",
+  fiscal_expenditure: "The ministry's release is the only source; tax revenue in the same release is paired.",
+  land_sale_revenue: "As fiscal_expenditure.",
+  fiscal_growth: "The rates printed in the ministry's release; the levels they describe are paired through tax revenue.",
+  forex_loans: "Foreign-currency loans outstanding (the mirror of PBOC's release) and TSF's foreign-currency loan flow are different measures.",
+  commodity_prices: "The ministry's domestic commodity price index; NBS's international price indices (dataset 13) measure world prices.",
+  trade_partners: "Customs' by-country table is its only source; the Total row agrees with trade_values by construction.",
+  major_exports: "Customs' commodity table is its only source.",
+  major_imports: "As major_exports.",
+  trade_partners_cny: "The CNY denomination of trade_partners; the two differ by the month's rate.",
+  major_exports_cny: "As trade_partners_cny.",
+  major_imports_cny: "As trade_partners_cny.",
+  real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
+  house_prices: "The 70-city average is computed by the site from the mirror's city rows; NBS publishes the cities, not the average.",
+  electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
+  lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
+};
 
 /** Points keyed by comparable period (a quarter as its last month), newest first. */
 function byPeriod(points: SeriesPoint[], offset = 0): Map<string, number> {

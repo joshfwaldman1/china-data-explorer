@@ -22,7 +22,8 @@ in `DATASET_QUEUE.md`, before doing anything.
   `server/concordance.ts`: the series against an independent reading of the
   same statistic (a catalog entry, another publisher, or the publisher's
   year-to-date companion for a period rate). A series with no independent
-  reading says so in a comment next to its catalog entry. Cumulative and
+  reading is listed in `NO_PAIR` there with the reason; the coverage test
+  holds every domestic-publisher key to one or the other. Cumulative and
   period rates are never served under one label; when a source publishes
   both, both are served and the period rate leads.
 - Measure before optimising, and say what was measured. Attribute series to
