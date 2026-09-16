@@ -163,7 +163,7 @@ export interface NbsCatalogEntry {
   datasetCode: number;
   dataset: string;
   frequency: "Monthly" | "Quarterly" | "Annual";
-  geography: "National" | "Province" | "City" | "Hong Kong, Macao & Taiwan";
+  geography: "National" | "Province" | "City" | "Hong Kong, Macao & Taiwan" | "International";
   categories: string[];
   /** English gloss of the title (see gloss.ts); the Chinese stays authoritative. */
   nameEn?: string;
@@ -248,7 +248,7 @@ export function isFrequency(value: unknown): value is NbsCatalogEntry["frequency
 }
 
 function isGeography(value: unknown): value is NbsCatalogEntry["geography"] {
-  return value === "National" || value === "Province" || value === "City" || value === "Hong Kong, Macao & Taiwan";
+  return value === "National" || value === "Province" || value === "City" || value === "Hong Kong, Macao & Taiwan" || value === "International";
 }
 
 function parseEntry(value: unknown): NbsCatalogEntry | null {
@@ -1079,7 +1079,7 @@ async function getJson(path: string): Promise<unknown> {
 function fallbackDimensions(entry: NbsCatalogEntry): NbsRegionOption[] {
   if (entry.geography === "Province") return withEnglishNames(NBS_PROVINCES);
   if (entry.geography === "Hong Kong, Macao & Taiwan") return withEnglishNames(HMT_REGIONS);
-  // A city table's own list of cities is only ever collected, never guessed.
+  // A city table's cities and an international table's countries are only ever collected, never guessed.
   return [];
 }
 

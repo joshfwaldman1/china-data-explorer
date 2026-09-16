@@ -8,7 +8,7 @@ const DEFAULT_OUTPUT = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
 interface DatasetDefinition {
   code: number;
   frequency: "Monthly" | "Quarterly" | "Annual";
-  geography: "National" | "Province" | "City" | "Hong Kong, Macao & Taiwan";
+  geography: "National" | "Province" | "City" | "Hong Kong, Macao & Taiwan" | "International";
 }
 
 interface CatalogNode {
@@ -50,6 +50,13 @@ const DATASETS: DatasetDefinition[] = [
   { code: 8, frequency: "Annual", geography: "City" },
   { code: 9, frequency: "Monthly", geography: "Hong Kong, Macao & Taiwan" },
   { code: 10, frequency: "Annual", geography: "Hong Kong, Macao & Taiwan" },
+  // The bureau's international tables: the three major economies (US, EU,
+  // Japan) monthly, world commodity prices monthly, major countries annually.
+  // Code 11 is empty on the portal. Each table is one indicator over countries,
+  // so these are regional in the site's sense and their lists are collected.
+  { code: 12, frequency: "Monthly", geography: "International" },
+  { code: 13, frequency: "Monthly", geography: "International" },
+  { code: 14, frequency: "Annual", geography: "International" },
 ];
 
 function option(name: string): string | undefined {
@@ -103,7 +110,7 @@ function parseCatalogEntry(value: unknown): CatalogEntry | null {
   const geography = objectValue(value, "geography");
   const categoriesRaw = objectValue(value, "categories");
   const validFrequency = frequency === "Monthly" || frequency === "Quarterly" || frequency === "Annual";
-  const validGeography = geography === "National" || geography === "Province" || geography === "City" || geography === "Hong Kong, Macao & Taiwan";
+  const validGeography = geography === "National" || geography === "Province" || geography === "City" || geography === "Hong Kong, Macao & Taiwan" || geography === "International";
   if (!id || !name || !key || !rootId || !cid || !dataset || typeof datasetCode !== "number" ||
       !validFrequency || !validGeography || !Array.isArray(categoriesRaw)) return null;
   const precision = objectValue(value, "precision");

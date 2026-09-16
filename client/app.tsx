@@ -691,6 +691,7 @@ function geographyLabel(geography: string): string {
   if (geography === "National") return "National";
   if (geography === "Province") return "By province";
   if (geography === "City") return "By city";
+  if (geography === "International") return "International";
   return geography;
 }
 
@@ -1445,7 +1446,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   // Trade by partner and by commodity rank rather than map, and their copy names
   // the publisher; the "Total" row of the partner table is the whole month, shown apart.
   const trade = data?.geography === "Partner" || data?.geography === "Commodity";
-  const what = data?.geography === "Partner" ? "partner" : data?.geography === "Commodity" ? "commodity" : data?.geography === "City" ? "city" : "province";
+  const what = data?.geography === "Partner" ? "partner" : data?.geography === "Commodity" ? "commodity" : data?.geography === "International" ? "country" : data?.geography === "City" ? "city" : "province";
   const allRows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.value !== null);
   const total = trade ? allRows.find((item) => item.region.value === "total") : undefined;
   const rows = total ? allRows.filter((item) => item !== total) : allRows;

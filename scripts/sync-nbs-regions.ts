@@ -125,7 +125,28 @@ try {
       candidates.sort((a, b) => Number(/全部|全国/.test(b.name)) - Number(/全部|全国/.test(a.name)));
 
       let daCid = "";
+      // An international table groups its countries by continent (亚洲, 欧洲,
+      // 北美洲, …) with no node for all of them, so the first list that answers
+      // is one continent. Every group is asked and the union is kept under the
+      // table's own id.
+      if (table.geography === "International") {
+        const union = new Map<string, RegionOption>();
+        for (const candidate of candidates) {
+          const raw = await portal.getJson(`/getDasByDaCatalogId?daCid=${encodeURIComponent(candidate.id)}`);
+          const places = objectValue(raw, "data");
+          if (!Array.isArray(places)) continue;
+          for (const place of places) {
+            const option = { text: textValue(place, "show_name") || textValue(place, "name_text"), value: textValue(place, "name_value") };
+            if (option.text && option.value && !union.has(option.value)) union.set(option.value, option);
+          }
+        }
+        if (union.size === 0) throw new Error("no region catalog for this table");
+        daCid = `all:${cid}`;
+        collected.sets[daCid] = [...union.values()];
+        console.log(`  new region list ${daCid} (${candidates.map((candidate) => candidate.name).join("+")}): ${union.size} places`);
+      }
       for (const candidate of candidates) {
+        if (daCid) break;
         if (collected.sets[candidate.id]) { daCid = candidate.id; break; }
         const raw = await portal.getJson(`/getDasByDaCatalogId?daCid=${encodeURIComponent(candidate.id)}`);
         const places = objectValue(raw, "data");
