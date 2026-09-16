@@ -2214,3 +2214,22 @@ not from scratch. Rounds are small on purpose.
   read live from the bank until the next sweep stores them. Not on any
   calendar the site reads: PBOC publishes around the 10th to the 15th; a
   `releaseDay` for the kind is queued with NEA's.
+
+- 2026-09-16 (dataset loop, round 7: MOF fiscal data): public finance on the
+  site was one quarterly tax figure from a mirror. The ministry's treasury
+  department (gks.mof.gov.cn, http only; the CDN answers 502 from abroad now
+  and then and 200 on retry) publishes 财政收支情况 monthly as text with every
+  figure cumulative for the year. `server/mof.ts` walks the listing pages and
+  serves `fiscal_revenue` (general public budget revenue, tax, non-tax,
+  government fund revenue), `fiscal_expenditure`, `land_sale_revenue` and
+  `fiscal_growth`, all titled year to date. Found on the way: stray spaces
+  inside numbers on some pages ("4 .7%", "2 5 880"), so the text is read with
+  whitespace removed; the full-year release says 比上年 where the months say
+  同比. Tests: six, over two listing pages and five release shapes — July 2026
+  revenue 143,696 with growth 5.8, land sales 11,731 and −30.8; the half year
+  121,047 and 4.7 through the stray spaces; 2025 216,045 and −1.7. Live:
+  `/api/series/fiscal_revenue` July 2026 143,696, tax 118,381,
+  `/api/series/land_sale_revenue` 11,731, growth lines as published; read live
+  from the ministry from Railway. A concordance pair holds the ministry's tax
+  revenue against the mirror's quarterly copy (97,865 for the half year on
+  both); it reads "missing" until the sweep stores the new key.
