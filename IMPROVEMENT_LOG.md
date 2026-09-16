@@ -2233,3 +2233,23 @@ not from scratch. Rounds are small on purpose.
   from the ministry from Railway. A concordance pair holds the ministry's tax
   revenue against the mirror's quarterly copy (97,865 for the half year on
   both); it reads "missing" until the sweep stores the new key.
+
+- 2026-09-16 (dataset loop, round 8: SAFE balance of payments): the site had
+  no balance of payments. SAFE keeps one workbook of the whole BPM6 time
+  series (1998 on) and replaces it with each quarter's final release; the
+  English page links the current file. No xlsx library was in the tree and
+  the loop adds no dependencies, so `server/xlsx.ts` reads a workbook itself:
+  the zip's central directory, inflateRaw from node:zlib, shared strings and
+  cells by address. `server/safe.ts` takes the standard items from the
+  quarterly(USD) sheet; key `balance_of_payments`, 亿美元, BPM6 signs (a
+  financial-account outflow and a rise in reserves are negative). Tests: the
+  workbook of 26 June 2026 as the fixture (1.1 MB, the genuine file), the six
+  sheets found, 113 quarters through 2026-Q1, current account 1,843.1 against
+  SAFE's headline 184.3 billion USD, goods 2,474.77, reserve assets −479.41;
+  the page link; a non-workbook refused. Live: `/api/series/balance_of_payments`
+  Q1 2026 as above, read live from SAFE from Railway. The preliminary
+  quarter (published two months after the quarter as a news release) is not
+  in the workbook, so the series runs one quarter behind SAFE's first print;
+  queued as a follow-up. No concordance pair: nothing else on the site
+  measures it, and Customs' goods balance is on a different basis (said so
+  beside the catalog entry).

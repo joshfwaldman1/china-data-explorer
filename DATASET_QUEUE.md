@@ -5,34 +5,28 @@ carries the test that defines it as done. Prerequisites in brackets.
 
 ## Queue
 
-1. **SAFE balance of payments.** Quarterly Excel from safe.gov.cn: current
-   account, goods, services, primary income, financial account, reserve
-   assets. Key `balance_of_payments` with six labels, USD billion.
-   *Test:* fixture (one Excel) parses to six figures for the latest quarter;
-   the current account matches SAFE's headline release.
-
-2. **MOFCOM FDI actual use.** Monthly cumulative, CNY, from
+1. **MOFCOM FDI actual use.** Monthly cumulative, CNY, from
    data.mofcom.gov.cn (AkShare reads it). Key `fdi_actual_use`.
    *Test:* fixture parse; latest matches the ministry's release.
 
-3. **Customs in CNY.** The same three Customs tables in CNY (the
+2. **Customs in CNY.** The same three Customs tables in CNY (the
     denomination the bureau's growth rates are quoted in), as separate keys
     with `_cny` suffixes; never mixed with the USD series.
     *Test:* August 2026 US exports in CNY equal the CNY table.
 
-4. **NBS international datasets.** Probe `queryIndexTreeAsync?code=11..14`
+3. **NBS international datasets.** Probe `queryIndexTreeAsync?code=11..14`
     through `scripts/portal.ts` for 三大经济体月度数据 and 主要国家年度数据;
     if they exist, add the codes to `sync-nbs-catalog.ts`, crawl, merge.
     *Test:* the merged catalog gains a dataset with geography
     "International" and a series page renders for one of its entries.
 
-5. **Remaining English glosses.** [needs API credit] `bun run
+4. **Remaining English glosses.** [needs API credit] `bun run
     china:translate --concurrency=8` for the 14,244 annual base concepts
     still on the token dictionary, then `china:translate-notes`.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-6. **Trade growth from Customs' own release.** The `trade` headline
+5. **Trade growth from Customs' own release.** The `trade` headline
     (exports and imports, YoY %) comes from the Eastmoney mirror, which holds
     the first print while NBS's table carries Customs' revision (June 2026:
     26.9 against 27.0). Serve it from NBS's monthly table (出口总值同比增长,
@@ -40,7 +34,7 @@ carries the test that defines it as done. Prerequisites in brackets.
     the concordance pair back to 0.05.
     *Test:* the exports pair passes at tolerance 0.05 over six months.
 
-7. **Concordance pairs for the rest of the curated set.** PMI, new loans, FX
+6. **Concordance pairs for the rest of the curated set.** PMI, new loans, FX
     reserves, house prices, electricity output and the Phase A series have
     no pair yet; find each one's catalog entry (FX reserves and GDP levels
     are not in the monthly national dataset under the names tried) or its
@@ -48,20 +42,29 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* every curated key with an NBS or PBOC source appears in
     `CONCORDANCE_PAIRS` or carries a comment saying why not.
 
-8. **NEA, PBOC and MOF follow-ups.** (a) The feed has no separate May 2026 demand note;
+7. **NEA, PBOC, MOF and SAFE follow-ups.** (a) The feed has no separate May 2026 demand note;
     read the month from the fuller "1-5月份全国电力工业统计数据" release when
     the note is missing. (b) Give the NEA keys a `releaseDay` (the note comes
     on the 15th to the 21st) , the PBOC keys one (the 10th to the 15th) and the MOF keys one (the 15th to the 25th) once the field is widened past Customs and
-    Eastmoney kinds, so the page can say when the next figure is due.
+    Eastmoney kinds, so the page can say when the next figure is due. (c) SAFE's preliminary quarter comes two months after the quarter as a
+    news release (国际收支平衡表初步数, and the English "Preliminary") and is
+    not in the workbook; read it so the series leads by a quarter, labelled
+    preliminary until the final workbook replaces it.
     *Test:* May 2026 appears on the month line; `/api/catalog` shows
     `releaseDay` on electricity_demand.
 
-9. **High-frequency group.** Freight index (`macro_china_freight_index`)
+8. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-16 — SAFE balance of payments: `server/safe.ts` over a new
+  dependency-free workbook reader `server/xlsx.ts`; key
+  `balance_of_payments`, twelve BPM6 items, 亿美元. The real workbook is the
+  fixture; four tests. Live: Q1 2026 current account 1,843.1, goods 2,474.77,
+  reserve assets −479.41.
 
 - 2026-09-16 — MOF fiscal data: `server/mof.ts`, keys `fiscal_revenue`,
   `fiscal_expenditure`, `land_sale_revenue`, `fiscal_growth`, all year to
