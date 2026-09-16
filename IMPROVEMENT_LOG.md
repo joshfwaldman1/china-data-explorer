@@ -2193,3 +2193,24 @@ not from scratch. Rounds are small on purpose.
   separate May 2026 demand note is in the feed (the "1-5月份全国电力工业统计数据"
   release may carry it); NEA is on no release calendar this site reads, so
   the series arrives with the daily sweeps.
+
+- 2026-09-16 (dataset loop, round 6: PBOC aggregate financing): the site had
+  money supply and new loans from a mirror and nothing on 社会融资规模. The
+  bank's statistics section (调查统计 > 统计数据) answered a plain client from
+  abroad, from this machine and from Railway, on 16 September; it links one
+  index page per year and each carries the year's flow and stock tables as
+  GBK htm attachments with English labels beside the Chinese. `server/pboc.ts`
+  serves `tsf_flow` (the month's new financing by instrument, 亿元),
+  `tsf_stock` (万亿元) and `tsf_stock_growth` (the growth the bank prints
+  beside each stock). Tests: the statistics index yields fifteen yearly
+  links newest first; a year's index names the flow and stock htm attachments
+  and not the provincial table; the flow table parses to August 2026 total
+  16,577 with government bonds 10,097 and April's RMB loans −4,006; the stock
+  table to August 464.80 trillion and 7.2 percent, RMB loans 278.63 and 5.0;
+  the adapter builds the three series from the year's pages. A first version
+  read the flow table one column off (its English header carries no cell for
+  the month column) and the test caught it. Live:
+  `/api/series/tsf_stock` August 2026 464.8, growth 7.2, flow 16,577, all
+  read live from the bank until the next sweep stores them. Not on any
+  calendar the site reads: PBOC publishes around the 10th to the 15th; a
+  `releaseDay` for the kind is queued with NEA's.
