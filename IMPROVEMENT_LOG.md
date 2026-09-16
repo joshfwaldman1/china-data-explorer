@@ -2349,3 +2349,16 @@ not from scratch. Rounds are small on purpose.
   checks each pair's labels against the catalog; `DATASET_LOOP.md` points at
   it. Live: 17 pairs, 0 findings — manufacturing PMI 49.8 on both for August
   2026, non-manufacturing 49.0, M1 4.0 for July, electricity output −0.1.
+
+- 2026-09-16 (dataset loop, round 14: release days for the new publishers):
+  series from NEA, PBOC, MOF and MOFCOM carried no release day, so their
+  pages said only that they were not in the NBS calendar. The field now
+  belongs to those kinds: electricity consumption by the 21st, aggregate
+  financing by the 15th, the fiscal release by the 25th, the FDI release by
+  the 22nd (each from the dates the releases carried through 2026); the
+  catalog exposes them and the page names the day. Test: every such key
+  holds its day and NBS series none. Live: `/api/catalog` shows 21 keys with
+  a release day. Looked at for the missing May 2026 consumption: NEA's
+  fuller 1-5月 release ("全国电力统计数据") carries capacity and utilisation
+  as text but the consumption table as an image, so May stays absent — not
+  derived from the year-to-date difference, by the loop's rule.
