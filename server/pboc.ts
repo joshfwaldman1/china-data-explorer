@@ -68,7 +68,7 @@ export const STOCK_ROWS: { match: RegExp; label: string }[] = [
 
 function cellsOf(html: string): string[][] {
   return [...html.matchAll(/<tr[\s\S]*?<\/tr>/g)].map((row) =>
-    [...row[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((cell) => cell[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()));
+    [...row[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((cell) => (cell[1] ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()));
 }
 
 /** The English part of a bilingual cell: "社会融资规模存量 AFRE(stock)" -> "AFRE(stock)". */
