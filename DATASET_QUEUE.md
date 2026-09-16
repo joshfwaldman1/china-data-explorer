@@ -11,15 +11,7 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **Concordance pairs for the rest of the curated set.** PMI, new loans, FX
-    reserves, house prices, electricity output and the Phase A series have
-    no pair yet; find each one's catalog entry (FX reserves and GDP levels
-    are not in the monthly national dataset under the names tried) or its
-    publisher's companion and add it.
-    *Test:* every curated key with an NBS or PBOC source appears in
-    `CONCORDANCE_PAIRS` or carries a comment saying why not.
-
-3. **NEA, PBOC, MOF, SAFE and MOFCOM follow-ups.** (a) The feed has no separate May 2026 demand note;
+2. **NEA, PBOC, MOF, SAFE and MOFCOM follow-ups.** (a) The feed has no separate May 2026 demand note;
     read the month from the fuller "1-5月份全国电力工业统计数据" release when
     the note is missing. (b) Give the NEA keys a `releaseDay` (the note comes
     on the 15th to the 21st) , the PBOC keys one (the 10th to the 15th) , the MOF keys one (the 15th to the 25th) and the MOFCOM keys one (around the 20th) once the field is widened past Customs and
@@ -30,12 +22,17 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* May 2026 appears on the month line; `/api/catalog` shows
     `releaseDay` on electricity_demand.
 
-4. **High-frequency group.** Freight index (`macro_china_freight_index`)
+3. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-16 — Concordance pairs for the rest of the curated set: four new
+  pairs (both PMIs, M1, electricity output) and a `NO_PAIR` list with a
+  reason for every other domestic-publisher key, held by a coverage test.
+  Live: 17 pairs, 0 findings.
 
 - 2026-09-16 — Trade growth from Customs' own release: the adapter reads the
   monthly totals table; `trade` serves Customs' own rates on release day

@@ -2332,3 +2332,20 @@ not from scratch. Rounds are small on purpose.
   `/api/series/trade` August 2026 exports +25.0, imports +28.2, total +26.3,
   year to date 19.3 and 27.0; `trade_values` exports 4,014.4; the
   Customs-vs-NBS pair ok at July 23.9 on both.
+
+- 2026-09-16 (dataset loop, round 13: concordance pairs for the rest of the
+  curated set): fifteen pairs covered eleven keys and thirty domestic-
+  publisher keys had neither a pair nor a reason. Four gained pairs where the
+  catalog crawl carries a second reading — manufacturing PMI (制造业采购经理
+  指数), non-manufacturing PMI (非制造业商务活动指数), M1 growth, electricity
+  output — and the rest are listed in `NO_PAIR` with the reason: the
+  publisher's release is the only source on the site (PBOC's aggregate
+  financing, the fiscal and FDI releases, SAFE's balance of payments,
+  Customs' tables), the second reading is a different statistic (new yuan
+  loans against TSF's RMB loans; the ministry's commodity index against
+  NBS's world prices; FX reserves, which NBS carries annually in ten
+  thousand dollars), or the levels are paired through their growth key. A
+  coverage test holds every domestic-publisher key to a pair or a reason and
+  checks each pair's labels against the catalog; `DATASET_LOOP.md` points at
+  it. Live: 17 pairs, 0 findings — manufacturing PMI 49.8 on both for August
+  2026, non-manufacturing 49.0, M1 4.0 for July, electricity output −0.1.
