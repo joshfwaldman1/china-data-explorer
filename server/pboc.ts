@@ -35,6 +35,8 @@ export interface PbocIndicator {
   endedNote?: string;
   /** Which table and reading this key serves. */
   table: "flow" | "stock" | "stock_growth";
+  /** Day of the month by which the publisher's release is normally out (server/due.ts). */
+  releaseDay?: number;
   /** The instruments served, in order, by their English label in the tables. */
   instruments: { match: RegExp; label: string }[];
 }

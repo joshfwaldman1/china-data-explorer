@@ -39,6 +39,8 @@ export interface NeaIndicator {
   endedNote?: string;
   /** Which figures of the release this key serves: the levels in 亿千瓦时, or the published growth rates. */
   measure: "level" | "growth";
+  /** Day of the month by which the publisher's release is normally out (server/due.ts). */
+  releaseDay?: number;
 }
 
 export interface NeaRelease { title: string; url: string; publishedAt: string }

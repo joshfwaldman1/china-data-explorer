@@ -36,6 +36,8 @@ export interface MofIndicator {
   endedNote?: string;
   /** The levels (亿元, year to date) or the published growth rates. */
   measure: "level" | "growth";
+  /** Day of the month by which the publisher's release is normally out (server/due.ts). */
+  releaseDay?: number;
   /** The items served, in order. */
   items: MofItem[];
 }

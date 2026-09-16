@@ -576,6 +576,7 @@ export const CATALOG: Record<string, Indicator> = {
     // The bank's 社会融资规模增量 table, the month's new financing by instrument.
     table: "flow",
     instruments: FLOW_COLUMNS.filter((column) => !/Asset-backed|written off/.test(column.label)),
+    releaseDay: 15, // the bank's monthly financial statistics, the 10th to the 15th
   },
   tsf_stock: {
     kind: "pboc", group: "Money & Credit", home: false,
@@ -583,6 +584,7 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Trillion yuan (万亿元)",
     table: "stock",
     instruments: STOCK_ROWS.filter((row) => /^(Total|RMB loans|Government bonds|Corporate bonds)$/.test(row.label)),
+    releaseDay: 15,
   },
   tsf_stock_growth: {
     kind: "pboc", group: "Money & Credit",
@@ -591,6 +593,7 @@ export const CATALOG: Record<string, Indicator> = {
     // The growth the bank prints beside each month's stock, on a year earlier.
     table: "stock_growth",
     instruments: STOCK_ROWS.filter((row) => /^(Total|RMB loans|Government bonds|Corporate bonds)$/.test(row.label)),
+    releaseDay: 15,
   },
   new_loans: {
     kind: "eastmoney", group: "Money & Credit",
@@ -648,6 +651,7 @@ export const CATALOG: Record<string, Indicator> = {
     // figure in July 2023: the year-to-date total and its manufacturing,
     // services and high-technology parts.
     measure: "cny",
+    releaseDay: 22, // the release came on the 16th to the 22nd through 2026
   },
   fdi_new_enterprises: {
     kind: "mofcom", group: "Trade & External", home: false,
@@ -655,12 +659,14 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Enterprises, cumulative year to date",
     // Two paths to one figure: the data centre's table and the monthly release; the audit holds them together.
     measure: "enterprises",
+    releaseDay: 22,
   },
   fdi_growth: {
     kind: "mofcom", group: "Trade & External", home: false,
     title: "Foreign Direct Investment Growth, Year to Date", agency: "Ministry of Commerce",
     frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
     measure: "growth",
+    releaseDay: 22,
   },
   fdi_actual_use_usd: {
     kind: "mofcom", group: "Trade & External", home: false,
@@ -715,6 +721,7 @@ export const CATALOG: Record<string, Indicator> = {
     // month, and the titles say so. The month's own figure is not published.
     measure: "level",
     items: ["revenue", "tax", "nonTax", "fundRevenue"],
+    releaseDay: 25, // 财政收支情况 came on the 15th to the 25th through 2026
   },
   fiscal_expenditure: {
     kind: "mof", group: "Public Finance", home: false,
@@ -722,6 +729,7 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
     measure: "level",
     items: ["expenditure", "fundExpenditure"],
+    releaseDay: 25,
   },
   land_sale_revenue: {
     kind: "mof", group: "Public Finance",
@@ -730,6 +738,7 @@ export const CATALOG: Record<string, Indicator> = {
     // 国有土地使用权出让收入, the local governments' land-lease income, inside the government fund budget.
     measure: "level",
     items: ["landSales"],
+    releaseDay: 25,
   },
   fiscal_growth: {
     kind: "mof", group: "Public Finance", home: false,
@@ -737,6 +746,7 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
     measure: "growth",
     items: ["revenue", "tax", "expenditure", "landSales", "fundRevenue"],
+    releaseDay: 25,
   },
   tax_revenue: {
     kind: "eastmoney", group: "Public Finance", home: false,
@@ -897,12 +907,14 @@ export const CATALOG: Record<string, Indicator> = {
     // and by user group. January and February are published together and sit
     // on the year-to-date line only; the month line has no point for either.
     measure: "level",
+    releaseDay: 21, // the note came on the 15th to the 21st through 2026
   },
   electricity_demand_growth: {
     kind: "nea", group: "Growth & Output", home: false,
     title: "Electricity Consumption Growth", agency: "National Energy Administration",
     frequency: "Monthly", unit: "Percent change from year ago",
     measure: "growth",
+    releaseDay: 21,
   },
   electricity_output: {
     kind: "nbs", group: "Growth & Output",
@@ -999,7 +1011,7 @@ export function catalogList(): CatalogEntry[] {
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     ...(c.home === false ? { home: false } : {}),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
-    ...((c.kind === "customs" || c.kind === "eastmoney") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
+    ...((c.kind === "customs" || c.kind === "eastmoney" || c.kind === "nea" || c.kind === "pboc" || c.kind === "mof" || c.kind === "mofcom") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
     ...(c.kind === "customs" && c.homeRegions ? { homeRegions: c.homeRegions } : {}),
   }));
 }

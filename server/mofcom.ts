@@ -39,6 +39,8 @@ export interface MofcomIndicator {
   endedNote?: string;
   /** Which figures the key serves. */
   measure: "enterprises" | "usd" | "cny" | "growth";
+  /** Day of the month by which the publisher's release is normally out (server/due.ts). */
+  releaseDay?: number;
 }
 
 export interface DataCentreRow { period: string; enterprises: number | null; enterprisesGrowth: number | null; usd: number | null; usdGrowth: number | null }
