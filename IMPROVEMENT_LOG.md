@@ -2439,3 +2439,22 @@ not from scratch. Rounds are small on purpose.
   in place −10.6; 27 pairs, 0 findings. The trade headline was still served
   live at 08:10 UTC: the sweep that stores it had begun a minute earlier and
   walks Customs' archive first.
+
+- 2026-09-16 (dataset loop, round 19: industry): industry on the site was
+  output growth and PMI. Eight keys from the catalog's 工业 tables:
+  `industrial_profits` (total, manufacturing, mining, utilities — cumulative
+  for the year and titled so, from the by-industry table from 2018; the
+  earlier tables are year slices) and `_value`, `capacity_utilisation` (the
+  quarter's rate for industry and its three divisions, quarterly dataset),
+  and month and year-to-date output growth of crude steel, cement,
+  automobiles, new energy vehicles and integrated circuits — one key per
+  product, each being its own table. Four pairs; an id test. Live: July 2026
+  profits +17.6 percent year to date (manufacturing +18.8, mining +34.9),
+  Q2 capacity utilisation 73.0, crude steel −3.6 on the month, automobiles
+  −0.1, integrated circuits +20.7; 31 pairs, 0 findings. Found on the way:
+  the trade headline's first store had failed — Customs' January-February
+  totals table has no unit line where the other months do, and one month's
+  parse error emptied the run. A month that will not parse is now skipped
+  and named in the log (more than a third failing still fails the run); 31
+  of 33 months stored locally, the combined months absent from the totals
+  key. The live store picks it up at the next sweep.

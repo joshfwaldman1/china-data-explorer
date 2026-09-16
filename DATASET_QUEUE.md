@@ -11,35 +11,29 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **Industry: profits, capacity utilisation and key products.** Industrial
-   profits (工业企业利润, monthly, ~27th, year to date), capacity utilisation
-   (quarterly) and physical output of steel, cement, autos and integrated
-   circuits from the catalog's monthly tables, as a "Key products" group.
-   *Test:* July 2026 crude steel output parses and its pair is ok.
-
-3. **Prices beyond the headlines.** Core CPI, food and non-food CPI, PPI by
+2. **Prices beyond the headlines.** Core CPI, food and non-food CPI, PPI by
    stage (生产资料 / 生活资料) as lines under `cpi` and `ppi`; MOFCOM's weekly
    food and production-material price indices from its data centre (the same
    API family as FDI).
    *Test:* August 2026 core CPI parses and matches NBS's release; the
    MOFCOM weekly index answers a POST.
 
-4. **PMI sub-indices from NBS's table.** New orders, production, employment,
+3. **PMI sub-indices from NBS's table.** New orders, production, employment,
    supplier deliveries, inventories from the monthly database (采购经理指数
    category), as a key beside `pmi`.
    *Test:* August 2026 new orders parses and the headline PMI pair stays ok.
 
-5. **70-city house prices from NBS's own city table.** The city monthly
+4. **70-city house prices from NBS's own city table.** The city monthly
    dataset (code 7) carries 新建商品住宅销售价格指数 by city; serve the
    `house_prices` rows from it with the mirror kept for the audit.
    *Test:* Beijing August 2026 new-home index equals the mirror's row.
 
-6. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+5. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-7. **Property: developer financing and mortgages.** [parked: source not
+6. **Property: developer financing and mortgages.** [parked: source not
    found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
    outstanding, mortgages (个人住房贷款) and their growth. On 16 September
    none of the survey-and-statistics department's sections nor the news
@@ -49,12 +43,18 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-8. **High-frequency group.** Freight index (`macro_china_freight_index`)
+7. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-16 — Industry: `industrial_profits` (+levels), `capacity_utilisation`,
+  and output growth of crude steel, cement, automobiles, NEVs and ICs; four
+  pairs; an id test. Live: July 2026 profits +17.6% YTD, Q2 capacity 73.0%.
+  Also fixed: a Customs month that will not parse (the January-February
+  totals table) no longer empties the trade store.
 
 - 2026-09-16 — Fixed-asset investment: `fai`, `fai_by_industry`,
   `fai_funding` from NBS's monthly tables, year to date and titled so;
