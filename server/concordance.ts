@@ -101,6 +101,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Both lines from NBS's quarterly index table (当季 and 累计).",
   },
   {
+    name: "Electricity consumption growth: month vs year to date", kind: "cumulative",
+    period: { key: "electricity_demand_growth", label: "All users, month (YoY %)" },
+    yearToDate: { key: "electricity_demand_growth", label: "All users, year to date (YoY %)" },
+    tolerance: 0.05,
+    note: "Both from NEA's monthly release. The month line has no January or February; the combined figure sits on the year-to-date line, so the first common period of a year is March.",
+  },
+  {
     name: "CPI (YoY %)", kind: "value",
     left: { key: "cpi", label: "CPI (YoY %)" },
     right: { key: "nbs_53180dfb9c14411ba4b762307c85920c", offset: -100 }, // 居民消费价格指数 (上年同月=100)
@@ -197,7 +204,11 @@ export function compareCumulative(name: string, period: SeriesPoint[], yearToDat
   const periods = commonPeriods(a, b, options.periods ?? 8);
   if (periods.length === 0) return { ...base, status: "no-overlap", compared: 0, disagreements: [] };
   const rows = periods.map((p) => ({ period: p, left: round(a.get(p) ?? NaN), right: round(b.get(p) ?? NaN) }));
-  const firstOfYear = (p: string) => /-0[1-3]$/.test(p); // January, February or Q1 (as 03)
+  // The first period of a year is where the two must agree: Q1 for a quarterly
+  // pair, January for a monthly one, or February when the pair carries no
+  // January (NBS and NEA publish the two months together).
+  const quarterly = rows.every((row) => /-(03|06|09|12)$/.test(row.period));
+  const firstOfYear = (p: string) => quarterly ? p.endsWith("-03") : p.endsWith("-01") || (p.endsWith("-02") && !rows.some((row) => row.period === `${p.slice(0, 4)}-01`));
   const disagreements = rows.filter((row) => firstOfYear(row.period) && Math.abs(row.left - row.right) > options.tolerance);
   const later = rows.filter((row) => !firstOfYear(row.period));
   const identical = later.length > 0 && later.every((row) => Math.abs(row.left - row.right) <= options.tolerance);

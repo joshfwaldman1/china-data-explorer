@@ -13,6 +13,7 @@
 import { fetchJson } from "./http";
 import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
 import { fetchCfets, type CfetsIndicator } from "./cfets";
+import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -242,7 +243,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -744,6 +745,21 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "SECOND_HOUSE_SAME", label: "Existing homes (YoY %)", valueOffset: -100 },
     ],
   },
+  electricity_demand: {
+    kind: "nea", group: "Growth & Output",
+    title: "Electricity Consumption", agency: "National Energy Administration",
+    frequency: "Monthly", unit: "Hundred million kWh (亿千瓦时)",
+    // NEA's monthly 全社会用电量 release: the month and the year to date, total
+    // and by user group. January and February are published together and sit
+    // on the year-to-date line only; the month line has no point for either.
+    measure: "level",
+  },
+  electricity_demand_growth: {
+    kind: "nea", group: "Growth & Output", home: false,
+    title: "Electricity Consumption Growth", agency: "National Energy Administration",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    measure: "growth",
+  },
   electricity_output: {
     kind: "nbs", group: "Growth & Output",
     title: "Electricity Generation", agency: "National Bureau of Statistics",
@@ -1177,6 +1193,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   else if (cfg.kind === "fred") data = await fetchFred(key, cfg, limit);
   else if (cfg.kind === "customs") data = await fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
   else if (cfg.kind === "cfets") data = await fetchCfets(key, cfg, limit);
+  else if (cfg.kind === "nea") data = await fetchNea(key, cfg, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1202,6 +1219,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "nbs") return cfg.ids.map((id) => id.label);
   if (cfg.kind === "fred") return [cfg.label];
   if (cfg.kind === "cfets") return cfg.tenors.map((tenor) => tenor.label);
+  if (cfg.kind === "nea") return neaLabels(cfg);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
@@ -1258,6 +1276,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "fred") return fetchFred(key, cfg, limit);
   if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
   if (cfg.kind === "cfets") return fetchCfets(key, cfg, limit);
+  if (cfg.kind === "nea") return fetchNea(key, cfg, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }

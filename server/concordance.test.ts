@@ -72,3 +72,13 @@ test("a disjoint pair reports what each side holds", async () => {
   expect(result.sides).toEqual({ left: { first: "2026-07", last: "2026-07", points: 1 }, right: { first: "2013-11", last: "2013-12", points: 2 } });
   expect(formatResult(result)).toBe("no-overlap PPI [2026-07..2026-07 vs 2013-11..2013-12]");
 });
+
+test("a monthly pair with no January or February in common is judged on the later months alone", async () => {
+  const { compareCumulative } = await import("./concordance.ts");
+  const month = [3, 4, 5, 6, 7].map((m) => ({ date: `2026-0${m}`, value: m }));
+  const yearToDate = [{ date: "2026-02", value: 6.1 }, ...[3, 4, 5, 6, 7].map((m) => ({ date: `2026-0${m}`, value: m + 0.5 }))];
+  expect(compareCumulative("Electricity", month, yearToDate, { tolerance: 0.05 }).status).toBe("ok");
+  // The same values on both lines from March on: the month line is the cumulative one.
+  const copy = [3, 4, 5, 6, 7].map((m) => ({ date: `2026-0${m}`, value: m + 0.5 }));
+  expect(compareCumulative("Electricity", copy, yearToDate, { tolerance: 0.05 }).status).toBe("mismatch");
+});
