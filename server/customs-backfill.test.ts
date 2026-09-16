@@ -31,7 +31,7 @@ test("a small limit stays within the recent window", () => {
 });
 
 function entry(month: string, table: ListingEntry["table"], href: string): ListingEntry {
-  return { title: `${table} ${month}`, href, month, table, usd: true };
+  return { title: `${table} ${month}`, href, month, table, usd: true, currency: "USD" };
 }
 
 test("the listing walk finds a month on a later page and stops when the archive ends", async () => {

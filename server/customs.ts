@@ -47,7 +47,8 @@ export function monthOfTitle(title: string): string | null {
   return month ? `${match[2]}-${String(month).padStart(2, "0")}` : null;
 }
 
-export interface ListingEntry { title: string; href: string; month: string | null; table: CustomsTable | null; usd: boolean }
+export type CustomsCurrency = "USD" | "CNY";
+export interface ListingEntry { title: string; href: string; month: string | null; table: CustomsTable | null; usd: boolean; currency: CustomsCurrency }
 
 /** The table links on one listing page. The site writes some hrefs unquoted. */
 export function parseListing(html: string): ListingEntry[] {
@@ -57,7 +58,9 @@ export function parseListing(html: string): ListingEntry[] {
     if (!/\/Statics\//i.test(href)) continue;
     const title = decode(match[2] ?? "").replace(/\s+/g, " ").trim();
     const table = (Object.keys(TABLE_TITLES) as CustomsTable[]).find((kind) => TABLE_TITLES[kind].test(title)) ?? null;
-    entries.push({ title, href: href.startsWith("http") ? href : `${CUSTOMS_BASE}${href}`, month: monthOfTitle(title), table, usd: /USD/i.test(title) });
+    // Every table is published twice, "(in USD)" and "(in CNY)"; the title says which.
+    const currency: CustomsCurrency = /CNY|RMB/i.test(title) ? "CNY" : "USD";
+    entries.push({ title, href: href.startsWith("http") ? href : `${CUSTOMS_BASE}${href}`, month: monthOfTitle(title), table, usd: currency === "USD", currency });
   }
   return entries;
 }
@@ -98,10 +101,13 @@ export interface PartnerRow { name: string; exports: number | null; imports: num
  * each partner, USD millions. Refuses a table whose unit line or header is not
  * what the parser was written for, so a changed layout fails loudly.
  */
-export function parseByCountry(html: string): PartnerRow[] {
+/** The unit line each currency's tables carry: "USD 1 Million", "CNY 100 Million" (亿元). */
+const UNIT_LINE: Record<CustomsCurrency, RegExp> = { USD: /USD\s*1\s*Milli/i, CNY: /CNY\s*100\s*Milli/i };
+
+export function parseByCountry(html: string, currency: CustomsCurrency = "USD"): PartnerRow[] {
   const rows = rowsOf(html);
   const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
-  if (!/USD\s*1\s*Milli/i.test(unit)) throw new Error(`by-country table: unexpected unit line "${unit}"`);
+  if (!UNIT_LINE[currency].test(unit)) throw new Error(`by-country table: unexpected unit line "${unit}" for ${currency}`);
   // The header has been written three ways since 2023: two label rows
   // ("Import Source" / "Export Destination"), the same with merged cells, and
   // one merged label cell over a row that begins with the month number. All
@@ -129,10 +135,10 @@ export function parseByCountry(html: string): PartnerRow[] {
 export interface CommodityRow { name: string; quantityUnit: string; quantity: number | null; value: number | null; ytdQuantity: number | null; ytdValue: number | null }
 
 /** The major exports or imports table: quantity and value, month and year to date. */
-export function parseCommodities(html: string): CommodityRow[] {
+export function parseCommodities(html: string, currency: CustomsCurrency = "USD"): CommodityRow[] {
   const rows = rowsOf(html);
   const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
-  if (!/USD\s*1\s*Milli/i.test(unit)) throw new Error(`commodity table: unexpected unit line "${unit}"`);
+  if (!UNIT_LINE[currency].test(unit)) throw new Error(`commodity table: unexpected unit line "${unit}" for ${currency}`);
   const header = rows.find((row) => /^Commodity/i.test(row[0] ?? "") && /Unit/i.test(row[1] ?? ""));
   if (!header) throw new Error("commodity table: header not recognised");
   const out: CommodityRow[] = [];
@@ -183,8 +189,8 @@ async function listingPage(page: number): Promise<ListingEntry[]> {
  * month two years back is some twenty-five pages in; each page is read once
  * per six hours.
  */
-export async function findTable(table: CustomsTable, month: string, options: { maxPages?: number; pages?: (page: number) => Promise<ListingEntry[]> } = {}): Promise<ListingEntry | null> {
-  const { maxPages = 120, pages = listingPage } = options;
+export async function findTable(table: CustomsTable, month: string, options: { maxPages?: number; pages?: (page: number) => Promise<ListingEntry[]>; currency?: CustomsCurrency } = {}): Promise<ListingEntry | null> {
+  const { maxPages = 120, pages = listingPage, currency = "USD" } = options;
   let sawOlder = false;
   let previous = "";
   for (let page = 1; page <= maxPages; page += 1) {
@@ -194,7 +200,7 @@ export async function findTable(table: CustomsTable, month: string, options: { m
     const signature = entries.map((entry) => entry.href).join("|");
     if (entries.length === 0 || signature === previous) return null;
     previous = signature;
-    const found = entries.find((entry) => entry.table === table && entry.usd && entry.month === month);
+    const found = entries.find((entry) => entry.table === table && entry.currency === currency && entry.month === month);
     if (found) return found;
     if (entries.some((entry) => entry.month && entry.month < month)) sawOlder = true;
     if (sawOlder && entries.every((entry) => !entry.month || entry.month < month)) return null;
@@ -260,6 +266,8 @@ export interface CustomsIndicator {
   endedNote?: string;
   table: CustomsTable;
   regions: NbsRegion[];
+  /** The denomination of the table read; Customs publishes each in both. USD when omitted. */
+  currency?: CustomsCurrency;
   /** Day of the month by which the previous month's tables are out (server/due.ts). */
   releaseDay?: number;
   /** Region codes listed as their own rows on the home page: the partners a reader looks for first. */
@@ -281,20 +289,20 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
   };
   let missing = 0;
   for (const month of months) {
-    const entry = await findTable(cfg.table, month);
+    const entry = await findTable(cfg.table, month, { currency: cfg.currency ?? "USD" });
     // Three missing in a row is the end of the archive (or a table Customs did
     // not publish that year); a single gap is skipped.
     if (!entry) { missing += 1; if (missing >= 3) break; continue; }
     missing = 0;
     const html = await tableHtml(entry);
     if (cfg.table === "by-country") {
-      const row = parseByCountry(html).find((item) => slugOf(item.name) === region.value);
+      const row = parseByCountry(html, cfg.currency ?? "USD").find((item) => slugOf(item.name) === region.value);
       if (!row) continue;
       push("Exports", month, row.exports);
       push("Imports", month, row.imports);
       push("Balance", month, row.exports !== null && row.imports !== null ? Math.round((row.exports - row.imports) * 10) / 10 : null);
     } else {
-      const row = parseCommodities(html).find((item) => slugOf(item.name) === region.value);
+      const row = parseCommodities(html, cfg.currency ?? "USD").find((item) => slugOf(item.name) === region.value);
       if (!row) continue;
       push("Value", month, row.value);
       if (row.quantityUnit) push(`Quantity (${row.quantityUnit})`, month, row.quantity);

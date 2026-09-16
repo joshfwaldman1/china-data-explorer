@@ -795,6 +795,33 @@ export const CATALOG: Record<string, Indicator> = {
     regions: CUSTOMS_IMPORT_COMMODITIES,
     releaseDay: 14,
   },
+  // The same three Customs tables in CNY, the denomination the bureau quotes
+  // its growth rates in. Their own keys, never mixed with the USD series; no
+  // concordance pair, since the two denominations differ by the month's rate.
+  trade_partners_cny: {
+    kind: "customs", group: "Trade & External", home: false,
+    title: "Trade by Partner (CNY)", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Hundred million CNY (亿元)",
+    table: "by-country", currency: "CNY",
+    regions: CUSTOMS_PARTNERS,
+    releaseDay: 14,
+  },
+  major_exports_cny: {
+    kind: "customs", group: "Trade & External", home: false,
+    title: "Major Exports by Commodity (CNY)", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Hundred million CNY (亿元)",
+    table: "major-exports", currency: "CNY",
+    regions: CUSTOMS_EXPORT_COMMODITIES,
+    releaseDay: 14,
+  },
+  major_imports_cny: {
+    kind: "customs", group: "Trade & External", home: false,
+    title: "Major Imports by Commodity (CNY)", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Hundred million CNY (亿元)",
+    table: "major-imports", currency: "CNY",
+    regions: CUSTOMS_IMPORT_COMMODITIES,
+    releaseDay: 14,
+  },
   real_estate: {
     kind: "aktools", group: "Property",
     title: "Real Estate Climate Index (国房景气指数)", agency: "National Bureau of Statistics",
