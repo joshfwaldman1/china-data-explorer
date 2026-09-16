@@ -23,6 +23,41 @@ const STATISTICS = `${SITE}/diaochatongjisi/116219/116319/index.html`;
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const PAUSE_MS = 1000;
 
+/**
+ * The tables read, each in one of the statistics section's yearly indexes
+ * (社会融资规模, 货币统计概览, 金融机构信贷收支统计). The money and credit
+ * tables and the reserves table run months across, one column per month
+ * (two for the reserves, dollars then SDRs).
+ */
+export type PbocTable = "flow" | "stock" | "stock_growth" | "money" | "money_growth" | "reserves" | "credit";
+const TABLES: Record<PbocTable, { section: string; title: RegExp; pairs?: boolean }> = {
+  flow: { section: "社会融资规模", title: /^社会融资规模增量统计表/ },
+  stock: { section: "社会融资规模", title: /^社会融资规模存量统计表/ },
+  stock_growth: { section: "社会融资规模", title: /^社会融资规模存量统计表/ },
+  money: { section: "货币统计概览", title: /^货币供应量/ },
+  money_growth: { section: "货币统计概览", title: /^货币供应量/ },
+  reserves: { section: "货币统计概览", title: /^官方储备资产/, pairs: true },
+  credit: { section: "金融机构信贷收支统计", title: /^金融机构人民币信贷收支表/ },
+};
+
+export const MONEY_ROWS: { match: RegExp; label: string }[] = [
+  { match: /M2/, label: "M2" }, { match: /M1/, label: "M1" }, { match: /M0/, label: "M0" },
+];
+export const RESERVE_ROWS: { match: RegExp; label: string }[] = [
+  { match: /Foreign currency reserves/i, label: "Foreign currency reserves" },
+  { match: /^4\.\s*黄金|Gold/i, label: "Gold" },
+  { match: /SDRs/i, label: "SDRs" },
+  { match: /IMF reserve position/i, label: "IMF reserve position" },
+  { match: /^合计|Total/i, label: "Total" },
+];
+export const CREDIT_ROWS: { match: RegExp; label: string }[] = [
+  { match: /^一、各项存款|Total Deposits/i, label: "Total deposits" },
+  { match: /住户存款|Deposits of Households/i, label: "Deposits of households" },
+  { match: /^一、各项贷款|Total Loans/i, label: "Total loans" },
+  { match: /住户贷款|Loans to Households/i, label: "Loans to households" },
+  { match: /企（事）业单位贷款|Loans to Non-financial Enterprises/i, label: "Loans to non-financial enterprises" },
+];
+
 export interface PbocIndicator {
   kind: "pboc";
   group: string;
@@ -34,7 +69,7 @@ export interface PbocIndicator {
   ended?: string;
   endedNote?: string;
   /** Which table and reading this key serves. */
-  table: "flow" | "stock" | "stock_growth";
+  table: PbocTable;
   /** Day of the month by which the publisher's release is normally out (server/due.ts). */
   releaseDay?: number;
   /** The instruments served, in order, by their English label in the tables. */
@@ -137,12 +172,50 @@ export function parseStockTable(html: string): StockPoint[] {
   return out;
 }
 
-/** The yearly 社会融资规模 index pages linked from the statistics section, newest first, with the year each covers. */
-export function yearIndexLinks(statisticsHtml: string, now = new Date()): { year: number; url: string }[] {
-  const links = [...statisticsHtml.matchAll(/href=["']([^"']+)["'][^>]*>\s*社会融资规模\s*<\/a>/g)].map((match) => match[1] ?? "");
+/** The yearly index pages of one section linked from the statistics section, newest first, with the year each covers. */
+export function yearIndexLinks(statisticsHtml: string, now = new Date(), section = "社会融资规模"): { year: number; url: string }[] {
+  const links = [...statisticsHtml.matchAll(new RegExp(`href=["']([^"']+)["'][^>]*>\\s*${section}\\s*</a>`, "g"))].map((match) => match[1] ?? "");
   const first = links[0]?.match(/(\d{4})ntjsj/);
   const firstYear = first ? Number(first[1]) : now.getUTCFullYear();
   return links.map((path, index) => ({ year: firstYear - index, url: new URL(path, SITE).toString() }));
+}
+
+/** The htm attachment of the table on a year's index whose title matches. */
+export function tableLinkByTitle(indexHtml: string, title: RegExp): string | null {
+  for (const table of indexHtml.matchAll(/<table[^>]*class="a2015"[\s\S]*?<\/table>/g)) {
+    const heading = (table[0].match(/<div class="titp20">([\s\S]*?)<\/div>/)?.[1] ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const htm = table[0].match(/href=["']([^"']+)["'][^>]*>\s*htm\s*</)?.[1];
+    if (htm && title.test(heading)) return new URL(htm, SITE).toString();
+  }
+  return null;
+}
+
+/**
+ * A months-across table: the header row carries "2026.01" … per month, each
+ * data row a label (in one or more leading cells, Chinese and English) and
+ * one value per month, or two when `pairs` (dollars then SDRs; the first is
+ * taken). A month the year has not reached is an empty cell.
+ */
+export function parseMonthsAcross(html: string, rows: { match: RegExp; label: string }[], pairs = false): Map<string, SeriesPoint[]> {
+  const table = cellsOf(html);
+  const header = table.find((row) => row.filter((cell) => periodOf(cell)).length >= 6);
+  if (!header) throw new Error("PBOC table: period header not found");
+  const periods = header.map((cell) => periodOf(cell)).filter((period): period is string => period !== null);
+  const out = new Map<string, SeriesPoint[]>();
+  for (const row of table) {
+    let labelEnd = 0;
+    for (let index = 0; index < Math.min(4, row.length); index += 1) if (row[index] && num(row[index]) === null) labelEnd = index + 1;
+    if (labelEnd === 0) continue;
+    const label = row.slice(0, labelEnd).join(" ");
+    const item = rows.find((candidate) => candidate.match.test(label));
+    if (!item || out.has(item.label)) continue;
+    const values = row.slice(labelEnd);
+    const points: SeriesPoint[] = [];
+    periods.forEach((period, index) => { const value = num(values[pairs ? index * 2 : index]); if (value !== null) points.push({ date: period, value }); });
+    if (points.length > 0) out.set(item.label, points);
+  }
+  if (out.size === 0) throw new Error("PBOC table: no rows recognised");
+  return out;
 }
 
 /** The htm attachments of one year's index: the flow and stock tables (not the by-province one). */
@@ -178,20 +251,12 @@ async function get(url: string): Promise<ArrayBuffer> {
  */
 export async function fetchPboc(key: string, cfg: PbocIndicator, limit: number, read: (url: string) => Promise<ArrayBuffer> = get): Promise<SeriesResult> {
   const pause = read === get ? PAUSE_MS : 0;
-  const years = Math.min(15, Math.max(1, Math.ceil(limit / 12) + 1));
-  const indexes = yearIndexLinks(decodePage(await read(STATISTICS))).slice(0, years);
+  // A computed growth rate needs the year before its first month too.
+  const years = Math.min(15, Math.max(1, Math.ceil(limit / 12) + (cfg.table === "money_growth" ? 2 : 1)));
+  const spec = TABLES[cfg.table];
+  const indexes = yearIndexLinks(decodePage(await read(STATISTICS)), new Date(), spec.section).slice(0, years);
   const flows: FlowRow[] = [];
   const stocks: StockPoint[] = [];
-  for (const index of indexes) {
-    if (pause > 0) await Bun.sleep(pause);
-    const links = tableLinks(decodePage(await read(index.url)));
-    const wanted = cfg.table === "flow" ? links.flow : links.stock;
-    if (!wanted) continue;
-    if (pause > 0) await Bun.sleep(pause);
-    const html = decodePage(await read(wanted));
-    if (cfg.table === "flow") flows.push(...parseFlowTable(html));
-    else stocks.push(...parseStockTable(html));
-  }
   const lines = new Map<string, Map<string, number>>();
   const put = (label: string, period: string, value: number | null) => {
     if (value === null) return;
@@ -199,9 +264,43 @@ export async function fetchPboc(key: string, cfg: PbocIndicator, limit: number, 
     line.set(period, value);
     lines.set(label, line);
   };
+  // A year whose page is missing or unreadable is skipped; the fetch fails
+  // only when no year could be read, with that year's reason.
+  const failures: string[] = [];
+  let readYears = 0;
+  for (const index of indexes) {
+    try {
+      if (pause > 0) await Bun.sleep(pause);
+      const wanted = tableLinkByTitle(decodePage(await read(index.url)), spec.title);
+      if (!wanted) continue;
+      if (pause > 0) await Bun.sleep(pause);
+      const html = decodePage(await read(wanted));
+      if (cfg.table === "flow") flows.push(...parseFlowTable(html));
+      else if (cfg.table === "stock" || cfg.table === "stock_growth") stocks.push(...parseStockTable(html));
+      else {
+        const parsed = parseMonthsAcross(html, cfg.instruments, spec.pairs);
+        for (const [label, points] of parsed) for (const point of points) put(label, point.date, point.value);
+      }
+      readYears += 1;
+    } catch (error) {
+      failures.push(`${index.year}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (readYears === 0) throw new Error(failures[0] ?? "PBOC: no year could be read");
+  if (cfg.table === "money_growth") {
+    // Growth on a year earlier from the bank's levels, to one decimal as the bank prints it.
+    for (const [label, line] of lines) {
+      const growth = new Map<string, number>();
+      for (const [period, value] of line) {
+        const earlier = line.get(`${Number(period.slice(0, 4)) - 1}${period.slice(4)}`);
+        if (earlier && earlier !== 0) growth.set(period, Math.round(((value / earlier) - 1) * 1000) / 10);
+      }
+      lines.set(label, growth);
+    }
+  }
   if (cfg.table === "flow") {
     for (const row of flows) for (const instrument of cfg.instruments) put(instrument.label, row.period, row.values[instrument.label] ?? null);
-  } else {
+  } else if (cfg.table === "stock" || cfg.table === "stock_growth") {
     for (const point of stocks) {
       const instrument = cfg.instruments.find((item) => item.label === point.instrument);
       if (instrument) put(instrument.label, point.period, cfg.table === "stock" ? point.stock : point.growth);

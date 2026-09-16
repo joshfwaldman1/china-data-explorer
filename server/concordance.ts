@@ -210,6 +210,25 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "M2 (YoY %): computed from the bank's levels vs published", kind: "value",
+    left: { key: "money_stock_growth", label: "M2" },
+    right: { key: "money_supply", label: "M2 (YoY %)" }, // the mirror of the bank's release
+    tolerance: 0.15,
+    note: "A rate computed from month-end levels against the one the bank prints; rounding to one decimal on both sides.",
+  },
+  {
+    name: "FX reserves (100M USD)", kind: "value",
+    left: { key: "official_reserves", label: "Foreign currency reserves" }, // the bank's 官方储备资产 table
+    right: { key: "forex_reserves", label: "FX reserves (100M USD)" }, // the mirror of the bank's release
+    tolerance: 1,
+  },
+  {
+    name: "Gold reserves (100M USD)", kind: "value",
+    left: { key: "official_reserves", label: "Gold" },
+    right: { key: "gold_reserves", label: "Gold reserves (100M USD)" },
+    tolerance: 1,
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
@@ -235,8 +254,8 @@ export const NO_PAIR: Record<string, string> = {
   fdi_actual_use: "The renminbi figure is published only in the ministry's release; the enterprise count beside it is paired under fdi_new_enterprises.",
   fdi_growth: "The rates printed in the ministry's release; no second reading.",
   fdi_actual_use_usd: "Ended July 2023.",
-  forex_reserves: "PBOC's reserve template is not read yet (queued); NBS carries reserves annually only, in ten thousand dollars.",
-  gold_reserves: "As forex_reserves.",
+  money_stock: "The levels; the pair is on money_stock_growth, computed from them.",
+  bank_credit: "The bank's table is the only source; new_loans is a monthly flow of a different scope.",
   consumer_confidence: "NBS publishes the index in its release, not in the monthly database the catalog crawls.",
   enterprise_boom: "As consumer_confidence.",
   fiscal_expenditure: "The ministry's release is the only source; tax revenue in the same release is paired.",

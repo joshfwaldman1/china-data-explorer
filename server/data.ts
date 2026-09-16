@@ -14,7 +14,7 @@ import { fetchJson } from "./http";
 import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
 import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
-import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, type PbocIndicator } from "./pboc";
+import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, MONEY_ROWS, RESERVE_ROWS, CREDIT_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
 import { fetchSafe, BOP_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
@@ -593,6 +593,42 @@ export const CATALOG: Record<string, Indicator> = {
     // The growth the bank prints beside each month's stock, on a year earlier.
     table: "stock_growth",
     instruments: STOCK_ROWS.filter((row) => /^(Total|RMB loans|Government bonds|Corporate bonds)$/.test(row.label)),
+    releaseDay: 15,
+  },
+  money_stock: {
+    kind: "pboc", group: "Money & Credit", home: false,
+    title: "Money Stock (M0 / M1 / M2)", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元)",
+    // The bank's 货币供应量 table: month-end levels. M1 is on the definition the
+    // bank adopted for January 2025 data.
+    table: "money", instruments: MONEY_ROWS,
+    releaseDay: 15,
+  },
+  money_stock_growth: {
+    kind: "pboc", group: "Money & Credit", home: false,
+    title: "Money Stock Growth (M0 / M1 / M2), computed", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Percent change from year ago, computed from the bank's month-end levels",
+    // The bank prints levels only in this table; the rate here is computed from
+    // them to one decimal, and the audit holds it against the rate the bank
+    // publishes in its release (money_supply, via the mirror).
+    table: "money_growth", instruments: MONEY_ROWS,
+    releaseDay: 15,
+  },
+  official_reserves: {
+    kind: "pboc", group: "Trade & External", home: false,
+    title: "Official Reserve Assets", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元)",
+    // The bank's 官方储备资产 table: foreign currency reserves, gold, SDRs, the
+    // IMF position and the total, month-end, in dollars (the SDR column is not taken).
+    table: "reserves", instruments: RESERVE_ROWS,
+    releaseDay: 7,
+  },
+  bank_credit: {
+    kind: "pboc", group: "Money & Credit", home: false,
+    title: "Deposits and Loans of Financial Institutions (RMB)", agency: "People's Bank of China",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元)",
+    // 金融机构人民币信贷收支表: month-end stocks of deposits and loans.
+    table: "credit", instruments: CREDIT_ROWS,
     releaseDay: 15,
   },
   new_loans: {
