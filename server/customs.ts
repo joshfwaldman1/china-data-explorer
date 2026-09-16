@@ -27,9 +27,10 @@ const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const PAUSE_MS = 800;
 
-export type CustomsTable = "by-country" | "major-exports" | "major-imports";
+export type CustomsTable = "by-country" | "major-exports" | "major-imports" | "totals";
 
 const TABLE_TITLES: Record<CustomsTable, RegExp> = {
+  totals: /^\(1\)\s*China.{0,3}s Total Export\s*&\s*Import Values/i,
   "by-country": /by Country\/Region/i,
   "major-exports": /Major Exports by Quantity and Value/i,
   "major-imports": /Major Imports by Quantity and Value/i,
@@ -129,6 +130,32 @@ export function parseByCountry(html: string, currency: CustomsCurrency = "USD"):
     });
   }
   if (out.length < 10) throw new Error(`by-country table: only ${out.length} partner rows found`);
+  return out;
+}
+
+export interface TotalsRow { item: "total" | "exports" | "imports" | "balance"; month: number | null; yearToDate: number | null; monthOnMonth: number | null; yearOnYear: number | null; yearToDateYearOnYear: number | null }
+
+/**
+ * The monthly totals table, "(1) China's Total Export & Import Values": one
+ * row each for total trade, exports, imports and the balance, with the
+ * month's value and the year to date in 100 million (USD or CNY) and
+ * Customs' own month-on-month, year-on-year and year-to-date growth rates.
+ */
+export function parseTotals(html: string, currency: CustomsCurrency = "USD"): TotalsRow[] {
+  const rows = rowsOf(html);
+  const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
+  if (!new RegExp(`${currency}\\s*100\\s*Milli`, "i").test(unit)) throw new Error(`totals table: unexpected unit line "${unit}" for ${currency}`);
+  const items: { match: RegExp; item: TotalsRow["item"] }[] = [
+    { match: /^Total Export\s*&\s*Import/i, item: "total" }, { match: /^Total Export$/i, item: "exports" }, { match: /^Total Import$/i, item: "imports" }, { match: /^Export-Import Balance/i, item: "balance" },
+  ];
+  const out: TotalsRow[] = [];
+  for (const row of rows) {
+    const item = items.find((candidate) => candidate.match.test((row[0] ?? "").trim()))?.item;
+    if (!item || row.length < 6) continue;
+    const cell = (index: number) => { const value = Number((row[index] ?? "").replace(/,/g, "")); return Number.isFinite(value) && (row[index] ?? "").trim() !== "-" ? value : null; };
+    out.push({ item, month: cell(1), yearToDate: cell(2), monthOnMonth: cell(3), yearOnYear: cell(4), yearToDateYearOnYear: cell(5) });
+  }
+  if (!out.some((row) => row.item === "exports")) throw new Error("totals table: rows not recognised");
   return out;
 }
 
@@ -266,6 +293,8 @@ export interface CustomsIndicator {
   endedNote?: string;
   table: CustomsTable;
   regions: NbsRegion[];
+  /** For the totals table: the levels (100 million) or Customs' own growth rates. */
+  measure?: "levels" | "growth";
   /** The denomination of the table read; Customs publishes each in both. USD when omitted. */
   currency?: CustomsCurrency;
   /** Day of the month by which the previous month's tables are out (server/due.ts). */
@@ -295,7 +324,22 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     if (!entry) { missing += 1; if (missing >= 3) break; continue; }
     missing = 0;
     const html = await tableHtml(entry);
-    if (cfg.table === "by-country") {
+    if (cfg.table === "totals") {
+      const rows = parseTotals(html, cfg.currency ?? "USD");
+      const of = (item: TotalsRow["item"]) => rows.find((row) => row.item === item);
+      if (cfg.measure === "levels") {
+        push("Exports", month, of("exports")?.month ?? null);
+        push("Imports", month, of("imports")?.month ?? null);
+        push("Total trade", month, of("total")?.month ?? null);
+        push("Balance", month, of("balance")?.month ?? null);
+      } else {
+        push("Exports (YoY %)", month, of("exports")?.yearOnYear ?? null);
+        push("Imports (YoY %)", month, of("imports")?.yearOnYear ?? null);
+        push("Total trade (YoY %)", month, of("total")?.yearOnYear ?? null);
+        push("Exports, year to date (YoY %)", month, of("exports")?.yearToDateYearOnYear ?? null);
+        push("Imports, year to date (YoY %)", month, of("imports")?.yearToDateYearOnYear ?? null);
+      }
+    } else if (cfg.table === "by-country") {
       const row = parseByCountry(html, cfg.currency ?? "USD").find((item) => slugOf(item.name) === region.value);
       if (!row) continue;
       push("Exports", month, row.exports);

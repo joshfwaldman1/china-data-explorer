@@ -600,8 +600,27 @@ export const CATALOG: Record<string, Indicator> = {
     fields: [{ field: "RMB_LOAN", label: "New RMB loans (100M yuan)" }],
   },
   trade: {
-    kind: "eastmoney", group: "Trade & External",
+    kind: "customs", group: "Trade & External",
     title: "Merchandise Trade (Exports / Imports)", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // Customs' own growth rates from its monthly totals table, out with the
+    // preliminary release; the month's first print, in USD terms. NBS carries
+    // the same rates two weeks later, revised; the mirror copies the first print.
+    table: "totals", measure: "growth",
+    regions: [{ text: "Total", value: "total", en: "Total" }],
+    releaseDay: 14,
+  },
+  trade_values: {
+    kind: "customs", group: "Trade & External", home: false,
+    title: "Merchandise Trade Values (Exports / Imports)", agency: "General Administration of Customs",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元)",
+    table: "totals", measure: "levels",
+    regions: [{ text: "Total", value: "total", en: "Total" }],
+    releaseDay: 14,
+  },
+  trade_mirror: {
+    kind: "eastmoney", group: "Trade & External", home: false,
+    title: "Merchandise Trade (Exports / Imports), mirror copy", agency: "General Administration of Customs",
     frequency: "Monthly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_CUSTOMS",
     fields: [

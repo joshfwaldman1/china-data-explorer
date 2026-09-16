@@ -157,15 +157,31 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
   },
   {
     name: "Exports (YoY %)", kind: "value",
-    left: { key: "trade", label: "Exports (YoY %)" },
-    right: { key: "nbs_788f44b0f310403fbd308b77d6f83890" }, // 出口总值同比增长 (%)
-    // Customs revises the previous month with each release and the two paths
-    // pick up the revision at different times: on 15 September 2026 the
-    // mirror held 26.9, 19.2 and 14.0 for June, May and April against NBS's
-    // 27.0, 19.4 and 14.1, with July equal on both. A tenth or two is that;
-    // anything larger is a different statistic.
+    left: { key: "trade", label: "Exports (YoY %)" }, // Customs' own monthly totals table
+    right: { key: "trade_mirror", label: "Exports (YoY %)" }, // the Eastmoney mirror of the same release
+    // Customs' table holds each month's first print; the mirror carries the
+    // revision Customs makes a month later (July 2026 imports: 27.5 first,
+    // 27.6 revised). A tenth or two is that; more is a different statistic.
     tolerance: 0.25,
-    note: "Customs quotes the rate in USD terms on its English site and CNY on its Chinese one; NBS's table carries the USD rate. Revised months can differ by 0.1-0.2 pp between the mirror and NBS.",
+    note: "Customs' first print against the mirror, which carries the later revision; revised months differ by 0.1-0.2 pp. Both in USD terms.",
+  },
+  {
+    name: "Imports (YoY %)", kind: "value",
+    left: { key: "trade", label: "Imports (YoY %)" },
+    right: { key: "trade_mirror", label: "Imports (YoY %)" },
+    tolerance: 0.25,
+    note: "As the exports pair: first print against the revision.",
+  },
+  {
+    name: "Exports (YoY %): Customs vs NBS", kind: "value",
+    left: { key: "trade", label: "Exports (YoY %)" },
+    right: { key: "nbs_788f44b0f310403fbd308b77d6f83890" }, // 出口总值同比增长 (%), NBS's revised table
+    // Customs revises the previous month with each release; its table holds
+    // each month's first print and NBS's table the revision, so revised months
+    // differ by a tenth or two (June 2026: 26.9 against 27.0). More is a
+    // different statistic.
+    tolerance: 0.25,
+    note: "Customs' first print against NBS's revised table; revised months differ by 0.1-0.2 pp.",
   },
   {
     name: "Surveyed urban unemployment (%)", kind: "value",
