@@ -2170,3 +2170,26 @@ not from scratch. Rounds are small on purpose.
   282,355.8. Surfaced: Customs' partner table lists groupings (Belt and Road,
   RCEP, APEC, the EU, ASEAN) beside countries and they rank together; a
   grouping filter is a possible refinement.
+
+- 2026-09-16 (dataset loop, round 5: NEA electricity demand): the site had
+  generation from NBS and nothing on consumption. NEA's site is a Xinhua CMS
+  whose listings render from a JSON datasource beside the page
+  (`xwfb/ds_<id>.json`, every 新闻发布 item since 2020); the monthly
+  全社会用电量 note is in it, and each release page carries its text in the
+  body (two markups since 2024, same wording). `server/nea.ts` serves
+  `electricity_demand` (亿千瓦时: month and year to date, total and by primary,
+  secondary, tertiary industry and households) and `electricity_demand_growth`
+  (the published rates). January-February and the annual release go to the
+  year-to-date line only. Tests: four page shapes parse to the published
+  figures (July 2026 10,400 and +1.7%; September 2024 8,475 and +8.5%;
+  January-February 2026 16,546; 2025 103,682), the feed yields the demand
+  notes newest first with absolute URLs and without the fuller statistics
+  releases, and the adapter builds level and growth lines. Live:
+  `/api/series/electricity_demand` answers July 2026 10,400 with year to date
+  61,399 (source live until the next headline sweep stores it); growth 1.7 and
+  4.7. A concordance pair holds the growth month line against its year-to-date
+  line; the cumulative rule now takes a monthly pair's first period of the
+  year as January, or February when the pair carries no January. Surfaced: no
+  separate May 2026 demand note is in the feed (the "1-5月份全国电力工业统计数据"
+  release may carry it); NEA is on no release calendar this site reads, so
+  the series arrives with the daily sweeps.
