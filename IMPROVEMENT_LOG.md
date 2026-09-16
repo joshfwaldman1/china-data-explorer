@@ -2253,3 +2253,23 @@ not from scratch. Rounds are small on purpose.
   queued as a follow-up. No concordance pair: nothing else on the site
   measures it, and Customs' goods balance is on a different basis (said so
   beside the catalog entry).
+
+- 2026-09-16 (dataset loop, round 9: MOFCOM foreign direct investment): the
+  site's FDI series was the mirror's dollar figure, ended July 2023 when the
+  ministry moved its headline to renminbi. Two paths found: the data centre
+  (data.mofcom.gov.cn, a POST to /datamofcom/front/lywz/direct/query answers
+  every month since 2008 — new foreign-invested enterprises for the year to
+  date with growth, and the dollar amount until 2023-07), and the ministry's
+  monthly news release "N年1-M月全国吸收外资X亿元人民币", reachable through the
+  site's CMS list API (jpaas-publish-server, twenty items of HTML a page,
+  parameters copied from the column page's unit tag; a headless Chrome could
+  not load the listing page but the API answers a plain GET). `server/mofcom.ts`
+  serves `fdi_actual_use` (亿元, year to date, with manufacturing, services and
+  high-technology parts), `fdi_new_enterprises`, `fdi_growth` and
+  `fdi_actual_use_usd` (ended 2023-07, flagged). Tests: five, over the data
+  centre's answer (214 months, dollar amount 1,118 in 2023-07), a list page,
+  two releases (July 2026 4,383.3, −6.2 percent, high-tech 1,823.1, +32.7)
+  and the joined adapter. Live: `/api/series/fdi_actual_use` July 2026
+  4,383.3; the enterprise count 37,711 on both paths, and a concordance pair
+  holds them together. Not on any calendar: the ministry publishes around the
+  20th; queued with the other `releaseDay` follow-ups.
