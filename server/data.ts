@@ -16,6 +16,7 @@ import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
+import { fetchSafe, BOP_ITEMS, type SafeIndicator } from "./safe";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -245,7 +246,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator | MofIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator | MofIndicator | SafeIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -607,6 +608,17 @@ export const CATALOG: Record<string, Indicator> = {
       { field: "IMPORT_BASE_SAME", label: "Imports (YoY %)" },
     ],
     releaseDay: 14, // Customs' preliminary release; the mirror follows it the same day
+  },
+  balance_of_payments: {
+    kind: "safe", group: "Trade & External",
+    title: "Balance of Payments", agency: "State Administration of Foreign Exchange",
+    frequency: "Quarterly", unit: "Hundred million USD (亿美元)",
+    // SAFE's BPM6 time series, final figures: the workbook is replaced with
+    // each quarter's final release, about three months after the quarter.
+    // BPM6 signs: a financial-account outflow and a rise in reserves are negative.
+    // No concordance pair: nothing else on the site measures the balance of
+    // payments, and Customs' goods balance is on a different basis.
+    items: BOP_ITEMS,
   },
   forex_reserves: {
     kind: "eastmoney", group: "Trade & External",
@@ -1252,6 +1264,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   else if (cfg.kind === "nea") data = await fetchNea(key, cfg, limit);
   else if (cfg.kind === "pboc") data = await fetchPboc(key, cfg, limit);
   else if (cfg.kind === "mof") data = await fetchMof(key, cfg, limit);
+  else if (cfg.kind === "safe") data = await fetchSafe(key, cfg, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1280,6 +1293,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "nea") return neaLabels(cfg);
   if (cfg.kind === "pboc") return cfg.instruments.map((instrument) => instrument.label);
   if (cfg.kind === "mof") return mofLabels(cfg);
+  if (cfg.kind === "safe") return cfg.items.map((item) => item.label);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
@@ -1339,6 +1353,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "nea") return fetchNea(key, cfg, limit);
   if (cfg.kind === "pboc") return fetchPboc(key, cfg, limit);
   if (cfg.kind === "mof") return fetchMof(key, cfg, limit);
+  if (cfg.kind === "safe") return fetchSafe(key, cfg, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }
