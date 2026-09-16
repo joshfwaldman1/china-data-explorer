@@ -15,6 +15,7 @@ import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
 import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, type PbocIndicator } from "./pboc";
+import { fetchMof, mofLabels, type MofIndicator } from "./mof";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -244,7 +245,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator | MofIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -644,6 +645,37 @@ export const CATALOG: Record<string, Indicator> = {
     // column in the same table stopped being filled; only the boom index is served.
     reportName: "RPT_ECONOMY_BOOM_INDEX",
     fields: [{ field: "BOOM_INDEX", label: "Enterprise boom index" }],
+  },
+  fiscal_revenue: {
+    kind: "mof", group: "Public Finance",
+    title: "Fiscal Revenue, Year to Date", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The ministry's monthly 财政收支情况: every figure is January to the
+    // month, and the titles say so. The month's own figure is not published.
+    measure: "level",
+    items: ["revenue", "tax", "nonTax", "fundRevenue"],
+  },
+  fiscal_expenditure: {
+    kind: "mof", group: "Public Finance", home: false,
+    title: "Fiscal Expenditure, Year to Date", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    measure: "level",
+    items: ["expenditure", "fundExpenditure"],
+  },
+  land_sale_revenue: {
+    kind: "mof", group: "Public Finance",
+    title: "Land Sale Revenue, Year to Date", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // 国有土地使用权出让收入, the local governments' land-lease income, inside the government fund budget.
+    measure: "level",
+    items: ["landSales"],
+  },
+  fiscal_growth: {
+    kind: "mof", group: "Public Finance", home: false,
+    title: "Fiscal Revenue and Expenditure Growth, Year to Date", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    measure: "growth",
+    items: ["revenue", "tax", "expenditure", "landSales", "fundRevenue"],
   },
   tax_revenue: {
     kind: "eastmoney", group: "Public Finance", home: false,
@@ -1219,6 +1251,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   else if (cfg.kind === "cfets") data = await fetchCfets(key, cfg, limit);
   else if (cfg.kind === "nea") data = await fetchNea(key, cfg, limit);
   else if (cfg.kind === "pboc") data = await fetchPboc(key, cfg, limit);
+  else if (cfg.kind === "mof") data = await fetchMof(key, cfg, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1246,6 +1279,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "cfets") return cfg.tenors.map((tenor) => tenor.label);
   if (cfg.kind === "nea") return neaLabels(cfg);
   if (cfg.kind === "pboc") return cfg.instruments.map((instrument) => instrument.label);
+  if (cfg.kind === "mof") return mofLabels(cfg);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
@@ -1304,6 +1338,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "cfets") return fetchCfets(key, cfg, limit);
   if (cfg.kind === "nea") return fetchNea(key, cfg, limit);
   if (cfg.kind === "pboc") return fetchPboc(key, cfg, limit);
+  if (cfg.kind === "mof") return fetchMof(key, cfg, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }

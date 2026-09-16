@@ -108,6 +108,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Both from NEA's monthly release. The month line has no January or February; the combined figure sits on the year-to-date line, so the first common period of a year is March.",
   },
   {
+    name: "Tax revenue, year to date (亿元)", kind: "value",
+    left: { key: "fiscal_revenue", label: "Tax revenue, year to date" },
+    right: { key: "tax_revenue", label: "Tax revenue, year to date" }, // Eastmoney RPT_ECONOMY_TAX, quarterly
+    tolerance: 1,
+    note: "The ministry's own monthly release against the mirror's quarterly copy; compared at quarter ends.",
+  },
+  {
     name: "CPI (YoY %)", kind: "value",
     left: { key: "cpi", label: "CPI (YoY %)" },
     right: { key: "nbs_53180dfb9c14411ba4b762307c85920c", offset: -100 }, // 居民消费价格指数 (上年同月=100)
