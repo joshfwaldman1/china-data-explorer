@@ -229,6 +229,34 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     tolerance: 1,
   },
   {
+    name: "Real estate investment, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "property_investment", label: "Real estate investment, year to date (YoY %)" },
+    right: { key: "nbs_205e08cba8c2409980db58c98da91b6f" }, // 房地产投资_累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Floor space sold, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "property_sales", label: "Floor space sold, year to date (YoY %)" },
+    right: { key: "nbs_50a37fbef1d04be68f15d82b711783bf" }, // 新建商品房销售面积累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Floor space started, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "property_construction", label: "Floor space started, year to date (YoY %)" },
+    right: { key: "nbs_d0bfd7e4b56a4bb98cea7cfd141475d9" }, // 房地产新开工施工面积累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Funds raised, year to date (YoY %, YTD)", kind: "value",
+    left: { key: "property_funds", label: "Funds raised, year to date (YoY %)" },
+    right: { key: "nbs_e3c3d04b40fc41348a82eb8b6fdcb28b" }, // 房地产投资本年资金来源小计累计增长 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
@@ -255,6 +283,11 @@ export const NO_PAIR: Record<string, string> = {
   fdi_growth: "The rates printed in the ministry's release; no second reading.",
   fdi_actual_use_usd: "Ended July 2023.",
   money_stock: "The levels; the pair is on money_stock_growth, computed from them.",
+  property_investment_value: "The levels; the pair is on property_investment.",
+  property_sales_area: "The level; the pair is on property_sales.",
+  property_sales_value: "The level of a table whose growth the catalog serves as a transform; no second reading.",
+  property_construction_area: "The levels; the pair is on property_construction.",
+  property_funds_value: "The levels; the pair is on property_funds.",
   bank_credit: "The bank's table is the only source; new_loans is a monthly flow of a different scope.",
   consumer_confidence: "NBS publishes the index in its release, not in the monthly database the catalog crawls.",
   enterprise_boom: "As consumer_confidence.",

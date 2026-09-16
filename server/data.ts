@@ -890,6 +890,113 @@ export const CATALOG: Record<string, Indicator> = {
     regions: CUSTOMS_IMPORT_COMMODITIES,
     releaseDay: 14,
   },
+  property_investment: {
+    kind: "nbs", group: "Property",
+    title: "Real Estate Investment Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // NBS's monthly real estate release (房地产开发投资情况): cumulative for the year, as the bureau publishes it.
+    cid: "9206137ccf03460daa74b7799e0f3c31",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "205e08cba8c2409980db58c98da91b6f", label: "Real estate investment, year to date (YoY %)" },
+      { id: "21743217a484413fb02c09259cdf6bc0", label: "Residential investment, year to date (YoY %)" },
+    ],
+  },
+  property_investment_value: {
+    kind: "nbs", group: "Property", home: false,
+    title: "Real Estate Investment, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The levels behind property_investment.
+    cid: "9206137ccf03460daa74b7799e0f3c31",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "bfb626c0dfa04afab67937c452ca9f50", label: "Real estate investment, year to date" },
+      { id: "f6c2584119124db1bd7672ae7147b9e8", label: "Residential investment, year to date" },
+    ],
+  },
+  property_sales: {
+    kind: "nbs", group: "Property",
+    title: "New Home Floor Space Sold Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // 新建商品房销售面积: floor space sold, cumulative for the year. Sales value is its own table, served as property_sales_value.
+    cid: "0ae633cdb85f4a8397650831b2b27e50",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "50a37fbef1d04be68f15d82b711783bf", label: "Floor space sold, year to date (YoY %)" },
+    ],
+  },
+  property_sales_area: {
+    kind: "nbs", group: "Property", home: false,
+    title: "New Home Floor Space Sold, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Ten thousand square metres (万平方米), cumulative year to date",
+    // The level behind property_sales.
+    cid: "0ae633cdb85f4a8397650831b2b27e50",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "d353226cf0434c929b6299f8d4987754", label: "Floor space sold, year to date" },
+    ],
+  },
+  property_sales_value: {
+    kind: "nbs", group: "Property", home: false,
+    title: "New Home Sales Value, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // 新建商品房销售额, cumulative for the year; its growth is the catalog's own transform.
+    cid: "5530aa75038249fab2e5e10a9997c18b",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "090ed0c087024014a7fe903e409958df", label: "Sales value, year to date" },
+    ],
+  },
+  property_construction: {
+    kind: "nbs", group: "Property",
+    title: "Housing Starts, Completions and Under Construction, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // 房地产施工、竣工面积: floor space started, completed and under construction, cumulative for the year.
+    cid: "cac0766314e045ea82f69886aabd31b0",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "d0bfd7e4b56a4bb98cea7cfd141475d9", label: "Floor space started, year to date (YoY %)" },
+      { id: "526de94de84b4b08a898d94a212d18b8", label: "Floor space completed, year to date (YoY %)" },
+      { id: "ef1eeecd33c64b9ab5f6f180b3bb65d9", label: "Floor space under construction, year to date (YoY %)" },
+    ],
+  },
+  property_construction_area: {
+    kind: "nbs", group: "Property", home: false,
+    title: "Housing Starts, Completions and Under Construction, Year to Date (area)", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Ten thousand square metres (万平方米), cumulative year to date",
+    // The levels behind property_construction.
+    cid: "cac0766314e045ea82f69886aabd31b0",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "17660a75e3494e389bad3658ff124995", label: "Floor space started, year to date" },
+      { id: "a0def4ba92f94107b884c46b70adc08b", label: "Floor space completed, year to date" },
+      { id: "9ed8eb38cd5a4dbc8bc340883fb8754d", label: "Floor space under construction, year to date" },
+    ],
+  },
+  property_funds: {
+    kind: "nbs", group: "Property",
+    title: "Developers' Funds Raised, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // 房地产开发投资实际到位资金: funds available to developers this year, in total and from domestic loans.
+    cid: "4c5a2c305155451f99abf94e42305ba2",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "e3c3d04b40fc41348a82eb8b6fdcb28b", label: "Funds raised, year to date (YoY %)" },
+      { id: "4d609e39f8404f01aa1f7203caa32020", label: "Domestic loans, year to date (YoY %)" },
+    ],
+  },
+  property_funds_value: {
+    kind: "nbs", group: "Property", home: false,
+    title: "Developers' Funds Raised, Year to Date (value)", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The levels behind property_funds.
+    cid: "4c5a2c305155451f99abf94e42305ba2",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "d43adb048a744b60bdc1621c967a5331", label: "Funds raised, year to date" },
+      { id: "491731775fdc444393c3bc4fbe18f053", label: "Domestic loans, year to date" },
+    ],
+  },
   real_estate: {
     kind: "aktools", group: "Property",
     title: "Real Estate Climate Index (国房景气指数)", agency: "National Bureau of Statistics",
