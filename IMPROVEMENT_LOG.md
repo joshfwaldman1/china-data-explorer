@@ -2291,3 +2291,23 @@ not from scratch. Rounds are small on purpose.
   exports 2,886.1, imports 903, balance 1,983.1; `major_exports_cny`
   agriculture 623.2. The CNY commodity tables carry values only, no
   quantities, so those keys have a Value line alone.
+
+- 2026-09-16 (dataset loop, round 11: NBS international datasets): the
+  portal's `queryIndexTreeAsync?code=N` answers three datasets beyond the ten
+  the catalog held — 12 三大经济体月度数据 (the US, Japan and the euro area,
+  monthly), 13 国际市场月度商品价格 (world commodity price indices, monthly),
+  14 主要国家年度数据 (42 countries, annual); 11, 15 and 16 are empty. A
+  geography "International" now runs from the sync scripts through the
+  catalog types to the page copy ("by country"), and the countries carry
+  English names through `shared/places.ts` (COUNTRY_PLACES, matched by name;
+  the portal's region codes are "USA", "JPN", "EA"). Found on the way: the
+  major-country tables group their countries by continent with no node for
+  all of them, so the region sync's first-list-that-answers rule kept 亚洲
+  (20) alone; for an international table it now unions the groups (42). One
+  table, 国民经济核算, has no region catalog on the portal. 80 indicators
+  merged: 79,836 entries over 13 datasets, 66,302 browsable. Tests: three
+  over the shipped snapshot and lists. Live: `/api/catalog/stats` lists the
+  three datasets; `/api/series/nbs_a4a3876e1dd14ce5be5ac685692dcad6?region=USA`
+  (US CPI, year on year) July 2026 3.4; `/api/regional/nbs_992f74cbe36f40b8870ca114bb062004`
+  (under-15 population share) lists 42 countries, none stored yet — the crawl
+  fills them behind the request.
