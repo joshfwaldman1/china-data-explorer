@@ -2458,3 +2458,17 @@ not from scratch. Rounds are small on purpose.
   and named in the log (more than a third failing still fails the run); 31
   of 33 months stored locally, the combined months absent from the totals
   key. The live store picks it up at the next sweep.
+
+- 2026-09-16 (dataset loop, round 20: prices beyond the headlines):
+  `cpi_detail` serves NBS's 居民消费价格分类指数 as the change on a year earlier
+  — core (excluding food and energy), food, tobacco and dining out, non-food,
+  consumer goods, services, housing — and `ppi_detail` the headline beside
+  producer goods and consumer goods; each index is published on the same
+  month a year earlier = 100 and served with that offset. The CPI table is
+  the bureau's 2026 slice (2021-2025 is a separate table; a follow-up could
+  stitch them). Two pairs; an id test that also holds the offset. MOFCOM's
+  weekly price indices are text reports on price.mofcom.gov.cn, not a data
+  endpoint — a separate adapter, queued. Live, from the store after the
+  sweep: August 2026 core CPI 1.0, food −0.7, non-food 1.2, PPI 3.8,
+  producer goods 5.0, consumer goods −0.5; 33 pairs, 0 findings; the trade
+  headline now stored (5.03 million observations).
