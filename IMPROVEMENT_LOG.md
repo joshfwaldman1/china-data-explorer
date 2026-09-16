@@ -2311,3 +2311,24 @@ not from scratch. Rounds are small on purpose.
   (US CPI, year on year) July 2026 3.4; `/api/regional/nbs_992f74cbe36f40b8870ca114bb062004`
   (under-15 population share) lists 42 countries, none stored yet — the crawl
   fills them behind the request.
+
+- 2026-09-16 (dataset loop, round 12: trade growth from Customs' own release):
+  the exports and imports headline came from the mirror. The first idea,
+  NBS's monthly table, would have made the headline two weeks stale: on 16
+  September NBS's table still ended in July while Customs had published
+  August on the 8th. Customs' English site carries, with each preliminary
+  release, a totals table ("(1) China's Total Export & Import Values") with
+  the month's value, the year to date and the bureau's own month-on-month,
+  year-on-year and year-to-date rates; the Customs adapter reads it as a
+  fourth table, `trade` serves the rates (first print, USD terms, release
+  day) and `trade_values` the levels in 亿美元; the mirror stays as
+  `trade_mirror` for the audit. Tests: two, over the August 2026 table
+  (exports 4,014.4 and +25.0, imports +28.2, balance 1,190.9; the wrong
+  denomination and the wrong table refused). Found on the way: the mirror
+  carries Customs' later revision (July 2026 imports 27.5 first print, 27.6
+  revised), so a first-print-against-revision pair at 0.05 would flag
+  revisions rather than mislabels; the two trade pairs and the Customs-vs-NBS
+  pair are at 0.25, the size of a revision, with the reason recorded. Live:
+  `/api/series/trade` August 2026 exports +25.0, imports +28.2, total +26.3,
+  year to date 19.3 and 27.0; `trade_values` exports 4,014.4; the
+  Customs-vs-NBS pair ok at July 23.9 on both.
