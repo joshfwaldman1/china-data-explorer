@@ -2401,3 +2401,21 @@ not from scratch. Rounds are small on purpose.
   3,500.8, total 38,548.85; `money_stock_growth` M2 7.5, M1 4.1, M0 11.2;
   `bank_credit` total loans 2,823,513.09; 20 pairs, 0 findings, the three new
   ones "missing" until the next sweep stores the keys.
+
+- 2026-09-16 (dataset loop, round 17: property activity): the Property
+  group held prices and a climate index. NBS's monthly real-estate release
+  is in the catalog under names the bureau changed (新建商品房销售面积,
+  房地产投资_累计增长, 房地产新开工施工面积 — the first search for the old names
+  found nothing), all cumulative for the year. Nine curated keys serve it,
+  titled year to date: `property_investment` (total and residential growth)
+  and `_value`, `property_sales` (floor space sold growth), `_area` and
+  `property_sales_value` (a separate table, so a separate key),
+  `property_construction` (starts, completions, under construction) and
+  `_area`, `property_funds` (total and domestic loans) and `_value`. The
+  unsold-stock table (商品房待售面积) is not in the monthly database. Four
+  pairs hold the growth keys against the catalog crawl; a test resolves every
+  id in the shipped snapshot to its named series from one table. Live:
+  July 2026 investment −19.2 percent year to date (residential −19.1), floor
+  space sold −11.8, starts −24.0, completions −23.2, funds raised −20.3,
+  domestic loans −32.1; 24 pairs, 0 findings, the four new ones "missing"
+  until the sweep stores the keys.

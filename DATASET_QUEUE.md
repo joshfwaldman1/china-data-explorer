@@ -11,60 +11,58 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **Property: activity from NBS's monthly tables.** Floor space sold and
-   started, real estate investment, funds raised by developers and unsold
-   floor space (房地产开发投资, 商品房销售面积, 房屋新开工面积, 房地产开发企业到位
-   资金, 商品房待售面积), year to date and so titled, from the catalog's
-   monthly dataset; a "Property" home group with prices beside them; pairs
-   against the crawl for each.
-   *Test:* July 2026 floor space sold parses and its pair is ok.
-
-3. **Property: developer financing and mortgages.** From PBOC's quarterly
+2. **Property: developer financing and mortgages.** From PBOC's quarterly
    金融机构贷款投向统计报告 (the bank's statistics section): real estate loans
    outstanding, mortgages (个人住房贷款) and their growth.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-4. **Investment: fixed-asset investment and its split.** Total FAI year to
+3. **Investment: fixed-asset investment and its split.** Total FAI year to
    date with manufacturing, infrastructure and property investment (from the
    monthly bundle, in the catalog), titled year to date; pairs against the
    crawl.
    *Test:* July 2026 FAI year-to-date growth parses and matches NBS's release.
 
-5. **Industry: profits, capacity utilisation and key products.** Industrial
+4. **Industry: profits, capacity utilisation and key products.** Industrial
    profits (工业企业利润, monthly, ~27th, year to date), capacity utilisation
    (quarterly) and physical output of steel, cement, autos and integrated
    circuits from the catalog's monthly tables, as a "Key products" group.
    *Test:* July 2026 crude steel output parses and its pair is ok.
 
-6. **Prices beyond the headlines.** Core CPI, food and non-food CPI, PPI by
+5. **Prices beyond the headlines.** Core CPI, food and non-food CPI, PPI by
    stage (生产资料 / 生活资料) as lines under `cpi` and `ppi`; MOFCOM's weekly
    food and production-material price indices from its data centre (the same
    API family as FDI).
    *Test:* August 2026 core CPI parses and matches NBS's release; the
    MOFCOM weekly index answers a POST.
 
-7. **PMI sub-indices from NBS's table.** New orders, production, employment,
+6. **PMI sub-indices from NBS's table.** New orders, production, employment,
    supplier deliveries, inventories from the monthly database (采购经理指数
    category), as a key beside `pmi`.
    *Test:* August 2026 new orders parses and the headline PMI pair stays ok.
 
-8. **70-city house prices from NBS's own city table.** The city monthly
+7. **70-city house prices from NBS's own city table.** The city monthly
    dataset (code 7) carries 新建商品住宅销售价格指数 by city; serve the
    `house_prices` rows from it with the mirror kept for the audit.
    *Test:* Beijing August 2026 new-home index equals the mirror's row.
 
-9. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+8. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-10. **High-frequency group.** Freight index (`macro_china_freight_index`)
+9. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-16 — Property activity: nine keys from NBS's monthly tables
+  (investment, floor space sold, sales value, starts/completions/under
+  construction, developers' funds), year to date and titled so; four pairs;
+  an id test. Live: July 2026 investment −19.2%, floor space sold −11.8%.
+  Unsold stock is not in the monthly database.
 
 - 2026-09-16 — PBOC's own monetary tables and the reserves template: keys
   `money_stock`, `money_stock_growth` (computed, audited against the
