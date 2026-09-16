@@ -17,6 +17,7 @@ import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
 import { fetchSafe, BOP_ITEMS, type SafeIndicator } from "./safe";
+import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -246,7 +247,7 @@ interface AktoolsIndicator {
   dateLen?: number; // iso only: 7 (YYYY-MM) or 10 (YYYY-MM-DD)
   fields: EastmoneyField[]; // one entry per series to extract
 }
-type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator | MofIndicator | SafeIndicator;
+type Indicator = EastmoneyIndicator | NbsIndicator | AktoolsIndicator | FredIndicator | CustomsIndicator | CfetsIndicator | NeaIndicator | PbocIndicator | MofIndicator | SafeIndicator | MofcomIndicator;
 
 // AKTOOLS_URL=off says a deployment has no AKTools at all, so the AkShare
 // series serve from the store and their refresh is skipped with a plain
@@ -619,6 +620,35 @@ export const CATALOG: Record<string, Indicator> = {
     // No concordance pair: nothing else on the site measures the balance of
     // payments, and Customs' goods balance is on a different basis.
     items: BOP_ITEMS,
+  },
+  fdi_actual_use: {
+    kind: "mofcom", group: "Trade & External",
+    title: "Foreign Direct Investment, Actual Use, Year to Date", agency: "Ministry of Commerce",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The ministry's monthly release, in renminbi since it stopped the dollar
+    // figure in July 2023: the year-to-date total and its manufacturing,
+    // services and high-technology parts.
+    measure: "cny",
+  },
+  fdi_new_enterprises: {
+    kind: "mofcom", group: "Trade & External", home: false,
+    title: "New Foreign-Invested Enterprises, Year to Date", agency: "Ministry of Commerce",
+    frequency: "Monthly", unit: "Enterprises, cumulative year to date",
+    // Two paths to one figure: the data centre's table and the monthly release; the audit holds them together.
+    measure: "enterprises",
+  },
+  fdi_growth: {
+    kind: "mofcom", group: "Trade & External", home: false,
+    title: "Foreign Direct Investment Growth, Year to Date", agency: "Ministry of Commerce",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    measure: "growth",
+  },
+  fdi_actual_use_usd: {
+    kind: "mofcom", group: "Trade & External", home: false,
+    title: "Foreign Direct Investment, Actual Use (USD, ended)", agency: "Ministry of Commerce",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元), month",
+    ended: "2023-07", endedNote: "The ministry stopped publishing the dollar figure after July 2023; the renminbi series continues.",
+    measure: "usd",
   },
   forex_reserves: {
     kind: "eastmoney", group: "Trade & External",
@@ -1265,6 +1295,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   else if (cfg.kind === "pboc") data = await fetchPboc(key, cfg, limit);
   else if (cfg.kind === "mof") data = await fetchMof(key, cfg, limit);
   else if (cfg.kind === "safe") data = await fetchSafe(key, cfg, limit);
+  else if (cfg.kind === "mofcom") data = await fetchMofcom(key, cfg, limit);
   else if (cfg.regions) data = await fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   else data = await fetchEastmoney(key, cfg, limit);
 
@@ -1294,6 +1325,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "pboc") return cfg.instruments.map((instrument) => instrument.label);
   if (cfg.kind === "mof") return mofLabels(cfg);
   if (cfg.kind === "safe") return cfg.items.map((item) => item.label);
+  if (cfg.kind === "mofcom") return mofcomLabels(cfg);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
@@ -1354,6 +1386,7 @@ export async function fetchLive(key: string, limit = 120): Promise<SeriesResult 
   if (cfg.kind === "pboc") return fetchPboc(key, cfg, limit);
   if (cfg.kind === "mof") return fetchMof(key, cfg, limit);
   if (cfg.kind === "safe") return fetchSafe(key, cfg, limit);
+  if (cfg.kind === "mofcom") return fetchMofcom(key, cfg, limit);
   if (cfg.regions) return fetchEastmoneyRegion(key, cfg, cfg.regionAverage ?? cfg.regions[0] ?? { text: "", value: "" }, limit);
   return fetchEastmoney(key, cfg, limit);
 }

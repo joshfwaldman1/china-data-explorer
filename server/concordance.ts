@@ -115,6 +115,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The ministry's own monthly release against the mirror's quarterly copy; compared at quarter ends.",
   },
   {
+    name: "New foreign-invested enterprises, year to date", kind: "value",
+    left: { key: "fdi_new_enterprises", label: "New foreign-invested enterprises, year to date" }, // the data centre's table
+    right: { key: "fdi_new_enterprises", label: "New foreign-invested enterprises, year to date (ministry release)" },
+    tolerance: 0.5,
+    note: "The same count by two paths: MOFCOM's data centre and its monthly news release.",
+  },
+  {
     name: "CPI (YoY %)", kind: "value",
     left: { key: "cpi", label: "CPI (YoY %)" },
     right: { key: "nbs_53180dfb9c14411ba4b762307c85920c", offset: -100 }, // 居民消费价格指数 (上年同月=100)
