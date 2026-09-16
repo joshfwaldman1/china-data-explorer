@@ -194,6 +194,7 @@ const CATEGORY_EN: Record<string, string> = {
   "失业率": "Unemployment rate",
   "消费者价格涨跌幅": "Consumer price change",
   "国际市场商品价格": "World commodity prices",
+  "社会消费品零售总额": "Retail sales of consumer goods",
 };
 /** English for the units NBS writes. */
 const UNIT_EN: Record<string, string> = {
