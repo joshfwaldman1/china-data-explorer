@@ -11,41 +11,34 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **PBOC's own monetary tables.** Money supply (M0, M1, M2) and financial
-   institutions' loans and deposits from the bank's statistics section (the
-   same yearly index pages as 社会融资规模: 货币统计概览, 金融机构信贷收支统计),
-   so `money_supply` and `new_loans` stop depending on the mirror; keep the
-   mirror keys for the audit as with trade.
-   *Test:* July 2026 M2 growth from the bank's table equals the mirror's 7.7
-   and NBS's.
-
-3. **SAFE reserves template.** Official reserve assets (foreign exchange,
-   gold, SDRs, IMF position) from SAFE's monthly 官方储备资产 table, so
-   `forex_reserves` and `gold_reserves` come from the publisher and gain a
-   concordance pair against the mirror.
-   *Test:* August 2026 FX reserves from the table equal the mirror's figure.
-
-4. **PMI sub-indices from NBS's table.** New orders, production, employment,
+2. **PMI sub-indices from NBS's table.** New orders, production, employment,
    supplier deliveries, inventories from the monthly database (采购经理指数
    category), as a key beside `pmi`.
    *Test:* August 2026 new orders parses and the headline PMI pair stays ok.
 
-5. **70-city house prices from NBS's own city table.** The city monthly
+3. **70-city house prices from NBS's own city table.** The city monthly
    dataset (code 7) carries 新建商品住宅销售价格指数 by city; serve the
    `house_prices` rows from it with the mirror kept for the audit.
    *Test:* Beijing August 2026 new-home index equals the mirror's row.
 
-6. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+4. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-7. **High-frequency group.** Freight index (`macro_china_freight_index`)
+5. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-16 — PBOC's own monetary tables and the reserves template: keys
+  `money_stock`, `money_stock_growth` (computed, audited against the
+  published rate), `official_reserves` (PBOC's copy of the reserves
+  template — the SAFE item is answered by it) and `bank_credit`. Seven
+  fixtures, five tests, three pairs. Live: August 2026 FX reserves 34,383.25
+  亿美元, M2 growth 7.5.
 
 - 2026-09-16 — SAFE's preliminary quarter: the adapter reads the 初步数
   release for the quarter the workbook lacks; seven items lead by a quarter.

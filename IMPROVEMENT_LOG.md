@@ -2381,3 +2381,23 @@ not from scratch. Rounds are small on purpose.
   (a stored quarterly series is not due), so the live Q2 point is confirmed
   in the next round. The machine killed the deploy poll for low memory (8 GB
   in use, none of it the loop's); verification ran by hand.
+
+- 2026-09-16 (dataset loop, round 16: PBOC's own monetary tables): money
+  supply and reserves reached the site through the mirror. The bank's
+  statistics section carries them in yearly indexes beside 社会融资规模:
+  货币供应量 (month-end M0, M1, M2 — levels only), 官方储备资产 (foreign
+  currency reserves, gold, SDRs, IMF position, total; dollars and SDRs) and
+  金融机构人民币信贷收支表 (deposits and loans outstanding), months across,
+  GBK, English beside the Chinese. The adapter reads any table of the section
+  by title and parses a months-across table generically; a year whose page
+  cannot be read is skipped. Keys `money_stock`, `money_stock_growth`
+  (computed from two years of levels to one decimal — 7.7 for July 2026, as
+  the bank printed; 7.5 for August), `official_reserves` (which also answers
+  the queue's "SAFE reserves template" item, from PBOC's copy of the same
+  template) and `bank_credit`. Three pairs: the computed M2 rate against the
+  published one, and the bank's FX and gold reserves against the mirror's.
+  Tests: five, over the three tables, the 2025 money table and the indexes.
+  Live: `/api/series/official_reserves` August 2026 FX 34,383.25, gold
+  3,500.8, total 38,548.85; `money_stock_growth` M2 7.5, M1 4.1, M0 11.2;
+  `bank_credit` total loans 2,823,513.09; 20 pairs, 0 findings, the three new
+  ones "missing" until the next sweep stores the keys.
