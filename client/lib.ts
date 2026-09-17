@@ -24,7 +24,8 @@ function ownDecimals(value: number): number {
 export function fmt(value: number, unit: string): string {
   // A rate to one decimal; a level in the thousands to whole units; a smaller level as the
   // publisher wrote it (a parity of 6.7828, a flow of 552), never padded to "552.00".
-  const decimals = isRate(unit) ? 1 : Math.abs(value) >= 1000 ? 0 : ownDecimals(value);
+  // Money-market and bond rates are quoted to two decimals (SHIBOR 1.46, a yield 1.69); other rates to one.
+  const decimals = isRate(unit) ? (/fixing|close|yield/i.test(unit) ? 2 : 1) : Math.abs(value) >= 1000 ? 0 : ownDecimals(value);
   const text = value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   // A value that rounds to zero is zero, not "-0.0".
   return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
@@ -251,8 +252,15 @@ export function yearEarlier(period: string): string {
  * stock is read; the previous month's difference is seasonality, not news. Empty when the
  * year-earlier point is missing or zero, so the caller can fall back to the period difference.
  */
-export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesPoint | undefined): string {
-  if (!latest || !yearAgo || yearAgo.value === 0) return "";
+export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesPoint | undefined, options: { absolute?: boolean; unit?: string } = {}): string {
+  if (!latest || !yearAgo) return "";
+  // A net figure or a balance can cross zero, where a percentage means nothing: its change is in its own units.
+  if (options.absolute || yearAgo.value === 0 || Math.sign(latest.value) !== Math.sign(yearAgo.value)) {
+    const difference = latest.value - yearAgo.value;
+    const text = Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), options.unit ?? "");
+    if (/^0(\.0+)?$/.test(text)) return "0 y/y";
+    return `${difference > 0 ? "+" : "-"}${text} y/y`;
+  }
   const change = ((latest.value - yearAgo.value) / Math.abs(yearAgo.value)) * 100;
   const text = fmt(Math.abs(change), "%");
   if (/^0(\.0+)?$/.test(text)) return "0.0% y/y";

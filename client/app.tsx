@@ -586,6 +586,8 @@ const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group);
 function unitSuffix(unit: string): string {
   if (isRate(unit)) return unit !== "%" && !/index/i.test(unit) ? "%" : "";
   const head = unit.split(/[(,]/)[0]?.trim() ?? "";
+  if (/^Yuan per\b/i.test(head)) return "yuan";
+  if (/^(Percent|Index|Years|Number)\b/i.test(head)) return "";
   return head.replace(/^Hundred million\b/i, "100M").replace(/^Trillion\b/i, "tn").replace(/^Million\b/i, "M").replace(/^Ten thousand\b/i, "10k").replace(/\bUS dollars?\b/i, "USD");
 }
 const AGENCY_SHORT: Record<string, string> = {
@@ -698,11 +700,11 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 const placed = !region && result?.region && isPlaceCode(result.region.value) ? regionLabel(result.region) : "";
                 const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(entry.title, placed) : entry.title;
                 // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
-                const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date))) : "";
+                const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: entry.unit }) : "";
                 return (
                   <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed ? "" : regionPrefix(result)}{!region && first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
-                    <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
+                    <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{latest ? unitSuffix(entry.unit) : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} />}</span>
@@ -740,7 +742,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             <div><h3>Included</h3><ul>
               {datasets.map((dataset) => <li key={dataset.code}>{dataset.count.toLocaleString("en-US")} {dataset.geography === "National" ? "national" : dataset.geography === "Province" ? "provincial" : dataset.geography === "City" ? "city" : dataset.geography} {dataset.frequency.toLowerCase()} NBS series{dataset.geography === "Province" ? ", each published for 31 provinces" : dataset.geography === "City" ? ", each published for the surveyed cities" : DATASET_NOTE[dataset.code] ? `: ${DATASET_NOTE[dataset.code]}` : ""}</li>)}
               {props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} stored locally; the rest are fetched on first view, and tables NBS lists but has published no data for are retried monthly</li>}
-              <li>{props.curated.filter((entry) => entry.source !== "fred").length} curated series with notes and revision history: {props.curated.filter((entry) => entry.source !== "fred" && entry.agency.includes("National Bureau of Statistics")).length} from the NBS tables above, plus {publisherCounts.map((item, index) => `${index > 0 ? (index === publisherCounts.length - 1 ? " and " : ", ") : ""}${item.count} from ${item.agency === "Caixin / S&P Global" ? "Caixin" : item.agency}`).join("")}</li>
+              <li>{props.curated.filter((entry) => entry.source !== "fred").length} curated series with notes and revision history: {props.curated.filter((entry) => entry.source !== "fred" && entry.agency.includes("National Bureau of Statistics")).length} from the NBS tables above, plus {publisherCounts.map((item, index) => `${index > 0 ? (index === publisherCounts.length - 1 ? " and " : ", ") : ""}${item.count} from ${shortAgency(item.agency)}`).join("")}</li>
               <li>Quarterly GDP for all 31 provinces, back to 2005, and new and existing home prices for the 70 surveyed cities</li>
               <li>{props.curated.filter((entry) => entry.source === "fred").length} international series via FRED: BIS, OECD, IMF, World Bank, US Census, US Treasury and BLS</li>
             </ul></div>

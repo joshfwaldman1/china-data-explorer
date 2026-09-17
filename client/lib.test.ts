@@ -76,8 +76,10 @@ test("fmt never shows a negative zero", () => {
 test("deltaText says pp for percentages only", () => {
   expect(deltaText({ date: "2026-08", value: 3.0 }, { date: "2026-07", value: 3.0 }, "%", "short")).toBe("0.0 pp");
   // A difference that rounds to nothing is not "-0.0 pp".
-  expect(deltaText({ date: "2026-08", value: 1.6879 }, { date: "2026-07", value: 1.7120 }, "Percent, month-end close", "short")).toBe("0.0 pp");
-  expect(deltaText({ date: "2026-08", value: 1.6879 }, { date: "2026-07", value: 1.7120 }, "Percent, month-end close")).toBe("Unchanged from Jul 2026");
+  expect(deltaText({ date: "2026-08", value: 3.02 }, { date: "2026-07", value: 3.04 }, "Percent change from year ago", "short")).toBe("0.0 pp");
+  expect(deltaText({ date: "2026-08", value: 3.02 }, { date: "2026-07", value: 3.04 }, "Percent change from year ago")).toBe("Unchanged from Jul 2026");
+  // A bond yield is quoted to two decimals, so its small moves are not rounded away.
+  expect(deltaText({ date: "2026-08", value: 1.6879 }, { date: "2026-07", value: 1.7120 }, "Percent, month-end close", "short")).toBe("-0.02 pp");
   expect(deltaText({ date: "2026-08", value: 34383 }, { date: "2026-07", value: 34383 }, "100M USD", "short")).toBe("0");
   expect(deltaText({ date: "2026-07", value: 0.5 }, { date: "2026-06", value: 1.0 }, "Percent change from year ago")).toBe("Down 0.5 pp from Jun 2026");
   expect(deltaText({ date: "2026-07", value: 99.9 }, { date: "2026-06", value: 99.7 }, "Index, previous month = 100")).toBe("Up 0.2 from Jun 2026");
@@ -152,4 +154,10 @@ test("a level's change is read against a year earlier, as a percentage", async (
   expect(yearOnYearText({ date: "2026-07", value: 9000 }, { date: "2025-07", value: 9610 })).toBe("-6.3% y/y");
   expect(yearOnYearText({ date: "2026-07", value: 9610 }, { date: "2025-07", value: 9610 })).toBe("0.0% y/y");
   expect(yearOnYearText({ date: "2026-07", value: 9610 }, undefined)).toBe("");
+  // A net figure changes in its own units, and so does anything that crossed zero.
+  expect(yearOnYearText({ date: "2026-08", value: 3290.15 }, { date: "2025-08", value: 1044.6 }, { absolute: true })).toBe("+2,246 y/y");
+  expect(yearOnYearText({ date: "2026-08", value: 484.8 }, { date: "2025-08", value: -120.2 })).toBe("+605 y/y");
+  // Money-market rates keep two decimals.
+  expect(fmt(1.46, "Percent, last fixing of the month")).toBe("1.46");
+  expect(fmt(1.6879, "Percent, month-end close")).toBe("1.69");
 });
