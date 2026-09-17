@@ -227,6 +227,8 @@ interface NbsIndicator {
    * merged behind the main table by label; the main table wins on overlap.
    */
   slices?: { cid: string; rootId?: string; ids: NbsSeriesId[] }[];
+  /** What the regions are, when not provinces: the 70-city table is by city. */
+  geography?: "City";
 }
 // AkShare (via a local AKTools HTTP server) — huge breadth of fresh Chinese
 // series maintained by the AkShare community. Optional: only these indicators
@@ -1355,6 +1357,7 @@ export const CATALOG: Record<string, Indicator> = {
     ],
     region: { text: "北京", value: "110000000000", en: "Beijing" },
     regions: CITIES_70_NBS,
+    geography: "City",
   },
   house_prices: {
     kind: "eastmoney", group: "Property",
@@ -1892,6 +1895,7 @@ export function seriesGeography(key: string): SeriesGeography {
   const cfg = CATALOG[key];
   // No tile map for these: partners and commodities rank, they are not mapped.
   if (cfg && cfg.kind === "customs") return cfg.table === "by-country" ? "Partner" : "Commodity";
+  if (cfg && cfg.kind === "nbs" && cfg.geography) return cfg.geography;
   return cfg && cfg.kind === "eastmoney" && cfg.regions ? "City" : "Province";
 }
 

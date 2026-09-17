@@ -2510,3 +2510,19 @@ not from scratch. Rounds are small on purpose.
   56.6; non-manufacturing 49.0, services 49.3, construction 46.9; 35
   pairs, 0 findings. The machine killed the deploy poll for low memory
   again (10 GB in use, none of it the loop's); verification ran by hand.
+
+- 2026-09-17 (dataset loop, round 23: 70-city house prices from NBS's own
+  table): the 70-city price series came from a mirror. `house_prices_nbs`
+  reads NBS's 70个大中城市住宅销售价格指数 table for the cities its own region
+  catalog lists — seventy-one, Lhasa beside the mirror's seventy (Lhasa
+  gained an English name in the places list) — one request per city, the
+  new- and existing-home indices on a year earlier = 100 served as the
+  change. A concordance reference can now name a region; the audit holds
+  Beijing against the mirror's Beijing row. The mirror stays as
+  `house_prices`. Test: ids, city codes against the collected catalog, the
+  pair. Live: Beijing July 2026 −2.3 (new) and −4.5 (existing) on both
+  paths; the ranking page lists 71 cities; 36 pairs, 0 findings, the
+  Beijing pair "missing" until the sweep stores the key. The table lags the
+  mirror by a month (NBS posts it mid-month; the mirror already held
+  August). The ranking page called the geography "Province"; an NBS key
+  can now say its regions are cities.
