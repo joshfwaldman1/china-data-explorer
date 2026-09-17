@@ -63,7 +63,22 @@ export interface CumulativePair {
   note?: string;
 }
 
-export type ConcordancePair = ValuePair | CumulativePair;
+/**
+ * A monthly flow against the publisher's annual table: the twelve months of
+ * each complete year must sum to the year's figure.
+ */
+export interface AnnualPair {
+  name: string;
+  kind: "annual";
+  monthly: SeriesRef;
+  annual: SeriesRef;
+  tolerance: number;
+  /** Complete years compared, newest first. */
+  periods?: number;
+  note?: string;
+}
+
+export type ConcordancePair = ValuePair | CumulativePair | AnnualPair;
 
 export interface Disagreement { period: string; left: number; right: number }
 
@@ -349,6 +364,19 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     tolerance: 0.05,
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
+  {
+    name: "Bank FX net settlement: months vs year (亿元)", kind: "annual",
+    monthly: { key: "bank_fx_settlement", label: "Net settlement" },
+    annual: { key: "bank_fx_settlement_annual", label: "Net settlement" },
+    tolerance: 1,
+    note: "SAFE's monthly and annual sheets of the same workbook; the months are kept to two decimals.",
+  },
+  {
+    name: "Bank FX settlement: months vs year (亿元)", kind: "annual",
+    monthly: { key: "bank_fx_settlement", label: "Settlement" },
+    annual: { key: "bank_fx_settlement_annual", label: "Settlement" },
+    tolerance: 1,
+  },
 ];
 
 /**
@@ -395,6 +423,7 @@ export const NO_PAIR: Record<string, string> = {
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
   electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
+  bank_fx_settlement_usd: "The dollar valuation of bank_fx_settlement from the same workbook; the yuan series is summed against the annual table.",
 };
 
 /** Points keyed by comparable period (a quarter as its last month), newest first. */
@@ -456,6 +485,30 @@ export function compareCumulative(name: string, period: SeriesPoint[], yearToDat
   };
 }
 
+/**
+ * A monthly series summed by year against the annual table. Only years with
+ * all twelve months on the monthly side are compared; the annual side's
+ * current-year column is year to date and is not served.
+ */
+export function compareAnnualSum(name: string, monthly: SeriesPoint[], annual: SeriesPoint[], options: { tolerance: number; periods?: number; note?: string }): ConcordanceResult {
+  const base = { name, kind: "annual" as const, note: options.note, sides: { left: rangeOf(monthly), right: rangeOf(annual) } };
+  if (monthly.length === 0 || annual.length === 0) return { ...base, status: "missing", compared: 0, disagreements: [] };
+  const months = new Map<string, number>();
+  for (const point of monthly) if (/^\d{4}-\d{2}$/.test(point.date)) months.set(point.date, point.value);
+  const sums = new Map<string, number>();
+  for (const year of new Set([...months.keys()].map((date) => date.slice(0, 4)))) {
+    const values = Array.from({ length: 12 }, (_, index) => months.get(`${year}-${String(index + 1).padStart(2, "0")}`));
+    if (values.every((value) => value !== undefined)) sums.set(year, values.reduce((total, value) => total + (value ?? 0), 0));
+  }
+  const years = new Map<string, number>();
+  for (const point of annual) if (/^\d{4}$/.test(point.date)) years.set(point.date, point.value);
+  const periods = commonPeriods(sums, years, options.periods ?? 3);
+  if (periods.length === 0) return { ...base, status: "no-overlap", compared: 0, disagreements: [] };
+  const rows = periods.map((period) => ({ period, left: round(sums.get(period) ?? NaN), right: round(years.get(period) ?? NaN) }));
+  const disagreements = rows.filter((row) => Math.abs(row.left - row.right) > options.tolerance);
+  return { ...base, status: disagreements.length > 0 ? "mismatch" : "ok", compared: rows.length, disagreements, latest: rows[0] };
+}
+
 function round(value: number): number { return Math.round(value * 1000) / 1000; }
 
 /**
@@ -476,9 +529,11 @@ export function readSide(ref: SeriesRef, limit = 24): SeriesPoint[] {
 
 /** Run every pair against the store. */
 export function runConcordance(pairs: ConcordancePair[] = CONCORDANCE_PAIRS): ConcordanceResult[] {
-  return pairs.map((pair) => pair.kind === "value"
-    ? compareValues(pair.name, readSide(pair.left), readSide(pair.right), { tolerance: pair.tolerance, periods: pair.periods, leftOffset: pair.left.offset, rightOffset: pair.right.offset, note: pair.note })
-    : compareCumulative(pair.name, readSide(pair.period), readSide(pair.yearToDate), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note }));
+  return pairs.map((pair) => {
+    if (pair.kind === "value") return compareValues(pair.name, readSide(pair.left), readSide(pair.right), { tolerance: pair.tolerance, periods: pair.periods, leftOffset: pair.left.offset, rightOffset: pair.right.offset, note: pair.note });
+    if (pair.kind === "annual") return compareAnnualSum(pair.name, readSide(pair.monthly, 12 * ((pair.periods ?? 3) + 1)), readSide(pair.annual, 12), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
+    return compareCumulative(pair.name, readSide(pair.period), readSide(pair.yearToDate), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
+  });
 }
 
 /** One line per result, for the log and the CLI. */

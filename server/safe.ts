@@ -10,6 +10,13 @@
  * has the periods across row 4 as "2026Q1" and the standard items down
  * column A, in 100 million US dollars, with the sign convention of BPM6: a
  * financial-account outflow is negative, and reserve assets rising is negative.
+ *
+ * The same site publishes bank FX settlement and sales (银行结售汇): one
+ * workbook, replaced each month around the 15th, with monthly and annual
+ * sheets in yuan and in dollars. The monthly sheets carry Excel date serials
+ * across row 4 (one per month from January 2010) and the items down column
+ * A in three sections: settlement (结汇), sales (售汇) and the difference
+ * (差额), each broken down by the banks' own account and their customers.
  */
 
 import type { SeriesPoint, SeriesResult } from "./data";
@@ -33,8 +40,22 @@ export interface SafeIndicator {
   home?: boolean;
   ended?: string;
   endedNote?: string;
+  /** Which SAFE publication: the balance of payments (default) or bank FX settlement and sales. */
+  table?: "bop" | "fx_settlement";
+  /** The workbook sheet read for fx_settlement (a monthly or annual sheet, in yuan or dollars). */
+  sheet?: string;
+  /** Day of the month by which the monthly release is normally out. */
+  releaseDay?: number;
   /** The items served, in order, by the row label in the workbook. */
-  items: { match: RegExp; label: string }[];
+  items: SafeItem[];
+}
+
+export interface SafeItem {
+  /** Matches the row's label in column A (or column B for the forward rows, whose column A is blank). */
+  match: RegExp;
+  label: string;
+  /** For fx_settlement: the section (一、结汇 / 二、售汇 / 三、差额) the row must sit under, since the sub-rows repeat in each. */
+  section?: RegExp;
 }
 
 export const BOP_ITEMS: { match: RegExp; label: string }[] = [
@@ -51,6 +72,91 @@ export const BOP_ITEMS: { match: RegExp; label: string }[] = [
   { match: /^2\.2\.2\s+Reserve assets/i, label: "Reserve assets" },
   { match: /^3\.\s*Net errors and omissions/i, label: "Net errors and omissions" },
 ];
+
+/** The 银行结售汇 rows served, the net figure first: it is the headline. */
+export const FX_SETTLEMENT_ITEMS: SafeItem[] = [
+  { match: /^三、\s*差额/, label: "Net settlement" },
+  { match: /^一、\s*结汇/, label: "Settlement" },
+  { match: /^二、\s*售汇/, label: "Sales" },
+  { section: /^三、/, match: /^[(（]二[)）]\s*银行代客/, label: "Net settlement, bank customers" },
+  { section: /^三、/, match: /^1\.\s*经常项目/, label: "Net settlement, current account" },
+  { section: /^三、/, match: /^2\.\s*资本与金融项目/, label: "Net settlement, capital and financial account" },
+  { section: /^四、/, match: /^差额$/, label: "Forward contracts signed, net" },
+];
+
+const FX_PAGE = `${SITE}/safe/2023/0215/22329.html`;
+
+/** An Excel date serial (days since 30 December 1899) as "YYYY-MM"; SAFE's month headers are dates inside the month. */
+function serialMonth(serial: number): string {
+  const date = new Date(Date.UTC(1899, 11, 30) + serial * 86_400_000);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Every item's series from one sheet of the bank FX settlement workbook. The
+ * header row is whichever of the first twelve rows carries the most period
+ * cells: date serials on a monthly sheet, "2010年" on an annual one. Values
+ * are in 亿元 or 亿美元 to two decimals, as the workbook keeps them to more.
+ */
+export function parseFxWorkbook(bytes: ArrayBuffer | Uint8Array, sheetName: string, items = FX_SETTLEMENT_ITEMS): Map<string, SeriesPoint[]> {
+  const sheet = readXlsx(bytes).find((candidate) => candidate.name === sheetName);
+  if (!sheet) throw new Error(`SAFE FX workbook: no ${sheetName} sheet`);
+  let headerRow = 0, periods: { column: number; period: string }[] = [];
+  for (let row = 1; row <= 12; row += 1) {
+    const found: { column: number; period: string }[] = [];
+    for (let column = 2; column <= 600; column += 1) {
+      const value = sheet.cells.get(`${columnLetters(column)}${row}`);
+      if (typeof value === "number" && value > 36_000 && value < 80_000) found.push({ column, period: serialMonth(value) });
+      else if (typeof value === "string" && /^\d{4}年$/.test(value.trim())) found.push({ column, period: value.trim().slice(0, 4) });
+    }
+    if (found.length > periods.length) { periods = found; headerRow = row; }
+  }
+  if (periods.length === 0) throw new Error("SAFE FX workbook: no period header");
+  // A monthly header must step one month at a time; a slipped serial would shift every later month.
+  for (let index = 1; index < periods.length; index += 1) {
+    const previous = periods[index - 1]!.period, current = periods[index]!.period;
+    if (previous.length === 7 && current !== nextMonth(previous)) throw new Error(`SAFE FX workbook: header jumps from ${previous} to ${current}`);
+  }
+  const out = new Map<string, SeriesPoint[]>();
+  let section = "";
+  for (let row = headerRow + 1; row <= 200; row += 1) {
+    const a = sheet.cells.get(`A${row}`), b = sheet.cells.get(`B${row}`);
+    const own = typeof a === "string" ? a.trim() : "";
+    if (/^[一二三四五六七八九十]+、/.test(own)) section = own;
+    const label = own || (typeof b === "string" ? b.trim() : "");
+    if (!label) continue;
+    const item = items.find((candidate) => candidate.match.test(label) && (!candidate.section || candidate.section.test(section)));
+    if (!item || out.has(item.label)) continue;
+    const points: SeriesPoint[] = [];
+    for (const { column, period } of periods) {
+      const value = sheet.cells.get(`${columnLetters(column)}${row}`);
+      if (typeof value === "number" && Number.isFinite(value)) points.push({ date: period, value: Math.round(value * 100) / 100 });
+    }
+    if (points.length > 0) out.set(item.label, points);
+  }
+  if (!out.has("Net settlement") && !out.has("Settlement")) throw new Error("SAFE FX workbook: no settlement row found");
+  return out;
+}
+
+function nextMonth(period: string): string {
+  const year = Number(period.slice(0, 4)), month = Number(period.slice(5, 7));
+  return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
+export interface FxHeadline { period: string; settlement: number; sales: number; settlementUsd: number; salesUsd: number }
+
+/**
+ * The monthly release ("国家外汇管理局公布N年M月银行结售汇和银行代客涉外收付款数据")
+ * states the month's settlement and sales in yuan and in dollars, rounded to
+ * whole 亿; this reads them so the workbook can be checked against them.
+ */
+export function parseFxHeadline(html: string): FxHeadline | null {
+  const text = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, "");
+  const cny = text.match(/(\d{4})年(\d{1,2})月，银行结汇(-?\d+)亿元人民币，售汇(-?\d+)亿元人民币/);
+  const usd = text.match(/按美元计值，(\d{4})年(\d{1,2})月，银行结汇(-?\d+)亿美元，售汇(-?\d+)亿美元/);
+  if (!cny || !usd) return null;
+  return { period: `${cny[1]}-${cny[2]!.padStart(2, "0")}`, settlement: Number(cny[3]), sales: Number(cny[4]), settlementUsd: Number(usd[3]), salesUsd: Number(usd[4]) };
+}
 
 /**
  * The preliminary release ("国家外汇管理局公布N年X季度…国际收支平衡表初步数")
@@ -113,9 +219,12 @@ export function parsePreliminary(html: string): { period: string; values: Map<st
 }
 
 /** The current workbook's URL on the English time-series page. */
-export function workbookLink(pageHtml: string): string | null {
-  const match = pageHtml.match(/href=["']([^"']+\.xlsx?)["']/i);
-  return match?.[1] ? new URL(match[1], SITE).toString() : null;
+export function workbookLink(pageHtml: string, named?: RegExp): string | null {
+  for (const anchor of pageHtml.matchAll(/<a[^>]*href=["']([^"']+\.xlsx?)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    if (named && !named.test(anchor[0])) continue;
+    return new URL(anchor[1]!, SITE).toString();
+  }
+  return null;
 }
 
 /**
@@ -167,6 +276,7 @@ async function get(url: string): Promise<ArrayBuffer> {
  * up, and the store keeps the earlier value as a revision.
  */
 export async function fetchSafe(key: string, cfg: SafeIndicator, limit: number, read: (url: string) => Promise<ArrayBuffer> = get): Promise<SeriesResult> {
+  if (cfg.table === "fx_settlement") return fetchFxSettlement(key, cfg, limit, read);
   const page = new TextDecoder().decode(await read(PAGE));
   const link = workbookLink(page);
   if (!link) throw new Error("SAFE: the time-series page carries no workbook link");
@@ -195,6 +305,34 @@ export async function fetchSafe(key: string, cfg: SafeIndicator, limit: number, 
   }
   return {
     key, title: cfg.title, agency: cfg.agency, sourceUrl: PAGE, frequency: cfg.frequency, unit: cfg.unit,
+    series: cfg.items.filter((item) => series.has(item.label)).map((item) => ({ label: item.label, points: (series.get(item.label) ?? []).slice(-Math.max(1, limit)) })),
+  };
+}
+
+/**
+ * The last `limit` periods of each configured item from one sheet of the bank
+ * FX settlement workbook, which the statistics page links as the time series
+ * (the link changes with each month's replacement).
+ */
+async function fetchFxSettlement(key: string, cfg: SafeIndicator, limit: number, read: (url: string) => Promise<ArrayBuffer>): Promise<SeriesResult> {
+  const page = new TextDecoder().decode(await read(FX_PAGE));
+  const link = workbookLink(page, /时间序列/);
+  if (!link) throw new Error("SAFE: the bank FX settlement page carries no time-series workbook link");
+  if (!cfg.sheet) throw new Error(`${key}: a SAFE fx_settlement series names its sheet`);
+  const bytes = await read(link);
+  const series = parseFxWorkbook(bytes, cfg.sheet, cfg.items);
+  // The annual sheet's last column is the current year so far (January to the
+  // latest month) under a plain year header; it is not a year until the
+  // monthly sheet of the same currency reaches December.
+  if (cfg.sheet.includes("年度")) {
+    const monthly = parseFxWorkbook(bytes, cfg.sheet.replace("年度", "月度"), cfg.items);
+    const lastMonth = [...monthly.values()].map((points) => points.at(-1)?.date ?? "").sort().at(-1) ?? "";
+    if (lastMonth && !lastMonth.endsWith("-12")) {
+      for (const [label, points] of series) series.set(label, points.filter((point) => point.date !== lastMonth.slice(0, 4)));
+    }
+  }
+  return {
+    key, title: cfg.title, agency: cfg.agency, sourceUrl: FX_PAGE, frequency: cfg.frequency, unit: cfg.unit,
     series: cfg.items.filter((item) => series.has(item.label)).map((item) => ({ label: item.label, points: (series.get(item.label) ?? []).slice(-Math.max(1, limit)) })),
   };
 }

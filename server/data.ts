@@ -16,7 +16,7 @@ import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, MONEY_ROWS, RESERVE_ROWS, CREDIT_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
-import { fetchSafe, BOP_ITEMS, type SafeIndicator } from "./safe";
+import { fetchSafe, BOP_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
 
 const UA =
@@ -948,6 +948,32 @@ export const CATALOG: Record<string, Indicator> = {
     // payments, and Customs' goods balance is on a different basis.
     items: BOP_ITEMS,
   },
+  bank_fx_settlement: {
+    kind: "safe", table: "fx_settlement", group: "Trade & External",
+    title: "Bank FX Settlement and Sales", agency: "State Administration of Foreign Exchange",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元)",
+    // SAFE's 银行结售汇 workbook, replaced each month around the 15th: what
+    // banks bought from and sold to their customers and on their own account,
+    // in yuan. Net settlement (结汇 minus 售汇) is the headline: a positive
+    // month is net demand for yuan. The yuan and dollar sheets are the same
+    // transactions valued at the month's rates. Concordance: each year's
+    // twelve months are summed against the workbook's annual table.
+    sheet: "以人民币计价（月度）", items: FX_SETTLEMENT_ITEMS, releaseDay: 18,
+  },
+  bank_fx_settlement_usd: {
+    kind: "safe", table: "fx_settlement", group: "Trade & External",
+    title: "Bank FX Settlement and Sales (USD)", agency: "State Administration of Foreign Exchange",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元)",
+    sheet: "以美元计价（月度）", items: FX_SETTLEMENT_ITEMS, releaseDay: 18, home: false,
+  },
+  bank_fx_settlement_annual: {
+    kind: "safe", table: "fx_settlement", group: "Trade & External",
+    title: "Bank FX Settlement and Sales, Annual", agency: "State Administration of Foreign Exchange",
+    frequency: "Annual", unit: "Hundred million yuan (亿元)",
+    // The workbook's annual table, complete years only: its last column is
+    // the current year to date and is left to the monthly series.
+    sheet: "以人民币计价（年度）", items: FX_SETTLEMENT_ITEMS, releaseDay: 18, home: false,
+  },
   fdi_actual_use: {
     kind: "mofcom", group: "Trade & External",
     title: "Foreign Direct Investment, Actual Use, Year to Date", agency: "Ministry of Commerce",
@@ -1486,7 +1512,7 @@ export function catalogList(): CatalogEntry[] {
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     ...(c.home === false ? { home: false } : {}),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
-    ...((c.kind === "customs" || c.kind === "eastmoney" || c.kind === "nea" || c.kind === "pboc" || c.kind === "mof" || c.kind === "mofcom") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
+    ...((c.kind === "customs" || c.kind === "eastmoney" || c.kind === "nea" || c.kind === "pboc" || c.kind === "mof" || c.kind === "mofcom" || c.kind === "safe") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
     ...(c.kind === "customs" && c.homeRegions ? { homeRegions: c.homeRegions } : {}),
   }));
 }
