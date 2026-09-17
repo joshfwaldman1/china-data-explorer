@@ -11,12 +11,51 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+2. **SAFE bank FX settlement and sales.** 银行结售汇 monthly (结汇, 售汇,
+   差额, USD) from SAFE's statistics section (the same site as the balance
+   of payments; the table is an Excel or htm attachment per month), the
+   cleanest monthly read of cross-border flow pressure.
+   *Test:* August 2026 net settlement parses and matches SAFE's headline.
+
+3. **CFETS money-market rates.** SHIBOR (overnight, 1 week, 3 months) and
+   the pledged repo DR007 from chinamoney.com.cn, month-end and month
+   average, beside `cgb_yields` — the site already reaches this host; the
+   endpoints answer JSON to POST like the yield curve.
+   *Test:* one month's response carries every tenor for every trading day
+   and the month-end rule holds.
+
+4. **Yuan: central parity and the CFETS index.** The PBOC daily central
+   parity against the dollar (month-end and average) and the CFETS RMB
+   index (weekly) from chinamoney.com.cn, so the exchange-rate group has
+   the bank's own rate beside the Fed's monthly average.
+   *Test:* the August 2026 month-end parity parses and is within 0.05 of
+   the FRED monthly average's neighbourhood.
+
+5. **Labour: urban new jobs and migrant workers.** MOHRSS's quarterly
+   press release (城镇新增就业, year to date) and NBS's quarterly 外出务工
+   农村劳动力 release; probe mohrss.gov.cn from abroad first.
+   *Test:* the latest quarter parses and matches the release.
+
+6. **Auto sales (CAAM).** Monthly vehicle sales and production from
+   caam.org.cn's data pages (汽车产销), beside NBS's output; probe first.
+   *Test:* August 2026 sales parse and match CAAM's release.
+
+7. **Household income and expenditure.** NBS's quarterly per-capita
+   disposable income and consumption expenditure, urban and rural, from the
+   catalog's quarterly dataset, year to date and titled so.
+   *Test:* the ids resolve and the pair is ok.
+
+8. **Local government bond issuance.** Monthly issuance and outstanding
+   from MOF's 地方政府债券 release (the same treasury site as the fiscal
+   release), general and special bonds.
+   *Test:* August 2026 issuance parses and matches the release.
+
+9. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-3. **Property: developer financing and mortgages.** [parked: source not
+10. **Property: developer financing and mortgages.** [parked: source not
    found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
    outstanding, mortgages (个人住房贷款) and their growth. On 16 September
    none of the survey-and-statistics department's sections nor the news
@@ -26,7 +65,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-4. **MOFCOM weekly prices.** [parked: source not found] The weekly
+11. **MOFCOM weekly prices.** [parked: source not found] The weekly
    食用农产品 and 生产资料 market price indices are not on price.mofcom.gov.cn
    (its columns — 监测周报, 粮农土畜, 能源化工, 经贸简讯 — hold international
    commodity monitoring, trade news and daily briefs; the list endpoint is
@@ -35,7 +74,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    Try the 商务预报 site (cif.mofcom.gov.cn) or the weekly item in 每日经贸简讯.
    *Test:* one report parses to the two indices.
 
-5. **High-frequency group.** Freight index (`macro_china_freight_index`)
+12. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
