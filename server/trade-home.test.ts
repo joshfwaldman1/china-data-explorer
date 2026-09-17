@@ -31,6 +31,9 @@ async function seed(): Promise<{ count: number; top: string }> {
       writeSeries({ key: "trade_partners", title: "Trade by Partner", agency: "General Administration of Customs", sourceUrl: "", frequency: "Monthly", unit: "Million USD",
         series: [{ label: "Exports", points: [{ date: "2026-08", value: item.exports }] }, { label: "Imports", points: [{ date: "2026-08", value: item.imports }] }, { label: "Balance", points: [{ date: "2026-08", value: item.balance }] }] }, item.region, "2026-09-15T00:00:00.000Z");
     }
+    // Guangdong's provincial GDP row, so the Regional section renders a placed row.
+    writeSeries({ key: "provincial_gdp", title: "Provincial Real GDP Growth", agency: "National Bureau of Statistics", sourceUrl: "", frequency: "Quarterly", unit: "Percent change from year ago, cumulative year to date",
+      series: [{ label: "Real GDP, cumulative YTD (YoY %)", points: [{ date: "2026-Q1", value: 4.6 }, { date: "2026-Q2", value: 4.5 }] }] }, "440000000000", "2026-09-15T00:00:00.000Z");
   `;
   const child = Bun.spawn(["bun", "-e", script], { env, stdout: "pipe", stderr: "pipe" });
   if (await child.exited !== 0) throw new Error(`seed failed: ${await new Response(child.stderr).text()}`);
@@ -68,10 +71,16 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
     const trade = page.locator('section[aria-label="Trade & External"]');
     await trade.locator(".indicator-row", { hasText: "United States" }).waitFor({ state: "visible", timeout: 30_000 });
     const names = await trade.locator(".indicator-row .name").allInnerTexts();
-    expect(names.some((name) => name.startsWith("United States"))).toBe(true);
-    expect(names.some((name) => name.startsWith("European Union"))).toBe(true);
-    expect(names.some((name) => name.startsWith("ASEAN"))).toBe(true);
+    expect(names.some((name) => name.startsWith("Exports to the United States"))).toBe(true);
+    expect(names.some((name) => name.startsWith("Exports to the European Union"))).toBe(true);
+    expect(names.some((name) => name.startsWith("Exports to ASEAN"))).toBe(true);
     expect(names.some((name) => name.startsWith("Total"))).toBe(false);
+    // The regional row names the province with the measure, not "Provincial" with the province in small print.
+    const regional = page.locator('section[aria-label="Regional"]');
+    await regional.locator(".indicator-row", { hasText: "Guangdong" }).waitFor({ state: "visible", timeout: 30_000 });
+    const regionalNames = await regional.locator(".indicator-row .name").allInnerTexts();
+    expect(regionalNames.some((name) => name.startsWith("Guangdong Real GDP Growth"))).toBe(true);
+    expect(regionalNames.some((name) => name.startsWith("Provincial"))).toBe(false);
 
     await page.goto(`${server.url}/#/regions?key=trade_partners`);
     await page.locator(".ranked button").first().waitFor({ state: "visible", timeout: 30_000 });

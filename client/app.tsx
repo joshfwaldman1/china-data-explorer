@@ -56,6 +56,23 @@ function regionLabel(region: Region): string {
   if (region.value === "000000000000" || region.text === "全国") return "China, national";
   return PROVINCES.find((province) => province.code === region.value)?.en ?? region.text;
 }
+/** Names that take "the" in a sentence: "Exports to the United States", "Imports from the European Union". */
+const THE = new Set(["United States", "European Union", "United Kingdom", "Netherlands", "Philippines", "United Arab Emirates", "Czech Republic", "Bahamas", "Maldives"]);
+function withArticle(name: string): string { return THE.has(name) ? `the ${name}` : name; }
+/** A 12-digit NBS place code that is a province or city, not the nation. */
+function isPlaceCode(value: string): boolean { return /^\d{12}$/.test(value) && value !== "000000000000"; }
+/**
+ * The full name of one region's series, so a title says what and where at once:
+ * "Guangdong Real GDP Growth" rather than "Provincial Real GDP Growth" with the
+ * province in the small print; "Exports to the United States" for a Customs
+ * partner row; "Trade by Partner: ASEAN" when the line has no direction.
+ */
+function regionalTitle(title: string, regionName: string, firstLabel?: string): string {
+  const direction = firstLabel?.match(/^(Exports|Imports)\b/)?.[1];
+  if (direction) return `${direction} ${direction === "Exports" ? "to" : "from"} ${withArticle(regionName)}`;
+  if (/^Provincial /.test(title)) return `${regionName} ${title.replace(/^Provincial /, "")}`;
+  return `${title}: ${regionName}`;
+}
 /** What to call a result on a chart shared with others: the province when the key repeats. */
 function displayTitle(result: SeriesResult, all: SeriesResult[]): string {
   const title = result.metadata?.nameEn || result.title;
@@ -655,10 +672,13 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 const first = result?.series[0];
                 const latest = first?.points[first.points.length - 1];
                 const previous = first?.points[first.points.length - 2];
-                const name = region ? (result?.region ? regionLabel(result.region) : region) : entry.title;
+                // A row for one place is named for the place and the measure together; the
+                // small print then carries the line and the publisher, not the place again.
+                const placed = !region && result?.region && isPlaceCode(result.region.value) ? regionLabel(result.region) : "";
+                const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(entry.title, placed) : entry.title;
                 return (
                   <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
-                    <span className="name">{name}<small>{region ? `${first?.label ?? ""}${first ? ", " : ""}${entry.title}, ` : regionPrefix(result)}{!region && first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
+                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed ? "" : regionPrefix(result)}{!region && first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
                     <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
@@ -1004,7 +1024,7 @@ function seriesViewTitle(results: SeriesResult[], lang: string): string {
   const primary = results[0];
   if (!primary) return "";
   if (results.length > 1 && results.every((result) => result.key === primary.key && result.region)) return `${primary.title}: ${results.map((result) => displayTitle(result, results)).join(", ")}`;
-  if (results.length === 1 && primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg") return `${(lang !== "zh" && primary.metadata?.nameEn) || primary.title}: ${regionLabel(primary.region)}`;
+  if (results.length === 1 && primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg") return regionalTitle((lang !== "zh" && primary.metadata?.nameEn) || primary.title, regionLabel(primary.region), primary.series.length === 1 ? primary.series[0]?.label : undefined);
   return results.map((result) => (lang !== "zh" && result.metadata?.nameEn) || displayTitle(result, results)).join(", ");
 }
 
