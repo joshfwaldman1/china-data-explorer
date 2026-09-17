@@ -81,6 +81,9 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
     const regionalNames = await regional.locator(".indicator-row .name").allInnerTexts();
     expect(regionalNames.some((name) => name.startsWith("Guangdong Real GDP Growth"))).toBe(true);
     expect(regionalNames.some((name) => name.startsWith("Provincial"))).toBe(false);
+    // The series page is headed the same way.
+    await regional.locator(".indicator-row", { hasText: "Guangdong" }).first().click();
+    await page.locator("h1", { hasText: "Guangdong Real GDP Growth" }).waitFor({ state: "visible", timeout: 30_000 });
 
     await page.goto(`${server.url}/#/regions?key=trade_partners`);
     await page.locator(".ranked button").first().waitFor({ state: "visible", timeout: 30_000 });

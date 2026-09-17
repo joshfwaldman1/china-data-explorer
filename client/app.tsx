@@ -1182,6 +1182,12 @@ function SeriesPage(props: {
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date))[0];
   const stale = primary.source === "stale";
   const zhFirst = props.lang === "zh" || !meta?.nameEn;
+  // One place's series is headed by the place and the measure together ("Guangdong Real GDP
+  // Growth"); the lede then carries only the place's Chinese name.
+  const placed = results.length === 1 && primary.region && isPlaceCode(primary.region.value) ? regionLabel(primary.region) : "";
+  const headingLine = primary.series.length === 1 ? primary.series[0]?.label : undefined;
+  const zhTitle = placed && zhFirst ? regionalTitle(primary.title, placed, headingLine) : primary.title;
+  const enTitle = placed && meta?.nameEn ? regionalTitle(meta.nameEn, placed, headingLine) : meta?.nameEn;
   const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : "NBS's own data portal";
   const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
   const citation = `${primary.agency}, "${primary.title}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key])}`;
@@ -1277,12 +1283,14 @@ function SeriesPage(props: {
           : <><span>Headline Indicators</span><span aria-hidden="true">›</span><span>{curated?.group ?? primary.agency}</span></>}
       </div>
       <PageHeader
-        title={<>{zhFirst ? <Zh>{primary.title}</Zh> : meta?.nameEn}{meta?.nameEn && <span className="gloss">{zhFirst ? meta.nameEn : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
+        title={<>{zhFirst ? <Zh>{zhTitle}</Zh> : enTitle}{meta?.nameEn && <span className="gloss">{zhFirst ? enTitle : <Zh>{primary.title}</Zh>} <span className="tag">{meta.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}</>}
         subtitle={results.length > 1
           ? <p className="lede">{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, compared with ` : "Compared with "}{listWords(results.slice(1).map((result) => displayTitle(result, results)))}</p>
           // One regional series: the heading names the measure, so the lede names the place (not for the national or the 70-city average views).
           : primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg"
-            ? <p className="lede">{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</p>
+            ? (placed
+              ? (regionLabel(primary.region) !== primary.region.text ? <p className="lede"><Zh className="gloss">{primary.region.text}</Zh></p> : undefined)
+              : <p className="lede">{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</p>)
             : undefined}
         actions={<>
           <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
