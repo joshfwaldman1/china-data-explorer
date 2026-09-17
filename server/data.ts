@@ -1125,6 +1125,60 @@ export const CATALOG: Record<string, Indicator> = {
       { term: "30.0", label: "30-year" },
     ],
   },
+  shibor: {
+    kind: "cfets", table: "shibor", group: "Interest Rates",
+    title: "SHIBOR", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Percent, last fixing of the month",
+    // The Shanghai Interbank Offered Rate, fixed each trading day from the
+    // panel banks' quotes; the overnight and one-week tenors track the
+    // central bank's operations, the three-month tenor prices bank funding.
+    // No pair: SHIBOR reaches the site by CFETS's fixing alone, and the
+    // averages beside it are the same fixings reduced another way.
+    tenors: [
+      { term: "ON", label: "Overnight" },
+      { term: "1W", label: "1-week" },
+      { term: "1M", label: "1-month" },
+      { term: "3M", label: "3-month" },
+      { term: "1Y", label: "1-year" },
+    ],
+  },
+  shibor_average: {
+    kind: "cfets", table: "shibor", measure: "month_average", group: "Interest Rates",
+    title: "SHIBOR, Monthly Average", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Percent, average of daily fixings", home: false,
+    tenors: [
+      { term: "ON", label: "Overnight" },
+      { term: "1W", label: "1-week" },
+      { term: "3M", label: "3-month" },
+    ],
+  },
+  repo_fixing: {
+    kind: "cfets", table: "repo_fixing", group: "Interest Rates",
+    title: "Repo Fixing Rates", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Percent, last fixing of the month",
+    // The pledged-repo fixing rates CFETS sets each trading day from the
+    // morning's trades: FR across all institutions, FDR among depository
+    // institutions only. FDR007 is the fixing of the seven-day rate the
+    // central bank steers (DR007); the DR weighted averages themselves are
+    // not on an endpoint the site can reach, so the fixing is served and
+    // named as such.
+    tenors: [
+      { term: "FDR007", label: "FDR007, 7-day, depository institutions" },
+      { term: "FDR001", label: "FDR001, overnight, depository institutions" },
+      { term: "FR007", label: "FR007, 7-day, all institutions" },
+      { term: "FR001", label: "FR001, overnight, all institutions" },
+    ],
+  },
+  repo_fixing_average: {
+    kind: "cfets", table: "repo_fixing", measure: "month_average", group: "Interest Rates",
+    title: "Repo Fixing Rates, Monthly Average", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Percent, average of daily fixings", home: false,
+    tenors: [
+      { term: "FDR007", label: "FDR007, 7-day, depository institutions" },
+      { term: "FDR001", label: "FDR001, overnight, depository institutions" },
+      { term: "FR007", label: "FR007, 7-day, all institutions" },
+    ],
+  },
   trade_partners: {
     kind: "customs", group: "Trade & External",
     title: "Trade by Partner", agency: "General Administration of Customs",

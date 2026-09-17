@@ -423,6 +423,10 @@ export const NO_PAIR: Record<string, string> = {
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
   electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
+  shibor: "CFETS's fixing is the only source of SHIBOR on the site; the monthly average beside it is the same fixings reduced another way.",
+  shibor_average: "As shibor: the same fixings, averaged over the month.",
+  repo_fixing: "CFETS's fixings are the only source; the DR weighted averages they are fixed from are not on an endpoint the site reaches.",
+  repo_fixing_average: "As repo_fixing: the same fixings, averaged over the month.",
   bank_fx_settlement_usd: "The dollar valuation of bank_fx_settlement from the same workbook; the yuan series is summed against the annual table.",
 };
 
