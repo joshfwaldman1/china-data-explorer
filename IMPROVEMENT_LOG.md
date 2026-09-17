@@ -2545,3 +2545,24 @@ not from scratch. Rounds are small on purpose.
   (settlement 17,090.42, sales 13,800.27; 484.8 亿美元), 2025 net
   13,913 亿元 after two deficit years; 38 pairs, 0 findings, the two FX pairs
   "missing" until the sweep stores the keys.
+
+- 2026-09-17 (dataset loop, round 25: CFETS money-market rates): the
+  interest-rate group had the bond curve and the policy rates but nothing
+  from the money market. The CFETS adapter now reaches three tables on
+  chinamoney.com.cn: SHIBOR (ShiborHis, eight tenors per trading day) and
+  the repo fixing rates (FrrHis: FR and FDR at one, seven and fourteen
+  days) beside the yield curve, each a POST per month like the curve.
+  `shibor` and `repo_fixing` serve the month's last fixing, `shibor_average`
+  and `repo_fixing_average` the mean of the month's daily fixings; the unit
+  says which. The queue asked for DR007; the weighted averages themselves
+  are on no endpoint the site reaches (five candidates 404), so FDR007, the
+  fixing set from those trades, is served first and named as a fixing.
+  Test: August 2026's responses carry every tenor for all 21 trading days,
+  the month end is the 31 August fixing, the average lies inside the
+  month's range, FR007 never sits below FDR007; the adapter's endpoint and
+  measure dispatch through an injected poster. The gate chain once stopped
+  at `grep -c` returning 1 for zero matches, so the deploy ran before the
+  commit; the commit followed on the same tree. Live: September 2026 so far
+  overnight SHIBOR 1.46, one-week 1.45, three-month 1.43; FDR007 1.43,
+  monthly average 1.3958; 120 months back to October 2016 (FDR from 2017);
+  38 pairs, 0 findings, the two FX pairs from round 24 now "ok".
