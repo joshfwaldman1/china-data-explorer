@@ -11,32 +11,22 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **MOFCOM weekly prices.** The ministry's weekly 食用农产品 and 生产资料
-   market price indices are published as text reports on price.mofcom.gov.cn
-   (监测周报); an adapter for the weekly text, stored at the site's monthly
-   frame as the month's last week until a weekly frame exists.
-   *Test:* one report parses to the two indices and the month-end rule holds.
-
-3. **CPI by category, 2021-2025 slice.** The 2026 slice is served; stitch the
-   2021-2025 table so `cpi_detail` runs back five years.
-   *Test:* December 2025 core CPI appears on the line.
-
-4. **PMI sub-indices from NBS's table.** New orders, production, employment,
+2. **PMI sub-indices from NBS's table.** New orders, production, employment,
    supplier deliveries, inventories from the monthly database (采购经理指数
    category), as a key beside `pmi`.
    *Test:* August 2026 new orders parses and the headline PMI pair stays ok.
 
-5. **70-city house prices from NBS's own city table.** The city monthly
+3. **70-city house prices from NBS's own city table.** The city monthly
    dataset (code 7) carries 新建商品住宅销售价格指数 by city; serve the
    `house_prices` rows from it with the mirror kept for the audit.
    *Test:* Beijing August 2026 new-home index equals the mirror's row.
 
-6. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+4. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-7. **Property: developer financing and mortgages.** [parked: source not
+5. **Property: developer financing and mortgages.** [parked: source not
    found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
    outstanding, mortgages (个人住房贷款) and their growth. On 16 September
    none of the survey-and-statistics department's sections nor the news
@@ -46,12 +36,26 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-8. **High-frequency group.** Freight index (`macro_china_freight_index`)
+6. **MOFCOM weekly prices.** [parked: source not found] The weekly
+   食用农产品 and 生产资料 market price indices are not on price.mofcom.gov.cn
+   (its columns — 监测周报, 粮农土畜, 能源化工, 经贸简讯 — hold international
+   commodity monitoring, trade news and daily briefs; the list endpoint is
+   `POST /datamofcom/front/price/list` with `cid=yjzx/jczb&pageNumber=N`),
+   and the ministry's news list carries no weekly market-price item in 2026.
+   Try the 商务预报 site (cif.mofcom.gov.cn) or the weekly item in 每日经贸简讯.
+   *Test:* one report parses to the two indices.
+
+7. **High-frequency group.** Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
 ## Done
+
+- 2026-09-17 — CPI by category, 2021-2025 slice: NBS keys can stitch earlier
+  year slices; `cpi_detail` runs from October 2024. One test. Also: English
+  for every top-level category and every title (pinyin where the dictionary
+  cannot), the stored catalog re-glossed. MOFCOM weekly prices parked.
 
 - 2026-09-16 — Prices beyond the headlines: `cpi_detail` (core, food, non-food,
   consumer goods, services, housing) and `ppi_detail` (producer and consumer

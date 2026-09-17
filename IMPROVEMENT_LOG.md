@@ -2472,3 +2472,28 @@ not from scratch. Rounds are small on purpose.
   sweep: August 2026 core CPI 1.0, food −0.7, non-food 1.2, PPI 3.8,
   producer goods 5.0, consumer goods −0.5; 33 pairs, 0 findings; the trade
   headline now stored (5.03 million observations).
+
+- 2026-09-17 (translations): the home page's category tiles carried English
+  only for the monthly dataset's headings; every top-level category now has
+  one (66, hand-written). The category pages showed 15,031 of 79,836 titles
+  with Chinese left in the English and 183 units untranslated, the
+  translation credit having run out: 341 tokens for the commonest leftover
+  runs, English for 70 units on server and client, and pinyin for whatever
+  the dictionary still cannot render, held by a test over the whole shipped
+  snapshot — no English title carries a Chinese character. The first deploy
+  changed nothing on the live site: the labelled catalog is stored on the
+  volume under a version that did not see a dictionary change; the gloss
+  format is bumped and the catalog re-glosses at boot. Live: 艾滋病发病人数
+  reads "HIV/AIDS cases", 日照港口码头长度 "Rizhao port quay length".
+
+- 2026-09-17 (dataset loop, round 21: CPI 2021-2025 slice; MOFCOM weekly
+  parked): MOFCOM's weekly indices are not on price.mofcom.gov.cn — its
+  columns hold international commodity monitoring, trade news and daily
+  briefs (the list endpoint is a POST of cid and pageNumber, recorded in the
+  queue) — and the ministry's news list has no weekly market-price items
+  this year; parked. An NBS-kind key can now carry earlier year slices of
+  its table under other cids, merged behind the main table by label with
+  the main table winning on overlap; `cpi_detail` runs from October 2024
+  through the 2021-2025 table (December 2025 core CPI 1.2). A test holds
+  the slice's ids to the same categories. Live: the stored copy through
+  2026 stays until the next sweep refreshes it, when the slice fills in.
