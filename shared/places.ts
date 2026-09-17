@@ -58,6 +58,7 @@ export const PROVINCE_PLACES: Place[] = [
  * curated house-price series identifies it by slug.
  */
 export const CITY_PLACES: Place[] = [
+  { code: "540100000000", zh: "拉萨", en: "Lhasa" },
   { code: "", zh: "北京", en: "Beijing" },
   { code: "", zh: "天津", en: "Tianjin" },
   { code: "", zh: "石家庄", en: "Shijiazhuang" },

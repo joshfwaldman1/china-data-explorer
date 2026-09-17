@@ -31,6 +31,8 @@ const CATALOG_NATION = "000000000000";
 
 export interface SeriesRef {
   key: string;
+  /** The region to read for a series published by place; the nation (or the curated default) when omitted. */
+  region?: string;
   /** The line to read; for a catalog key the first (only) line is read when omitted. */
   label?: string;
   /** Added to every reference value before comparison: -100 turns an index on "same month a year earlier = 100" into a rate. */
@@ -334,6 +336,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "New home prices, Beijing (YoY %)", kind: "value",
+    left: { key: "house_prices_nbs", label: "New homes (YoY %)", region: "110000000000" }, // NBS's own city table
+    right: { key: "house_prices", label: "New homes (YoY %)", region: "beijing" }, // the mirror's row
+    tolerance: 0.05,
+    note: "The bureau's 70-city table against the mirror's copy, for Beijing.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
@@ -384,7 +393,6 @@ export const NO_PAIR: Record<string, string> = {
   major_exports_cny: "As trade_partners_cny.",
   major_imports_cny: "As trade_partners_cny.",
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
-  house_prices: "The 70-city average is computed by the site from the mirror's city rows; NBS publishes the cities, not the average.",
   electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
 };
@@ -458,7 +466,7 @@ function round(value: number): number { return Math.round(value * 1000) / 1000; 
  */
 export function readSide(ref: SeriesRef, limit = 24): SeriesPoint[] {
   const catalog = ref.key.startsWith("nbs_");
-  const stored = readSeries(ref.key, limit, catalog ? CATALOG_NATION : "");
+  const stored = readSeries(ref.key, limit, ref.region ?? (catalog ? CATALOG_NATION : ""));
   if (!stored) return [];
   if (ref.label) return stored.series.find((series) => series.label === ref.label)?.points ?? [];
   const lines = stored.series.filter((series) => series.points.length > 0);
