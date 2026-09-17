@@ -47,7 +47,7 @@ https://econstats-china-production.up.railway.app
 
 Stack: Bun + React 19 + Recharts + SQLite. Everything server-side reads a
 store first and falls back to the source. Repo github.com/joshfwaldman1/datatool,
-working copy /Users/josh/Downloads/econstats-agent-extract/econstats-agent-main.
+working copy is the repository root (the checkout of joshfwaldman1/datatool).
 
 Read AGENTS.md at the repo root first. It is the real project document and it
 is current: sources and how each is reached, the store's rules, search and
