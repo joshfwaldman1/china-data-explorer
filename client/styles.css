@@ -519,3 +519,7 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 
 .section-head .more { margin-left: auto; font-size: var(--fs-2); }
 .section-head .gloss.block { display: inline; margin: 0 0 0 6px; }
+
+/* The link under a group's rows to the ranking of every place a multi-region row covers. */
+.group-more { display: block; padding: 0.45rem 0 0.2rem; font-size: var(--fs-2); color: var(--link, #1a5fb4); text-decoration: none; }
+.group-more:hover { text-decoration: underline; }

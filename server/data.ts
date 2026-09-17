@@ -210,6 +210,8 @@ interface NbsIndicator {
   kind: "nbs";
   group: string;
   title: string;
+  /** Regions of a multi-region series that get their own Home rows (the major provincial economies). */
+  homeRegions?: string[];
   /** Set when the source stopped publishing: the last period, and why. */
   ended?: string;
   endedNote?: string;
@@ -596,6 +598,9 @@ export const CATALOG: Record<string, Indicator> = {
     rootId: "854f819b04104191a5ae2f2cba270e6c",
     region: GUANGDONG,
     regions: NBS_PROVINCES,
+    // Home shows the six largest provincial economies (2025 GDP order):
+    // Guangdong, Jiangsu, Shandong, Zhejiang, Sichuan, Henan. The ranking page has all 31.
+    homeRegions: ["440000000000", "320000000000", "370000000000", "330000000000", "510000000000", "410000000000"],
     ids: [{
       id: "23c7f329424d4e90b22abc092a5b676f",
       label: "Real GDP, cumulative YTD (YoY %)",
@@ -1623,17 +1628,100 @@ export interface CatalogEntry {
   /** Regions of a multi-region series that get their own home-page rows. */
   homeRegions?: string[];
   home?: boolean;
+  /** Position on the Home page, group by group, from HOME_ROWS. */
+  homeRank?: number;
+  /** The Home row's name when it differs from the series title: what the first line is. */
+  homeTitle?: string;
 }
+
+/**
+ * The Home page, row by row. Groups run in briefing order (activity, then
+ * prices and labour, then property, money, rates, the yuan, the external
+ * accounts, the budget, sentiment, the provinces); within a group the
+ * headline comes first. A row is named for what its first line is, not for
+ * the table it comes from: "M2 Growth", not "Money Supply (M1 / M2 Growth)".
+ * The four hero tiles (GDP, CPI, unemployment, PMI) sit above these. A
+ * curated key not listed here is off the Home page but stays searchable and
+ * on its own page and its group's release links.
+ */
+export const HOME_ROWS: { group: string; rows: { key: string; title?: string }[] }[] = [
+  { group: "Growth & Output", rows: [
+    { key: "industrial_production", title: "Industrial Production Growth" },
+    { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
+    { key: "industrial_profits", title: "Industrial Profits Growth, Year to Date" },
+    { key: "electricity_demand", title: "Electricity Consumption" },
+    { key: "capacity_utilisation", title: "Industrial Capacity Utilisation" },
+  ] },
+  { group: "Consumption", rows: [
+    { key: "retail_sales", title: "Retail Sales Growth" },
+  ] },
+  { group: "Prices", rows: [
+    { key: "ppi", title: "Producer Price Index" },
+    { key: "cpi_detail", title: "Core CPI, Excluding Food and Energy" },
+  ] },
+  { group: "Labor", rows: [
+    { key: "migrant_workers", title: "Rural Migrant Workers Away from Home" },
+  ] },
+  { group: "Property", rows: [
+    { key: "property_investment", title: "Real Estate Investment Growth, Year to Date" },
+    { key: "property_sales", title: "New Home Floor Space Sold, Year to Date" },
+    { key: "property_construction", title: "Housing Starts, Year to Date" },
+    { key: "house_prices", title: "New Home Prices, 70-City Average" },
+  ] },
+  { group: "Money & Credit", rows: [
+    { key: "money_supply", title: "M2 Growth" },
+    { key: "tsf_flow", title: "Total Social Financing, Monthly Flow" },
+    { key: "new_loans", title: "New Yuan Loans, Monthly Flow" },
+    { key: "tsf_stock_growth", title: "Total Social Financing Stock Growth" },
+  ] },
+  { group: "Interest Rates", rows: [
+    { key: "lpr", title: "1-Year Loan Prime Rate" },
+    { key: "repo_fixing", title: "7-Day Repo Fixing Rate (FDR007)" },
+    { key: "shibor", title: "Overnight SHIBOR" },
+    { key: "cgb_yields", title: "10-Year Government Bond Yield" },
+  ] },
+  { group: "Exchange Rates", rows: [
+    { key: "central_parity", title: "Yuan per US Dollar, Central Parity" },
+    { key: "cfets_rmb_index", title: "CFETS RMB Index" },
+  ] },
+  { group: "Trade & External", rows: [
+    { key: "trade", title: "Export Growth" },
+    { key: "trade_partners" },
+    { key: "balance_of_payments", title: "Current Account Balance" },
+    { key: "forex_reserves", title: "Official Foreign Exchange Reserves" },
+    { key: "bank_fx_settlement", title: "Net Bank FX Settlement" },
+    { key: "fdi_actual_use", title: "Foreign Direct Investment, Actual Use, Year to Date" },
+  ] },
+  { group: "Public Finance", rows: [
+    { key: "fiscal_revenue", title: "Fiscal Revenue, Year to Date" },
+    { key: "land_sale_revenue", title: "Land Sale Revenue, Year to Date" },
+  ] },
+  { group: "Sentiment", rows: [
+    { key: "consumer_confidence", title: "Consumer Confidence Index" },
+    { key: "caixin_pmi" },
+    { key: "caixin_services_pmi" },
+  ] },
+  { group: "Regional", rows: [
+    { key: "provincial_gdp" },
+  ] },
+];
+
+/** The four tiles above the Home list; they are not rows. */
+export const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
+
+const HOME_INDEX = new Map<string, { rank: number; title?: string }>();
+HOME_ROWS.forEach((group, groupIndex) => group.rows.forEach((row, rowIndex) => HOME_INDEX.set(row.key, { rank: groupIndex * 100 + rowIndex, title: row.title })));
 
 export function catalogList(): CatalogEntry[] {
   return Object.entries(CATALOG).map(([key, c]) => ({
     key, title: c.title, group: c.group, agency: c.agency,
     frequency: c.frequency, unit: c.unit, source: c.kind,
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
-    ...(c.home === false ? { home: false } : {}),
+    // On Home only when listed in HOME_ROWS (or a hero tile); the listing carries the row's rank and name.
+    ...(HOME_INDEX.has(key) || HERO_KEYS.includes(key) ? { homeRank: HOME_INDEX.get(key)?.rank, ...(HOME_INDEX.get(key)?.title ? { homeTitle: HOME_INDEX.get(key)?.title } : {}) } : { home: false }),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
     ...((c.kind === "customs" || c.kind === "eastmoney" || c.kind === "nea" || c.kind === "pboc" || c.kind === "mof" || c.kind === "mofcom" || c.kind === "safe") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
-    ...(c.kind === "customs" && c.homeRegions ? { homeRegions: c.homeRegions } : {}),
+    ...((c.kind === "customs" || c.kind === "nbs") && c.homeRegions ? { homeRegions: c.homeRegions } : {}),
   }));
 }
 

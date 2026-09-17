@@ -13,7 +13,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -583,7 +583,13 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
 // ── Home ──────────────────────────────────────────────────────────────────────
 
 const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
-const GROUP_ORDER = ["Growth & Output", "Prices", "Labor", "Consumption", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Property", "Sentiment", "Markets", "Public Finance", "Demographics", "Regional"];
+// Briefing order: activity, then prices and labour, property, money and rates, the yuan, the external accounts, the budget, sentiment, the provinces.
+const GROUP_ORDER = ["Growth & Output", "Consumption", "Prices", "Labor", "Property", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Public Finance", "Sentiment", "Markets", "Demographics", "Regional"];
+const homeRank = (entry: CuratedEntry) => entry.homeRank ?? Number.MAX_SAFE_INTEGER;
+/** Where the rest of a multi-region row's places are ranked. */
+function allRegionsLink(entry: CuratedEntry): { href: string; label: string } {
+  return { href: routeHash({ view: "regions", period: "", key: entry.key }), label: entry.key === "provincial_gdp" ? "All 31 provinces, ranked" : entry.key === "trade_partners" ? "All trading partners, ranked" : "All places, ranked" };
+}
 const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
 /** What follows a value on a Home row: "%" for a rate, a compact unit for a level ("100M yuan"), nothing for an index. */
 function unitSuffix(unit: string): string {
@@ -689,7 +695,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
           {[...new Set(props.curated.filter((entry) => !HERO_KEYS.includes(entry.key) && entry.home !== false).map((entry) => entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
             <section key={group} aria-label={group}>
               <h3>{group}</h3>
-              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key) && entry.home !== false).flatMap((entry) => {
+              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key) && entry.home !== false).sort((a, b) => homeRank(a) - homeRank(b)).flatMap((entry) => {
                 // A series that names home regions (trade by partner) is one row per
                 // region, named for the region; the rest are one row each.
                 const rows = entry.homeRegions ? entry.homeRegions.map((code) => ({ entry, spec: `${entry.key}@${code}`, region: code })) : [{ entry, spec: entry.key, region: "" }];
@@ -701,12 +707,14 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 // A row for one place is named for the place and the measure together; the
                 // small print then carries the line and the publisher, not the place again.
                 const placed = !region && result?.region && isPlaceCode(result.region.value) ? regionLabel(result.region) : "";
-                const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(entry.title, placed) : entry.title;
+                const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(entry.homeTitle ?? entry.title, placed) : entry.homeTitle ?? entry.title;
+                // The small print names the table the row comes from when the row is named for its line, else the line.
+                const tableNote = !region && entry.homeTitle && entry.homeTitle !== entry.title ? `${entry.title}, ` : "";
                 // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
                 const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: entry.unit }) : "";
                 return (
                   <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
-                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed ? "" : regionPrefix(result)}{!region && first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
+                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{latest ? unitSuffix(entry.unit) : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
@@ -715,6 +723,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 );
                 });
               })}
+              {props.curated.filter((entry) => entry.group === group && entry.homeRegions && entry.home !== false).map((entry) => { const link = allRegionsLink(entry); return <a key={`${entry.key}-all`} className="group-more" href={link.href}>{link.label} ›</a>; })}
             </section>
           ))}
         </div>
