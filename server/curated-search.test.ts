@@ -53,6 +53,7 @@ test("an NBS series that is exactly what was asked for leads the headline series
   // synonyms, and headline series lead, so the bureau's own birth rate came second.
   const { searchNbsCatalog } = await import("./nbs-catalog.ts");
   const result = await searchNbsCatalog({ query: "birth rate", limit: 5 });
-  const exact = result.results.find((entry) => (entry.nameEn ?? "").toLowerCase() === "birth rate");
+  // NBS's own title carries the unit: "Birth Rate(‰)".
+  const exact = result.results.find((entry) => (entry.nameEn ?? "").toLowerCase().replace(/\s*[(（][^()（）]*[)）]\s*$/, "") === "birth rate");
   expect(exact).toBeDefined();
 }, 30000);

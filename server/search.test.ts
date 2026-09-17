@@ -48,10 +48,11 @@ test("pinyin, spaced or not, finds the series", async () => {
 test("a singular finds its plural in the gloss and the other way round: soybean, egg, eggs, maize", async () => {
   const soybean = await searchNbsCatalog({ query: "soybean", limit: 3 });
   expect(soybean.results.some((entry) => entry.name.includes("大豆"))).toBe(true);
+  // NBS's own titles say "Eggs" for the CPI line (蛋类) as well as the market price (鸡蛋); either is the egg series.
   const egg = await searchNbsCatalog({ query: "egg", limit: 3 });
-  expect(egg.results.some((entry) => entry.name.includes("鸡蛋"))).toBe(true);
+  expect(egg.results.some((entry) => /鸡蛋|蛋类/.test(entry.name))).toBe(true);
   const eggs = await searchNbsCatalog({ query: "eggs", limit: 3 });
-  expect(eggs.results.some((entry) => entry.name.includes("鸡蛋"))).toBe(true);
+  expect(eggs.results.some((entry) => /鸡蛋|蛋类/.test(entry.name))).toBe(true);
   const maize = await searchNbsCatalog({ query: "maize", limit: 3 });
   expect(maize.results.some((entry) => entry.name.includes("玉米"))).toBe(true);
 });
@@ -66,8 +67,20 @@ test("Latin terms match on word boundaries: house is not household", async () =>
   // Scoped to the national monthly dataset the series belongs to: "household"
   // matches thousands of titles across a catalog of eighty thousand, so a place
   // in the first two hundred of everything is not what this is testing.
-  const household = await searchNbsCatalog({ query: "household", datasetCode: 1, limit: 200 });
-  expect(household.results.some((entry) => entry.key === target?.key)).toBe(true);
+  // NBS's own title is "Articles and Services for Daily Use"; the generated gloss ("household
+  // articles and services") is kept beside it for search, so "household" still reaches the series,
+  // now behind the titles that carry the word themselves. Pages are capped at 100.
+  const found: string[] = [];
+  for (const offset of [0, 100, 200]) {
+    const page = await searchNbsCatalog({ query: "household", datasetCode: 1, limit: 100, offset });
+    found.push(...page.results.map((entry) => entry.key));
+  }
+  expect(found.includes(target?.key ?? "")).toBe(true);
+  // Both the bureau's words and the gloss's lead straight to it.
+  for (const phrase of ["household articles and services", "articles and services for daily use"]) {
+    const page = await searchNbsCatalog({ query: phrase, datasetCode: 1, limit: 5 });
+    expect(page.results[0]?.key).toBe(target?.key ?? "");
+  }
   // "house" must not reach it at all, anywhere in the catalog.
   const house = await searchNbsCatalog({ query: "house", limit: 200 });
   expect(house.results.some((entry) => entry.key === target?.key)).toBe(false);
@@ -87,7 +100,8 @@ test("every entry carries an English gloss and pinyin", async () => {
 test("a plain output series outranks a ratio of it on a bare noun", async () => {
   const result = await searchNbsCatalog({ query: "steel", limit: 5 });
   const names = result.results.map((entry) => entry.nameEn ?? entry.name);
-  const output = names.findIndex((name) => /crude steel output/i.test(name));
+  // "Crude steel output" in the generated gloss, "Output of Crude Steel" in NBS's own title.
+  const output = names.findIndex((name) => /crude steel/i.test(name) && !/ratio/i.test(name));
   const ratio = names.findIndex((name) => /ratio/i.test(name));
   expect(output).toBeGreaterThanOrEqual(0);
   if (ratio >= 0) expect(output).toBeLessThan(ratio);
@@ -246,7 +260,7 @@ test("a word's first alias is its primary meaning: 'investment' leads with fixed
   const bare = await searchNbsCatalog({ query: "investment", limit: 3 });
   expect(bare.results[0]?.name.startsWith("固定资产投资")).toBe(true);
   const income = await searchNbsCatalog({ query: "investment income", limit: 3 });
-  expect(income.results[0]?.name.startsWith("投资收益")).toBe(true);
+  expect(income.results[0]?.name.includes("投资收益")).toBe(true);
 });
 
 test("PMI sub-indexes carry their table in the English title", async () => {

@@ -99,7 +99,7 @@ function isBehind(period: string, frequency: string): boolean {
 }
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; place?: { text: string; en: string; kind: string }; }
 interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
-interface CatalogStats { generatedAt: string; seriesCount: number; storedCount?: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
+interface CatalogStats { generatedAt: string; seriesCount: number; storedCount?: number; officialEnglishCount?: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
 interface Release { id: string; date: string; title: string; en: string; keys: string[]; categories: string[]; }
 interface Vintage { value: number | null; fetchedAt: string; }
 interface Revised { label: string; period: string; vintages: Vintage[]; }
@@ -750,7 +750,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             })}</div>}
         </div>
         <div className="card">
-          <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
+          <div className="card-head"><h2>Coverage</h2><span>{props.stats?.officialEnglishCount ? `${props.stats.officialEnglishCount.toLocaleString("en-US")} English titles are NBS's own; the rest are machine translations, marked as such` : "English titles are machine translations; the Chinese is official"}</span></div>
           <div className="coverage">
             <div><h3>Included</h3><ul>
               {datasets.map((dataset) => <li key={dataset.code}>{dataset.count.toLocaleString("en-US")} {dataset.geography === "National" ? "national" : dataset.geography === "Province" ? "provincial" : dataset.geography === "City" ? "city" : dataset.geography} {dataset.frequency.toLowerCase()} NBS series{dataset.geography === "Province" ? ", each published for 31 provinces" : dataset.geography === "City" ? ", each published for the surveyed cities" : DATASET_NOTE[dataset.code] ? `: ${DATASET_NOTE[dataset.code]}` : ""}</li>)}

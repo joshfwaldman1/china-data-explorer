@@ -169,6 +169,8 @@ export interface NbsCatalogEntry {
   nameEn?: string;
   /** Distinguishes an audited NBS label from our generated fallback. */
   nameEnSource?: EnglishLabelSource;
+  /** The generated gloss kept beside an official title, so search still finds the words readers use ("maize", "eggs"). */
+  glossEn?: string;
   nameEnSourceUrl?: string;
   nameEnCapturedAt?: string;
   /**
@@ -287,11 +289,11 @@ function parseEntry(value: unknown): NbsCatalogEntry | null {
 }
 
 const GLOSS_FILE = resolve(import.meta.dir, "../catalog/gloss-en.json");
-const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
+const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.gz");
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 23; // 23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 24; // 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -325,6 +327,7 @@ function reviveEntry(raw: unknown): NbsCatalogEntry | null {
     nameEn: stringValue(raw, "nameEn") || undefined,
     nameEnSource: isLabelSource(source) ? source : undefined,
     nameEnSourceUrl: stringValue(raw, "nameEnSourceUrl") || undefined,
+    glossEn: stringValue(raw, "glossEn") || undefined,
     family: reviveFamily(objectValue(raw, "family")),
     noteEn: stringValue(raw, "noteEn") || undefined,
     annotationEn: stringValue(raw, "annotationEn") || undefined,
@@ -553,7 +556,7 @@ function writeStoredCatalog(snapshot: CatalogSnapshot, version: string): void {
     database.exec("DELETE FROM catalog_fts");
     for (const entry of entries) {
       insertEntry.run(entry.key, JSON.stringify(entry));
-      insertText.run(entry.key, entry.name, entry.nameEn ?? "", entry.shortName, entry.categories.join(" "), entry.pinyin ?? "");
+      insertText.run(entry.key, entry.name, [entry.nameEn ?? "", entry.glossEn ?? ""].filter(Boolean).join(" "), entry.shortName, entry.categories.join(" "), entry.pinyin ?? "");
     }
     database.query("INSERT OR REPLACE INTO catalog_meta (id, version, generated_at, source, loaded_at) VALUES (1, ?, ?, ?, ?)")
       .run(version, snapshot.generatedAt, snapshot.source, new Date().toISOString());
@@ -579,8 +582,9 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
       const entries = entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null)
         .map((entry) => {
           const spaced = toPinyin(entry.shortName);
-          const english = resolveEnglishLabel(entry.key, entry.name, glossTitle(entry.name));
-          const labelled = { ...entry, ...english, pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
+          const gloss = glossTitle(entry.name);
+          const english = resolveEnglishLabel(entry.key, entry.name, gloss);
+          const labelled = { ...entry, ...english, ...(english.nameEnSource === "nbs-official" && gloss ? { glossEn: gloss } : {}), pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
           return withProseEnglish({ ...labelled, nameEn: tableQualifiedTitle(labelled) }, notesTable);
         });
       const stitched = qualifyDuplicateTitles(attachFamilies(entries));
@@ -627,6 +631,8 @@ export async function nbsCatalogStats() {
     generatedAt: snapshot.generatedAt,
     seriesCount: visible.length,
     storedCount: visible.filter((entry) => storedKeys.has(entry.key)).length,
+    // Titles in the bureau's own English (from its portal's English mode), as against generated ones.
+    officialEnglishCount: visible.filter((entry) => entry.nameEnSource === "nbs-official").length,
     categoryCount: categories.size,
     categories: [...categoryCounts.entries()]
       .map(([name, count]) => ({ name, count }))
@@ -650,7 +656,7 @@ function fullTextCandidates(terms: string[]): Map<string, number> {
   if (usable.length === 0) return out;
   const match = usable.map((term) => `"${term}"`).join(" OR ");
   try {
-    const rows = catalogDb().query<{ key: string; rank: number }, string>("SELECT key, bm25(catalog_fts, 0, 3, 2, 2, 1, 2) AS rank FROM catalog_fts WHERE catalog_fts MATCH ? ORDER BY rank LIMIT 2000").all(match);
+    const rows = catalogDb().query<{ key: string; rank: number }, string>("SELECT key, bm25(catalog_fts, 0, 3, 2, 2, 1, 2) AS rank FROM catalog_fts WHERE catalog_fts MATCH ? ORDER BY rank LIMIT 5000").all(match);
     for (const row of rows) out.set(row.key, Math.min(10, Math.max(0, -row.rank)));
   } catch {
     // A malformed MATCH expression is not worth failing a search over.
@@ -744,7 +750,8 @@ function searchTextOf(entry: NbsCatalogEntry): SearchText {
   const name = entry.name.toLocaleLowerCase();
   const shortName = entry.shortName.toLocaleLowerCase();
   const path = entry.categories.join(" ").toLocaleLowerCase();
-  const nameEn = (entry.nameEn ?? "").toLocaleLowerCase();
+  // The official title and, beside it, the generated gloss: both are searched, only the title is shown.
+  const nameEn = [entry.nameEn ?? "", entry.glossEn ?? ""].filter(Boolean).join(" ").toLocaleLowerCase();
   const pinyin = (entry.pinyin ?? "").toLocaleLowerCase();
   const text: SearchText = {
     name,

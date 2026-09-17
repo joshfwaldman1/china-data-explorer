@@ -1,16 +1,19 @@
 /**
- * Audited English labels from the NBS legacy English catalog.
+ * Official English labels from the NBS portal.
  *
- * The current NBS portal exposes Chinese metadata only. The legacy English
- * portal uses different indicator codes, so an English label is considered
- * official here only after a crosswalk pins it to both the current opaque key
- * and the exact current Chinese title. A catalog rename therefore fails safe
- * to the generated gloss instead of silently mislabelling a series.
+ * The current portal has an English mode whose API (the same endpoints under
+ * publicrelease/en/) answers the same indicator ids with the bureau's own
+ * English titles; scripts/sync-nbs-english.ts collects them. A label is used
+ * only when it is pinned to both the current opaque key and the exact current
+ * Chinese title, so a catalog rename fails safe to the generated gloss
+ * instead of silently mislabelling a series.
  */
 
 import { resolve } from "node:path";
 
 const OFFICIAL_PATH = resolve(import.meta.dir, "../catalog/nbs-official-en.json");
+/** The shipped form: the same snapshot gzipped, as the catalog snapshot is. */
+const OFFICIAL_GZ_PATH = `${OFFICIAL_PATH}.gz`;
 
 export type EnglishLabelSource = "nbs-official" | "generated" | "unavailable";
 
@@ -52,7 +55,8 @@ function textValue(value: unknown, key: string): string {
 function officialNbsUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname === "data.stats.gov.cn" && url.pathname.startsWith("/english/");
+    // The legacy English portal (/english/) or the English mode of the current portal (/dg/website/...en/...).
+    return url.protocol === "https:" && url.hostname === "data.stats.gov.cn" && (url.pathname.startsWith("/english/") || url.pathname.startsWith("/dg/website/"));
   } catch {
     return false;
   }
@@ -122,16 +126,20 @@ export function resolveEnglishLabelFrom(
 }
 
 let officialEntries = new Map<string, OfficialEnglishEntry>();
+const gzExists = () => Bun.file(OFFICIAL_GZ_PATH).exists();
 let loadPromise: Promise<number> | undefined;
 
 export async function warmOfficialEnglish(): Promise<number> {
   if (!loadPromise) {
     loadPromise = (async () => {
       try {
-        const raw: unknown = await Bun.file(OFFICIAL_PATH).json();
+        const gz = Bun.file(OFFICIAL_GZ_PATH);
+        const raw: unknown = await gz.exists()
+          ? JSON.parse(new TextDecoder().decode(Bun.gunzipSync(new Uint8Array(await gz.arrayBuffer()))))
+          : await Bun.file(OFFICIAL_PATH).json();
         officialEntries = indexOfficialEnglish(parseOfficialEnglishSnapshot(raw));
       } catch (error) {
-        if (await Bun.file(OFFICIAL_PATH).exists()) throw error;
+        if (await gzExists() || await Bun.file(OFFICIAL_PATH).exists()) throw error;
         officialEntries = new Map();
       }
       return officialEntries.size;

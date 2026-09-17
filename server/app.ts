@@ -350,7 +350,9 @@ const routes = {
       // bureau's own birth rate.
       const nbsResults = nbs.results.slice(0, remainingLimit);
       const asked = queryText.trim().toLocaleLowerCase();
-      const exactIndex = asked ? nbsResults.findIndex((entry) => (entry.nameEn ?? "").toLocaleLowerCase() === asked) : -1;
+      // The bureau's own titles end in the unit ("Birth Rate(‰)"); the words before it are the title.
+      const titleWords = (title: string) => title.toLocaleLowerCase().replace(/\s*[(（][^()（）]*[)）]\s*$/, "").trim();
+      const exactIndex = asked ? nbsResults.findIndex((entry) => titleWords(entry.nameEn ?? "") === asked || titleWords(entry.glossEn ?? "") === asked) : -1;
       const exact = exactIndex >= 0 ? nbsResults.splice(exactIndex, 1) : [];
       return Response.json({
         total: featured.length + nbs.total,
