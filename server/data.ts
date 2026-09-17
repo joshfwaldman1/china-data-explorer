@@ -221,6 +221,12 @@ interface NbsIndicator {
   region?: NbsRegion;
   /** Every region this series exists for. One request each — esData answers only the first `das`. */
   regions?: NbsRegion[];
+  /**
+   * Earlier year slices of the same table under other cids (the bureau splits
+   * some tables by year range). Each is fetched with the same limit and
+   * merged behind the main table by label; the main table wins on overlap.
+   */
+  slices?: { cid: string; rootId?: string; ids: NbsSeriesId[] }[];
 }
 // AkShare (via a local AKTools HTTP server) — huge breadth of fresh Chinese
 // series maintained by the AkShare community. Optional: only these indicators
@@ -689,7 +695,7 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "nbs", group: "Prices",
     title: "Consumer Price Index by Category", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago",
-    // NBS's 居民消费价格分类指数, each index on the same month a year earlier = 100, served as the change: core (excluding food and energy), food, tobacco and dining out, non-food, consumer goods, services, housing. The table is a 2026 slice; 2021-2025 is a separate table in the catalog.
+    // NBS's 居民消费价格分类指数, each index on the same month a year earlier = 100, served as the change: core (excluding food and energy), food, tobacco and dining out, non-food, consumer goods, services, housing. The table is a 2026 slice; the 2021-2025 table is stitched behind it as a slice.
     cid: "5c7452825c7c4dcba391db5ca7f335c5",
     rootId: "fc982599aa684be7969d7b90b1bd0e84",
     ids: [
@@ -700,6 +706,14 @@ export const CATALOG: Record<string, Indicator> = {
       { id: "c87191b714554e9eba8c2c062abfabb4", valueOffset: -100, label: "Services (YoY %)" },
       { id: "4fb7ea343fc7403bb412cf48fb2f3f0e", valueOffset: -100, label: "Housing (YoY %)" },
     ],
+    slices: [{ cid: "809d2522b0fe4be89142650341b19083", rootId: "fc982599aa684be7969d7b90b1bd0e84", ids: [
+      { id: "c2050e97c49a4763a6d0f0f38bf0b4ed", valueOffset: -100, label: "Core CPI, excluding food and energy (YoY %)" },
+      { id: "fce9ac527a74442ea0031eb6b37f52ad", valueOffset: -100, label: "Food, tobacco and dining out (YoY %)" },
+      { id: "728da4f1859140139194110824b700e1", valueOffset: -100, label: "Non-food (YoY %)" },
+      { id: "24371d6f24ce4f11921cb6194bb1e96b", valueOffset: -100, label: "Consumer goods (YoY %)" },
+      { id: "e330ad10ab224cfda1f25db93bf04d01", valueOffset: -100, label: "Services (YoY %)" },
+      { id: "e492fe37645349f0a1c84d96174bf606", valueOffset: -100, label: "Housing (YoY %)" },
+    ] }],
   },
   ppi_detail: {
     kind: "nbs", group: "Prices",
@@ -1538,6 +1552,24 @@ function nbsPeriod(code: string): string {
   return month ? `${month[1]}-${month[2]}` : code;
 }
 
+/** The main table, then each earlier slice merged behind it by label; the main table's points win where they overlap. */
+async function fetchNbsWithSlices(key: string, cfg: NbsIndicator, limit: number): Promise<SeriesResult> {
+  const main = await fetchNbs(key, cfg, limit);
+  if (!cfg.slices || cfg.slices.length === 0) return main;
+  const merged = new Map(main.series.map((line) => [line.label, new Map(line.points.map((point) => [point.date, point.value]))]));
+  for (const slice of cfg.slices) {
+    let part: SeriesResult;
+    try { part = await fetchNbs(key, { ...cfg, cid: slice.cid, rootId: slice.rootId ?? cfg.rootId, ids: slice.ids, slices: undefined }, limit); }
+    catch (error) { console.warn(`  ${key}: slice ${slice.cid} failed: ${error instanceof Error ? error.message : String(error)}`); continue; }
+    for (const line of part.series) {
+      const points = merged.get(line.label) ?? new Map<string, number>();
+      for (const point of line.points) if (!points.has(point.date)) points.set(point.date, point.value);
+      merged.set(line.label, points);
+    }
+  }
+  return { ...main, series: [...merged.entries()].map(([label, points]) => ({ label, points: [...points.entries()].map(([date, value]) => ({ date, value })).sort((a, b) => a.date.localeCompare(b.date)) })) };
+}
+
 async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<SeriesResult> {
   const region = cfg.region ?? { text: "全国", value: "000000000000" };
   const payload = {
@@ -1665,7 +1697,7 @@ export async function getSeries(key: string, limit = 120): Promise<SeriesResult 
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
   let data: SeriesResult;
-  if (cfg.kind === "nbs") data = await fetchNbs(key, cfg, limit);
+  if (cfg.kind === "nbs") data = await fetchNbsWithSlices(key, cfg, limit);
   else if (cfg.kind === "aktools") data = await fetchAktools(key, cfg, limit);
   else if (cfg.kind === "fred") data = await fetchFred(key, cfg, limit);
   else if (cfg.kind === "customs") data = await fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
@@ -1756,7 +1788,7 @@ export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 12
 export async function fetchLive(key: string, limit = 120): Promise<SeriesResult | null> {
   const cfg = CATALOG[key];
   if (!cfg) return null;
-  if (cfg.kind === "nbs") return fetchNbs(key, cfg, limit);
+  if (cfg.kind === "nbs") return fetchNbsWithSlices(key, cfg, limit);
   if (cfg.kind === "aktools") return fetchAktools(key, cfg, limit);
   if (cfg.kind === "fred") return fetchFred(key, cfg, limit);
   if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);

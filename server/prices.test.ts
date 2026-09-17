@@ -50,3 +50,21 @@ test("every price-detail key's ids resolve to the named indices and are served a
     expect(ids.every((item) => item.valueOffset === -100 && byId.get(item.id)?.datasetCode === 1 && byId.get(item.id)?.categories?.[0] === "价格指数")).toBe(true);
   }
 });
+
+test("cpi_detail's 2021-2025 slice names the same categories in the earlier table", () => {
+  const cfg: unknown = CATALOG["cpi_detail"];
+  const slices = typeof cfg === "object" && cfg !== null ? Reflect.get(cfg, "slices") : undefined;
+  expect(Array.isArray(slices) ? slices.length : 0).toBe(1);
+  const slice: unknown = Array.isArray(slices) ? slices[0] : undefined;
+  const sliceIds = typeof slice === "object" && slice !== null ? Reflect.get(slice, "ids") : undefined;
+  const main = idsOf("cpi_detail");
+  const strip = (name: string | undefined) => (name ?? "").replace(/\s*\(.*\)\s*$/, "").replace(/及在外餐饮类/, "类");
+  expect(Array.isArray(sliceIds) ? sliceIds.length : 0).toBe(main.length);
+  if (!Array.isArray(sliceIds)) return;
+  for (const [index, item] of sliceIds.entries()) {
+    const id = typeof item === "object" && item !== null ? Reflect.get(item, "id") : undefined;
+    const old = typeof id === "string" ? byId.get(id) : undefined;
+    expect(old?.categories?.[2]).toContain("2021-2025");
+    expect(strip(old?.name)).toBe(strip(byId.get(main[index]?.id ?? "")?.name));
+  }
+});
