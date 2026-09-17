@@ -2613,3 +2613,23 @@ not from scratch. Rounds are small on purpose.
   copy derived from the catalog, and placed titles ("Guangdong Real GDP
   Growth"); the ingest now takes never-stored keys first and refreshes
   CFETS series forward from the last stored month.
+
+- 2026-09-17 (NBS's own English titles): the site had a slot for the bureau's
+  official English labels, an import script and an "NBS English" tag, but
+  the crosswalk file was empty because the legacy English portal it was
+  written for now answers 403. The current portal's English mode (the
+  "English" link in its header, route #/pc/national/en/) uses the same
+  metadata endpoints under publicrelease/en/web/external and answers the
+  same indicator ids with NBS's English titles. `scripts/sync-nbs-english.ts`
+  reads every table that way, one request a second, resumable: 79,609
+  titles for 3,396 of 3,401 tables (five tables timed out), each pinned to
+  the current key and the exact Chinese title so a rename fails safe to the
+  generated gloss. Shipped gzipped (3.6 MB). The generated gloss is kept
+  beside an official title and indexed for search, so "maize", "eggs" and
+  "household articles" still reach series NBS titles as "Corn", "Eggs" and
+  "Articles and Services for Daily Use"; only the official title is shown.
+  The exact-title rule ignores the unit NBS appends ("Birth Rate(‰)"); the
+  full-text candidate list widened to five thousand. Five search tests
+  pinned to the gloss's wording were retargeted to the guarantee each
+  protects. Live: the coverage card counts the official titles; result
+  cards and pages tag them "NBS English".

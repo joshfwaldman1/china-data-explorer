@@ -105,7 +105,7 @@ roughly triples coverage and adds the provincial and city depth the bureau has
 but nobody surfaces in English. Ship an API with keys, bulk download, and
 clients for Excel, R and Python. Expose the revision archive properly, so a
 user can ask what a series looked like on a given date. Replace the generated
-English with the bureau's own official translations where they exist.
+English with the bureau's own titles for 79,609 of the 79,836 catalog series, from its portal's English mode, and generated translations for the rest.
 
 **A funded team.** The gap between this and a product a bank would pay for is
 analytical, not technical. Seasonal adjustment and a Lunar New Year correction
