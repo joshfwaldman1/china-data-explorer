@@ -2566,3 +2566,28 @@ not from scratch. Rounds are small on purpose.
   overnight SHIBOR 1.46, one-week 1.45, three-month 1.43; FDR007 1.43,
   monthly average 1.3958; 120 months back to October 2016 (FDR from 2017);
   38 pairs, 0 findings, the two FX pairs from round 24 now "ok".
+
+- 2026-09-17 (dataset loop, round 26: yuan central parity and the CFETS RMB
+  index): the exchange-rate group had the Fed's monthly average and the
+  BIS's real effective rate, nothing from the yuan's own publisher. The
+  CFETS adapter reaches two more tables: the central parity (CcprHisNew,
+  one row per trading day with a value per requested currency pair; the
+  endpoint answers only the pairs asked for, so the configured tenors go in
+  the request) and the CFETS RMB index (RmbIdxHis, found through the page's
+  history fragment after six guessed paths 404'd; weekly on Fridays and on
+  the month's last trading day, with the BIS- and SDR-basket versions).
+  `central_parity` serves the month's last fixing for USD, EUR, 100 JPY,
+  HKD and GBP, `central_parity_average` the month's mean for USD and EUR,
+  `cfets_rmb_index` the month's last reading of the three baskets. The
+  audit pairs the parity's monthly average with the Fed's monthly average
+  of the spot (fx_usdcny) at tolerance 0.15, the note recording that the
+  spot trades within 2 percent of the fixing: August 2026's two were 0.05
+  apart (parity 6.786, Fed 6.7361), so the queue's "within 0.05" reads as
+  the band, not a tighter bound. Test: all five pairs on 21 trading days,
+  the 31 August fixing 6.7828, the average inside the band, the index's 15
+  readings (twelve Fridays, two month ends, a holiday shift), the request
+  body. Live: September 2026 so far USD/CNY 6.758 (average 6.7745), EUR
+  7.735, CFETS index 101.49, BIS 108.61, SDR 96.5; 120 months each; the
+  first fetch of a parity key takes four minutes (the endpoint answers in
+  two seconds a month); 39 pairs, 0 findings, the parity pair "missing"
+  until the sweep stores the key.
