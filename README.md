@@ -1,238 +1,231 @@
 # China Data Explorer
 
-A FRED-style web app for browsing Chinese macroeconomic data. Built entirely on
-open-source tooling already in this project — **Bun** (server + bundler),
-**React 19** (UI), **Recharts** (charts) — nothing from scratch.
+A FRED-style web app for Chinese official statistics: the National Bureau of
+Statistics database, searchable in English and Chinese, beside headline
+indicators read from the publishers themselves (PBOC, Customs, SAFE, the
+Ministries of Finance and Commerce, the National Energy Administration, CFETS)
+and cross-checked against one another every night.
 
-The broader product target and remaining parity work are tracked in
-[`FRED_PARITY.md`](./FRED_PARITY.md).
+Live: https://econstats-china-production.up.railway.app
 
-![screenshot](./screenshot.png)
+Independent project, not affiliated with any statistical agency. Attribute
+figures to the publishing agency, never to this site.
 
-## Run it
+## What is in it (17 September 2026)
 
-From the project root:
+| | |
+| --- | --- |
+| NBS catalog | 66,302 series across 12 datasets: national monthly, quarterly and annual; provincial (31 provinces); city; Hong Kong, Macao and Taiwan; three international tables. 64,509 are stored; the rest are fetched on first view. |
+| Headline series | 112, curated by hand in `server/data.ts`: 31 from NBS tables, 17 from the Eastmoney mirror of NBS/PBOC releases, 8 Customs, 8 CFETS, 7 PBOC, 4 SAFE, 4 MOF, 4 MOFCOM, 2 NEA, 3 AkShare, 24 international series via FRED. |
+| Store | 6.7 million observations in one SQLite file, append-only, so revisions are kept from the day a series was first stored. |
+| Cross-checks | 39 pairs of series that should agree, compared nightly (`bun run china:audit`). Every domestic headline is paired or carries a written reason why it cannot be. |
+| English | NBS's own English titles where its portal's English mode has them (`scripts/sync-nbs-english.ts`); generated translations elsewhere, marked as such. |
+| Tests | 260 in 44 files: parser fixtures for every publisher, the store, the audit, a headless-Chrome render of the Home and ranking pages. |
+
+## Quick start
+
+From the repository root (Bun 1.3 or later):
 
 ```sh
-bun run china-explorer/server/app.ts
-# then open http://localhost:5173   (set PORT=xxxx to change)
+bun install
+bun run china            # dev server with hot reload
+# open http://localhost:5173   (PORT=... to change)
 ```
+
+On first boot an empty store is seeded from `seed/china.db`, so the site has
+data before its first refresh. No API key is required. `FRED_API_KEY` lets
+the 24 international series refresh; `ANTHROPIC_API_KEY` expands English
+search queries that miss. See the environment table at the end.
+
+Other commands, all from the root:
+
+| Command | What it does |
+| --- | --- |
+| `bun test` | The whole suite (run from `china-explorer/` to run only the explorer's). |
+| `bunx tsc --noEmit -p tsconfig.json` | Type check; must report nothing under `china-explorer`. |
+| `bun run china:audit` | The concordance audit against the local store. |
+| `bun run china:ingest [keys]` | Refresh headline series into the local store. |
+| `bun run china:catalog` | Re-crawl the NBS catalog (hours; see below). |
+| `bun run china:regions` | Collect the place lists of regional tables. |
+| `bun run china-explorer/scripts/sync-nbs-english.ts` | Collect NBS's English titles from the portal's English mode. |
+| `bun run china:translate` | Model-translate remaining titles (needs `ANTHROPIC_API_KEY` and credit). |
+| `bun run china:seed` | Rebuild `seed/china.db` from a good local store. Never on production data. |
+
+## Repository map
+
+```
+china-explorer/
+  server/
+    app.ts            Bun.serve: routes, schedules (ingest, release refresh, sweeps, audit, crawl)
+    data.ts           the curated headline catalog: every key, its source and lines; HOME_ROWS
+    db.ts             the SQLite store: observations, series, fetch_log, catalog cache
+    ingest.ts         refresh logic; never-stored keys first
+    due.ts            when a series is due, by frequency and release day
+    concordance.ts    the nightly cross-checks (CONCORDANCE_PAIRS, NO_PAIR)
+    nbs-catalog.ts    the NBS catalog: search, English labels, regions, esData fetches
+    gloss.ts          generated English for Chinese titles (token dictionary, pinyin fallback)
+    official-english.ts  NBS's own English titles, pinned to id and Chinese name
+    customs.ts pboc.ts mof.ts mofcom.ts safe.ts nea.ts cfets.ts   one adapter per publisher
+    releases.ts release-plan.ts   the NBS release calendar and release-day refreshes
+    fixtures/         captured publisher pages and workbooks the tests parse
+    *.test.ts         tests beside the code they cover
+  client/
+    app.tsx           the whole UI (React 19, Recharts); lib.ts holds the chart arithmetic
+    styles.css
+  shared/places.ts    provinces, cities and countries with English names
+  catalog/            shipped data: nbs-catalog.json.gz, nbs-regions.json, gloss-en.json,
+                      notes-en.json, nbs-official-en.json.gz
+  scripts/            catalog crawls and translation runs (run from your machine, not the server)
+  seed/china.db       the small store a fresh deployment starts from
+  DATASET_LOOP.md     how a round of dataset work is done; DATASET_QUEUE.md what is next
+  IMPROVEMENT_LOG.md  what changed and why, round by round; PROJECT_BRIEF.md the summary
+  HANDOFF.txt         state and pending decisions for whoever picks this up
+```
+
+Repository-root files that belong to the explorer: `Dockerfile.china`,
+`railway.china.toml`, and the `china:*` scripts in `package.json`. The root
+`railway.toml` and `src/` belong to the other app in this repository.
 
 ## How it works
 
 ```
-browser ──> Bun.serve ──> local NBS catalog       (tens of thousands of searchable series)
-                     ├──> NBS esData portal       (observations and regional dimensions)
-                     ├──> Eastmoney datacenter    (featured macro series)
-                     └──> AKTools (AkShare)        (Caixin PMI x2, real estate climate; optional, see below)
-                     └──> FRED (St. Louis Fed)     (BIS, OECD, IMF, World Bank, US agencies; needs FRED_API_KEY)
+browser ──> Bun.serve ──> SQLite store (observations, revisions, fetch log)   ← everything reads here first
+                     ├──> NBS portal (data.stats.gov.cn)      catalog series, regions, official English
+                     ├──> Eastmoney datacenter                 17 mirrored headline series
+                     ├──> Customs, PBOC, MOF, MOFCOM, SAFE, NEA, CFETS   their own pages, tables and workbooks
+                     ├──> FRED                                 international series on China
+                     └──> AKTools (AkShare)                    three series; optional
 ```
 
-- **`server.ts`** — Bun.serve serves the page (bundling `client/app.tsx` on the
-  fly) and exposes catalog search, dataset facets, regional dimensions,
-  releases, revisions, and series observations as JSON routes.
-- **`server/nbs-catalog.ts`** — loads the generated NBS catalog, searches it, resolves
-  geographic dimensions, retrieves observations, and applies transformations.
-- **`server/data.ts`** — the featured macro catalog plus three source fetchers
-  (Eastmoney, NBS, AKTools) and a 1-hour in-memory cache. All fetching
-  is server-side, which is how FRED works and avoids the browser CORS wall
-  (Eastmoney/NBS send no CORS headers).
-- **`client/app.tsx`** — responsive FRED-style workspace with global search,
-  dataset/frequency/geography filters, comparisons, transformations, region
-  selection, charts, tables, metadata, saved series, exports, and releases.
+- **Store first.** A page reads the store; a series nobody has stored yet is
+  fetched from its source on first view and stored by the next scheduled
+  refresh. The store is append-only: a revised value is written beside the
+  earlier one with its fetch time, and the series page shows the vintages.
+- **Schedules run inside the web process** (a Railway volume attaches to one
+  service): a daily refresh of every headline series (never-stored keys
+  first), a refresh ten minutes after each NBS release aimed at the series
+  it updates and retried until the new period appears, sweeps of the other
+  publishers at their usual hours, a crawl that stores catalog series nobody
+  has opened, and the nightly concordance audit. Everything is paced: one
+  request at a time per portal, with pauses. Do not raise the concurrency.
+- **Concordance.** `server/concordance.ts` names pairs of series that must
+  agree (the same statistic by two routes: NBS's table against the mirror,
+  Customs against NBS, a monthly flow summed against the annual table, a
+  period rate against its year-to-date companion). A difference beyond the
+  pair's tolerance is a finding. `concordance-coverage.test.ts` fails if a
+  domestic headline is neither paired nor explained in `NO_PAIR`.
+- **English.** Every NBS title gets an English reading: the bureau's own where
+  `catalog/nbs-official-en.json.gz` pins one to the exact current Chinese
+  title, a stored model translation where one has been run, otherwise the
+  token dictionary in `gloss.ts`. The source is shown on every card and page.
+  Category names are curated in the client (`CATEGORY_EN`).
 
-## Build the full NBS catalog
+## Adding a headline series
 
-The checked-in snapshot is produced from the official portal's live hierarchy,
-not a hand-maintained series list:
+1. Add an entry to `CATALOG` in `server/data.ts`: its `kind` (an existing
+   adapter or a new one), group, title, agency, frequency, unit, and the
+   lines it serves. Year-to-date series say so in the unit and the label.
+   Never derive a January figure NBS did not publish.
+2. Capture the source page, table or workbook into `server/fixtures/<publisher>/`
+   and write a test that parses it to known figures and holds the latest
+   period to the publisher's own headline.
+3. Add a concordance pair against an independent reading, or a `NO_PAIR`
+   reason that says why none exists. The coverage test enforces this.
+4. If it belongs on the Home page, add it to `HOME_ROWS` with a row title
+   that says exactly what its first line is.
+5. Gates: `bun test`, the type check, and no test rows leaked into the local
+   `china.db` (tests must set `CHINA_DB_PATH` before importing the store).
+6. Deploy with `railway up --detach` from the repository root, verify the
+   series live, log the round in `IMPROVEMENT_LOG.md`.
+
+The dataset loop (`DATASET_LOOP.md`) is this procedure written out for an
+agent; `DATASET_QUEUE.md` is the ordered list of what to add next, with each
+parked item's reason.
+
+## Building the catalog files
+
+The shipped snapshot comes from the portal's live hierarchy, not a hand list:
 
 ```sh
-bun run china:catalog
-```
-
-The sync walks all ten current dataset families: national monthly, quarterly,
-and annual; provincial monthly, quarterly, and annual; major-city monthly and
-annual; and Hong Kong/Macao/Taiwan monthly and annual. It publishes an atomic
-snapshot after each completed dataset root and keeps in-progress work in a
-`.partial` checkpoint. Use
-`--codes=1,5`, `--delay=750`, or `--concurrency=3` to tune a refresh.
-When refreshing only selected families, pass `--merge=true` to retain the
-families already present in the published snapshot.
-
-A family at a time keeps a long crawl from spoiling a good snapshot, so each
-run writes its own file and they are combined into the one the site ships:
-
-```sh
+bun run china:catalog                 # all dataset families; hours; checkpoints to .partial
 bun run china:catalog --codes=3 --out=china-explorer/catalog/nbs-catalog-annual.json
 bun run china:catalog-merge --out=china-explorer/catalog/nbs-catalog.json.gz \
   china-explorer/catalog/nbs-catalog.json china-explorer/catalog/nbs-catalog-annual.json
+bun run china:regions                 # the places each regional table covers
+bun run china-explorer/scripts/sync-nbs-english.ts   # NBS's English titles, one request per table
 ```
 
-The site reads `nbs-catalog.json.gz` in preference to the plain file, and
-`NBS_CATALOG_PATH` points it at another snapshot for a trial run.
+The metadata endpoints challenge a plain HTTP client, so the catalog crawl
+runs from a real browser session (`scripts/portal.ts`); the English crawl
+uses plain requests, paced a second apart. The site reads
+`nbs-catalog.json.gz` in preference to the plain file; `NBS_CATALOG_PATH`
+points it at another snapshot for a trial run. The glossed catalog is
+rebuilt automatically when any file under `catalog/` changes.
 
-## Collect the places each regional table covers
+## Conventions
 
-A provincial or city table is one indicator published for many places, and the
-endpoint that lists them is challenged from a plain HTTP client, so the running
-site cannot ask. Collect the lists once, alongside the catalog:
-
-```sh
-bun run china:regions                # every regional table in the snapshot
-bun run china:regions --merge=true   # only the tables not collected yet
-```
-
-This writes `catalog/nbs-regions.json`: the distinct place lists (31 provinces,
-the price-survey cities, Hong Kong, Macao and Taiwan), and which list each
-table uses. Without it a provincial table falls back to the standing province
-list and a city table has no places at all.
-
-## FRED-style features
-
-- **Deep links** — every series has its own URL (`#/series/cpi`), so views can
-  be bookmarked or shared; comma-separated keys create comparison views. The
-  browser tab and any bookmark carry the series name, not its key.
-- **Catalog discovery** — full-text search across titles, categories, dataset
-  names, and IDs, with frequency and geography facets.
-- **Series tools** — raw levels, changes, percent changes, year-over-year
-  changes, index-to-growth conversion, log scale, ranges, tables, and metadata.
-- **Regional dimensions** — applicable NBS series expose province or city
-  selectors loaded from the official data catalog.
-- **Saved series and releases** — favorites persist locally and the Releases
-  view uses the current official NBS publication schedule.
-- **CSV and JSON export** — downloads the observations behind the current view.
-- **Share image** — Copy image, Download image or Copy link from the series
-  page. The image is drawn from the data on a canvas at 1600 x 900 (2x),
-  always in the light palette, with title, unit and range, end labels, a
-  legend when there is more than one line, year ticks whenever the data is
-  annual and quarter ticks on a short quarterly view, the scale named in the
-  subtitle when it is logarithmic, up to three
-  lines of notes under the chart (a suspension, an ended or stopped series, a
-  frequency conversion, a combined January-February point), and the source
-  and page URL in the footer,
-  ready to paste into a tweet or a doc.
-- **Keyboard and screen readers** — every control is named, the chart is
-  focusable and the arrow keys step through its points, the Table tab lists
-  the values, and toasts and empty states are announced.
+- Work on `main`; `china-data-explorer` is pushed in step with it. Never
+  force-push.
+- Never commit `china.db`, `catalog.db` or anything under `catalog/*.partial`.
+  `seed/china.db` is committed on purpose and refreshed only deliberately.
+- No new dependencies without a reason written in the commit. The parsers
+  are dependency-free (`xlsx.ts` reads workbooks itself).
+- Don't touch `Dockerfile.china`, `railway.china.toml` or `.github/workflows`
+  in a dataset round.
+- Attribute to the publisher, not the mirror. Say "year to date" when a
+  series is cumulative. Keep the Home row titles literal.
+- Commit messages explain the why; `IMPROVEMENT_LOG.md` carries the round.
 
 ## Local JSON API
 
-- `GET /api/catalog` — the headline indicators (key, title, agency, unit, group).
-- `GET /api/home` — every headline series with its last 24 points in one
-  payload, for the Home page.
-- `GET /api/catalog/stats` — coverage and dataset/category facets.
+- `GET /api/catalog` — the headline indicators (key, title, agency, unit, group, Home rank).
+- `GET /api/home` — every Home series with its last 24 points in one payload.
+- `GET /api/catalog/stats` — coverage, dataset and category facets, official-English count.
 - `GET /api/search?q=&frequency=&geography=&dataset=&category=&limit=&offset=`
-  — paginated catalog search; results carry their stored date range.
-- `GET /api/entry/:key` — one headline or catalog entry by key, for pages that
-  hold only keys.
+  — paginated catalog search; results carry their stored date range and the
+  region they open at.
+- `GET /api/entry/:key` — one headline or catalog entry by key.
 - `GET /api/dimensions/:key` — valid geographic selections for an NBS series.
 - `GET /api/series/:key?region=&transform=&limit=` — observations and metadata.
-- `GET /api/regional/:key?period=` — every region's value for one period, for
-  the Provinces map.
-- `GET /api/releases?start=&end=` — the NBS publication calendar, each item
-  mapped to the series it updates.
-  A bare date for `start` or `end` takes the start or end of its day.
-- `GET /api/release-map` — the title-to-series mapping behind that calendar.
-- `GET /api/backup` — a consistent copy of the whole store as one SQLite file,
-  for whoever holds `BACKUP_TOKEN` (`Authorization: Bearer …`, or `?token=`).
-  The route does not exist unless that variable is set. The copy is taken with
-  `VACUUM INTO`, so an ingest writing at the same time cannot tear it:
+- `GET /api/regional/:key?period=&label=` — every region's value for one period.
+- `GET /api/releases?start=&end=` — the publication calendar mapped to series.
+- `GET /api/release-map` — the title-to-series mapping behind it.
+- `GET /api/audit/concordance` — the latest concordance results.
+- `GET /api/revisions/:key?label=&period=` — stored revision history.
+- `GET /api/status` — store size, totals, the fetch log, last runs and failures;
+  `?series=1` for coverage per (key, region).
+- `GET /api/backup` — a consistent copy of the store, for whoever holds
+  `BACKUP_TOKEN` (`Authorization: Bearer …`). The route does not exist unless
+  the variable is set. The store is the one thing here that cannot be rebuilt
+  from the sources; a mounted volume is not a backup.
+- `GET /health` — `{ ok, observations, lastFetch }`; 503 until the catalog and
+  search index are warm, so a platform keeps the old container serving
+  through a deploy.
 
-  ```sh
-  curl -fsS -H "Authorization: Bearer $BACKUP_TOKEN" \
-    https://econstats-china-production.up.railway.app/api/backup > china-$(date +%F).db
-  ```
+## Optional: AKTools (AkShare)
 
-  The archive of what the bureau published and when is the one thing here that
-  cannot be rebuilt from the source, and a mounted volume is not a backup.
-- `GET /api/schedule` — upcoming mapped releases and the last release-day
-  refresh.
-- `GET /api/revisions/:key?label=&period=` — locally stored revision history.
-- `GET /api/status` — store size, totals, the fetch log's size, the last runs
-  and the failed fetches of the past week; add `?series=1` for coverage per
-  (key, region), two thousand at a time (`&limit=`, `&offset=`, up to 20,000),
-  with the total in `coverage.total`.
-
-## Optional: AKTools (AkShare) for extra breadth
-
-Three indicators — the **Caixin Manufacturing and Services PMI** (ended
-September 2025) and the **Real Estate Climate Index** — are pulled from
-[AkShare](https://github.com/akfamily/akshare) via its HTTP wrapper
-[AKTools](https://github.com/akfamily/aktools). AkShare maintains *hundreds* of
-`macro_china_*` series, so this is one way the explorer can grow beyond what
-we hand-wire. To refresh them locally, run AKTools alongside the app:
-
-```sh
-python -m venv venv && source venv/bin/activate
-pip install aktools
-python -m aktools            # serves http://127.0.0.1:8080  (override with AKTOOLS_URL)
-```
-
-Without AKTools running, every other indicator still works and the AkShare-backed
-ones serve from the store. Set `AKTOOLS_URL=off` on a deployment without it so
-the ingest skips them instead of logging a failure. Adding more AkShare series
-is a one-entry change in `server/data.ts` (function name, date format, and
-which fields to plot).
-
-## Notes
-
-- Sources: mostly Eastmoney (mirrors NBS/PBOC/Customs), NBS-direct for
-  unemployment and electricity, FRED for the international series, and
-  AkShare for the three extras above. Attribute to the originating agency,
-  not the aggregator.
-- Chinese conventions are respected: YoY % for most series, PMI as a diffusion
-  index (50 = neutral), reserves/new-loans as levels.
-- Freshness varies: Eastmoney/NBS/LPR/electricity are current; the Caixin
-  "report" series come via a vendor feed that lags ~1–2 months.
-- Demo project — not affiliated with any statistical agency.
-- **Provincial GDP** is also retained as a curated shortcut. Full-catalog NBS
-  regional series expose their available geographic selector dynamically.
-
-## Capture regional NBS IDs
-
-The regional IDs were obtained from the portal's own live request. Re-run the
-capture against any province with Chrome installed:
-
-```sh
-bun run china-explorer/scripts/capture-area.ts --province=广东省
-```
-
-The script writes the complete matching `esData` request and response under
-`china-explorer/captures/`. Use `--out=path/to/file.json`, `--headed=true`, or
-`--channel=chromium` to override its defaults.
+Three indicators (the Caixin PMIs and the real estate climate index) come
+through [AKTools](https://github.com/akfamily/aktools). Without it they serve
+from the store and the catalog marks them `refreshBlocked`. Run it locally
+with `pip install aktools && python -m aktools` (port 8080, `AKTOOLS_URL` to
+point elsewhere); set `AKTOOLS_URL=off` on a deployment without it.
 
 ## Deploying
 
-The explorer runs from one process and two SQLite files. `Dockerfile.china`
-at the repository root builds it alone:
+One process, two SQLite files. `Dockerfile.china` at the repository root:
 
 ```sh
 docker build -f Dockerfile.china -t econstats-china .
 docker run -p 5173:5173 -v china-data:/data econstats-china
 ```
 
-- `/data/china.db` is the store — observations, revisions, fetch log. Mount a
-  persistent volume; it is the only state that matters. On first boot it is
-  seeded with the headline series, the catalog crawl fills in the rest over
-  the first day, and the refresh runs inside the web process: a due check
-  daily, release-day refreshes ten minutes after each NBS release, and
-  headline sweeps at the usual publication hours. No external cron is needed.
-- `/data/catalog.db` is a cache rebuilt from `china-explorer/catalog/*.json`
-  whenever those files change. Losing it costs half a second.
-- `GET /health` returns `{ ok: true, observations, lastFetch }` for a platform
-  healthcheck (`railway.toml` already points at `/health`). It answers 503
-  until the catalog, gloss and search index are warm (about twelve seconds,
-  capped at twenty-five), so Railway keeps the previous container serving
-  through a deploy instead of sending visitors 502s.
-- `ANTHROPIC_API_KEY` is optional: without it, search still works but English
-  queries that miss are not expanded.
-- Set `AKTOOLS_URL=off` on a deployment without AKTools so those refreshes are
-  skipped with a clear message instead of probing localhost.
-- The three AkShare-backed series need AKTools (`python -m aktools` on :8080,
-  `AKTOOLS_URL` to point elsewhere). Without it they serve from the store, the
-  catalog marks them `refreshBlocked`, their pages say the series is
-  refreshed through AkShare, which the deployment does not run, and their
-  next-release row says the release will not be picked up here.
+- `/data/china.db` is the store; mount a persistent volume. `/data/catalog.db`
+  is a cache rebuilt from `catalog/*` when those files change.
+- Railway: project `econstats-china`; config file `railway.china.toml`
+  (selects `Dockerfile.china` and the `/health` check); a volume at `/data`;
+  variables `FRED_API_KEY` and `AKTOOLS_URL=off`. Redeploy with
+  `railway up --detach` from the repository root. The first refresh runs two
+  minutes after boot, the first catalog crawl ten minutes after.
 
 ### Environment variables
 
@@ -241,43 +234,19 @@ None is required. Every one the server reads, with its default:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `5173` | Port the web process listens on. |
-| `CHINA_DB_PATH` | `china-explorer/china.db` | The store: observations, revisions, fetch log. `/data/china.db` in the container. |
-| `CHINA_CATALOG_DB_PATH` | `china-explorer/catalog.db` | The derived catalog cache, rebuilt from `catalog/*.json`. |
+| `CHINA_DB_PATH` | `china-explorer/china.db` | The store. `/data/china.db` in the container. |
+| `CHINA_CATALOG_DB_PATH` | `china-explorer/catalog.db` | The derived catalog cache. |
 | `CHINA_SEED` | on | `off` stops an empty store being seeded from `seed/china.db` (the tests set it). |
-| `CHINA_LIVE_FALLBACK` | `1` | `0` answers 503 for a series not yet stored instead of fetching it from the portal on view. |
-| `FRED_API_KEY` | unset | Needed for the international series from FRED to refresh. |
-| `ANTHROPIC_API_KEY` | unset | Expands English search queries that miss into Chinese terms. Without it search still works. |
+| `CHINA_LIVE_FALLBACK` | `1` | `0` answers 503 for a series not yet stored instead of fetching it on view. |
+| `FRED_API_KEY` | unset | Needed for the international series to refresh. |
+| `ANTHROPIC_API_KEY` | unset | Expands English search queries that miss into Chinese terms. |
 | `NBS_QUERY_EXPANSION` | on | `off` disables that expansion (the tests set it). |
-| `AKTOOLS_URL` | `http://127.0.0.1:8080` | Where AKTools runs. `off` says the deployment has none, so the ingest skips the AkShare series. |
-| `INGEST_EVERY_HOURS` | `24` in production, `0` otherwise | How often the due-check refresh of stored series runs. `0` disables it. |
-| `INGEST_LIMIT` | `240` | Points requested per headline series per refresh. |
+| `BACKUP_TOKEN` | unset | Enables `GET /api/backup`. |
+| `AKTOOLS_URL` | `http://127.0.0.1:8080` | Where AKTools runs; `off` skips the AkShare series. |
+| `INGEST_EVERY_HOURS` | `24` in production, `0` otherwise | How often the refresh of stored headline series runs. |
+| `INGEST_LIMIT` | `240` | Points requested per headline series on a full read. |
 | `INGEST_PAUSE_MS` | `1500` | Pause between headline requests. |
-| `CATALOG_CRAWL` | on | `off` disables the crawl that stores catalog series nobody has opened. |
+| `CATALOG_CRAWL` | on | `off` disables the crawl of catalog series nobody has opened. |
 | `CRAWL_PER_RUN` | `20000` | Indicators per crawl run. |
 | `CRAWL_EVERY_HOURS` | `6` | Hours between crawl runs. |
 | `CRAWL_PAUSE_MS` | `1200` | Pause between crawl requests. |
-
-### Railway, specifically
-
-Live: https://econstats-china-production.up.railway.app (project
-`econstats-china` in the EconStats workspace; redeploy with `railway up --detach`
-from the repository root, where the CLI is linked to it).
-
-1. `railway login`, then in this repository `railway init` (new project) or
-   `railway link` (existing). Create a service from the GitHub repo, branch
-   `china-data-explorer`.
-2. In the service settings set **Config file path** to `railway.china.toml`
-   (the root `railway.toml` belongs to the agent app). It selects
-   `Dockerfile.china` and the `/health` check.
-3. Add a **volume** mounted at `/data`. On first boot the store is seeded
-   from `china-explorer/seed/china.db` (committed; refresh it with
-   `bun run china:seed` after a good ingest), so the site has data before the
-   first refresh.
-4. Variables: none required. The live service sets `FRED_API_KEY` and
-   `AKTOOLS_URL=off`; see the table above for the rest. The refresh runs
-   inside the web process because a volume attaches to one service.
-5. Deploy. The first ingest runs two minutes after boot and the first catalog
-   crawl ten minutes after; both show in the logs.
-
-The NBS portal does answer Railway's IPs: the full catalog crawl completed
-from the live service on 2026-09-09.
