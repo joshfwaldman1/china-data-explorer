@@ -916,9 +916,14 @@ let rangeCache: { at: number; ranges: Map<string, { first: string; firstReal: st
 function storedRanges(): Map<string, { first: string; firstReal: string; last: string }> {
   if (rangeCache && Date.now() - rangeCache.at < 10 * 60 * 1000) return rangeCache.ranges;
   const ranges = new Map<string, { first: string; firstReal: string; last: string }>();
+  // A provincial, city or international series is stored one region at a time; its range is the
+  // widest any region holds. Reading the nation alone left every such series looking unpublished.
   for (const row of storedLatest("nbs_")) {
-    if (row.region !== "000000000000" || !row.firstPeriod || !row.lastPeriod) continue;
-    ranges.set(row.key, { first: row.firstPeriod, firstReal: row.firstRealPeriod ?? row.firstPeriod, last: row.lastPeriod });
+    if (!row.firstPeriod || !row.lastPeriod) continue;
+    const held = ranges.get(row.key);
+    const own = { first: row.firstPeriod, firstReal: row.firstRealPeriod ?? row.firstPeriod, last: row.lastPeriod };
+    if (!held || row.region === "000000000000") { ranges.set(row.key, held && row.region === "000000000000" ? own : held ? { first: own.first < held.first ? own.first : held.first, firstReal: own.firstReal < held.firstReal ? own.firstReal : held.firstReal, last: own.last > held.last ? own.last : held.last } : own); continue; }
+    ranges.set(row.key, { first: own.first < held.first ? own.first : held.first, firstReal: own.firstReal < held.firstReal ? own.firstReal : held.firstReal, last: own.last > held.last ? own.last : held.last });
   }
   rangeCache = { at: Date.now(), ranges };
   return ranges;
@@ -1015,6 +1020,22 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
  * query — falls back to the ordinary search of the whole query, because the
  * word may have been part of a subject after all.
  */
+/**
+ * A regional series opens at its first listed place (Beijing for the
+ * provinces, Hong Kong for the SAR table), so a result card names that place
+ * the way the page it opens will: the title reads the same in both.
+ */
+async function withDefaultRegions<T extends { results: (NbsCatalogEntry & { region?: NbsRegionOption })[] }>(response: T): Promise<T> {
+  const results = await Promise.all(response.results.map(async (entry) => {
+    if (entry.region || entry.geography === "National") return entry;
+    try {
+      const regions = await getNbsDimensions(entry, { offline: true });
+      return regions[0] ? { ...entry, region: regions[0] } : entry;
+    } catch { return entry; }
+  }));
+  return { ...response, results };
+}
+
 export async function searchNbsCatalogWithPlaces(filters: NbsSearchFilters): Promise<{
   total: number; offset: number; limit: number;
   results: (NbsCatalogEntry & { region?: NbsRegionOption })[];
@@ -1024,10 +1045,10 @@ export async function searchNbsCatalogWithPlaces(filters: NbsSearchFilters): Pro
   if (asked) {
     // "population by province": the phrase is the filter, the rest is the subject.
     const byGeography = await searchNbsCatalog({ ...filters, query: asked.rest, geography: asked.geography });
-    if (byGeography.total > 0) return byGeography;
+    if (byGeography.total > 0) return withDefaultRegions(byGeography);
   }
   const named = filters.query && !filters.geography ? findPlaceInQuery(filters.query) : undefined;
-  if (!named) return await searchNbsCatalog(filters);
+  if (!named) return withDefaultRegions(await searchNbsCatalog(filters));
 
   const geography = named.kind === "Province" ? "Province" : "City";
   const narrowed = await searchNbsCatalog({ ...filters, query: named.rest, geography });

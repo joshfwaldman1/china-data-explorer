@@ -204,7 +204,7 @@ const CATEGORY_EN: Record<string, string> = {
   "人口和就业": "Population and employment",
   "噪声监测": "Noise monitoring",
   "信息科技": "Information technology",
-  "贸易经济": "Trade",
+  "贸易经济": "Trade and economy",
   "进出口": "Imports and exports",
   "工业生产增长率": "Industrial production growth",
   "零售额增长率": "Retail sales growth",
@@ -320,7 +320,8 @@ function categoryEn(name: string): string { return CATEGORY_EN[name] ?? ""; }
 const SLICE_SUFFIX = /\s*[（(]\s*(?:to\s+\d{4}|\d{4}\s*[-–]\s*(?:\d{4}|present|至今)?|[-–]\s*\d{4})\s*[)）]\s*$/i;
 function categoryPath(entry: { categories: string[]; categoriesEn?: string[]; family?: { span: string } }): React.ReactNode {
   const strip = (text: string) => (entry.family ? text.replace(SLICE_SUFFIX, "") : text);
-  const english = entry.categories.map((category, index) => strip(entry.categoriesEn?.[index] || categoryEn(category) || category));
+  // The curated English name first, so a category reads the same on its own page and on every card.
+  const english = entry.categories.map((category, index) => strip(categoryEn(category) || entry.categoriesEn?.[index] || category));
   const chinese = entry.categories.map(strip).join(" › ");
   const englishPath = english.join(" › ");
   if (englishPath === chinese) return <Zh>{chinese}</Zh>;
@@ -856,10 +857,10 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
             return (
               <article className="result" key={entry.key}>
                 <a className="main" href={entry.region ? seriesHash([entry.key], { region: entry.region.value }) : seriesHash([entry.key])}>
-                  <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}{entry.region ? ` — ${entry.region.en ?? entry.region.text}` : ""}</span>
+                  <span className="title">{entry.region && entry.region.value !== "000000000000" ? (zhFirst ? <Zh>{regionalTitle(entry.name, entry.region.en ?? entry.region.text)}</Zh> : regionalTitle(entry.nameEn ?? entry.name, regionLabel(entry.region))) : zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
                   {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
                   {!curated && <span className="path">{categoryPath(entry)}</span>}
-                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : !curated ? <>, <span className="ended">no data published</span></> : null}</span>
+                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : !curated ? <>, <span className="ended">not fetched yet</span></> : null}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
                   && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>}
@@ -1221,7 +1222,7 @@ function SeriesPage(props: {
   const zhFirst = props.lang === "zh" || !meta?.nameEn;
   // One place's series is headed by the place and the measure together ("Guangdong Real GDP
   // Growth"); the lede then carries only the place's Chinese name.
-  const placed = results.length === 1 && primary.region && isPlaceCode(primary.region.value) ? regionLabel(primary.region) : "";
+  const placed = results.length === 1 && primary.region && primary.region.value !== "000000000000" && primary.region.value !== "avg" && primary.region.text !== "全国" ? regionLabel(primary.region) : "";
   const headingLine = primary.series.length === 1 ? primary.series[0]?.label : undefined;
   const zhTitle = placed && zhFirst ? regionalTitle(primary.title, placed, headingLine) : primary.title;
   const enTitle = placed && meta?.nameEn ? regionalTitle(meta.nameEn, placed, headingLine) : meta?.nameEn;
