@@ -365,6 +365,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "Yuan per dollar: central parity average vs Fed monthly average", kind: "value",
+    left: { key: "central_parity_average", label: "USD/CNY" },
+    right: { key: "fx_usdcny", label: "CNY per USD, monthly average" },
+    tolerance: 0.15,
+    note: "The fixing and the spot's average differ by design: the onshore spot trades within 2 percent of the parity, about 0.14 yuan; the check is that the two stay inside that band.",
+  },
+  {
     name: "Bank FX net settlement: months vs year (亿元)", kind: "annual",
     monthly: { key: "bank_fx_settlement", label: "Net settlement" },
     annual: { key: "bank_fx_settlement_annual", label: "Net settlement" },
@@ -423,6 +430,8 @@ export const NO_PAIR: Record<string, string> = {
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
   electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
+  central_parity: "The month's last fixing; the pair is on central_parity_average against the Fed's monthly average of the spot.",
+  cfets_rmb_index: "CFETS's index is the only source; the BIS real effective rate on the site is a different construction and base.",
   shibor: "CFETS's fixing is the only source of SHIBOR on the site; the monthly average beside it is the same fixings reduced another way.",
   shibor_average: "As shibor: the same fixings, averaged over the month.",
   repo_fixing: "CFETS's fixings are the only source; the DR weighted averages they are fixed from are not on an endpoint the site reaches.",

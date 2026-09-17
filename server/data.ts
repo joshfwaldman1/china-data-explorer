@@ -1179,6 +1179,46 @@ export const CATALOG: Record<string, Indicator> = {
       { term: "FR007", label: "FR007, 7-day, all institutions" },
     ],
   },
+  central_parity: {
+    kind: "cfets", table: "central_parity", group: "Exchange Rates",
+    title: "Yuan Central Parity", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Yuan per unit of foreign currency, last fixing of the month",
+    // The central parity the PBOC authorises CFETS to publish at 9:15 each
+    // trading day, around which the onshore spot may trade within 2 percent.
+    // The month's last fixing here; the monthly average is paired with the
+    // Fed's monthly average of the spot (fx_usdcny) in the audit.
+    tenors: [
+      { term: "USD/CNY", label: "USD/CNY" },
+      { term: "EUR/CNY", label: "EUR/CNY" },
+      { term: "100JPY/CNY", label: "100 JPY/CNY" },
+      { term: "HKD/CNY", label: "HKD/CNY" },
+      { term: "GBP/CNY", label: "GBP/CNY" },
+    ],
+  },
+  central_parity_average: {
+    kind: "cfets", table: "central_parity", measure: "month_average", group: "Exchange Rates",
+    title: "Yuan Central Parity, Monthly Average", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Yuan per unit of foreign currency, average of daily fixings", home: false,
+    tenors: [
+      { term: "USD/CNY", label: "USD/CNY" },
+      { term: "EUR/CNY", label: "EUR/CNY" },
+    ],
+  },
+  cfets_rmb_index: {
+    kind: "cfets", table: "rmb_index", group: "Exchange Rates",
+    title: "CFETS RMB Index", agency: "China Foreign Exchange Trade System",
+    frequency: "Monthly", unit: "Index, 31 December 2014 = 100, last weekly reading of the month",
+    // The yuan against a trade-weighted basket, published weekly on Fridays
+    // and on the month's last trading day, with the BIS- and SDR-basket
+    // versions; the month's last reading here.
+    // No pair: the BIS real effective rate on the site (reer_bis) is a
+    // different construction and base.
+    tenors: [
+      { term: "CFETS", label: "CFETS basket" },
+      { term: "BIS", label: "BIS basket" },
+      { term: "SDR", label: "SDR basket" },
+    ],
+  },
   trade_partners: {
     kind: "customs", group: "Trade & External",
     title: "Trade by Partner", agency: "General Administration of Customs",
