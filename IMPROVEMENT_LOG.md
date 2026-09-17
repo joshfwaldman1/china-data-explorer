@@ -2591,3 +2591,25 @@ not from scratch. Rounds are small on purpose.
   first fetch of a parity key takes four minutes (the endpoint answers in
   two seconds a month); 39 pairs, 0 findings, the parity pair "missing"
   until the sweep stores the key.
+
+- 2026-09-17 (dataset loop, round 27: labour): the Labor group held only
+  the surveyed unemployment rate. MOHRSS's portal, probed from abroad,
+  answers every request with an obfuscated script that sets a bot cookie
+  before serving a page; the site does not work around such challenges, so
+  urban new jobs (城镇新增就业) is parked with that reason. NBS's own
+  quarterly table 外出务工情况 carries the migrant-worker survey, and two keys
+  serve it: `migrant_workers` (rural labour away from home at the quarter's
+  end, 万人) and `migrant_workers_income` (their average monthly income,
+  yuan). The table has no fourth quarter (the annual survey covers the
+  year), which the notes say; the reading note warns that the count is a
+  stock that dips every first quarter around the Lunar New Year, so the
+  comparison is with a year earlier. Reasons in NO_PAIR: the quarterly
+  survey is the only source, and the annual 农民工 figures are a different
+  sample and a year-end concept. Test: both ids resolve in the shipped
+  snapshot to the named series in the quarterly dataset's 人民生活 category,
+  one table for both. Live: Q2 2026 19,227 万 away from home (Q1 18,838),
+  income 5,118 yuan; 39 pairs, 0 findings. Between rounds today: the Home
+  page took units on levels, year-on-year changes for levels, publisher
+  copy derived from the catalog, and placed titles ("Guangdong Real GDP
+  Growth"); the ingest now takes never-stored keys first and refreshes
+  CFETS series forward from the last stored month.

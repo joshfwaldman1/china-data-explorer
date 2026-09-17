@@ -11,31 +11,26 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **Labour: urban new jobs and migrant workers.** MOHRSS's quarterly
-   press release (城镇新增就业, year to date) and NBS's quarterly 外出务工
-   农村劳动力 release; probe mohrss.gov.cn from abroad first.
-   *Test:* the latest quarter parses and matches the release.
-
-3. **Auto sales (CAAM).** Monthly vehicle sales and production from
+2. **Auto sales (CAAM).** Monthly vehicle sales and production from
    caam.org.cn's data pages (汽车产销), beside NBS's output; probe first.
    *Test:* August 2026 sales parse and match CAAM's release.
 
-4. **Household income and expenditure.** NBS's quarterly per-capita
+3. **Household income and expenditure.** NBS's quarterly per-capita
    disposable income and consumption expenditure, urban and rural, from the
    catalog's quarterly dataset, year to date and titled so.
    *Test:* the ids resolve and the pair is ok.
 
-5. **Local government bond issuance.** Monthly issuance and outstanding
+4. **Local government bond issuance.** Monthly issuance and outstanding
    from MOF's 地方政府债券 release (the same treasury site as the fiscal
    release), general and special bonds.
    *Test:* August 2026 issuance parses and matches the release.
 
-6. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+5. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-7. **Property: developer financing and mortgages.** [parked: source not
+6. **Property: developer financing and mortgages.** [parked: source not
    found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
    outstanding, mortgages (个人住房贷款) and their growth. On 16 September
    none of the survey-and-statistics department's sections nor the news
@@ -45,7 +40,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-8. **MOFCOM weekly prices.** [parked: source not found] The weekly
+7. **MOFCOM weekly prices.** [parked: source not found] The weekly
    食用农产品 and 生产资料 market price indices are not on price.mofcom.gov.cn
    (its columns — 监测周报, 粮农土畜, 能源化工, 经贸简讯 — hold international
    commodity monitoring, trade news and daily briefs; the list endpoint is
@@ -54,12 +49,22 @@ carries the test that defines it as done. Prerequisites in brackets.
    Try the 商务预报 site (cif.mofcom.gov.cn) or the weekly item in 每日经贸简讯.
    *Test:* one report parses to the two indices.
 
-9. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
+8. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
 
+- **MOHRSS urban new jobs (城镇新增就业).** [parked: mohrss.gov.cn answers
+  every request with a script challenge that sets a bot cookie; the site
+  does not work around such challenges. NBS's quarterly release quotes the
+  figure in prose only.]
+
 ## Done
+
+- 2026-09-17 — Rural migrant workers: `migrant_workers` (away from home at
+  the quarter's end, 万人) and `migrant_workers_income` (monthly income,
+  yuan) from NBS's quarterly survey table; an id test; MOHRSS parked. Live:
+  Q2 2026 19,227 万 away from home, income 5,118 yuan.
 
 - 2026-09-17 — Yuan central parity and the CFETS RMB index:
   `central_parity` (five pairs, month's last fixing), `_average`, and
