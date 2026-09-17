@@ -430,6 +430,8 @@ export const NO_PAIR: Record<string, string> = {
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
   electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
+  migrant_workers: "NBS's quarterly migrant-worker survey is the only source; the annual 农民工 figures are a year-end concept from a different sample.",
+  migrant_workers_income: "As migrant_workers: the same survey's income line.",
   central_parity: "The month's last fixing; the pair is on central_parity_average against the Fed's monthly average of the spot.",
   cfets_rmb_index: "CFETS's index is the only source; the BIS real effective rate on the site is a different construction and base.",
   shibor: "CFETS's fixing is the only source of SHIBOR on the site; the monthly average beside it is the same fixings reduced another way.",

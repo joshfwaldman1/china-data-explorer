@@ -234,6 +234,8 @@ const ABOUT: Record<string, string> = {
   industrial_production: "Value added of industrial enterprises above designated size (annual revenue over 20 million yuan), year over year. January and February are published together to avoid Lunar New Year distortion. The February point carries the combined January-February figure and there is no January point.",
   cpi: "Consumer price index, year over year, from the NBS monthly price survey. Food carries a large weight, so pork and vegetable prices move the headline more than in most economies.",
   ppi: "Producer price index for industrial products at the factory gate, year over year. It tracks commodity prices closely and turns negative in deflationary stretches.",
+  migrant_workers: "NBS's quarterly count of rural labour working away from home (外出务工农村劳动力), at the quarter's end, from the migrant-worker monitoring survey. There is no fourth-quarter reading; the annual survey covers the year.",
+  migrant_workers_income: "Average monthly income of rural migrant workers away from home, from the same quarterly survey, in yuan.",
   unemployment: "Surveyed urban unemployment from the monthly labour force survey, with age breakdowns. The 16-24 series was suspended after June 2023 and resumed in December 2023 excluding students; the two segments are not comparable.",
   retail_sales: "Retail sales of consumer goods, nominal, year over year. Includes goods sold to households and to institutions; catering is included, most services are not. January and February are published together; the February point carries the combined figure and there is no January point.",
   money_supply: "M1 (cash plus demand deposits) and M2 (M1 plus savings and time deposits), year over year, from the People's Bank of China. M1 was redefined in January 2025 to include personal demand deposits.",
@@ -274,6 +276,7 @@ const ABOUT: Record<string, string> = {
   lpr: "The loan prime rate, the benchmark for new bank lending, set monthly by the PBOC from quotes by 18 banks. The 1-year rate anchors corporate loans; the 5-year rate anchors mortgages.",
 };
 const READING: Record<string, string[]> = {
+  migrant_workers: ["A quarter-end stock, not a flow: compare with the same quarter a year earlier, since the count falls every first quarter around the Lunar New Year.", "MOHRSS's urban new jobs (城镇新增就业) is not on the site: the ministry's portal answers with a script challenge."],
   unemployment: [
     "The youth rate rises every summer as graduates enter the labour market, so compare July with July, not with June.",
     "The urban survey excludes most rural migrant workers who return home when work ends, so it understates slack relative to a total-labour-force measure.",

@@ -62,6 +62,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   commodity_prices: ["commodity prices", "commodity price index", "ccpi", "大宗商品价格指数", "大宗商品"],
   gdp: ["gdp", "growth", "output", "national accounts", "国内生产总值", "经济增长"],
   provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
+  migrant_workers: ["migrant workers", "rural migrants", "外出务工", "农民工"],
+  migrant_workers_income: ["migrant income", "migrant wages", "务工收入"],
   industrial_production: ["industrial production", "ip", "industry", "value added", "factory output", "工业增加值", "工业生产"],
   cpi: ["cpi", "inflation", "inflation rate", "consumer prices", "prices", "cost of living", "居民消费价格", "通胀", "物价"],
   ppi: ["ppi", "producer prices", "factory gate prices", "deflation", "工业生产者价格", "出厂价格"],
@@ -806,6 +808,28 @@ export const CATALOG: Record<string, Indicator> = {
       { id: "47f8464961184392bc4f6a4b8e5b1cb5", valueOffset: -100, label: "Producer goods (YoY %)" },
       { id: "649b27dbffb14466a3f204e16f3c74ed", valueOffset: -100, label: "Consumer goods (YoY %)" },
     ],
+  },
+  migrant_workers: {
+    kind: "nbs", group: "Labor",
+    title: "Rural Migrant Workers Away from Home", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Ten thousand persons (万人)",
+    // NBS's quarterly reading of 外出务工农村劳动力: rural labour working away
+    // from home at the quarter's end, from the migrant-worker monitoring
+    // survey. No fourth-quarter reading: the annual survey covers the year.
+    // No pair: the quarterly survey is the only source; the annual 农民工
+    // figures are a year-end concept from a different sample.
+    cid: "f331aefb13304fc6ba0f584328ae1589",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [{ id: "9a2ab772c865417d9969f4f3e7abbcba", label: "Away from home, quarter end (10,000 persons)" }],
+  },
+  migrant_workers_income: {
+    kind: "nbs", group: "Labor",
+    title: "Rural Migrant Workers' Monthly Income", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Yuan per month (元)", home: false,
+    // The same survey's average monthly income of migrant workers away from home.
+    cid: "f331aefb13304fc6ba0f584328ae1589",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [{ id: "ae467d5cea994b6b96ece6c1916bd239", label: "Average monthly income (yuan)" }],
   },
   unemployment: {
     kind: "nbs", group: "Labor",
