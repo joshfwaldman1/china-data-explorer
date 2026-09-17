@@ -320,6 +320,20 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
   },
   {
+    name: "Manufacturing PMI: production", kind: "value",
+    left: { key: "pmi_manufacturing", label: "Production" },
+    right: { key: "nbs_6729aa00f9ed46d8b30c5d2312214b89" }, // 生产指数 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
+    name: "Non-manufacturing PMI: services activity", kind: "value",
+    left: { key: "pmi_nonmanufacturing", label: "Services business activity" },
+    right: { key: "nbs_6f77d579993b454d9e61776b7113a672" }, // 服务业商务活动指数 (%)
+    tolerance: 0.05,
+    note: "The same NBS table by two paths: the curated ingest and the catalog crawl.",
+  },
+  {
     name: "Surveyed urban unemployment (%)", kind: "value",
     left: { key: "unemployment", label: "Surveyed urban (%)" },
     right: { key: "nbs_3888eac6062945a79c8a27e5f13d4953" }, // 全国城镇调查失业率 (%)
