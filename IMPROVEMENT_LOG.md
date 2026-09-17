@@ -2497,3 +2497,16 @@ not from scratch. Rounds are small on purpose.
   through the 2021-2025 table (December 2025 core CPI 1.2). A test holds
   the slice's ids to the same categories. Live: the stored copy through
   2026 stays until the next sweep refreshes it, when the slice fills in.
+
+- 2026-09-17 (dataset loop, round 22: PMI sub-indices): the site carried
+  the two PMI headlines from a mirror. `pmi_manufacturing` serves NBS's
+  制造业采购经理指数 table whole (headline, production, new orders, new export
+  orders, backlog, finished-goods and raw-material inventories, purchasing
+  volume, imports, input and output prices, employment, supplier delivery
+  times, expectations) and `pmi_nonmanufacturing` the 非制造业 table
+  (business activity for services and construction and its components).
+  Two pairs against the catalog crawl; an id test. Live: August 2026
+  manufacturing PMI 49.8, production 50.4, new orders 50.6, input prices
+  56.6; non-manufacturing 49.0, services 49.3, construction 46.9; 35
+  pairs, 0 findings. The machine killed the deploy poll for low memory
+  again (10 GB in use, none of it the loop's); verification ran by hand.
