@@ -714,7 +714,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: entry.unit }) : "";
                 return (
                   <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
-                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}</small></span>
+                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{latest ? unitSuffix(entry.unit) : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
