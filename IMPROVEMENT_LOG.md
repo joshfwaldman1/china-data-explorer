@@ -2526,3 +2526,22 @@ not from scratch. Rounds are small on purpose.
   mirror by a month (NBS posts it mid-month; the mirror already held
   August). The ranking page called the geography "Province"; an NBS key
   can now say its regions are cities.
+
+- 2026-09-17 (dataset loop, round 24: SAFE bank FX settlement and sales):
+  the site had no monthly read of foreign-exchange flow pressure.
+  `bank_fx_settlement` serves SAFE's 银行结售汇 time-series workbook (replaced
+  each month around the 15th): net settlement first, then settlement, sales,
+  the customers' net, the current- and capital-account nets and net forward
+  contracts signed, in 亿元; `bank_fx_settlement_usd` the dollar sheet;
+  `bank_fx_settlement_annual` the annual table for complete years (its
+  current-year column is January to the latest month under a plain year
+  header, and is dropped). The month headers are Excel date serials that
+  fall inside the month, so the parser maps each to its month and refuses a
+  header that skips one. The release's headline (settlement and sales in
+  yuan and dollars) is read from the text, and the test holds the workbook
+  to it for August 2026. Concordance gains an annual-sum kind: each
+  complete year's twelve months against the annual table, on net settlement
+  and settlement. Live: August 2026 net settlement 3,290.15 亿元
+  (settlement 17,090.42, sales 13,800.27; 484.8 亿美元), 2025 net
+  13,913 亿元 after two deficit years; 38 pairs, 0 findings, the two FX pairs
+  "missing" until the sweep stores the keys.
