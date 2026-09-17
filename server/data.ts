@@ -796,6 +796,8 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "nbs", group: "Prices",
     title: "Producer Price Index by Stage", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago",
+    // Off the Home list: its first line is the headline PPI, which has its own row there.
+    home: false,
     // NBS's 工业生产者出厂价格分类指数: the headline beside producer goods (生产资料) and consumer goods (生活资料), each on a year earlier = 100, served as the change.
     cid: "60e8b361f11c4a878c652a6487a25561",
     rootId: "fc982599aa684be7969d7b90b1bd0e84",

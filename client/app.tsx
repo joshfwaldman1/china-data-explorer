@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText } from "./lib";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -582,8 +582,27 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
 const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
 const GROUP_ORDER = ["Growth & Output", "Prices", "Labor", "Consumption", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Property", "Sentiment", "Markets", "Public Finance", "Demographics", "Regional"];
 const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
-function unitSuffix(unit: string): string { return isRate(unit) && unit !== "%" && !/index/i.test(unit) ? "%" : ""; }
-function shortAgency(agency: string): string { return agency === "National Bureau of Statistics" ? "NBS" : agency === "People's Bank of China" ? "PBOC" : agency === "General Administration of Customs" ? "Customs" : agency; }
+/** What follows a value on a Home row: "%" for a rate, a compact unit for a level ("100M yuan"), nothing for an index. */
+function unitSuffix(unit: string): string {
+  if (isRate(unit)) return unit !== "%" && !/index/i.test(unit) ? "%" : "";
+  const head = unit.split(/[(,]/)[0]?.trim() ?? "";
+  return head.replace(/^Hundred million\b/i, "100M").replace(/^Trillion\b/i, "tn").replace(/^Million\b/i, "M").replace(/^Ten thousand\b/i, "10k").replace(/\bUS dollars?\b/i, "USD");
+}
+const AGENCY_SHORT: Record<string, string> = {
+  "National Bureau of Statistics": "NBS", "People's Bank of China": "PBOC", "General Administration of Customs": "Customs",
+  "State Administration of Foreign Exchange": "SAFE", "Ministry of Finance": "MOF", "Ministry of Commerce": "MOFCOM",
+  "National Energy Administration": "NEA", "China Foreign Exchange Trade System": "CFETS", "Caixin / S&P Global": "Caixin",
+};
+function shortAgency(agency: string): string { return AGENCY_SHORT[agency] ?? agency; }
+/** "PBOC, Customs, SAFE and Caixin": the domestic publishers behind the curated series, in order of how many each supplies. */
+function publisherList(entries: CuratedEntry[]): string {
+  const counts = new Map<string, number>();
+  for (const entry of entries) counts.set(entry.agency, (counts.get(entry.agency) ?? 0) + 1);
+  const names = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([agency]) => shortAgency(agency));
+  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+/** What distinguishes the bureau's three international datasets, which share a geography and mostly a frequency. */
+const DATASET_NOTE: Record<number, string> = { 12: "the US, the EU and Japan", 13: "world commodity prices", 14: "major countries" };
 function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
   const values = props.points.map((point) => point.value);
   if (values.length < 2) return <svg viewBox="0 0 160 28" aria-hidden="true" />;
@@ -598,7 +617,9 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   const [homeFailed, setHomeFailed] = useState(false);
   const [draft, setDraft] = useState("");
   const headlineEntries = props.curated.filter((entry) => entry.home !== false);
-  const byAgency = (agency: string) => headlineEntries.filter((entry) => entry.agency.includes(agency)).length;
+  // The curated series from publishers other than the bureau and FRED, counted whether or not they sit on this page.
+  const domesticEntries = props.curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics"));
+  const publisherCounts = [...new Set(domesticEntries.map((entry) => entry.agency))].map((agency) => ({ agency, count: domesticEntries.filter((entry) => entry.agency === agency).length })).sort((a, b) => b.count - a.count);
   useEffect(() => {
     let cancelled = false;
     // Each indicator lands as it arrives; one slow source must not hold the whole page blank.
@@ -634,7 +655,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {props.curated.filter((entry) => entry.home !== false && !entry.agency.includes("National Bureau of Statistics")).length} indicators from the People's Bank of China, Customs and Caixin, and {props.curated.filter((entry) => entry.source === "fred").length} international series on China via FRED.</p>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {domesticEntries.length} indicators from {publisherList(domesticEntries)}, and {props.curated.filter((entry) => entry.source === "fred").length} international series on China via FRED.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
@@ -642,7 +663,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
       </section>
 
       <section className="section" aria-labelledby="h-headline">
-        <div className="section-head"><h2 id="h-headline">Headline Indicators</h2><span>Latest value, % change from a year ago unless noted</span></div>
+        <div className="section-head"><h2 id="h-headline">Headline Indicators</h2><span>Latest value; change in points from the period before for a rate, from a year earlier for a level</span></div>
         <div className="hero-tiles">
           {HERO_KEYS.map((key) => props.curated.find((entry) => entry.key === key)).filter((entry): entry is CuratedEntry => entry !== undefined).map((entry) => {
             const result = headline.get(entry.key);
@@ -676,11 +697,13 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 // small print then carries the line and the publisher, not the place again.
                 const placed = !region && result?.region && isPlaceCode(result.region.value) ? regionLabel(result.region) : "";
                 const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(entry.title, placed) : entry.title;
+                // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
+                const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date))) : "";
                 return (
                   <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed ? "" : regionPrefix(result)}{!region && first && first.label !== entry.title ? `${first.label}, ` : ""}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{unitSuffix(entry.unit)}</i></span>
-                    <span className="change">{deltaText(latest, previous, entry.unit, "short")}</span>
+                    <span className="change">{levelChange || deltaText(latest, previous, entry.unit, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} />}</span>
                   </a>
@@ -715,9 +738,9 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
           <div className="card-head"><h2>Coverage</h2><span>English titles are machine translations; the Chinese is official</span></div>
           <div className="coverage">
             <div><h3>Included</h3><ul>
-              {datasets.map((dataset) => <li key={dataset.code}>{dataset.count.toLocaleString("en-US")} {dataset.geography === "National" ? "national" : dataset.geography === "Province" ? "provincial" : dataset.geography === "City" ? "city" : dataset.geography} {dataset.frequency.toLowerCase()} NBS series{dataset.geography === "Province" ? ", each published for 31 provinces" : dataset.geography === "City" ? ", each published for the surveyed cities" : ""}</li>)}
+              {datasets.map((dataset) => <li key={dataset.code}>{dataset.count.toLocaleString("en-US")} {dataset.geography === "National" ? "national" : dataset.geography === "Province" ? "provincial" : dataset.geography === "City" ? "city" : dataset.geography} {dataset.frequency.toLowerCase()} NBS series{dataset.geography === "Province" ? ", each published for 31 provinces" : dataset.geography === "City" ? ", each published for the surveyed cities" : DATASET_NOTE[dataset.code] ? `: ${DATASET_NOTE[dataset.code]}` : ""}</li>)}
               {props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} stored locally; the rest are fetched on first view, and tables NBS lists but has published no data for are retried monthly</li>}
-              <li>{headlineEntries.length} headline indicators with notes and revision history: {byAgency("National Bureau of Statistics")} of the NBS series above, plus {byAgency("People's Bank of China")} from the People's Bank of China, {byAgency("Customs")} from Customs and {byAgency("Caixin")} from Caixin</li>
+              <li>{props.curated.filter((entry) => entry.source !== "fred").length} curated series with notes and revision history: {props.curated.filter((entry) => entry.source !== "fred" && entry.agency.includes("National Bureau of Statistics")).length} from the NBS tables above, plus {publisherCounts.map((item, index) => `${index > 0 ? (index === publisherCounts.length - 1 ? " and " : ", ") : ""}${item.count} from ${item.agency === "Caixin / S&P Global" ? "Caixin" : item.agency}`).join("")}</li>
               <li>Quarterly GDP for all 31 provinces, back to 2005, and new and existing home prices for the 70 surveyed cities</li>
               <li>{props.curated.filter((entry) => entry.source === "fred").length} international series via FRED: BIS, OECD, IMF, World Bank, US Census, US Treasury and BLS</li>
             </ul></div>
@@ -1775,7 +1798,7 @@ function App() {
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
-      <footer>Official statistics from NBS, PBOC, Customs and Caixin, and international agencies via FRED. Independent project, not affiliated with any statistical agency.</footer>
+      <footer>Official statistics from NBS, {publisherList(curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics")))}, and international agencies via FRED. Independent project, not affiliated with any statistical agency.</footer>
       {/* The status region is always present so assistive tech announces the text when it changes; a live region inserted with its text already in it is often missed. */}
       <div role="status" aria-live="polite">{toast && <div className="toast">{toast}</div>}</div>
     </div>

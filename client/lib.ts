@@ -14,8 +14,17 @@ export interface Track {
 
 export function isRate(unit: string): boolean { return /%|percent|index|=100/i.test(unit); }
 
+/** How many decimals a value carries, to four: 552 has none, 484.8 one, 6.7828 four. */
+function ownDecimals(value: number): number {
+  const text = String(Math.round(Math.abs(value) * 10_000) / 10_000);
+  const dot = text.indexOf(".");
+  return dot < 0 ? 0 : text.length - dot - 1;
+}
+
 export function fmt(value: number, unit: string): string {
-  const decimals = isRate(unit) ? 1 : Math.abs(value) >= 1000 ? 0 : 2;
+  // A rate to one decimal; a level in the thousands to whole units; a smaller level as the
+  // publisher wrote it (a parity of 6.7828, a flow of 552), never padded to "552.00".
+  const decimals = isRate(unit) ? 1 : Math.abs(value) >= 1000 ? 0 : ownDecimals(value);
   const text = value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   // A value that rounds to zero is zero, not "-0.0".
   return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
@@ -154,6 +163,8 @@ export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint
   }
   // Levels in the thousands change by whole units; anything finer is noise at that scale.
   const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);
+  // A difference that rounds away is "0.0 pp", not "-0.0 pp".
+  if (/^0(\.0+)?$/.test(magnitude)) return style === "short" ? `${magnitude}${points}` : `Unchanged from ${observationLabel(previous.date, frequency)}`;
   if (style === "short") return `${difference > 0 ? "+" : "-"}${magnitude}${points}`;
   return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${observationLabel(previous.date, frequency)}`;
 }
@@ -228,4 +239,22 @@ export function regionalCsv(meta: { title: string; unit: string; period: string;
     lines.push([quote(row.en), quote(row.zh), quote(row.code), row.value === null ? "" : String(row.value)].join(","));
   }
   return [...head, ...lines].join("\n");
+}
+
+/** The same period a year earlier: "2026-07" → "2025-07", "2026-Q2" → "2025-Q2", "2026" → "2025". */
+export function yearEarlier(period: string): string {
+  return period.replace(/^(\d{4})/, (year) => String(Number(year) - 1));
+}
+
+/**
+ * A level's change from a year earlier as a percentage ("+8.2%"), which is how a flow or a
+ * stock is read; the previous month's difference is seasonality, not news. Empty when the
+ * year-earlier point is missing or zero, so the caller can fall back to the period difference.
+ */
+export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesPoint | undefined): string {
+  if (!latest || !yearAgo || yearAgo.value === 0) return "";
+  const change = ((latest.value - yearAgo.value) / Math.abs(yearAgo.value)) * 100;
+  const text = fmt(Math.abs(change), "%");
+  if (/^0(\.0+)?$/.test(text)) return "0.0% y/y";
+  return `${change > 0 ? "+" : "-"}${text}% y/y`;
 }

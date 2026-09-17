@@ -64,12 +64,20 @@ test("canonicalPeriod puts a native quarterly month and an aggregated quarter on
 
 test("fmt never shows a negative zero", () => {
   expect(fmt(-0.03, "%")).toBe("0.0");
-  expect(fmt(-0.001, "Hundred million yuan")).toBe("0.00");
+  expect(fmt(-0.00001, "Hundred million yuan")).toBe("0");
+  // A level below a thousand keeps the decimals the publisher gave it.
+  expect(fmt(552, "Hundred million yuan")).toBe("552");
+  expect(fmt(484.8, "Hundred million USD")).toBe("484.8");
+  expect(fmt(6.7828, "Yuan per US dollar")).toBe("6.7828");
+  expect(fmt(0.86154, "Yuan per unit")).toBe("0.8615");
   expect(fmt(-0.06, "%")).toBe("-0.1");
 });
 
 test("deltaText says pp for percentages only", () => {
   expect(deltaText({ date: "2026-08", value: 3.0 }, { date: "2026-07", value: 3.0 }, "%", "short")).toBe("0.0 pp");
+  // A difference that rounds to nothing is not "-0.0 pp".
+  expect(deltaText({ date: "2026-08", value: 1.6879 }, { date: "2026-07", value: 1.7120 }, "Percent, month-end close", "short")).toBe("0.0 pp");
+  expect(deltaText({ date: "2026-08", value: 1.6879 }, { date: "2026-07", value: 1.7120 }, "Percent, month-end close")).toBe("Unchanged from Jul 2026");
   expect(deltaText({ date: "2026-08", value: 34383 }, { date: "2026-07", value: 34383 }, "100M USD", "short")).toBe("0");
   expect(deltaText({ date: "2026-07", value: 0.5 }, { date: "2026-06", value: 1.0 }, "Percent change from year ago")).toBe("Down 0.5 pp from Jun 2026");
   expect(deltaText({ date: "2026-07", value: 99.9 }, { date: "2026-06", value: 99.7 }, "Index, previous month = 100")).toBe("Up 0.2 from Jun 2026");
@@ -133,4 +141,15 @@ test("a regional cross-section downloads as a row per place", () => {
 test("ordinal writes the day of the month as English does", async () => {
   const { ordinal } = await import("./lib.ts");
   expect([1, 2, 3, 4, 11, 12, 13, 14, 21, 22, 23, 31].map(ordinal)).toEqual(["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "14th", "21st", "22nd", "23rd", "31st"]);
+});
+
+test("a level's change is read against a year earlier, as a percentage", async () => {
+  const { yearEarlier, yearOnYearText } = await import("./lib.ts");
+  expect(yearEarlier("2026-07")).toBe("2025-07");
+  expect(yearEarlier("2026-Q2")).toBe("2025-Q2");
+  expect(yearEarlier("2026")).toBe("2025");
+  expect(yearOnYearText({ date: "2026-07", value: 10400 }, { date: "2025-07", value: 9610 })).toBe("+8.2% y/y");
+  expect(yearOnYearText({ date: "2026-07", value: 9000 }, { date: "2025-07", value: 9610 })).toBe("-6.3% y/y");
+  expect(yearOnYearText({ date: "2026-07", value: 9610 }, { date: "2025-07", value: 9610 })).toBe("0.0% y/y");
+  expect(yearOnYearText({ date: "2026-07", value: 9610 }, undefined)).toBe("");
 });
