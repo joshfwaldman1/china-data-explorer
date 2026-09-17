@@ -64,3 +64,21 @@ test("the adapter posts to the table's endpoint and reduces by the configured me
   expect(posted[0]).toMatch(/^ShiborHis \d{4}-\d{2}-01\.\.\d{4}-\d{2}-\d{2}$/);
   expect(posted[1]).toMatch(/^FrrHis /);
 });
+
+test("a refresh of a stored series reads forward from the last stored month, not the whole history", async () => {
+  const posted: string[] = [];
+  const send = async (_endpoint: string, body: URLSearchParams) => { posted.push(body.get("startDate") ?? ""); return fixture("shibor-2026-08.json"); };
+  const base = { kind: "cfets" as const, table: "shibor" as const, group: "Interest Rates", title: "t", agency: "CFETS", frequency: "Monthly", unit: "u", tenors: [{ term: "ON", label: "Overnight" }] };
+  const now = new Date();
+  const twoMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
+  const since = `${twoMonthsAgo.getUTCFullYear()}-${String(twoMonthsAgo.getUTCMonth() + 1).padStart(2, "0")}`;
+  await fetchCfets("shibor", base, 240, send, { since });
+  expect(posted.length).toBe(3);
+  expect(posted[0]).toBe(`${since}-01`);
+  posted.length = 0;
+  await fetchCfets("shibor", base, 240, send, { since: null });
+  expect(posted.length).toBe(240);
+  posted.length = 0;
+  await fetchCfets("shibor", base, 5, send, { since: "2019-01" });
+  expect(posted.length).toBe(5);
+});

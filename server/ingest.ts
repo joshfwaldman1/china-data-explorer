@@ -85,7 +85,8 @@ async function ingestOne(key: string): Promise<"ok" | "error" | "empty"> {
   const startedAt = new Date().toISOString();
 
   try {
-    const result = await fetchLive(key, HISTORY_LIMIT);
+    const lastStored = storedLatest(key).find((row) => row.key === key && row.region === seriesRegion(key))?.lastPeriod ?? null;
+    const result = await fetchLive(key, HISTORY_LIMIT, { lastStored });
     const finishedAt = new Date().toISOString();
 
     if (!result || result.series.every((s) => s.points.length === 0)) {

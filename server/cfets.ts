@@ -222,10 +222,15 @@ async function fetchMonth(table: CfetsTable, year: number, month: number, send: 
  * One request per month, paced; the current month is included so the latest
  * close is served before the month is over, labelled with that month.
  */
-export async function fetchCfets(key: string, cfg: CfetsIndicator, limit: number, send: CfetsPost = post): Promise<SeriesResult> {
+export async function fetchCfets(key: string, cfg: CfetsIndicator, limit: number, send: CfetsPost = post, options: { since?: string | null } = {}): Promise<SeriesResult> {
   const table = cfg.table ?? "yields";
-  const months = Math.max(1, Math.min(limit, 240));
   const now = new Date();
+  // A refresh of a stored series re-reads from the last stored month (its own
+  // late days and any revision) rather than the whole history: three requests
+  // a day per key instead of two hundred and forty.
+  const sinceMonth = options.since?.match(/^(\d{4})-(\d{2})/);
+  const monthsSince = sinceMonth ? (now.getUTCFullYear() - Number(sinceMonth[1])) * 12 + (now.getUTCMonth() + 1 - Number(sinceMonth[2])) + 1 : Number.POSITIVE_INFINITY;
+  const months = Math.max(1, Math.min(limit, 240, monthsSince));
   const records: YieldRecord[] = [];
   for (let back = months - 1; back >= 0; back -= 1) {
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1));

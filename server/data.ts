@@ -2048,14 +2048,19 @@ export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 12
  * Fetch straight from the upstream source, skipping the in-memory cache.
  * The ingest job uses this; the server should prefer the stored copy.
  */
-export async function fetchLive(key: string, limit = 120): Promise<SeriesResult | null> {
+/**
+ * A fresh read from the publisher. `lastStored` is the newest period the store
+ * holds, for adapters that can read forward from it instead of re-reading
+ * their whole history each day (CFETS, one request per month).
+ */
+export async function fetchLive(key: string, limit = 120, options: { lastStored?: string | null } = {}): Promise<SeriesResult | null> {
   const cfg = CATALOG[key];
   if (!cfg) return null;
   if (cfg.kind === "nbs") return fetchNbsWithSlices(key, cfg, limit);
   if (cfg.kind === "aktools") return fetchAktools(key, cfg, limit);
   if (cfg.kind === "fred") return fetchFred(key, cfg, limit);
   if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, cfg.regions[0] ?? { text: "", value: "" }, limit);
-  if (cfg.kind === "cfets") return fetchCfets(key, cfg, limit);
+  if (cfg.kind === "cfets") return fetchCfets(key, cfg, limit, undefined, { since: options.lastStored });
   if (cfg.kind === "nea") return fetchNea(key, cfg, limit);
   if (cfg.kind === "pboc") return fetchPboc(key, cfg, limit);
   if (cfg.kind === "mof") return fetchMof(key, cfg, limit);
