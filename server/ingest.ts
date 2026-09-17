@@ -488,6 +488,12 @@ export async function refreshCatalogTargets(targets: { key: string; region: stri
   return tally;
 }
 
+/** Keys with nothing stored first, then the rest in their catalog order. */
+export function orderForIngest(keys: string[], hasStored: (key: string) => boolean): string[] {
+  const fresh = keys.filter((key) => !hasStored(key));
+  return [...fresh, ...keys.filter((key) => !fresh.includes(key))];
+}
+
 export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
   let curatedKeys = requested.length > 0
     ? requested.filter((spec) => !spec.startsWith("nbs_"))
@@ -517,6 +523,11 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
 
   db(); // create and migrate before the first write
   const tally = { ok: 0, error: 0, empty: 0 };
+
+  // A series nothing has stored yet goes first: a key added in today's deploy
+  // reaches the Home page within minutes, not after every older key has been
+  // refreshed (and not never, when a restart cuts the run short).
+  if (requested.length === 0) curatedKeys = orderForIngest(curatedKeys, (key) => storedLatest(key).some((row) => row.key === key && row.lastPeriod !== null));
 
   if (curatedKeys.length > 0) {
     console.log(`Ingesting ${curatedKeys.length} curated series\n`);
