@@ -2654,3 +2654,19 @@ not from scratch. Rounds are small on purpose.
   annual snapshot's wage tables and wait. Tests hold every new id to the
   named series, dataset and category. Live: youth unemployment 18.9% (Aug
   2026, +1.0 pp); the annual rows fill as the boot ingest stores them.
+
+- 2026-09-18 (dataset loop, round 28: household income and spending): the
+  Consumption group had retail sales alone. NBS's quarterly household
+  survey publishes per-capita disposable income and consumption spending
+  as year-to-date levels and nominal growth, in three tables (all
+  residents, urban, rural). An NBS line can now name the table it comes
+  from, so one key draws the three tables with one request each and the
+  fetcher pools the periods; four keys serve growth and levels for income
+  and spending, the growth rows on Home under retail sales. Real growth
+  (实际增长) is not in the quarterly database and is not derived. Reasons in
+  NO_PAIR: the survey is the only source and the annual figure is its
+  fourth-quarter reading. Test: twelve lines resolve to the named series
+  in the quarterly dataset from the tables they name. Live: H1 2026
+  disposable income +4.2% nominal (urban +3.4, rural +5.5), 14,836 yuan
+  spent per person (urban 18,071, rural 10,180), spending +2.7%; 39 pairs,
+  0 findings.

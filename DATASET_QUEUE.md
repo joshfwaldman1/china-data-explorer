@@ -15,22 +15,17 @@ carries the test that defines it as done. Prerequisites in brackets.
    caam.org.cn's data pages (汽车产销), beside NBS's output; probe first.
    *Test:* August 2026 sales parse and match CAAM's release.
 
-3. **Household income and expenditure.** NBS's quarterly per-capita
-   disposable income and consumption expenditure, urban and rural, from the
-   catalog's quarterly dataset, year to date and titled so.
-   *Test:* the ids resolve and the pair is ok.
-
-4. **Local government bond issuance.** Monthly issuance and outstanding
+3. **Local government bond issuance.** Monthly issuance and outstanding
    from MOF's 地方政府债券 release (the same treasury site as the fiscal
    release), general and special bonds.
    *Test:* August 2026 issuance parses and matches the release.
 
-5. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+4. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-6. **Property: developer financing and mortgages.** [parked: source not
+5. **Property: developer financing and mortgages.** [parked: source not
    found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
    outstanding, mortgages (个人住房贷款) and their growth. On 16 September
    none of the survey-and-statistics department's sections nor the news
@@ -40,7 +35,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-7. **MOFCOM weekly prices.** [parked: source not found] The weekly
+6. **MOFCOM weekly prices.** [parked: source not found] The weekly
    食用农产品 and 生产资料 market price indices are not on price.mofcom.gov.cn
    (its columns — 监测周报, 粮农土畜, 能源化工, 经贸简讯 — hold international
    commodity monitoring, trade news and daily briefs; the list endpoint is
@@ -49,7 +44,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    Try the 商务预报 site (cif.mofcom.gov.cn) or the weekly item in 每日经贸简讯.
    *Test:* one report parses to the two indices.
 
-8. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
+7. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
@@ -60,6 +55,12 @@ carries the test that defines it as done. Prerequisites in brackets.
   figure in prose only.]
 
 ## Done
+
+- 2026-09-18 — Household income and spending: `household_income_growth`,
+  `household_income`, `household_spending_growth`, `household_spending`
+  from NBS's quarterly survey (national, urban, rural; year to date); an
+  NBS line can name its own table; two Home rows; an id test. Live: H1 2026
+  disposable income +4.2% nominal (urban 3.4, rural 5.5), spending +2.7%.
 
 - 2026-09-17 — Rural migrant workers: `migrant_workers` (away from home at
   the quarter's end, 万人) and `migrant_workers_income` (monthly income,
