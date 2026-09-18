@@ -65,6 +65,10 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
   migrant_workers: ["migrant workers", "rural migrants", "外出务工", "农民工"],
   working_hours: ["hours worked", "working hours", "working week", "工作时间"],
+  household_income_growth: ["disposable income", "household income", "income growth", "可支配收入"],
+  household_income: ["disposable income per capita", "居民人均可支配收入"],
+  household_spending_growth: ["consumption expenditure", "household spending", "消费支出"],
+  household_spending: ["consumption expenditure per capita", "居民人均消费支出"],
   employment: ["employment", "employed persons", "jobs", "就业人员"],
   population_nbs: ["population", "urban population", "人口", "总人口"],
   population_rates: ["birth rate", "death rate", "natural growth", "出生率", "死亡率"],
@@ -194,6 +198,8 @@ interface NbsSeriesId {
    * figure) fills the February point; January stays absent, as published.
    */
   januaryFebruaryId?: string;
+  /** The table this line comes from when it is not the key's own (urban and rural tables beside the national one). */
+  cid?: string;
 }
 
 type NbsPeriodValue = { _id?: string; da?: string; value?: unknown };
@@ -929,6 +935,59 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_TOTAL_RETAIL",
     fields: [{ field: "RETAIL_TOTAL_SAME", januaryFebruaryField: "RETAIL_ACCUMULATE_SAME", label: "Retail sales (YoY %)" }],
+  },
+  household_income_growth: {
+    kind: "nbs", group: "Consumption",
+    title: "Household Disposable Income Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Percent change from year ago, nominal, cumulative year to date",
+    // NBS's quarterly household survey: per-capita disposable income, year to
+    // date, nominal growth on a year earlier, for all residents and for the
+    // urban and rural tables published beside it. Q4 is the full year. No
+    // pair: the survey is the only source; the annual figure is its
+    // fourth-quarter reading.
+    cid: "ec2d57ed282f456e8d025aff035b4fad",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "7abcbb6f7c844b669d43da985d3f6ff2", label: "All residents, year to date (YoY %)" },
+      { id: "cdb31eeca0824d2abfff388c114f1aaf", label: "Urban, year to date (YoY %)", cid: "564537ad2e5049a6aee74c834b675748" },
+      { id: "48988f9103f74ba1bca8526b72dee54a", label: "Rural, year to date (YoY %)", cid: "62c5dd0cb4b74602b64e19e948460472" },
+    ],
+  },
+  household_income: {
+    kind: "nbs", group: "Consumption",
+    title: "Household Disposable Income per Capita, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Yuan per person, cumulative year to date", home: false,
+    cid: "ec2d57ed282f456e8d025aff035b4fad",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "bb5699c5ad534b568cca7c946227225a", label: "All residents, year to date (yuan)" },
+      { id: "e0b8d37be1b3445e8cbef405a28c5d95", label: "Urban, year to date (yuan)", cid: "564537ad2e5049a6aee74c834b675748" },
+      { id: "e80dbdec8c354aebaef94cb4d27a1ecb", label: "Rural, year to date (yuan)", cid: "62c5dd0cb4b74602b64e19e948460472" },
+    ],
+  },
+  household_spending_growth: {
+    kind: "nbs", group: "Consumption",
+    title: "Household Consumption Spending Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Percent change from year ago, nominal, cumulative year to date",
+    cid: "71e8c15775d242b8b212edb4cab6e808",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "1158b14b49ed4337adbe255c1e12341e", label: "All residents, year to date (YoY %)" },
+      { id: "8854a3c858294158a9c4b749a91922c4", label: "Urban, year to date (YoY %)", cid: "0932160e45104fdc846cfebf1947abb2" },
+      { id: "87bb283c36ef4d2a8efbc9ede07bb01f", label: "Rural, year to date (YoY %)", cid: "3a28902fd00646a39061a4c83c0925b4" },
+    ],
+  },
+  household_spending: {
+    kind: "nbs", group: "Consumption",
+    title: "Household Consumption Spending per Capita, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Yuan per person, cumulative year to date", home: false,
+    cid: "71e8c15775d242b8b212edb4cab6e808",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "8e8fb36d72e544658caebd7419900d2a", label: "All residents, year to date (yuan)" },
+      { id: "1a2b2139701545a4ba4f14beb5054360", label: "Urban, year to date (yuan)", cid: "0932160e45104fdc846cfebf1947abb2" },
+      { id: "5d28a20e0bde4142ab057d144a99b8ba", label: "Rural, year to date (yuan)", cid: "3a28902fd00646a39061a4c83c0925b4" },
+    ],
   },
   money_supply: {
     kind: "eastmoney", group: "Money & Credit",
@@ -1730,6 +1789,8 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
   ] },
   { group: "Consumption", rows: [
     { key: "retail_sales", title: "Retail Sales Growth" },
+    { key: "household_income_growth", title: "Household Disposable Income Growth, Year to Date" },
+    { key: "household_spending_growth", title: "Household Consumption Spending Growth, Year to Date" },
   ] },
   { group: "Prices", rows: [
     { key: "ppi", title: "Producer Price Index" },
@@ -2047,27 +2108,36 @@ async function fetchNbsWithSlices(key: string, cfg: NbsIndicator, limit: number)
 
 async function fetchNbs(key: string, cfg: NbsIndicator, limit: number): Promise<SeriesResult> {
   const region = cfg.region ?? { text: "全国", value: "000000000000" };
-  const payload = {
-    cid: cfg.cid, indicatorIds: [...new Set(cfg.ids.flatMap((i) => (i.januaryFebruaryId ? [i.id, i.januaryFebruaryId] : [i.id])))], daCatalogId: "",
-    das: [region], showType: "1",
-    dts: [nbsRange(cfg, limit)], rootId: cfg.rootId,
-  };
-  const { json } = await fetchJson(
-    "https://data.stats.gov.cn/dg/website/publicrelease/web/external/stream/esData",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        Origin: "https://data.stats.gov.cn",
-        Referer: "https://data.stats.gov.cn/dg/website/page.html",
-        "User-Agent": UA,
+  // One request per table the lines come from: usually the key's own, sometimes the urban and
+  // rural tables published beside it. The periods of each answer are pooled.
+  const tables = new Map<string, NbsSeriesId[]>();
+  for (const line of cfg.ids) { const cid = line.cid ?? cfg.cid; tables.set(cid, [...(tables.get(cid) ?? []), line]); }
+  const periods: { code?: string; name?: string; values?: { _id?: string; da?: string; value?: unknown }[] }[] = [];
+  let first = true;
+  for (const [cid, lines] of tables) {
+    if (!first) await Bun.sleep(800);
+    first = false;
+    const payload = {
+      cid, indicatorIds: [...new Set(lines.flatMap((i) => (i.januaryFebruaryId ? [i.id, i.januaryFebruaryId] : [i.id])))], daCatalogId: "",
+      das: [region], showType: "1",
+      dts: [nbsRange(cfg, limit)], rootId: cfg.rootId,
+    };
+    const { json } = await fetchJson(
+      "https://data.stats.gov.cn/dg/website/publicrelease/web/external/stream/esData",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+          Origin: "https://data.stats.gov.cn",
+          Referer: "https://data.stats.gov.cn/dg/website/page.html",
+          "User-Agent": UA,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    },
-  );
-  const rawData: unknown = typeof json === "object" && json !== null ? Reflect.get(json, "data") : undefined;
-  const periods: { code?: string; name?: string; values?: { _id?: string; da?: string; value?: unknown }[] }[] =
-    Array.isArray(rawData) ? rawData : [];
+    );
+    const rawData: unknown = typeof json === "object" && json !== null ? Reflect.get(json, "data") : undefined;
+    if (Array.isArray(rawData)) periods.push(...rawData);
+  }
 
   const series: Series[] = cfg.ids.map((idcfg) => {
     const points: SeriesPoint[] = [];
