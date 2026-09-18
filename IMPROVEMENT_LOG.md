@@ -2633,3 +2633,24 @@ not from scratch. Rounds are small on purpose.
   pinned to the gloss's wording were retargeted to the guarantee each
   protects. Live: the coverage card counts the official titles; result
   cards and pages tag them "NBS English".
+
+- 2026-09-18 (Home: the labour market and the population): the owner asked
+  why the Labor group held only the unemployment tile and the migrant-worker
+  count when youth unemployment and participation are what a reader looks
+  for. What NBS publishes: the monthly labour force survey table (headline,
+  16-24 excluding students, 25-29, 30-59, 31 major cities, local and
+  non-local hukou, and enterprise employees' average weekly hours); no
+  participation rate at any frequency; annual year-end employed persons
+  (total, urban, rural); annual wages by unit type. A Home row can now name
+  one line of a table, so the survey's youth and 31-city lines are rows
+  beside the hero tile; `working_hours` and `employment` are new keys; the
+  survey key gains the hukou lines. A Demographics group joins: year-end
+  population (`population_nbs`), birth and natural growth rates
+  (`population_rates`, per-thousand handled as a rate with points for its
+  change), and the population aged 65 and over (`population_age`), all from
+  NBS's annual tables; the World Bank series on the site are UN estimates on
+  another basis and stay off Home, with the reasons in NO_PAIR. Wages
+  (城镇非私营单位就业人员平均工资) were not found as a national total in the
+  annual snapshot's wage tables and wait. Tests hold every new id to the
+  named series, dataset and category. Live: youth unemployment 18.9% (Aug
+  2026, +1.0 pp); the annual rows fill as the boot ingest stores them.
