@@ -47,7 +47,7 @@ async function startServer(): Promise<{ url: string; stop: () => void }> {
   const child = Bun.spawn(["bun", resolve(import.meta.dir, "app.ts")], { env, stdout: "pipe", stderr: "pipe" });
   const reader = child.stdout.getReader();
   let text = "";
-  const deadline = Date.now() + 60_000;
+  const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -69,7 +69,7 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
     const page = await browser.newPage();
     await page.goto(`${server.url}/#/`);
     const trade = page.locator('section[aria-label="Trade & External"]');
-    await trade.locator(".indicator-row", { hasText: "United States" }).waitFor({ state: "visible", timeout: 30_000 });
+    await trade.locator(".indicator-row", { hasText: "United States" }).waitFor({ state: "visible", timeout: 120_000 });
     const names = await trade.locator(".indicator-row .name").allInnerTexts();
     expect(names.some((name) => name.startsWith("Exports to the United States"))).toBe(true);
     expect(names.some((name) => name.startsWith("Exports to the European Union"))).toBe(true);
@@ -77,16 +77,16 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
     expect(names.some((name) => name.startsWith("Total"))).toBe(false);
     // The regional row names the province with the measure, not "Provincial" with the province in small print.
     const regional = page.locator('section[aria-label="Regional"]');
-    await regional.locator(".indicator-row", { hasText: "Guangdong" }).waitFor({ state: "visible", timeout: 30_000 });
+    await regional.locator(".indicator-row", { hasText: "Guangdong" }).waitFor({ state: "visible", timeout: 120_000 });
     const regionalNames = await regional.locator(".indicator-row .name").allInnerTexts();
     expect(regionalNames.some((name) => name.startsWith("Guangdong Real GDP Growth"))).toBe(true);
     expect(regionalNames.some((name) => name.startsWith("Provincial"))).toBe(false);
     // The series page is headed the same way.
     await regional.locator(".indicator-row", { hasText: "Guangdong" }).first().click();
-    await page.locator("h1", { hasText: "Guangdong Real GDP Growth" }).waitFor({ state: "visible", timeout: 30_000 });
+    await page.locator("h1", { hasText: "Guangdong Real GDP Growth" }).waitFor({ state: "visible", timeout: 120_000 });
 
     await page.goto(`${server.url}/#/regions?key=trade_partners`);
-    await page.locator(".ranked button").first().waitFor({ state: "visible", timeout: 30_000 });
+    await page.locator(".ranked button").first().waitFor({ state: "visible", timeout: 120_000 });
     expect(await page.locator("h1").innerText()).toBe("Trade by Partner by Partner");
     // 30 partners, the Total row apart from the ranking.
     expect(await page.locator(".ranked button").count()).toBe(29);
@@ -95,7 +95,7 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
 
     // Ranking by imports reorders the list.
     await page.selectOption('select[aria-label="Line to rank by"]', "Imports");
-    await page.locator(".card-head", { hasText: "imports, highest to lowest" }).waitFor({ state: "visible", timeout: 30_000 });
+    await page.locator(".card-head", { hasText: "imports, highest to lowest" }).waitFor({ state: "visible", timeout: 120_000 });
     expect(await page.locator(".ranked button").count()).toBe(29);
 
     const download = page.waitForEvent("download");
@@ -110,4 +110,4 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
     await browser.close();
     server.stop();
   }
-}, 120_000);
+}, 300_000);

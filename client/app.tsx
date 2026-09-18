@@ -599,6 +599,7 @@ function allRegionsLink(entry: CuratedEntry): { href: string; label: string } {
 const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
 /** What follows a value on a Home row: "%" for a rate, a compact unit for a level ("100M yuan"), nothing for an index. */
 function unitSuffix(unit: string): string {
+  if (/‰|per thousand/i.test(unit)) return "‰";
   if (isRate(unit)) return unit !== "%" && !/index/i.test(unit) ? "%" : "";
   const head = unit.split(/[(,]/)[0]?.trim() ?? "";
   if (/^Yuan per\b/i.test(head)) return "yuan";
