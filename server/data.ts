@@ -63,6 +63,11 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   gdp: ["gdp", "growth", "output", "national accounts", "国内生产总值", "经济增长"],
   provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
   migrant_workers: ["migrant workers", "rural migrants", "外出务工", "农民工"],
+  working_hours: ["hours worked", "working hours", "working week", "工作时间"],
+  employment: ["employment", "employed persons", "jobs", "就业人员"],
+  population_nbs: ["population", "urban population", "人口", "总人口"],
+  population_rates: ["birth rate", "death rate", "natural growth", "出生率", "死亡率"],
+  population_age: ["ageing", "aging", "elderly", "working age", "老龄化", "65岁"],
   migrant_workers_income: ["migrant income", "migrant wages", "务工收入"],
   industrial_production: ["industrial production", "ip", "industry", "value added", "factory output", "工业增加值", "工业生产"],
   cpi: ["cpi", "inflation", "inflation rate", "consumer prices", "prices", "cost of living", "居民消费价格", "通胀", "物价"],
@@ -836,6 +841,71 @@ export const CATALOG: Record<string, Indicator> = {
     rootId: "a94b8b7365a94874968cabbe392cf679",
     ids: [{ id: "ae467d5cea994b6b96ece6c1916bd239", label: "Average monthly income (yuan)" }],
   },
+  working_hours: {
+    kind: "nbs", group: "Labor",
+    title: "Average Weekly Hours Worked", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hours per week",
+    // 企业就业人员周平均工作时间 from the monthly labour force survey, the
+    // one intensity measure NBS publishes monthly. No pair: the survey's
+    // only reading.
+    cid: "ee3b7046b390415b9b7745e3d16f6052",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [{ id: "40ab91b1ef4948e89633c5c7f55b9713", label: "Enterprise employees (hours per week)" }],
+  },
+  employment: {
+    kind: "nbs", group: "Labor",
+    title: "Employed Persons", agency: "National Bureau of Statistics",
+    frequency: "Annual", unit: "Ten thousand persons (万人)",
+    // Year-end employment from the annual dataset, total and by urban and
+    // rural. China publishes no monthly participation rate; this annual count
+    // and the surveyed unemployment rate are the two sides NBS gives.
+    cid: "075f123c1e5243b0ab56f275bd80e0fb",
+    rootId: "884c062607104a91967b22742537f44f",
+    ids: [
+      { id: "44b0ec1c80614c95a4c215acfd27f4a4", label: "Total, year end (10,000 persons)" },
+      { id: "43eff5be6c4b4109907a3a45f9da7e7c", label: "Urban (10,000 persons)" },
+      { id: "08d8854846e742f191a1fb23e33576ff", label: "Rural (10,000 persons)" },
+    ],
+  },
+  population_nbs: {
+    kind: "nbs", group: "Demographics",
+    title: "Population, Year End", agency: "National Bureau of Statistics",
+    frequency: "Annual", unit: "Ten thousand persons (万人)",
+    // NBS's year-end population, total and by urban and rural residence. The
+    // World Bank figure on the site (population) is a UN estimate on another
+    // basis, so the two are not paired.
+    cid: "6331ad868e8b4f55b8e9b6e765609ce1",
+    rootId: "884c062607104a91967b22742537f44f",
+    ids: [
+      { id: "806083491dbe46a08995783945a30b9d", label: "Total, year end (10,000 persons)" },
+      { id: "07e1e3444cd34c43b4fd749f060bba5f", label: "Urban (10,000 persons)" },
+      { id: "2dd9894936d448fcb88605863d90d85c", label: "Rural (10,000 persons)" },
+    ],
+  },
+  population_rates: {
+    kind: "nbs", group: "Demographics",
+    title: "Birth, Death and Natural Growth Rates", agency: "National Bureau of Statistics",
+    frequency: "Annual", unit: "Per thousand (‰)",
+    cid: "ffed4267bba24830beea5991d4c9bcfc",
+    rootId: "884c062607104a91967b22742537f44f",
+    ids: [
+      { id: "3d4006d356d94bdd9d75700b9788e230", label: "Birth rate (‰)" },
+      { id: "ee4b8be1ad68498e81d9ecddf4d4f2de", label: "Death rate (‰)" },
+      { id: "3969129b26a846968a7dddff5f326f55", label: "Natural growth rate (‰)" },
+    ],
+  },
+  population_age: {
+    kind: "nbs", group: "Demographics",
+    title: "Population by Age", agency: "National Bureau of Statistics",
+    frequency: "Annual", unit: "Ten thousand persons (万人)",
+    cid: "c7743eefda9d44b5ad2ab0b4f29ba969",
+    rootId: "884c062607104a91967b22742537f44f",
+    ids: [
+      { id: "c2627d8e6b5843bfa3372bacdf858804", label: "Aged 65 and over (10,000 persons)" },
+      { id: "a6051fc22d394d81b2007dc7c7c761fa", label: "Aged 15 to 64 (10,000 persons)" },
+      { id: "067f5f3ec585402e9f31037e5f27eb17", label: "Aged 0 to 14 (10,000 persons)" },
+    ],
+  },
   unemployment: {
     kind: "nbs", group: "Labor",
     title: "Surveyed Urban Unemployment Rate", agency: "National Bureau of Statistics",
@@ -847,6 +917,9 @@ export const CATALOG: Record<string, Indicator> = {
       { id: "bd6da1abb26046c2acb38aa701d90e86", label: "Youth 16-24, ex-students (%)" },
       { id: "7bc1bd5daeac48ae8bb413c34ece1d08", label: "Age 25-29, ex-students (%)" },
       { id: "c03a36c9562246b6bc8aab010951ef1c", label: "Age 30-59, ex-students (%)" },
+      { id: "1d550f3ec77a463bb607d4a3427e1465", label: "31 major cities (%)" },
+      { id: "1c1b2d9ab24048bfadc5c7d9510dc663", label: "Local hukou (%)" },
+      { id: "3921da310de24f14b6457c235657baf9", label: "Non-local hukou (%)" },
     ],
   },
   retail_sales: {
@@ -1632,6 +1705,8 @@ export interface CatalogEntry {
   homeRank?: number;
   /** The Home row's name when it differs from the series title: what the first line is. */
   homeTitle?: string;
+  /** Every Home row this key has: one for most, one per named line for a table whose lines each get a row. */
+  homeRows?: HomeRow[];
 }
 
 /**
@@ -1644,7 +1719,7 @@ export interface CatalogEntry {
  * curated key not listed here is off the Home page but stays searchable and
  * on its own page and its group's release links.
  */
-export const HOME_ROWS: { group: string; rows: { key: string; title?: string }[] }[] = [
+export const HOME_ROWS: { group: string; rows: { key: string; title?: string; line?: string }[] }[] = [
   { group: "Growth & Output", rows: [
     { key: "industrial_production", title: "Industrial Production Growth" },
     { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
@@ -1659,8 +1734,15 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string }[]
     { key: "ppi", title: "Producer Price Index" },
     { key: "cpi_detail", title: "Core CPI, Excluding Food and Energy" },
   ] },
+  // Labour: the survey's headline is a hero tile; its youth and big-city lines are rows of their own.
+  // China publishes no participation rate; the annual employed-persons count stands in for the
+  // labour force's size.
   { group: "Labor", rows: [
+    { key: "unemployment", line: "Youth 16-24, ex-students (%)", title: "Youth Unemployment, 16-24 Excluding Students" },
+    { key: "unemployment", line: "31 major cities (%)", title: "Unemployment Rate, 31 Major Cities" },
+    { key: "working_hours", title: "Average Weekly Hours Worked" },
     { key: "migrant_workers", title: "Rural Migrant Workers Away from Home" },
+    { key: "employment", title: "Employed Persons, Year End" },
   ] },
   { group: "Property", rows: [
     { key: "property_investment", title: "Real Estate Investment Growth, Year to Date" },
@@ -1701,6 +1783,12 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string }[]
     { key: "caixin_pmi" },
     { key: "caixin_services_pmi" },
   ] },
+  { group: "Demographics", rows: [
+    { key: "population_nbs", title: "Population, Year End" },
+    { key: "population_rates", line: "Birth rate (‰)", title: "Birth Rate" },
+    { key: "population_rates", line: "Natural growth rate (‰)", title: "Natural Population Growth Rate" },
+    { key: "population_age", line: "Aged 65 and over (10,000 persons)", title: "Population Aged 65 and Over" },
+  ] },
   { group: "Regional", rows: [
     { key: "provincial_gdp" },
   ] },
@@ -1709,8 +1797,14 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string }[]
 /** The four tiles above the Home list; they are not rows. */
 export const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
 
-const HOME_INDEX = new Map<string, { rank: number; title?: string }>();
-HOME_ROWS.forEach((group, groupIndex) => group.rows.forEach((row, rowIndex) => HOME_INDEX.set(row.key, { rank: groupIndex * 100 + rowIndex, title: row.title })));
+export interface HomeRow { rank: number; title?: string; line?: string }
+/** A key's Home rows, in page order: usually one; a table whose lines each get a row has several. */
+const HOME_INDEX = new Map<string, HomeRow[]>();
+HOME_ROWS.forEach((group, groupIndex) => group.rows.forEach((row, rowIndex) => {
+  const rows = HOME_INDEX.get(row.key) ?? [];
+  rows.push({ rank: groupIndex * 100 + rowIndex, ...(row.title ? { title: row.title } : {}), ...(row.line ? { line: row.line } : {}) });
+  HOME_INDEX.set(row.key, rows);
+}));
 
 export function catalogList(): CatalogEntry[] {
   return Object.entries(CATALOG).map(([key, c]) => ({
@@ -1718,7 +1812,9 @@ export function catalogList(): CatalogEntry[] {
     frequency: c.frequency, unit: c.unit, source: c.kind,
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     // On Home only when listed in HOME_ROWS (or a hero tile); the listing carries the row's rank and name.
-    ...(HOME_INDEX.has(key) || HERO_KEYS.includes(key) ? { homeRank: HOME_INDEX.get(key)?.rank, ...(HOME_INDEX.get(key)?.title ? { homeTitle: HOME_INDEX.get(key)?.title } : {}) } : { home: false }),
+    ...(HOME_INDEX.has(key) || HERO_KEYS.includes(key)
+      ? { ...(HOME_INDEX.has(key) ? { homeRows: HOME_INDEX.get(key), homeRank: HOME_INDEX.get(key)?.[0]?.rank, ...(HOME_INDEX.get(key)?.[0]?.title && !HOME_INDEX.get(key)?.[0]?.line ? { homeTitle: HOME_INDEX.get(key)?.[0]?.title } : {}) } : {}) }
+      : { home: false }),
     ...(c.kind === "aktools" && !aktoolsConfigured() ? { refreshBlocked: "AkShare" } : {}),
     ...((c.kind === "customs" || c.kind === "eastmoney" || c.kind === "nea" || c.kind === "pboc" || c.kind === "mof" || c.kind === "mofcom" || c.kind === "safe") && c.releaseDay ? { releaseDay: c.releaseDay } : {}),
     ...((c.kind === "customs" || c.kind === "nbs") && c.homeRegions ? { homeRegions: c.homeRegions } : {}),

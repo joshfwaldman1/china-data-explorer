@@ -161,3 +161,8 @@ test("a level's change is read against a year earlier, as a percentage", async (
   expect(fmt(1.46, "Percent, last fixing of the month")).toBe("1.46");
   expect(fmt(1.6879, "Percent, month-end close")).toBe("1.69");
 });
+
+test("a per-thousand rate is a rate: two decimals, points for its change", () => {
+  expect(fmt(6.77, "Per thousand (‰)")).toBe("6.77");
+  expect(deltaText({ date: "2025", value: 6.39 }, { date: "2024", value: 6.77 }, "Per thousand (‰)", "short")).toBe("-0.38 pt");
+});

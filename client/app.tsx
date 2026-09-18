@@ -13,7 +13,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; homeRows?: { rank: number; title?: string; line?: string }[]; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -234,6 +234,11 @@ const ABOUT: Record<string, string> = {
   industrial_production: "Value added of industrial enterprises above designated size (annual revenue over 20 million yuan), year over year. January and February are published together to avoid Lunar New Year distortion. The February point carries the combined January-February figure and there is no January point.",
   cpi: "Consumer price index, year over year, from the NBS monthly price survey. Food carries a large weight, so pork and vegetable prices move the headline more than in most economies.",
   ppi: "Producer price index for industrial products at the factory gate, year over year. It tracks commodity prices closely and turns negative in deflationary stretches.",
+  working_hours: "Average hours worked per week by enterprise employees, from NBS's monthly labour force survey: the one measure of labour intensity the bureau publishes monthly.",
+  employment: "NBS's year-end count of employed persons, total and by urban and rural residence, from the annual dataset. China publishes no monthly labour force participation rate.",
+  population_nbs: "NBS's year-end population, total and by urban and rural residence. The World Bank series on the site is a UN estimate on a different basis.",
+  population_rates: "Births, deaths and natural growth per thousand population, annual, from NBS. Natural growth turned negative in 2022.",
+  population_age: "Year-end population by age group from NBS's annual dataset: under 15, working age 15 to 64, and 65 and over.",
   migrant_workers: "NBS's quarterly count of rural labour working away from home (外出务工农村劳动力), at the quarter's end, from the migrant-worker monitoring survey. There is no fourth-quarter reading; the annual survey covers the year.",
   migrant_workers_income: "Average monthly income of rural migrant workers away from home, from the same quarterly survey, in yuan.",
   unemployment: "Surveyed urban unemployment from the monthly labour force survey, with age breakdowns. The 16-24 series was suspended after June 2023 and resumed in December 2023 excluding students; the two segments are not comparable.",
@@ -597,6 +602,8 @@ function unitSuffix(unit: string): string {
   if (isRate(unit)) return unit !== "%" && !/index/i.test(unit) ? "%" : "";
   const head = unit.split(/[(,]/)[0]?.trim() ?? "";
   if (/^Yuan per\b/i.test(head)) return "yuan";
+  if (/^Per thousand\b/i.test(head)) return "‰";
+  if (/^Hours\b/i.test(head)) return "hours";
   if (/^(Percent|Index|Years|Number)\b/i.test(head)) return "";
   return head.replace(/^Hundred million\b/i, "100M").replace(/^Trillion\b/i, "tn").replace(/^Million\b/i, "M").replace(/^Ten thousand\b/i, "10k").replace(/\bUS dollars?\b/i, "USD");
 }
@@ -693,28 +700,33 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
           })}
         </div>
         <div className="indicator-list">
-          {[...new Set(props.curated.filter((entry) => !HERO_KEYS.includes(entry.key) && entry.home !== false).map((entry) => entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
+          {[...new Set(props.curated.filter((entry) => entry.homeRows && entry.homeRows.length > 0).map((entry) => entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
             <section key={group} aria-label={group}>
               <h3>{group}</h3>
-              {props.curated.filter((entry) => entry.group === group && !HERO_KEYS.includes(entry.key) && entry.home !== false).sort((a, b) => homeRank(a) - homeRank(b)).flatMap((entry) => {
+              {props.curated.filter((entry) => entry.group === group && entry.homeRows && entry.homeRows.length > 0)
+                .flatMap((entry) => (entry.homeRows ?? []).map((row) => ({ entry, row })))
+                .sort((a, b) => a.row.rank - b.row.rank)
+                .flatMap(({ entry, row }) => {
                 // A series that names home regions (trade by partner) is one row per
-                // region, named for the region; the rest are one row each.
+                // region, named for the region; a table whose lines each get a row is one
+                // row per named line; the rest are one row each.
                 const rows = entry.homeRegions ? entry.homeRegions.map((code) => ({ entry, spec: `${entry.key}@${code}`, region: code })) : [{ entry, spec: entry.key, region: "" }];
                 return rows.map(({ spec, region }) => {
                 const result = headline.get(spec);
-                const first = result?.series[0];
+                const first = row.line ? result?.series.find((line) => line.label === row.line) : result?.series[0];
+                const rowTitle = row.title ?? entry.homeTitle;
                 const latest = first?.points[first.points.length - 1];
                 const previous = first?.points[first.points.length - 2];
                 // A row for one place is named for the place and the measure together; the
                 // small print then carries the line and the publisher, not the place again.
                 const placed = !region && result?.region && isPlaceCode(result.region.value) ? regionLabel(result.region) : "";
-                const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(entry.homeTitle ?? entry.title, placed) : entry.homeTitle ?? entry.title;
+                const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(rowTitle ?? entry.title, placed) : rowTitle ?? entry.title;
                 // The small print names the table the row comes from when the row is named for its line, else the line.
-                const tableNote = !region && entry.homeTitle && entry.homeTitle !== entry.title ? `${entry.title}, ` : "";
+                const tableNote = !region && rowTitle && rowTitle !== entry.title ? `${entry.title}, ` : "";
                 // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
                 const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: entry.unit }) : "";
                 return (
-                  <a key={spec} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
+                  <a key={`${spec}|${row.line ?? ""}`} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{latest ? unitSuffix(entry.unit) : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, entry.unit, "short")}</span>

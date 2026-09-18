@@ -14,16 +14,22 @@ process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-home-rows-"
 process.env.CHINA_SEED = "off";
 const { CATALOG, HOME_ROWS, HERO_KEYS, NBS_PROVINCES, catalogList } = await import("./data.ts");
 
-test("every Home row names an existing key in its own group, once", () => {
+test("every Home row names an existing key in its own group, once per line, and a row's line exists", () => {
   const seen = new Set<string>();
   for (const group of HOME_ROWS) {
     for (const row of group.rows) {
       const cfg: unknown = CATALOG[row.key];
       expect(cfg).toBeDefined();
       expect(Reflect.get(cfg as object, "group")).toBe(group.group);
-      expect(seen.has(row.key)).toBe(false);
-      seen.add(row.key);
-      expect(HERO_KEYS.includes(row.key)).toBe(false);
+      const id = `${row.key}|${row.line ?? ""}`;
+      expect(seen.has(id)).toBe(false);
+      seen.add(id);
+      // A hero tile's table appears in the list only through one of its other lines.
+      if (HERO_KEYS.includes(row.key)) expect(row.line).toBeDefined();
+      if (row.line) {
+        const ids = Reflect.get(cfg as object, "ids") as { label: string }[] | undefined;
+        expect(ids?.some((item) => item.label === row.line)).toBe(true);
+      }
     }
   }
   expect(HOME_ROWS.map((group) => group.group)).toEqual([...new Set(HOME_ROWS.map((group) => group.group))]);
@@ -44,9 +50,10 @@ test("the catalog ranks listed keys in Home order and takes every other domestic
     for (const row of group.rows) {
       const entry = byKey.get(row.key);
       expect(entry?.home).not.toBe(false);
-      expect(entry?.homeRank).toBeGreaterThan(last);
-      last = entry?.homeRank ?? last;
-      if (row.title) expect(entry?.homeTitle).toBe(row.title);
+      const served = entry?.homeRows?.find((item) => (item.line ?? "") === (row.line ?? ""));
+      expect(served?.rank).toBeGreaterThan(last);
+      last = served?.rank ?? last;
+      if (row.title) expect(served?.title).toBe(row.title);
     }
   }
   const listed = new Set([...HOME_ROWS.flatMap((group) => group.rows.map((row) => row.key)), ...HERO_KEYS]);

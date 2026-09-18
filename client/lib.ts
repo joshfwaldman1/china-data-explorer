@@ -12,7 +12,7 @@ export interface Track {
   combinedFebruary?: boolean;
 }
 
-export function isRate(unit: string): boolean { return /%|percent|index|=100/i.test(unit); }
+export function isRate(unit: string): boolean { return /%|‰|percent|per thousand|index|=100/i.test(unit); }
 
 /** How many decimals a value carries, to four: 552 has none, 484.8 one, 6.7828 four. */
 function ownDecimals(value: number): number {
@@ -25,7 +25,7 @@ export function fmt(value: number, unit: string): string {
   // A rate to one decimal; a level in the thousands to whole units; a smaller level as the
   // publisher wrote it (a parity of 6.7828, a flow of 552), never padded to "552.00".
   // Money-market and bond rates are quoted to two decimals (SHIBOR 1.46, a yield 1.69); other rates to one.
-  const decimals = isRate(unit) ? (/fixing|close|yield/i.test(unit) ? 2 : 1) : Math.abs(value) >= 1000 ? 0 : ownDecimals(value);
+  const decimals = isRate(unit) ? (/fixing|close|yield|‰|per thousand/i.test(unit) ? 2 : 1) : Math.abs(value) >= 1000 ? 0 : ownDecimals(value);
   const text = value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   // A value that rounds to zero is zero, not "-0.0".
   return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
@@ -156,7 +156,8 @@ export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint
   if (!latest || !previous) return "";
   const difference = latest.value - previous.value;
   // Percentage points for a percentage; an index or a level changes in its own units.
-  const points = /%|percent/i.test(unit) && !/index/i.test(unit) ? " pp" : "";
+  // Percentage points for a percentage, points for a per-thousand rate; an index or a level changes in its own units.
+  const points = /‰|per thousand/i.test(unit) ? " pt" : /%|percent/i.test(unit) && !/index/i.test(unit) ? " pp" : "";
   if (Math.abs(difference) < 0.000001) {
     if (style === "long") return `Unchanged from ${observationLabel(previous.date, frequency)}`;
     // The short form sits beside "+0.3 pp" on the Home list, so an unchanged rate says "0.0 pp" too.
