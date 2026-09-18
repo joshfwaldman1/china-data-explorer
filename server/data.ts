@@ -16,6 +16,7 @@ import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, MONEY_ROWS, RESERVE_ROWS, CREDIT_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
+import { periodRange } from "./nbs-catalog";
 import { fetchSafe, BOP_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
 
@@ -2012,12 +2013,16 @@ function nbsQuarterlyRange(limit: number): string {
 }
 
 function nbsRange(cfg: NbsIndicator, limit: number): string {
+  // An annual table is asked for in the bureau's year codes (2016YY-2026YY); a plain year range answers HTTP 500.
+  if (cfg.frequency === "Annual") return periodRange("Annual", Math.min(limit, 80));
   return cfg.frequency === "Quarterly" ? nbsQuarterlyRange(limit) : nbsMonthlyRange(limit);
 }
 
 function nbsPeriod(code: string): string {
   const quarter = code.match(/^(\d{4})0([1-4])SS$/);
   if (quarter) return `${quarter[1]}-Q${quarter[2]}`;
+  const year = code.match(/^(\d{4})YY$/) ?? code.match(/^(\d{4})$/);
+  if (year) return year[1] ?? code;
   const month = code.match(/^(\d{4})(\d{2})/);
   return month ? `${month[1]}-${month[2]}` : code;
 }
