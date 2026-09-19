@@ -2670,3 +2670,26 @@ not from scratch. Rounds are small on purpose.
   disposable income +4.2% nominal (urban +3.4, rural +5.5), 14,836 yuan
   spent per person (urban 18,071, rural 10,180), spending +2.7%; 39 pairs,
   0 findings.
+
+- 2026-09-19 (dataset loop, round 29: local government bonds; CAAM parked):
+  CAAM's auto releases are images and its listing stops at May 2026, so the
+  item is parked with CPCA as the remaining candidate. The bond release
+  moved: the budget department's page (yss.mof.gov.cn) stops at September
+  2025 and the Debt Management Department (zwgls.mof.gov.cn/tjsj/) publishes
+  2026, found through a web search after the ministry's own search and most
+  of its hosts answered 502 for an hour. The MOF adapter reads that listing
+  as a second table: `lgb_issuance` (the month's issuance, total, general
+  and special, new and refinancing), `lgb_debt` (debt outstanding at the
+  month's end, total, general and special) and `lgb_rate` (the month's
+  average issuance rate). The release states the month first and the year
+  to date after it in the same words, so the first match of each sentence
+  is the month's; the 2026 wording of the total ("合计" trailing) differs
+  from 2025's (leading), and both are accepted; digits split by markup are
+  joined first. Publication lags about six weeks, so the queue's "August
+  2026" test became July 2026, the latest release. Tests: both years'
+  releases to the ministry's figures, the listing as published, the adapter
+  end to end. Reasons in NO_PAIR: the release is the only aggregate. Live:
+  July 2026 issuance 7,383 亿元 (general 1,345, special 6,038; new 4,041,
+  refinancing 3,342), debt outstanding 592,411 亿元 (+12.3% on a year
+  earlier), 18 months stored; the rate key's first read hit a 502 and waits
+  for the daily refresh; 39 pairs, 0 findings.

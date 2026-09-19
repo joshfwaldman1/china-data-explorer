@@ -11,21 +11,12 @@ carries the test that defines it as done. Prerequisites in brackets.
     *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
     annual titles that read as Chinese fragments now read as English.
 
-2. **Auto sales (CAAM).** Monthly vehicle sales and production from
-   caam.org.cn's data pages (汽车产销), beside NBS's output; probe first.
-   *Test:* August 2026 sales parse and match CAAM's release.
-
-3. **Local government bond issuance.** Monthly issuance and outstanding
-   from MOF's 地方政府债券 release (the same treasury site as the fiscal
-   release), general and special bonds.
-   *Test:* August 2026 issuance parses and matches the release.
-
-4. **NEA follow-ups.** May 2026 consumption is an image in the fuller
+2. **NEA follow-ups.** May 2026 consumption is an image in the fuller
    release; watch for a text version or a later revision table. The demand
    note's day is set (the 21st).
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-5. **Property: developer financing and mortgages.** [parked: source not
+3. **Property: developer financing and mortgages.** [parked: source not
    found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
    outstanding, mortgages (个人住房贷款) and their growth. On 16 September
    none of the survey-and-statistics department's sections nor the news
@@ -35,7 +26,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    *Test:* Q2 2026 mortgage balance parses from the release and matches the
    bank's headline.
 
-6. **MOFCOM weekly prices.** [parked: source not found] The weekly
+4. **MOFCOM weekly prices.** [parked: source not found] The weekly
    食用农产品 and 生产资料 market price indices are not on price.mofcom.gov.cn
    (its columns — 监测周报, 粮农土畜, 能源化工, 经贸简讯 — hold international
    commodity monitoring, trade news and daily briefs; the list endpoint is
@@ -44,7 +35,7 @@ carries the test that defines it as done. Prerequisites in brackets.
    Try the 商务预报 site (cif.mofcom.gov.cn) or the weekly item in 每日经贸简讯.
    *Test:* one report parses to the two indices.
 
-7. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
+5. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
     and Baltic indices in a group labelled "High-frequency (commercial)".
     *Test:* each series labelled with its channel; the home page does not list
     them.
@@ -54,7 +45,18 @@ carries the test that defines it as done. Prerequisites in brackets.
   does not work around such challenges. NBS's quarterly release quotes the
   figure in prose only.]
 
+- **Auto sales (CAAM).** [parked: caam.org.cn publishes each monthly release as
+  an image, and its listing stops at May 2026; MIIT's copy is script-rendered.
+  CPCA (乘联会) is the remaining candidate; probe before building.]
+
 ## Done
+
+- 2026-09-19 — Local government bonds: `lgb_issuance` (the month's issuance,
+  total, general, special, new, refinancing), `lgb_debt` (debt outstanding
+  at month end) and `lgb_rate` from the Ministry of Finance's Debt
+  Management Department release; two Home rows; fixtures for two years'
+  wording and the listing. Live: July 2026 issuance 7,383 亿元, debt
+  outstanding 592,411 亿元 (August not yet released).
 
 - 2026-09-18 — Household income and spending: `household_income_growth`,
   `household_income`, `household_spending_growth`, `household_spending`
