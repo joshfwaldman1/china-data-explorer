@@ -66,6 +66,9 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   migrant_workers: ["migrant workers", "rural migrants", "外出务工", "农民工"],
   working_hours: ["hours worked", "working hours", "working week", "工作时间"],
   household_income_growth: ["disposable income", "household income", "income growth", "可支配收入"],
+  lgb_issuance: ["local government bonds", "special bonds", "bond issuance", "地方政府债券", "专项债券"],
+  lgb_debt: ["local government debt", "debt outstanding", "地方政府债务", "债务余额"],
+  lgb_rate: ["bond issuance rate", "发行利率"],
   household_income: ["disposable income per capita", "居民人均可支配收入"],
   household_spending_growth: ["consumption expenditure", "household spending", "消费支出"],
   household_spending: ["consumption expenditure per capita", "居民人均消费支出"],
@@ -1208,6 +1211,38 @@ export const CATALOG: Record<string, Indicator> = {
     reportName: "RPT_ECONOMY_BOOM_INDEX",
     fields: [{ field: "BOOM_INDEX", label: "Enterprise boom index" }],
   },
+  lgb_issuance: {
+    kind: "mof", table: "bonds", group: "Public Finance",
+    title: "Local Government Bond Issuance", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), month",
+    // The Debt Management Department's monthly 地方政府债券发行和债务余额情况:
+    // the month's issuance in total and by general and special bonds, and
+    // by new and refinancing bonds. Published about six weeks after the
+    // month. No pair: the ministry's release is the only aggregate; the
+    // exchanges publish per bond.
+    measure: "level",
+    items: ["bondIssuance", "bondGeneral", "bondSpecial", "bondNew", "bondRefinancing"],
+    releaseDay: 12,
+  },
+  lgb_debt: {
+    kind: "mof", table: "bonds", group: "Public Finance",
+    title: "Local Government Debt Outstanding", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), end of month",
+    // The same release's debt outstanding at the month's end, total and by
+    // general and special debt. Bonds are nearly all of it; the remainder is
+    // legacy non-bond debt.
+    measure: "level",
+    items: ["debtBalance", "debtGeneral", "debtSpecial"],
+    releaseDay: 12,
+  },
+  lgb_rate: {
+    kind: "mof", table: "bonds", group: "Public Finance", home: false,
+    title: "Local Government Bond Average Issuance Rate", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Percent",
+    measure: "level",
+    items: ["bondRate"],
+    releaseDay: 12,
+  },
   fiscal_revenue: {
     kind: "mof", group: "Public Finance",
     title: "Fiscal Revenue, Year to Date", agency: "Ministry of Finance",
@@ -1839,6 +1874,8 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
   { group: "Public Finance", rows: [
     { key: "fiscal_revenue", title: "Fiscal Revenue, Year to Date" },
     { key: "land_sale_revenue", title: "Land Sale Revenue, Year to Date" },
+    { key: "lgb_issuance", title: "Local Government Bonds Issued in the Month" },
+    { key: "lgb_debt", title: "Local Government Debt Outstanding" },
   ] },
   { group: "Sentiment", rows: [
     { key: "consumer_confidence", title: "Consumer Confidence Index" },
