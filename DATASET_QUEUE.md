@@ -6,40 +6,36 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
-   employment line (already collected).
-   *Test:* the row renders with the August 2026 value.
-
-2. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
+1. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
    monthly retail and wholesale passenger-vehicle sales as text; CAAM is
    parked (images).
    *Test:* August 2026 retail sales parse and match the release.
 
-3. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
+2. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
    fuller release; watch for a text version or a later revision table. The
    demand note's day is set (the 21st). August 2026's note is due about
    21 September.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-4. **Notes and annotations in English.** [needs API credit] Titles are
+3. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-5. **Property: developer financing and mortgages.** [parked: source not
+4. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-6. **MOFCOM weekly prices.** [parked: source not found] The weekly
+5. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-7. **High-frequency group.** [blocked: needs AKTools on the deployment]
+6. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -58,6 +54,11 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   data.]
 
 ## Done
+
+- 2026-09-20 — PMI employment on Home: both surveys' employment indexes
+  lifted from the PMI tables into the Labor group; a Home row can now name
+  one line of a table in another group. Live: August 2026 manufacturing
+  48.7, non-manufacturing 45.4.
 
 - 2026-09-20 — Nominal GDP: `gdp_nominal` (quarter, economy and three
   sectors), `gdp_nominal_ytd` and `gdp_by_industry` (twelve industries)

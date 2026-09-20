@@ -2807,3 +2807,14 @@ not from scratch. Rounds are small on purpose.
   361,511 亿元 in the quarter and 695,704 for the half year, real estate
   21,038 (about six percent of output), manufacturing 95,370; 44 pairs, 0
   findings.
+
+- 2026-09-20 (dataset loop, round 35: PMI employment on Home): both
+  purchasing managers' surveys carry an employment index, collected in
+  round 22 and unread ever since inside tables that sit under Sentiment.
+  They belong beside unemployment and hours worked, so a Home row can now
+  lift one line of a table into another group: the row carries the group it
+  is shown in, the client groups by that rather than by the key's own
+  group, and a row in a foreign group without a named line fails the test
+  as a misfiled key. Live: August 2026 manufacturing employment 48.7 and
+  non-manufacturing 45.4, both below the 50 that separates hiring from
+  shedding, under youth unemployment at 18.9 percent; 44 pairs, 0 findings.
