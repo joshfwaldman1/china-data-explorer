@@ -6,40 +6,31 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **Structured unit metadata.** Every series carries one free-text `unit`
-   string and the client infers meaning from it with regular expressions
-   (`isRate`, `unitSuffix`), which is what printed a per-thousand birth rate
-   as a percentage. Give a series explicit fields instead: kind (level, rate,
-   index, ratio), scale, currency, and whether it is cumulative. FRED keeps
-   units, a short unit and seasonal adjustment as separate structured fields.
-   *Test:* the client chooses its formatting from the fields, not the string,
-   and every curated series declares them.
-
-2. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
+1. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
    fuller release; watch for a text version or a later revision table. The
    demand note's day is set (the 21st). August 2026's note is due about
    21 September.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-3. **Notes and annotations in English.** [needs API credit] Titles are
+2. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-4. **Property: developer financing and mortgages.** [parked: source not
+3. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-5. **MOFCOM weekly prices.** [parked: source not found] The weekly
+4. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-6. **High-frequency group.** [blocked: needs AKTools on the deployment]
+5. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -64,6 +55,14 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-20 — Structured unit metadata: `shared/measure.ts` turns each
+  series' unit sentence into fields (kind, suffix, decimals, change,
+  cumulative) once, the catalog ships them, and the page formats from them
+  instead of matching regular expressions at render time. A coverage test
+  holds every curated series to its unit; writing it found three wrong
+  derivations. Live: the loan prime rate reads 3.00%, the birth rate 5.63‰
+  changing in points.
 
 - 2026-09-20 — Retail sales by commodity: `retail_by_category` and
   `retail_by_category_growth` (twelve categories, each from its own NBS

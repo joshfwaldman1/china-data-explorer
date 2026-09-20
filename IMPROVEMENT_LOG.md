@@ -2839,3 +2839,27 @@ not from scratch. Rounds are small on purpose.
   the week's design discussion: units are free text and the client infers
   meaning from them with regular expressions, which is what printed a
   per-thousand birth rate as a percentage.
+
+- 2026-09-20 (dataset loop, round 37: structured unit metadata): every
+  series carried one unit sentence written for a reader, and the page
+  decided how to print a value by running regular expressions over it at
+  render time. That is how the birth rate came to show a percent sign: the
+  rule for "%" caught "‰" too, and nothing recorded what the series was.
+  `shared/measure.ts` now derives the fields once — kind (level, rate or
+  index), the suffix shown after a value, the decimals it is quoted to, how
+  a change reads (percentage points, points, or its own units), and whether
+  it accumulates through the year. `catalogList` ships a measure with every
+  entry, the Home rows and hero tiles format from it, and `fmt`,
+  `deltaText` and `isRate` take either a measure or a unit string so the
+  series pages keep working unchanged. A series may declare a field the
+  sentence would get wrong; the override list holds three entries (the loan
+  prime rate and the bond issuance rate, quoted to two decimals behind a
+  unit that says only "Percent", and the count of new foreign-invested
+  enterprises, which has no unit worth printing). A growing list would mean
+  the derivation is wrong. Writing the coverage test found three
+  derivations already wrong and unnoticed: "Trillions of current US
+  dollars" and "Births per woman" were printed in full beside a value, and
+  "Current US dollars" kept its price basis; they now read "tn USD",
+  "births" and "USD". Live: the hero tiles and every row format correctly,
+  the loan prime rate reads 3.00%, the birth rate 5.63‰ changing in points;
+  305 tests, 44 pairs, 0 findings.
