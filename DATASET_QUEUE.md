@@ -5,23 +5,45 @@ carries the test that defines it as done. Prerequisites in brackets. Refilled
 on 21 September 2026 (twice: the morning list ran out by the evening, and
 the four items below came from probing the shipped catalog snapshot for
 what the site does not carry).
-
 ## Queue
 
-1. **Transport turnover by mode.** Freight and passenger turnover for road,
+1. **Move the headline rates off the mirror and onto the bureau's own
+    tables.** Five of the site's most prominent series — CPI, PPI,
+    industrial production, retail sales and the headline PMI — are read
+    from Eastmoney's copy of the bureau's release rather than from the
+    bureau's own database, and all five sit on the Home page. This is a
+    leftover: the earliest rounds were built when NBS was not answering
+    requests, the portal became reachable later, and the original handful
+    were never moved. Nothing is wrong with the figures (the audit compares
+    each against the bureau's own reading nightly and all agree), but the
+    provenance is second-hand for no remaining reason. The bureau's monthly
+    dataset carries each of them on the same year-earlier basis; the
+    identifiers are in the shipped snapshot under 居民消费价格指数,
+    工业生产者出厂价格指数, 规模以上工业增加值 and 社会消费品零售总额.
+    Do the same for the four where a publisher reading already exists and
+    the Home row still points at the mirror: the bureau's own 70-city house
+    prices, the central bank's money stock and reserves, and the finance
+    ministry's tax lines.
+    *Test:* every Home row reads a publisher's own table, and each pair that
+    formerly compared mirror against publisher now compares the publisher
+    against a second independent reading or carries a written reason. The
+    mirror copies stay in the catalog as audit references, labelled as such,
+    so the comparison is not lost.
+
+2. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-2. **Average wages by sector.** The annual average wage of employed persons
+3. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-3. **Agriculture: grain and meat output.** Annual grain output with its
+4. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
