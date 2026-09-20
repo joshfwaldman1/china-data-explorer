@@ -2711,3 +2711,54 @@ not from scratch. Rounds are small on purpose.
   year's first period and rejects a year-to-date line under a month label.
   Live: August 2026 +4.1% (year to date +4.7%), 24 months; 40 pairs, 0
   findings, the new pair ok on its first audit.
+
+- 2026-09-20 (dataset loop, round 31: tax revenue by type): the monthly
+  财政收支情况 release lists the main taxes under the budget aggregates the
+  site already read. Twelve are now MOF items — domestic VAT, corporate and
+  personal income tax, consumption tax, import VAT and consumption tax,
+  tariffs, export rebates, stamp duty and the securities stamp duty within
+  it, land appreciation tax, deed tax, vehicle purchase tax — served by
+  `tax_by_type` (亿元, year to date) and `tax_by_type_growth`, both off the
+  Home list where total tax revenue already sits. February 2026 writes
+  export rebates in full (出口货物退增值税、消费税) and states the securities
+  stamp duty's rise as a multiple (1.1倍) rather than a percentage: both
+  phrasings are handled and a growth given as a multiple has no point that
+  month. Tests parse July 2026, February 2026 and the 2025 annual release
+  to the ministry's figures. Live: July 2026 domestic VAT +6.1%, corporate
+  income tax +7.2%, personal income tax +14.9%; the levels key's first read
+  hit one of the ministry's 502s and waits for the daily refresh.
+
+- 2026-09-20 (repository split): the explorer moved out of
+  joshfwaldman1/datatool into joshfwaldman1/china-data-explorer with
+  `git subtree split`, so its 532 commits are its history and the paths lose
+  their china-explorer/ prefix. The dependency list fell from 21 packages to
+  10 (nothing here imported Tailwind, Radix, the MCP SDK, Upstash, zod or
+  the markdown stack). New: CI on every push and pull request running the
+  type check and the whole suite, which is the change that makes a second
+  contributor safe; the render test takes its browser from
+  PLAYWRIGHT_CHANNEL so CI uses bundled Chromium. Two things had to be
+  fixed for the first deploy from the new repository to succeed: tests were
+  leaving a 350 MB catalog cache in the working directory, which made the
+  upload fail (they now default their store and cache to a scratch
+  directory), and the Railway service had Dockerfile.china baked into its
+  build settings, which was patched to Dockerfile through the platform's
+  API.
+
+- 2026-09-20 (dataset loop, round 32: cross-border receipts and payments):
+  SAFE publishes 银行代客涉外收付款 as an Excel 97 workbook — an OLE2
+  compound document, not a zip — so `xlsx.ts` could not open it and the
+  English site has no .xlsx equivalent. `server/xls.ts` now reads that
+  format with no dependency: the sector table and directory of the
+  container, then the BIFF records that carry values (shared strings across
+  their CONTINUE records, NUMBER, RK, MULRK, cached formula results,
+  LABEL), returning the same shape `xlsx.ts` returns, so one sheet parser
+  serves both formats. Three keys on it: `cross_border_flows` (yuan,
+  monthly), `_usd` and `_annual`, each with the net, receipts, payments and
+  the net split by current account, goods, services and the capital and
+  financial account. It is wider than FX settlement, which counts only the
+  currency actually exchanged, so both belong on the page; the net is a
+  Home row. Two annual-sum pairs. The monthly release states the
+  cross-border figures beside the settlement ones, so the headline reader
+  takes them too and the test holds the workbook to the release. Live:
+  August 2026 receipts 52,718 亿元, payments 48,486, net 4,232, goods
+  +7,987 against services −658; 42 pairs, 0 findings.

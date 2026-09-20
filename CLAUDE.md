@@ -14,7 +14,7 @@ node or npm: `bun run dev`, `bun test`, `bun install`.
 
 ```sh
 bun run typecheck    # must report nothing
-bun test             # must be green (278 tests; the render test needs Chrome)
+bun test             # must be green (287 tests; the render test needs Chrome)
 ```
 
 And the store must be clean: no test rows in `china.db`. A test that touches
@@ -29,8 +29,8 @@ process.
   `seed/china.db` is committed on purpose; refresh it only deliberately, and
   never from production data.
 - No new dependencies without a reason written into the commit message. The
-  parsers are dependency-free on purpose (`server/xlsx.ts` reads workbooks
-  itself).
+  parsers are dependency-free on purpose: `server/xlsx.ts` and
+  `server/xls.ts` read both Excel formats themselves.
 - Don't raise the request concurrency against a government portal. One
   request at a time, with the pauses already in the adapters.
 - Attribute a figure to the publishing agency, never to a mirror. Say "year

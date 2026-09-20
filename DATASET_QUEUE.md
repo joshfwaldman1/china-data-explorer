@@ -6,68 +6,55 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **Tax revenue by type.** The same MOF fiscal release carries domestic
-   VAT, consumption tax, corporate and personal income tax, import VAT and
-   consumption tax, export rebates and stamp duty (year to date, 亿元, with
-   growth). Extend the MOF items; a `tax_by_type` key with levels and one
-   with growth.
-   *Test:* the July 2026 fixture parses to the ministry's figures for each.
-
-2. **SAFE cross-border receipts and payments.** 银行代客涉外收付款 from the
-   same SAFE statistics page as bank FX settlement (workbook, monthly and
-   annual, yuan and dollars): receipts, payments, net, by current and
-   capital account. An annual-sum pair like round 24's.
-   *Test:* August 2026 receipts and payments match SAFE's release headline.
-
-3. **PBOC quarterly surveys.** The bank's 城镇储户问卷调查 (income confidence,
+1. **PBOC quarterly surveys.** The bank's 城镇储户问卷调查 (income confidence,
    employment sentiment, saving and spending intentions), 企业家问卷调查 and
    银行家问卷调查 indices, quarterly, from pbc.gov.cn's survey pages (text or
    PDF); a Sentiment row for the employment sentiment index.
    *Test:* Q2 2026 indices parse and match the bank's release.
 
-4. **Port throughput.** MOT's monthly 港口货物吞吐量 and 集装箱吞吐量 (month
+2. **Port throughput.** MOT's monthly 港口货物吞吐量 and 集装箱吞吐量 (month
    and year to date) from mot.gov.cn's statistics releases; probe first.
    *Test:* August 2026 container throughput parses and matches the release.
 
-5. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
+3. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
    primary, secondary and tertiary value added (当季值 and 累计值, 亿元) as a
    Growth key; no growth rates exist in the quarterly database.
    *Test:* eight ids resolve; Q2 2026 levels match NBS's release.
 
-6. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
+4. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
    employment line (already collected).
    *Test:* the row renders with the August 2026 value.
 
-7. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
+5. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
    monthly retail and wholesale passenger-vehicle sales as text; CAAM is
    parked (images).
    *Test:* August 2026 retail sales parse and match the release.
 
-8. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
+6. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
    fuller release; watch for a text version or a later revision table. The
    demand note's day is set (the 21st). August 2026's note is due about
    21 September.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-9. **Notes and annotations in English.** [needs API credit] Titles are
+7. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-10. **Property: developer financing and mortgages.** [parked: source not
+8. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-11. **MOFCOM weekly prices.** [parked: source not found] The weekly
+9. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-12. **High-frequency group.** [blocked: needs AKTools on the deployment]
+10. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -80,6 +67,17 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   an image, and its listing stops at May 2026; MIIT's copy is script-rendered.]
 
 ## Done
+
+- 2026-09-20 — SAFE cross-border receipts and payments: `cross_border_flows`,
+  `_usd`, `_annual` (net, receipts, payments and the net by account) from
+  the 银行代客涉外收付款 workbook, which is a legacy .xls; `server/xls.ts`
+  reads that format with no dependency. Two annual-sum pairs, a Home row,
+  nine tests. Live: August 2026 receipts 52,718 亿元, payments 48,486,
+  net 4,232, matching SAFE's release.
+
+- 2026-09-20 — Tax revenue by type: `tax_by_type` and `tax_by_type_growth`
+  (twelve taxes, year to date) from the ministry's fiscal release. Live:
+  July 2026 domestic VAT +6.1%, personal income tax +14.9%.
 
 - 2026-09-20 — Index of services production: `services_production` (month
   and year to date, YoY %) from NBS's monthly table; a cumulative pair
