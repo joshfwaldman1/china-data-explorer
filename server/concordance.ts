@@ -482,6 +482,8 @@ export const NO_PAIR: Record<string, string> = {
   household_income: "The levels; the survey is the only source.",
   household_spending_growth: "As household_income_growth: the survey's spending line.",
   household_spending: "The levels; the survey is the only source.",
+  retail_by_category: "The levels; the pair is on retail_by_category_growth, the rates NBS prints beside them.",
+  retail_by_category_growth: "The category detail of retail sales; the headline total is paired through retail_sales, and a pair per category would only repeat the check.",
   gdp_by_industry: "The industry detail of the same table the paired GDP lines come from; a pair per industry would only repeat the check.",
   port_throughput: "The tonnage; the pair is on port_throughput_growth, the rates NBS prints beside it.",
   working_hours: "The labour force survey's only reading of hours; nothing else on the site measures them.",

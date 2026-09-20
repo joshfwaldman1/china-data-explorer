@@ -72,6 +72,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   cross_border_flows: ["cross-border receipts", "cross border payments", "涉外收付款", "涉外收入"],
   port_throughput: ["port throughput", "ports", "cargo throughput", "港口", "吞吐量"],
   gdp_nominal: ["nominal gdp", "gdp level", "current price gdp", "现价", "国内生产总值"],
+  retail_by_category: ["retail by category", "car sales", "auto sales", "汽车类", "限额以上"],
+  retail_by_category_growth: ["car sales growth", "appliance sales", "jewellery sales", "零售类值"],
   gdp_by_industry: ["gdp by industry", "value added", "real estate share", "增加值", "房地产业"],
   port_throughput_growth: ["port throughput growth", "港口吞吐量增长"],
   cross_border_flows_usd: ["cross-border receipts usd", "涉外收付款 美元"],
@@ -1073,6 +1075,56 @@ export const CATALOG: Record<string, Indicator> = {
       { id: "5d28a20e0bde4142ab057d144a99b8ba", label: "Rural, year to date (yuan)", cid: "3a28902fd00646a39061a4c83c0925b4" },
     ],
   },
+  retail_by_category: {
+    kind: "nbs", group: "Consumption", home: false,
+    title: "Retail Sales by Commodity", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), month",
+    // NBS's 限额以上单位商品零售类值: what above-scale retailers sold in the
+    // month, by commodity. Each category is its own table on the portal, so
+    // every line names the table it comes from. This is the closest thing on
+    // the site to auto sales: the trade associations publish unit sales, but
+    // CAAM posts images and CPCA blocks requests from outside China.
+    // Above-scale units are firms over a revenue threshold, so these are a
+    // large share of retail rather than all of it.
+    cid: "5615be125f5e46638d646e1037a07842",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "c97179dabcaf4a3b8f3fb70a6646456a", cid: "5615be125f5e46638d646e1037a07842", label: "Motor vehicles, month (亿元)" },
+      { id: "39635d8dc00749f5bf002df568dcb568", cid: "5fa217ef2e1c46fcad38541d64fd05a8", label: "Oil products, month (亿元)" },
+      { id: "d22f3466e81243d38f203f7da7c3a9e9", cid: "a78d7ed67b2b40a58bb28c15c908296e", label: "Food and cooking oil, month (亿元)" },
+      { id: "063e3ce565514fc3a740fb8abf42ec0a", cid: "09caab6a686d4011a34d6615f9077566", label: "Clothing and textiles, month (亿元)" },
+      { id: "033747ece86d47e683f3734da7687eba", cid: "4bc877911968450aadee4fe871e5044f", label: "Home appliances, month (亿元)" },
+      { id: "5700c1afddff477a9ccd001d82433a8f", cid: "036b6b83cfac4f6cb89f4223f5037569", label: "Communication equipment, month (亿元)" },
+      { id: "5a9cff40657b445584888a62fd20af45", cid: "77897326002b4d06b41569410d31529a", label: "Furniture, month (亿元)" },
+      { id: "21991e6835e54b6d8cad579158dd4a88", cid: "cccea173dfe24beeb8ceb5c65702335c", label: "Building and decorating materials, month (亿元)" },
+      { id: "77c1a35cd28f4de398cdc2eb7769d902", cid: "e43cfafd0b0744d0a4da096d17786702", label: "Gold, silver and jewellery, month (亿元)" },
+      { id: "828bd42ab60843378c877c16559f1062", cid: "2368cbdff5b848ec9802956bf471ac06", label: "Cosmetics, month (亿元)" },
+      { id: "7ddd94f5a7d5491dbb4349f395128f31", cid: "65d50902a8854f6d8ca6840b7bf3ccdd", label: "Medicines, month (亿元)" },
+      { id: "6af30ac86af04279a9f85223a15877aa", cid: "a78d7ed67b2b40a58bb28c15c908296e", label: "Tobacco and alcohol, month (亿元)" },
+    ],
+  },
+  retail_by_category_growth: {
+    kind: "nbs", group: "Consumption",
+    title: "Retail Sales Growth by Commodity", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // The rates NBS prints beside the values, category by category.
+    cid: "5615be125f5e46638d646e1037a07842",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "6025375b14d140ae873c317e6a12dc6c", cid: "5615be125f5e46638d646e1037a07842", label: "Motor vehicles, month (YoY %)" },
+      { id: "5bf62872a3db453bb2c3b71804719ce6", cid: "5fa217ef2e1c46fcad38541d64fd05a8", label: "Oil products, month (YoY %)" },
+      { id: "ba21c628b5e44fa5a9a2a7d7059d6d05", cid: "a78d7ed67b2b40a58bb28c15c908296e", label: "Food and cooking oil, month (YoY %)" },
+      { id: "1a594bb095444dafb12f84bd0562c338", cid: "09caab6a686d4011a34d6615f9077566", label: "Clothing and textiles, month (YoY %)" },
+      { id: "3e9f9ca9f4194757b229fcb6c5181283", cid: "4bc877911968450aadee4fe871e5044f", label: "Home appliances, month (YoY %)" },
+      { id: "e0afb8c30c1146b293d6a12ef6a0aa81", cid: "036b6b83cfac4f6cb89f4223f5037569", label: "Communication equipment, month (YoY %)" },
+      { id: "6c867686326447c1ab5b064cb4f086ce", cid: "77897326002b4d06b41569410d31529a", label: "Furniture, month (YoY %)" },
+      { id: "cdda957f3d5b49eaaeda629bd1f46d11", cid: "cccea173dfe24beeb8ceb5c65702335c", label: "Building and decorating materials, month (YoY %)" },
+      { id: "9685ef0e27794f2786fb20b19bcf88fb", cid: "e43cfafd0b0744d0a4da096d17786702", label: "Gold, silver and jewellery, month (YoY %)" },
+      { id: "4138ec8753c244ec9ac27312e28dfbe1", cid: "2368cbdff5b848ec9802956bf471ac06", label: "Cosmetics, month (YoY %)" },
+      { id: "e518e0730a6e460383f6b11927c10fbc", cid: "65d50902a8854f6d8ca6840b7bf3ccdd", label: "Medicines, month (YoY %)" },
+      { id: "4639a5d6b7594338938c3861fcfd2abe", cid: "a78d7ed67b2b40a58bb28c15c908296e", label: "Tobacco and alcohol, month (YoY %)" },
+    ],
+  },
   money_supply: {
     kind: "eastmoney", group: "Money & Credit",
     title: "Money Supply (M1 / M2 Growth)", agency: "People's Bank of China",
@@ -1993,6 +2045,7 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "retail_sales", title: "Retail Sales Growth" },
     { key: "household_income_growth", title: "Household Disposable Income Growth, Year to Date" },
     { key: "household_spending_growth", title: "Household Consumption Spending Growth, Year to Date" },
+    { key: "retail_by_category_growth", line: "Motor vehicles, month (YoY %)", title: "Motor Vehicle Retail Sales Growth" },
   ] },
   { group: "Prices", rows: [
     { key: "ppi", title: "Producer Price Index" },
