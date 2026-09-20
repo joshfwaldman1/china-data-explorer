@@ -16,11 +16,10 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Backup of the Railway volume: somewhere to put the nightly copy. `GET
-  /api/backup` now streams a consistent copy to whoever holds `BACKUP_TOKEN`
-  (2026-09-15), so what is left is the owner setting that variable and choosing
-  where the copy lands. Rebuilding levels from NBS is thirty minutes; the
-  revision history is not rebuildable at all.
+- Long-term backup retention and recovery drills. The verified nightly workflow
+  now targets 90-day GitHub artifacts, with matching service/repository credentials.
+  Add independent object storage and measure recovery time; revision history
+  cannot be rebuilt from today's publisher data. See OPERATIONS.md.
 - Merchandise Trade split into separate Exports and Imports series (owner's
   call).
 - Legibility: split `client/app.tsx` (1,603 lines, 57 functions) into one
@@ -2915,3 +2914,21 @@ not from scratch. Rounds are small on purpose.
   generic label both rows shared. Live: Guangdong August industrial output
   +6.9% (year to date +6.1%), CPI +1.0%; Jiangsu 5.7, Shandong 7.2,
   Zhejiang 6.2, Sichuan 7.6, Henan 7.2. 312 tests; 46 pairs, 0 findings.
+- 2026-09-20 (reliability hardening): failed NBS release batches now spend
+  their request budget, and full-history revision checks have a separate
+  transactional clock per series and region. Recent-window refreshes cannot
+  postpone historical audits. Existing series retain an unknown full-check
+  timestamp with first deadlines spread over 1–45 days, preserved on restart.
+  Readiness now requires a usable catalog and responding store; failed or
+  empty catalog warmup stays unavailable, with `/live` separate from `/ready`
+  and `/health`. Backups move SQLite copying and verification to a bounded
+  child process, authenticate with constant-time comparison, permit one copy
+  or download, and clean up cancelled downloads. The nightly workflow fails
+  without credentials and uploads only after checksum, integrity and an
+  independent restore pass. The artifact includes its manifest and checksum;
+  OPERATIONS.md documents recovery and the remaining queue/provenance work.
+  A pre-change production snapshot was independently restored and checked;
+  a migration rehearsal preserved all 6,744,485 observations across two
+  restarts and initialized 193,419 audit deadlines without rewriting history.
+  Typecheck and the full 341-test suite pass, including offline browser and
+  authenticated HTTP backup tests.

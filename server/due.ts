@@ -9,11 +9,23 @@
  * for a portal that changes a few thousand series a month; checking what is
  * due is a few hundred on a release day and nothing on the others.
  *
- * Revisions are still caught: every check compares all values, and a series
- * that has not been checked for `REVISION_CHECK_DAYS` is due regardless.
+ * Full-history revision checks have their own clock. A successful recent
+ * fetch must not postpone the next audit of observations outside its window.
  */
 
 export const REVISION_CHECK_DAYS = 45;
+export interface FullHistoryCheckState {
+  lastFullHistoryCheck: string | null;
+  /** A persisted, staggered deadline for a store whose earlier fetch windows are unknown. */
+  firstFullHistoryCheckDueAt: string | null;
+}
+
+export function isFullHistoryCheckDue(state: FullHistoryCheckState, now: Date): boolean {
+  const lastFull = state.lastFullHistoryCheck ? Date.parse(state.lastFullHistoryCheck) : NaN;
+  if (Number.isFinite(lastFull)) return now.getTime() >= lastFull + REVISION_CHECK_DAYS * 86400000;
+  const firstDue = state.firstFullHistoryCheckDueAt ? Date.parse(state.firstFullHistoryCheckDueAt) : NaN;
+  return !Number.isFinite(firstDue) || now.getTime() >= firstDue;
+}
 /**
  * Day of month by which a month's or quarter's NBS releases are normally all
  * out. Another publisher passes its own: Customs' preliminary release is out
@@ -60,33 +72,30 @@ export function comparablePeriod(period: string): string {
  * Why a series is due, or null when it is not.
  *
  * "new-period" means the calendar says another observation should exist, which
- * is answered by asking for the last two years. "revision" means the series is
- * current but has not been re-read within the revision interval, which is the
- * one that has to ask for the whole history: a restatement of 2019 is invisible
- * in a recent window.
+ * is answered by asking for the last two years. An overdue "revision" takes
+ * precedence even if the newest period is also missing: the full request can
+ * answer both, while a recent request cannot find a restatement of 2019.
  */
-export function dueReason(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date, releaseDay = RELEASE_DAY): "new-period" | "revision" | null {
-  if (!isDue(frequency, lastPeriod, lastChecked, now, releaseDay)) return null;
+export function dueReason(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date, releaseDay = RELEASE_DAY, fullHistory?: FullHistoryCheckState): "new-period" | "revision" | null {
   if (!lastPeriod || !lastChecked) return "new-period";
   const checked = new Date(lastChecked).getTime();
   if (!Number.isFinite(checked)) return "new-period";
-  if (comparablePeriod(lastPeriod) < expectedPeriod(frequency, now, releaseDay)) return "new-period";
-  return "revision";
-}
-
-export function isDue(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date, releaseDay = RELEASE_DAY): boolean {
-  if (!lastPeriod || !lastChecked) return true;
-  const checked = new Date(lastChecked).getTime();
-  if (!Number.isFinite(checked)) return true;
-  if (now.getTime() - checked > REVISION_CHECK_DAYS * 86400000) return true;
+  const revisionDue = fullHistory
+    ? isFullHistoryCheckDue(fullHistory, now)
+    : now.getTime() - checked > REVISION_CHECK_DAYS * 86400000;
+  if (revisionDue) return "revision";
   const expected = expectedPeriod(frequency, now, releaseDay);
-  if (comparablePeriod(lastPeriod) >= expected) return false;
+  if (comparablePeriod(lastPeriod) >= expected) return null;
   // Behind the calendar. Worth a check once the window for the expected
   // period has closed, but not every day after: thousands of catalog series
   // are discontinued or are year-range slices that will never gain a period,
   // and checking those daily is the whole crawl's cost for nothing. After a
   // check made since the window closed, wait for the revision interval.
-  return checked < windowClosedAt(frequency, expected, releaseDay).getTime();
+  return checked < windowClosedAt(frequency, expected, releaseDay).getTime() ? "new-period" : null;
+}
+
+export function isDue(frequency: string, lastPeriod: string | null, lastChecked: string | null, now: Date, releaseDay = RELEASE_DAY, fullHistory?: FullHistoryCheckState): boolean {
+  return dueReason(frequency, lastPeriod, lastChecked, now, releaseDay, fullHistory) !== null;
 }
 
 /** When the release window for `period` closed: the 20th of the month after its last month (the next spring for a year). */

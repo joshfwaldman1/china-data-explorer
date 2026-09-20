@@ -26,6 +26,7 @@ logs
 china.db
 china.db-shm
 china.db-wal
+.china-backups/
 
 # The derived catalog cache, rebuilt from catalog/*.json in under a second
 catalog.db

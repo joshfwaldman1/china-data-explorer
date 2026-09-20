@@ -1,6 +1,6 @@
 # The China Data Explorer. The store and the catalog cache live on a volume at
 # /data; the catalog cache rebuilds itself from the checked-in snapshots on
-# first start (about half a second).
+# first start; a cold rebuild can take over a minute on a small instance.
 #
 #   docker build -t china-data-explorer .
 #   docker run -p 5173:5173 -v china-data:/data china-data-explorer
@@ -30,7 +30,7 @@ ENV NODE_ENV=production \
 RUN mkdir -p /data
 EXPOSE 5173
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
-  CMD bun -e "fetch('http://127.0.0.1:5173/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s \
+  CMD bun -e "fetch('http://127.0.0.1:5173/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["bun", "run", "server/app.ts"]

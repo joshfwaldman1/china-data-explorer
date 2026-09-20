@@ -12,12 +12,17 @@ import { join, resolve } from "node:path";
 import { chromium } from "playwright";
 import { parseByCountry, slugOf } from "./customs.ts";
 import { CUSTOMS_PARTNERS } from "./data.ts";
+import { startOfflineServer, TEST_CATALOG } from "./test-server";
 
-const dbPath = join(mkdtempSync(join(tmpdir(), "china-trade-home-")), "test.db");
-const env = { ...process.env, CHINA_DB_PATH: dbPath, CHINA_SEED: "off", CATALOG_CRAWL: "off", CHINA_LIVE_FALLBACK: "0", INGEST_EVERY_HOURS: "0", PORT: "0", NODE_ENV: "test" };
+const scratch = mkdtempSync(join(tmpdir(), "china-trade-home-"));
+const dbPath = join(scratch, "test.db");
+const env = { ...process.env, CHINA_DB_PATH: dbPath, CHINA_CATALOG_DB_PATH: join(scratch, "catalog.db"), NBS_CATALOG_PATH: join(scratch, "catalog.json"), CHINA_SEED: "off", NBS_QUERY_EXPANSION: "off", CATALOG_CRAWL: "off", CHINA_LIVE_FALLBACK: "0", INGEST_EVERY_HOURS: "0", PORT: "0", NODE_ENV: "test" };
 
 /** Every partner of the fixture month written to the scratch store, in a process of its own so the path is honoured. */
 async function seed(): Promise<{ count: number; top: string }> {
+  // This test exercises headline rows. A tiny, separate catalog keeps it independent
+  // of the shipped 80,000-entry catalog and any other test's derived cache.
+  await Bun.write(env.NBS_CATALOG_PATH, JSON.stringify(TEST_CATALOG));
   const html = await Bun.file(resolve(import.meta.dir, "fixtures/customs/by-country-2026-08-usd.html")).text();
   const rows = parseByCountry(html);
   const series = CUSTOMS_PARTNERS.flatMap((region) => {
@@ -43,32 +48,23 @@ async function seed(): Promise<{ count: number; top: string }> {
   return { count: series.length, top: CUSTOMS_PARTNERS.find((region) => region.value === top?.region)?.en ?? "" };
 }
 
-async function startServer(): Promise<{ url: string; stop: () => void }> {
-  const child = Bun.spawn(["bun", resolve(import.meta.dir, "app.ts")], { env, stdout: "pipe", stderr: "pipe" });
-  const reader = child.stdout.getReader();
-  let text = "";
-  const deadline = Date.now() + 180_000;
-  while (Date.now() < deadline) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    text += new TextDecoder().decode(value);
-    const match = text.match(/running at (http:\/\/[^\s/]+)/);
-    if (match?.[1]) return { url: match[1].replace("0.0.0.0", "127.0.0.1").replace("localhost", "127.0.0.1"), stop: () => child.kill() };
-  }
-  child.kill();
-  throw new Error(`server did not start: ${text.slice(-500)}`);
-}
-
 test("the home page names the US, EU and ASEAN rows and the ranking page ranks every partner", async () => {
   const seeded = await seed();
   expect(seeded.count).toBe(30);
-  const server = await startServer();
+  const server = await startOfflineServer(env);
   // Locally the installed Chrome, as scripts/portal.ts uses it, so Playwright's own build need
   // not be downloaded; in CI the bundled Chromium the workflow installs (PLAYWRIGHT_CHANNEL=chromium).
   const channel = process.env.PLAYWRIGHT_CHANNEL ?? "chrome";
-  const browser = await chromium.launch({ headless: true, ...(channel === "chromium" ? {} : { channel }) });
+  const browser = await chromium.launch({ headless: true, ...(channel === "chromium" ? {} : { channel }) }).catch(async (error) => { await server.stop(); throw error; });
   try {
     const page = await browser.newPage();
+    await page.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin !== server.url) { await route.abort(); return; }
+      // Loading Home asks for a live release calendar even when ingestion is off.
+      if (url.pathname === "/api/releases") { await route.fulfill({ json: { data: [] } }); return; }
+      await route.continue();
+    });
     await page.goto(`${server.url}/#/`);
     const trade = page.locator('section[aria-label="Trade & External"]');
     await trade.locator(".indicator-row", { hasText: "United States" }).waitFor({ state: "visible", timeout: 120_000 });
@@ -108,8 +104,10 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
     expect(dataRows.length).toBe(30);
     expect(dataRows[0]).toContain('"Total"');
     expect(csv).toContain("# Series: Trade by Partner: Imports");
+    expect((await fetch(`${server.url}/ready`)).status).toBe(200);
+    expect((await fetch(`${server.url}/health`)).status).toBe(200);
   } finally {
     await browser.close();
-    server.stop();
+    await server.stop();
   }
 }, 300_000);

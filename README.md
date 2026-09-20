@@ -165,7 +165,10 @@ Every push and pull request runs `.github/workflows/ci.yml`: the type check
 and the whole suite, the same gates a change has to pass locally. A nightly
 job (`backup.yml`) asks the running site for a consistent copy of the store
 and keeps it as a workflow artifact for 90 days; it needs `BACKUP_TOKEN` as
-a repository secret and the same variable on the deployment.
+a repository secret and the same variable on the deployment. A green backup
+run requires matching checksums, integrity checks and an independent restore;
+missing credentials fail the run. See [OPERATIONS.md](OPERATIONS.md) for
+recovery steps, readiness semantics and the remaining scaling work.
 
 ## Conventions
 
@@ -202,9 +205,11 @@ a repository secret and the same variable on the deployment.
   `BACKUP_TOKEN` (`Authorization: Bearer …`). The route does not exist unless
   the variable is set. The store is the one thing here that cannot be rebuilt
   from the sources; a mounted volume is not a backup.
-- `GET /health` — `{ ok, observations, lastFetch }`; 503 until the catalog and
-  search index are warm, so a platform keeps the old container serving
-  through a deploy.
+- `GET /ready` — `{ ok, observations, lastFetch }`; 503 until the catalog and
+  search index warm successfully and the store answers. A failed warmup stays
+  unavailable and is logged; elapsed startup time never makes it ready.
+- `GET /health` — the same readiness response, retained for existing monitors.
+- `GET /live` — process liveness only; does not assert that data is ready.
 
 ## Optional: AKTools (AkShare)
 
@@ -226,7 +231,7 @@ docker run -p 5173:5173 -v china-data:/data econstats-china
 - `/data/china.db` is the store; mount a persistent volume. `/data/catalog.db`
   is a cache rebuilt from `catalog/*` when those files change.
 - Railway: project `econstats-china`; `railway.toml` selects the Dockerfile
-  and the `/health` check; a volume at `/data`; variables `FRED_API_KEY` and
+  and the `/ready` check, with up to 180 seconds for a cold start; a volume at `/data`; variables `FRED_API_KEY` and
   `AKTOOLS_URL=off`. Redeploy with `railway up --detach` from the repository
   root. The first refresh runs two
   minutes after boot, the first catalog crawl ten minutes after.

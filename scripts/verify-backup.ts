@@ -1,0 +1,55 @@
+import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { basename, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { assertBackupMatches, inspectBackup, parseBackupManifest, type BackupManifest } from "../server/backup-validation";
+
+export function manifestFromHeaders(headers: string): BackupManifest {
+  // curl may record retry responses or a proxy's CONNECT before the final response.
+  const blocks = headers.trim().split(/\r?\n\r?\n/);
+  const finalHeaders = blocks.at(-1) ?? "";
+  const manifests = finalHeaders.split(/\r?\n/).filter((line) => /^x-backup-manifest:/i.test(line));
+  if (manifests.length !== 1) throw new Error("Response must carry exactly one backup manifest");
+  const encoded = manifests[0]?.slice(manifests[0].indexOf(":") + 1).trim() ?? "";
+  return parseBackupManifest(JSON.parse(Buffer.from(encoded, "base64").toString("utf8")));
+}
+
+/** Restore only the downloaded file into an empty directory, with no WAL or app initializer. */
+export async function verifyBackup(path: string, expected: BackupManifest): Promise<BackupManifest> {
+  const actual = await inspectBackup(path);
+  assertBackupMatches(actual, expected);
+  const scratch = await mkdtemp(join(tmpdir(), "china-backup-restore-"));
+  try {
+    const restored = join(scratch, "restored.db");
+    await copyFile(path, restored);
+    const child = Bun.spawn([process.execPath, resolve(import.meta.dir, "../server/backup-worker.ts"), "inspect", restored], { stdout: "pipe", stderr: "pipe" });
+    const timer = setTimeout(() => child.kill(), 10 * 60_000);
+    try {
+      const [output, errors, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+      if (code !== 0) throw new Error(`Restored database failed verification: ${errors.trim() || `exit ${code}`}`);
+      assertBackupMatches(parseBackupManifest(JSON.parse(output)), expected);
+    } finally {
+      clearTimeout(timer);
+    }
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+  return expected;
+}
+
+if (import.meta.main) {
+  try {
+    const [path, metadataPath] = Bun.argv.slice(2);
+    if (!path || !metadataPath) throw new Error("Usage: bun scripts/verify-backup.ts SNAPSHOT MANIFEST_OR_CURL_HEADERS");
+    const metadata = await Bun.file(metadataPath).text();
+    const expected = metadata.trimStart().startsWith("{") ? parseBackupManifest(JSON.parse(metadata)) : manifestFromHeaders(metadata);
+    const manifest = await verifyBackup(path, expected);
+    const name = basename(path);
+    if (/[\r\n\\]/.test(name)) throw new Error("Invalid backup filename");
+    await writeFile(`${path}.manifest.json`, `${JSON.stringify({ ...manifest, verifiedAt: new Date().toISOString(), restoreVerified: true }, null, 2)}\n`);
+    await writeFile(`${path}.sha256`, `${manifest.sha256}  ${name}\n`);
+    console.log(`Verified and restored ${manifest.observations} observations, ${manifest.series} series; SHA-256 ${manifest.sha256}`);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+}

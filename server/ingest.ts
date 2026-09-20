@@ -157,7 +157,7 @@ async function dueCatalogTargets(now = new Date()): Promise<{ key: string; regio
     if (index > 0 && index % 500 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     const entry = await getNbsCatalogEntry(row.key);
     if (!entry) continue;
-    const reason = dueReason(entry.frequency, row.lastPeriod, row.updatedAt, now);
+    const reason = dueReason(entry.frequency, row.lastPeriod, row.updatedAt, now, undefined, row);
     if (reason) targets.push({ key: row.key, region: row.region, reason });
   }
   return targets;
@@ -415,12 +415,14 @@ export async function refreshCatalogForRelease(
       if (result.requests >= maxRequests) { result.pending += chunk.length; continue; }
       const region = chunk[0]?.region ?? NATIONAL_REGION;
       const startedAt = new Date().toISOString();
+      // A failed table call spends the same request budget as a successful
+      // one; otherwise an outage turns a bounded release job into a full sweep.
+      result.requests += 1;
       try {
         const points = await fetchBatch(chunk.map((item) => item.entry), region, "recent");
-        result.requests += 1;
         for (const item of chunk) {
           const fetched = points.get(item.entry.id) ?? [];
-          storeNbsPoints(item.entry, region, fetched, startedAt);
+          storeNbsPoints(item.entry, region, fetched, startedAt, "recent");
           const target = targetFor(item.entry.frequency);
           if (target && comparablePeriod(fetched.at(-1)?.date ?? "") >= target.period) result.advanced += 1;
           else result.pending += 1;
@@ -446,11 +448,16 @@ export async function refreshCatalogForRelease(
  * paced, instead of one per series. A series whose entry has left the catalog
  * snapshot is counted as an error and skipped, not fetched blind.
  */
-export async function refreshCatalogTargets(targets: { key: string; region: string; reason?: "new-period" | "revision" }[]): Promise<{ ok: number; error: number; empty: number }> {
+export async function refreshCatalogTargets(
+  targets: { key: string; region: string; reason?: "new-period" | "revision" }[],
+  options: { fetchBatch?: typeof fetchNbsTableBatch; pauseMs?: number; entries?: NbsCatalogEntry[] } = {},
+): Promise<{ ok: number; error: number; empty: number }> {
   const tally = { ok: 0, error: 0, empty: 0 };
+  const fetchBatch = options.fetchBatch ?? fetchNbsTableBatch;
+  const suppliedEntries = options.entries ? new Map(options.entries.map((entry) => [entry.key, entry])) : null;
   const tables = new Map<string, { entry: NbsCatalogEntry; region: { text: string; value: string }; window: FetchWindow }[]>();
   for (const target of targets) {
-    const entry = await getNbsCatalogEntry(target.key);
+    const entry = suppliedEntries ? suppliedEntries.get(target.key) : await getNbsCatalogEntry(target.key);
     if (!entry) { tally.error += 1; continue; }
     const regions = await getNbsDimensions(entry);
     const region = regions.find((option) => option.value === target.region)
@@ -458,7 +465,7 @@ export async function refreshCatalogTargets(targets: { key: string; region: stri
     // A series due because a new period should exist asks for the last two
     // years; one due for its revision check asks for everything, because a
     // restatement of an old year is invisible in a recent window.
-    const window: FetchWindow = target.reason === "revision" ? "full" : "recent";
+    const window: FetchWindow = target.reason === "new-period" ? "recent" : "full";
     const tableKey = `${entry.cid}|${entry.rootId}|${entry.frequency}|${region.value}|${window}`;
     tables.set(tableKey, [...(tables.get(tableKey) ?? []), { entry, region, window }]);
   }
@@ -470,10 +477,10 @@ export async function refreshCatalogTargets(targets: { key: string; region: stri
     const region = chunk[0]?.region ?? NATIONAL_REGION;
     const startedAt = new Date().toISOString();
     try {
-      const points = await fetchNbsTableBatch(chunk.map((item) => item.entry), region, chunk[0]?.window ?? "full");
+      const points = await fetchBatch(chunk.map((item) => item.entry), region, chunk[0]?.window ?? "full");
       let okHere = 0;
       for (const item of chunk) {
-        const outcome = storeNbsPoints(item.entry, region, points.get(item.entry.id) ?? [], startedAt);
+        const outcome = storeNbsPoints(item.entry, region, points.get(item.entry.id) ?? [], startedAt, item.window);
         tally[outcome] += 1;
         if (outcome === "ok") okHere += 1;
       }
@@ -484,7 +491,7 @@ export async function refreshCatalogTargets(targets: { key: string; region: stri
       tally.error += chunk.length;
       console.log(`  ${String(index + 1).padStart(4)}/${chunks.length}  FAILED  ${message.slice(0, 80)}`);
     }
-    if (index < chunks.length - 1) await sleep(CRAWL_PAUSE_MS);
+    if (index < chunks.length - 1) await sleep(options.pauseMs ?? CRAWL_PAUSE_MS);
   }
   return tally;
 }

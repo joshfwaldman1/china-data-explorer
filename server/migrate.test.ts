@@ -119,3 +119,52 @@ test("a store already in the current shape keeps its running count across writes
   expect(result.counted).toBe(3);
   expect(result.health).toBe(3);
 }, 30_000);
+
+test("legacy full-history clocks remain unknown and their first audits are staggered once across restarts", async () => {
+  const path = join(mkdtempSync(join(tmpdir(), "china-revision-migrate-")), "old.db");
+  legacyStore(path, [{ key: "cpi_t", period: "2026-08", value: 1 }]);
+  const legacy = new Database(path);
+  const addSeries = legacy.prepare(`INSERT INTO series
+    SELECT ?, region, label, title, agency, frequency, unit, source_url, updated_at, position
+    FROM series WHERE key = 'cpi_t'`);
+  for (let index = 0; index < 90; index += 1) addSeries.run(`nbs_legacy_audit_${index}`);
+  const addObservation = legacy.prepare(`INSERT INTO observations
+    SELECT ?, region, label, period, value, fetched_at FROM observations WHERE key = 'cpi_t'`);
+  for (let index = 0; index < 90; index += 1) addObservation.run(`nbs_legacy_audit_${index}`);
+  legacy.close();
+
+  async function states(recentRefresh: boolean) {
+    const script = `
+      import { db, writeSeries } from ${JSON.stringify(DB_MODULE)};
+      const database = db();
+      if (${recentRefresh}) writeSeries({ key: 'nbs_legacy_audit_0', title: 'CPI', agency: 'NBS', sourceUrl: '', frequency: 'Monthly', unit: '%', series: [{ label: '全国', points: [{ date: '2026-08', value: 1 }] }] }, '', new Date().toISOString(), { historyWindow: 'recent' });
+      console.log(JSON.stringify(database.query('SELECT key, last_full_history_check AS lastFull, first_full_history_check_due_at AS firstDue FROM series_refresh_state ORDER BY key').all()));
+    `;
+    const child = Bun.spawn(["bun", "-e", script], {
+      env: { ...process.env, CHINA_DB_PATH: path, CHINA_SEED: "off" }, stdout: "pipe", stderr: "pipe",
+    });
+    const output = await new Response(child.stdout).text();
+    const errors = await new Response(child.stderr).text();
+    expect(await child.exited).toBe(0);
+    const line = output.trim().split("\n").at(-1) ?? "";
+    if (!line.startsWith("[")) throw new Error(`${output}${errors}`);
+    const rows: { key: string; lastFull: string | null; firstDue: string }[] = JSON.parse(line);
+    return rows;
+  }
+
+  const startedAt = Date.now();
+  const first = await states(false);
+  const finishedAt = Date.now();
+  expect(first).toHaveLength(90);
+  expect(new Set(first.map((row) => row.firstDue)).size).toBeGreaterThan(20);
+  for (const row of first) {
+    expect(row.lastFull).toBeNull();
+    expect(Date.parse(row.firstDue)).toBeGreaterThanOrEqual(startedAt + 86400000);
+    expect(Date.parse(row.firstDue)).toBeLessThanOrEqual(finishedAt + 45 * 86400000);
+  }
+  expect(await states(true)).toEqual(first);
+  expect(await states(false)).toEqual(first);
+  const migrated = new Database(path, { readonly: true });
+  expect(migrated.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM observations").get()?.n).toBe(91);
+  migrated.close();
+}, 30_000);

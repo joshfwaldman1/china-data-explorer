@@ -10,6 +10,7 @@
  */
 
 import index from "../client/index.html";
+import { timingSafeEqual } from "node:crypto";
 import { regionCoverage } from "./regions";
 import { CATALOG, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
@@ -20,7 +21,7 @@ function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult 
   const kept = stored.series.filter((series) => labels.includes(series.label));
   return kept.length > 0 ? { ...stored, series: kept } : stored;
 }
-import { readSeries, readRevisions, readRevisionHistory, backupStore, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -37,6 +38,8 @@ import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-pla
 import { PRIORITY, createWorker } from "./worker";
 import { formatResult, runConcordance } from "./concordance";
 import { fetchCustomsReleases } from "./customs-calendar";
+import { createReadinessProbe } from "./readiness";
+import { createBackupManager } from "./backup";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -45,6 +48,7 @@ import { fetchCustomsReleases } from "./customs-calendar";
 const SERVE_LIVE_FALLBACK = process.env.CHINA_LIVE_FALLBACK !== "0";
 
 const port = Number(process.env.PORT ?? 5173);
+const backups = createBackupManager({ sourcePath: process.env.CHINA_DB_PATH ?? `${import.meta.dir}/../china.db` });
 
 const RELEASE_TTL_MS = 6 * 60 * 60 * 1000;
 const releaseCache = new Map<string, { at: number; body: { data: AgendaItem[] } }>();
@@ -175,21 +179,17 @@ const crawlState: { scheduled: boolean; startedAt: string | null; finishedAt: st
 let scheduleStatus: () => { nextReleases: { en: string; at: string; keys: string[] }[]; lastReleaseRefresh: null | { en: string; at: string; attempts: number; advanced: number } } = () => ({ nextReleases: [], lastReleaseRefresh: null });
 
 const bootAt = Date.now();
-const WARM_GRACE_MS = 25_000;
-let catalogWarm = false;
+const readiness = createReadinessProbe(dbHealth);
 
 const routes = {
     "/": index,
     // The default link-preview image (a real chart) for X, Slack and the like.
     "/og.png": () => new Response(Bun.file(new URL("../client/og.png", import.meta.url)), { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } }),
-    // Liveness for a platform healthcheck: the store opens and answers.
-    "/health": () => {
-      // Not healthy until the catalog is warm (or 25 s have passed), so Railway keeps the previous
-      // container serving through the warm-up instead of sending visitors a 502 (round 107).
-      if (!catalogWarm && Date.now() - bootAt < WARM_GRACE_MS) return Response.json({ ok: false, warming: true }, { status: 503 });
-      try { return Response.json(dbHealth()); }
-      catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 503 }); }
-    },
+    // Keep /health compatible with existing monitors; both readiness routes require
+    // a usable catalog and store. /live only says that the process answers HTTP.
+    "/health": () => readiness.check(),
+    "/ready": () => readiness.check(),
+    "/live": () => Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }),
     "/api/catalog": () => Response.json(catalogList()),
     // Every headline series at once for the Home page: the stored copy of each with its last
     // 24 points, in one round trip instead of one request per indicator after the catalog.
@@ -381,30 +381,16 @@ const routes = {
     // what the bureau published and when is the one thing here that cannot be
     // rebuilt from the source, and a mounted volume is not a backup. Off unless
     // BACKUP_TOKEN is set, so a deployment without one exposes nothing.
-    "/api/backup": async (req: RouteRequest) => {
+    "/api/backup": async (req: RouteRequest, server: { timeout(request: Request, seconds: number): void }) => {
       const token = process.env.BACKUP_TOKEN;
       if (!token) return new Response("Not found", { status: 404 });
       const offered = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? new URL(req.url).searchParams.get("token") ?? "";
-      // Constant-time enough for a secret that is never guessed a character at a time.
-      if (offered.length !== token.length || offered !== token) return new Response("Unauthorized", { status: 401 });
-      const path = `${(process.env.CHINA_DB_PATH ?? "").replace(/[^/]*$/, "") || "/tmp/"}backup-${Date.now()}.db`;
-      try {
-        const bytes = backupStore(path);
-        const file = Bun.file(path);
-        return new Response(file.stream(), {
-          headers: {
-            "Content-Type": "application/vnd.sqlite3",
-            "Content-Length": String(bytes),
-            "Content-Disposition": `attachment; filename="china-${new Date().toISOString().slice(0, 10)}.db"`,
-          },
-        });
-      } catch (error) {
-        return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
-      } finally {
-        // The copy is streamed from the open handle; unlinking now keeps the
-        // volume from filling with copies if a download is abandoned.
-        setTimeout(() => { void Bun.file(path).delete().catch(() => undefined); }, 10 * 60 * 1000);
-      }
+      const expectedBytes = Buffer.from(token), offeredBytes = Buffer.from(offered);
+      if (offeredBytes.length !== expectedBytes.length || !timingSafeEqual(offeredBytes, expectedBytes)) return new Response("Unauthorized", { status: 401 });
+      // Snapshot validation can outlast an ordinary page request. The manager
+      // enforces separate creation/download deadlines and one backup at a time.
+      server.timeout(req, 0);
+      return backups.createResponse(req.signal);
     },
     // Coverage and recent ingest runs — a stale chart should be diagnosable.
     // The coverage list is heavy; it comes only with ?series=1.
@@ -501,11 +487,18 @@ try {
 }
 
 console.log(`\n  China Data Explorer running at ${server.url}\n`);
+if (process.env.BACKUP_TOKEN) {
+  void backups.cleanupStale().catch((error) => console.error("  Backup temporary-file cleanup failed:", error instanceof Error ? error.message : String(error)));
+}
 // Warm the catalog, gloss and search index now rather than on the first visitor; the
 // healthcheck waits for it so the previous container keeps serving meanwhile.
-nbsCatalogStats().catch(() => undefined).finally(() => {
-  catalogWarm = true;
+void readiness.warm(async () => {
+  const catalog = await nbsCatalogStats();
+  if (catalog.seriesCount === 0) throw new Error("NBS catalog contains no usable series");
+}).then(() => {
   console.log(`  Catalog warm in ${((Date.now() - bootAt) / 1000).toFixed(1)}s`);
+}).catch((error) => {
+  console.error("  Readiness warmup failed; this deployment remains unavailable:", error instanceof Error ? error.message : String(error));
 });
 
 // On a single-service deployment the daily refresh runs in this process: a
