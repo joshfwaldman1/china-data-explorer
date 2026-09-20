@@ -2932,3 +2932,34 @@ not from scratch. Rounds are small on purpose.
   restarts and initialized 193,419 audit deadlines without rewriting history.
   Typecheck and the full 341-test suite pass, including offline browser and
   authenticated HTTP backup tests.
+
+- 2026-09-21 (dataset loop, round 40: where the power comes from): the site
+  carried the energy administration's electricity consumption and one
+  generation growth rate, and said nothing about what the power was made
+  from or how much fuel the country produced. Five keys from the bureau's
+  own monthly tables answer that: generation by source as levels and as
+  rates (thermal, hydro, nuclear, wind, solar, and the total), coal and
+  crude oil output by weight, natural gas by volume, and the three fuels'
+  growth. Two Home rows, raw coal output and solar generation, which is the
+  pair that shows the transition without a chart.
+  Each generating source is its own NBS table, and that is the failure this
+  round had to guard against: a line taken from the wrong table gives a
+  plausible series that does not belong to the total, and no pair of two
+  series would notice. The audit gains a third kind of pair. `components`
+  sums the parts and compares them with the published whole in every month
+  both are published, so the five sources are held to 发电量 each month.
+  The acceptance test runs it on the bureau's captured answer for January
+  2025 to August 2026 — where the five sum to 9,437.7 against a published
+  9,437.8, the cost of rounding five figures to a tenth — and then runs it
+  again with thermal at a tenth of its size, which must be a finding.
+  What the bureau does not publish is recorded as well. There is no January
+  figure for a monthly production series and no February month figure; the
+  year to date at February covers the two. No line carries a
+  January-February fallback, because a two-month total served as February
+  would be wrong by a month, and a test holds that. Two coverage tests
+  caught mistakes while this was written: a key given both a pair and a
+  reason not to have one, and a level whose unit sentence shortened to
+  "100M cubic metres", too long to sit beside a value and now declared as
+  "100M m³". Live: August 2026 generation 9,437.8 亿千瓦时, thermal 6,020.3,
+  solar 700.2 (up 10.3 percent), raw coal 36,182.3 万吨, crude oil 1,843.3,
+  natural gas 214.2 亿立方米. 348 tests; 50 pairs, 0 findings.

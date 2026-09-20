@@ -7,26 +7,19 @@ credit-gated items.
 
 ## Queue
 
-1. **Energy production by type.** NBS's monthly output tables carry raw coal,
-    crude oil, natural gas, electricity by generating source (thermal, hydro,
-    nuclear, wind, solar) as levels and growth. The electricity keys today
-    are demand from NEA and total output; the mix is the gap.
-    *Test:* August 2026 generation by source parses and the sources sum to
-    the published total within rounding.
-
-2. **Industrial output by sector.** The value added growth of the 41 two-digit
+1. **Industrial output by sector.** The value added growth of the 41 two-digit
     industries NBS publishes monthly, as one key with a line per sector,
     beside the existing headline.
     *Test:* August 2026 parses for every sector NBS lists and the motor
     vehicle line matches the figure in the release's prose.
 
-3. **A methodology page.** The IMF's Data Quality Assessment Framework pages
+2. **A methodology page.** The IMF's Data Quality Assessment Framework pages
     for China describe how each headline is compiled and revised. A page per
     source, written from them, with the survey frame, the revision policy and
     the coverage caveats, linked from every series that source publishes.
     *Test:* every curated key resolves to a methodology section.
 
-4. **The release as a first-class entity.** A release (date, agency, the keys
+3. **The release as a first-class entity.** A release (date, agency, the keys
     it carries, its URL) is implied by `due.ts` and `/api/releases` but is not
     stored; storing it would let the site say when a figure arrived, show a
     calendar, and let the audit compare a figure to the release that carried
@@ -34,25 +27,25 @@ credit-gated items.
     *Test:* every stored point resolves to the release that published it, or
     to "before releases were recorded".
 
-5. **Notes and annotations in English.** [needs API credit] Titles are
+4. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-6. **Property: developer financing and mortgages.** [parked: source not
+5. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-7. **MOFCOM weekly prices.** [parked: source not found] The weekly
+6. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-8. **High-frequency group.** [blocked: needs AKTools on the deployment]
+7. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -87,6 +80,16 @@ credit-gated items.
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-21 — Energy production by type: `electricity_by_source` and
+  `_growth` (thermal, hydro, nuclear, wind, solar and the total),
+  `fuel_output` (raw coal and crude oil, 万吨), `natural_gas_output`
+  (亿立方米) and `fuel_output_growth`, from the bureau's monthly tables,
+  with Home rows for raw coal output and solar generation. A third kind of
+  concordance pair, `components`, holds the five sources to the published
+  total every month; the acceptance test runs it on the captured answer and
+  again with one source at a tenth of its size. Live: August 2026 generation
+  9,437.8 亿千瓦时 (thermal 6,020.3, solar 700.2), raw coal 36,182.3 万吨.
 
 - 2026-09-21 — Provincial monthly indicators: `provincial_industry` (value
   added of large industrial firms, month and year to date) and
