@@ -2,31 +2,64 @@
 
 Worked top to bottom by `DATASET_LOOP.md`, one item per round. Each item
 carries the test that defines it as done. Prerequisites in brackets. Refilled
-on 20 September 2026 after the 17 September list ran out of runnable items.
+on 21 September 2026, when the 20 September list was down to parked and
+credit-gated items.
 
 ## Queue
 
-1. **Notes and annotations in English.** [needs API credit] Titles are
+1. **Energy production by type.** NBS's monthly output tables carry raw coal,
+    crude oil, natural gas, electricity by generating source (thermal, hydro,
+    nuclear, wind, solar) as levels and growth. The electricity keys today
+    are demand from NEA and total output; the mix is the gap.
+    *Test:* August 2026 generation by source parses and the sources sum to
+    the published total within rounding.
+
+2. **Industrial output by sector.** The value added growth of the 41 two-digit
+    industries NBS publishes monthly, as one key with a line per sector,
+    beside the existing headline.
+    *Test:* August 2026 parses for every sector NBS lists and the motor
+    vehicle line matches the figure in the release's prose.
+
+3. **A methodology page.** The IMF's Data Quality Assessment Framework pages
+    for China describe how each headline is compiled and revised. A page per
+    source, written from them, with the survey frame, the revision policy and
+    the coverage caveats, linked from every series that source publishes.
+    *Test:* every curated key resolves to a methodology section.
+
+4. **The release as a first-class entity.** A release (date, agency, the keys
+    it carries, its URL) is implied by `due.ts` and `/api/releases` but is not
+    stored; storing it would let the site say when a figure arrived, show a
+    calendar, and let the audit compare a figure to the release that carried
+    it.
+    *Test:* every stored point resolves to the release that published it, or
+    to "before releases were recorded".
+
+5. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-2. **Property: developer financing and mortgages.** [parked: source not
+6. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-3. **MOFCOM weekly prices.** [parked: source not found] The weekly
+7. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-4. **High-frequency group.** [blocked: needs AKTools on the deployment]
+8. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
+
+- **Provincial retail sales.** [parked: NBS publishes the monthly provincial
+  table only as a slice ending in 2011 (社会消费品零售总额, 分省月度), so
+  there is no current figure to serve. Provincial industry and CPI are
+  carried instead. Revisit if NBS posts a current table.]
 
 - **MOHRSS urban new jobs (城镇新增就业).** [parked: mohrss.gov.cn answers
   every request with a script challenge that sets a bot cookie; the site
@@ -49,6 +82,16 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-21 — Provincial monthly indicators: `provincial_industry` (value
+  added of large industrial firms, month and year to date) and
+  `provincial_cpi` (index on a year earlier, stored as a rate, two older
+  tables stitched behind) for all 31 provinces, six of them on Home. The
+  audit's first pair that names a region on both sides checks Guangdong's
+  month against its year to date, and a ranking link now says what it ranks.
+  Live: Guangdong August industrial output +6.9% (year to date +6.1%),
+  CPI +1.0%. Provincial retail sales parked: NBS's monthly table stops in
+  2011.
 
 - 2026-09-20 — NEA follow-up, as a bug: August's note wrote its range with
   an em dash the parser did not accept, so the year to date was stored as

@@ -614,9 +614,15 @@ const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
 // Briefing order: activity, then prices and labour, property, money and rates, the yuan, the external accounts, the budget, sentiment, the provinces.
 const GROUP_ORDER = ["Growth & Output", "Consumption", "Prices", "Labor", "Property", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Public Finance", "Sentiment", "Markets", "Demographics", "Regional"];
 const homeRank = (entry: CuratedEntry) => entry.homeRank ?? Number.MAX_SAFE_INTEGER;
-/** Where the rest of a multi-region row's places are ranked. */
+/**
+ * Where the rest of a multi-region row's places are ranked. A group may hold
+ * more than one such row, so the link says what it ranks as well as where.
+ */
 function allRegionsLink(entry: CuratedEntry): { href: string; label: string } {
-  return { href: routeHash({ view: "regions", period: "", key: entry.key }), label: entry.key === "provincial_gdp" ? "All 31 provinces, ranked" : entry.key === "trade_partners" ? "All trading partners, ranked" : "All places, ranked" };
+  const href = routeHash({ view: "regions", period: "", key: entry.key });
+  if (entry.key === "trade_partners") return { href, label: "All trading partners, ranked" };
+  if (entry.key.startsWith("provincial_")) return { href, label: `All 31 provinces: ${entry.title.replace(/^Provincial /, "")}` };
+  return { href, label: `All places: ${entry.title}` };
 }
 const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
 /** What a series is, from its own fields; derived from the unit only for an entry that predates them. */

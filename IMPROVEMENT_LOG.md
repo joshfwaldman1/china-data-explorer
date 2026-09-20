@@ -2890,3 +2890,28 @@ not from scratch. Rounds are small on purpose.
   served. The store is append-only, so the wrong value stays as the vintage
   it was and the correction arrives as a revision on the running refresh.
   308 tests; 45 pairs.
+
+- 2026-09-21 (dataset loop, round 39: the provinces get more than one
+  number): the site has carried provincial real GDP since the regional work,
+  and a province was otherwise a name on a ranking page. It now also carries
+  the monthly ones NBS publishes for all 31: `provincial_industry`, the
+  value added of large industrial firms, as the month and the year to date,
+  and `provincial_cpi`, the consumer price index on a year earlier. Six
+  provinces sit on Home beside Guangdong, chosen for size rather than for
+  a story: Jiangsu, Shandong, Zhejiang, Sichuan and Henan.
+  Two things in the data shaped the code. The CPI table NBS serves is an
+  index on the year before, so it is stored with `valueOffset: -100` and
+  reads as a rate; its older years live in two further tables, stitched on
+  behind through `slices`, which is the same mechanism the CPI-by-category
+  work needed. And the audit now has its first pair that names a region on
+  both sides: Guangdong's month against Guangdong's year to date, so a
+  province is checked rather than assumed to follow the nation.
+  Provincial retail sales were the obvious third series and are not here:
+  NBS publishes the monthly table only as a slice that stops in 2011, so
+  there is nothing current to serve. It is recorded in the queue rather
+  than left to be rediscovered.
+  A group can now hold more than one ranked row, so a ranking link says what
+  it ranks ("All 31 provinces: Industrial Output Growth") instead of the one
+  generic label both rows shared. Live: Guangdong August industrial output
+  +6.9% (year to date +6.1%), CPI +1.0%; Jiangsu 5.7, Shandong 7.2,
+  Zhejiang 6.2, Sichuan 7.6, Henan 7.2. 312 tests; 46 pairs, 0 findings.
