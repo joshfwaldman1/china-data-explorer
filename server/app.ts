@@ -40,6 +40,7 @@ import { formatResult, runConcordance } from "./concordance";
 import { fetchCustomsReleases } from "./customs-calendar";
 import { createReadinessProbe } from "./readiness";
 import { methodology } from "./methodology";
+import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
@@ -126,6 +127,19 @@ async function fetchAgenda(startDate: string, endDate: string): Promise<{ data: 
   }
   const payload = { data: items };
   releaseCache.set(cacheKey, { at: Date.now(), body: payload });
+  // A release the calendar named is a fact worth keeping: the cache expires
+  // and the window moves on, but a figure fetched today will still want to
+  // name the release that carried it a year from now.
+  try {
+    recordReleases(items.map((item) => ({
+      id: item._id,
+      agency: CUSTOMS_KEYS.includes(item.keys[0] ?? "") ? "General Administration of Customs" : "National Bureau of Statistics",
+      publishedAt: (cstToDate(item.fb_time) ?? new Date(item.fb_time)).toISOString(),
+      title: item.content, titleEn: item.en, url: "", keys: item.keys,
+    })));
+  } catch (error) {
+    console.warn(`  Recording releases failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
   return payload;
 }
 
@@ -410,6 +424,29 @@ const routes = {
       // table the site cannot fetch.
       return Response.json({ ...status, regions: await regionCoverage() });
     },
+    // When each period of a series arrived, and with which release. A period
+    // first seen long after it closed came from a backfill, and says so
+    // rather than borrowing a publication date it cannot know.
+    "/api/arrivals/:key": (req: RouteRequest) => {
+      const key = req.params.key;
+      if (!key) return Response.json({ error: "Series key is required" }, { status: 400 });
+      const url = new URL(req.url);
+      const entry = CATALOG[key];
+      const arrivals = arrivalsFor(key, {
+        region: url.searchParams.get("region") ?? undefined,
+        label: url.searchParams.get("label") ?? undefined,
+        frequency: entry?.frequency,
+        agency: entry?.agency,
+        limit: Number(url.searchParams.get("limit") ?? "48"),
+      });
+      return Response.json({
+        key, frequency: entry?.frequency ?? "", agency: entry?.agency ?? "",
+        backfillNote: BEFORE_RELEASES_RECORDED,
+        arrivals: arrivals.map((arrival) => ({ ...arrival, sentence: arrivalSentence(arrival) })),
+      });
+    },
+    // Every release this site has recorded from the publishers' calendars.
+    "/api/release-log": () => Response.json({ releases: storedReleases(Number(200)) }),
     // The revision trail for one period: every value we have ever stored for
     // it, oldest first.
     "/api/revisions/:key": (req: RouteRequest) => {

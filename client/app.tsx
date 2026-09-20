@@ -1211,6 +1211,8 @@ function SeriesPage(props: {
   useEffect(() => { void warmShareFonts(); }, []);
   const [customDates, setCustomDates] = useState(Boolean(props.route.from || props.route.to));
   const [revised, setRevised] = useState<Revised[] | null>(null);
+  // How the latest period got here: with a release the site watched for, or in a backfill.
+  const [arrival, setArrival] = useState<{ period: string; sentence: string; kind: string; release?: { title: string; url: string } } | null>(null);
   const [related, setRelated] = useState<NbsCatalogEntry[]>([]);
   const [firstView, setFirstView] = useState(false);
   const colors = useRef(new Map<string, number>());
@@ -1220,6 +1222,26 @@ function SeriesPage(props: {
   const windowEnd = props.route.to ? periodTime(props.route.to) + 31 * 86400000 : Number.NaN;
   const windowed = Number.isFinite(windowStart) || Number.isFinite(windowEnd);
   const keysText = props.route.keys.join(",");
+
+  useEffect(() => {
+    // When the newest period of a single-series page arrived, and with what.
+    setArrival(null);
+    if (props.route.keys.length !== 1) return;
+    const spec = splitSpec(props.route.keys[0] ?? "");
+    if (!spec.key) return;
+    let cancelled = false;
+    json(`/api/arrivals/${encodeURIComponent(spec.key)}?limit=1${props.route.region ? `&region=${encodeURIComponent(props.route.region)}` : ""}`).then((body) => {
+      if (cancelled) return;
+      const first = listOf(body, "arrivals")[0];
+      if (!first) return;
+      const release = obj(first, "release");
+      setArrival({
+        period: str(first, "period"), sentence: str(first, "sentence"), kind: str(first, "kind"),
+        ...(release ? { release: { title: str(release, "title"), url: str(release, "url") } } : {}),
+      });
+    }).catch(() => { /* an arrival is extra; the chart does not depend on it */ });
+    return () => { cancelled = true; };
+  }, [keysText, props.route.region]);
 
   useEffect(() => {
     // Any single-key page may have a region dimension: NBS catalog series or a curated one such as provincial GDP.
@@ -1551,6 +1573,7 @@ function SeriesPage(props: {
           <h2>Series Details</h2>
           <dl>
             <dt>Source</dt><dd>{primary.agency}{curated && <> · <a href={routeHash({ view: "methodology", key: primary.key })}>How this figure is made ›</a></>}</dd>
+            {arrival && <><dt>How it arrived</dt><dd>{arrival.sentence}{arrival.release?.url && <> <a href={arrival.release.url} target="_blank" rel="noreferrer">Open the release</a></>}</dd></>}
             <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"}</a></dd>
             {meta && <><dt>Dataset</dt><dd>{meta.datasetEn ? <>{meta.datasetEn} <Zh className="gloss">{meta.dataset}</Zh></> : <Zh>{meta.dataset}</Zh>}</dd></>}
             <dt>Category</dt><dd>{meta ? categoryPath(meta) : curated?.group ?? "—"}</dd>
