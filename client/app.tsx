@@ -7,13 +7,14 @@ import {
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
 import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText } from "./lib";
+import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; homeRows?: { rank: number; title?: string; line?: string; group?: string }[]; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; homeRows?: { rank: number; title?: string; line?: string; group?: string }[]; measure?: Measure; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -616,17 +617,8 @@ function allRegionsLink(entry: CuratedEntry): { href: string; label: string } {
   return { href: routeHash({ view: "regions", period: "", key: entry.key }), label: entry.key === "provincial_gdp" ? "All 31 provinces, ranked" : entry.key === "trade_partners" ? "All trading partners, ranked" : "All places, ranked" };
 }
 const groupRank = (group: string) => { const index = GROUP_ORDER.indexOf(group); return index < 0 ? GROUP_ORDER.length : index; };
-/** What follows a value on a Home row: "%" for a rate, a compact unit for a level ("100M yuan"), nothing for an index. */
-function unitSuffix(unit: string): string {
-  if (/‰|per thousand/i.test(unit)) return "‰";
-  if (isRate(unit)) return unit !== "%" && !/index/i.test(unit) ? "%" : "";
-  const head = unit.split(/[(,]/)[0]?.trim() ?? "";
-  if (/^Yuan per\b/i.test(head)) return "yuan";
-  if (/^Per thousand\b/i.test(head)) return "‰";
-  if (/^Hours\b/i.test(head)) return "hours";
-  if (/^(Percent|Index|Years|Number)\b/i.test(head)) return "";
-  return head.replace(/^Hundred million\b/i, "100M").replace(/^Trillion\b/i, "tn").replace(/^Million\b/i, "M").replace(/^Ten thousand\b/i, "10k").replace(/\bUS dollars?\b/i, "USD");
-}
+/** What a series is, from its own fields; derived from the unit only for an entry that predates them. */
+function measureOfEntry(entry: CuratedEntry): Measure { return entry.measure ?? measureOf(entry.unit); }
 const AGENCY_SHORT: Record<string, string> = {
   "National Bureau of Statistics": "NBS", "People's Bank of China": "PBOC", "General Administration of Customs": "Customs",
   "State Administration of Foreign Exchange": "SAFE", "Ministry of Finance": "MOF", "Ministry of Commerce": "MOFCOM",
@@ -710,13 +702,14 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             const result = headline.get(entry.key);
             const first = result?.series[0];
             const latest = first?.points[first.points.length - 1];
+            const measure = measureOfEntry(entry);
             const previous = first?.points[first.points.length - 2];
             return (
               <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
                 <span className="label">{entry.title}</span>
-                <span className="tile-value">{latest ? fmt(latest.value, entry.unit) : "—"}<span className="tile-unit">{unitSuffix(entry.unit)}</span></span>
+                <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{measure.suffix}</span></span>
                 {first && <Sparkline points={first.points} />}
-                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, entry.unit, "short")}` : ""}</small>
+                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
             );
           })}
@@ -745,12 +738,13 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 // The small print names the table the row comes from when the row is named for its line, else the line.
                 const tableNote = !region && rowTitle && rowTitle !== entry.title ? `${entry.title}, ` : "";
                 // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
-                const levelChange = latest && !isRate(entry.unit) ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: entry.unit }) : "";
+                const measure = measureOfEntry(entry);
+                const levelChange = latest && measure.kind === "level" ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: measure }) : "";
                 return (
                   <a key={`${spec}|${row.line ?? ""}`} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}</small></span>
-                    <span className="value">{latest ? fmt(latest.value, entry.unit) : "—"}<i>{latest ? unitSuffix(entry.unit) : ""}</i></span>
-                    <span className="change">{levelChange || deltaText(latest, previous, entry.unit, "short")}</span>
+                    <span className="value">{latest ? fmt(latest.value, measure) : "—"}<i>{latest ? measure.suffix : ""}</i></span>
+                    <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} />}</span>
                   </a>

@@ -3,6 +3,8 @@
  * a DOM: period labels, number formatting, frequency conversion, rebasing.
  */
 
+import { isRateMeasure, measureOf, type Measure } from "../shared/measure";
+
 export interface SeriesPoint { date: string; value: number; }
 
 export interface Track {
@@ -12,7 +14,11 @@ export interface Track {
   combinedFebruary?: boolean;
 }
 
-export function isRate(unit: string): boolean { return /%|‰|percent|per thousand|index|=100/i.test(unit); }
+/** A unit, or the structured measure a series carries. Every formatter takes either. */
+export type UnitLike = string | Measure;
+const measure = (unit: UnitLike): Measure => (typeof unit === "string" ? measureOf(unit) : unit);
+
+export function isRate(unit: UnitLike): boolean { return isRateMeasure(measure(unit)); }
 
 /** How many decimals a value carries, to four: 552 has none, 484.8 one, 6.7828 four. */
 function ownDecimals(value: number): number {
@@ -21,11 +27,12 @@ function ownDecimals(value: number): number {
   return dot < 0 ? 0 : text.length - dot - 1;
 }
 
-export function fmt(value: number, unit: string): string {
-  // A rate to one decimal; a level in the thousands to whole units; a smaller level as the
-  // publisher wrote it (a parity of 6.7828, a flow of 552), never padded to "552.00".
-  // Money-market and bond rates are quoted to two decimals (SHIBOR 1.46, a yield 1.69); other rates to one.
-  const decimals = isRate(unit) ? (/fixing|close|yield|‰|per thousand/i.test(unit) ? 2 : 1) : Math.abs(value) >= 1000 ? 0 : ownDecimals(value);
+export function fmt(value: number, unit: UnitLike): string {
+  // The series says how many decimals it is quoted to. A level says "source", which means a
+  // figure in the thousands rounds to whole units and a smaller one keeps what the publisher
+  // wrote (a parity of 6.7828, a flow of 552), never padded to "552.00".
+  const quoted = measure(unit).decimals;
+  const decimals = quoted === "source" ? (Math.abs(value) >= 1000 ? 0 : ownDecimals(value)) : quoted;
   const text = value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   // A value that rounds to zero is zero, not "-0.0".
   return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
@@ -152,12 +159,12 @@ export function observationLabel(date: string, frequency: string): string {
   return periodPretty(date);
 }
 
-export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: string, style: "long" | "short" = "long", frequency = "Monthly"): string {
+export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: UnitLike, style: "long" | "short" = "long", frequency = "Monthly"): string {
   if (!latest || !previous) return "";
   const difference = latest.value - previous.value;
-  // Percentage points for a percentage; an index or a level changes in its own units.
-  // Percentage points for a percentage, points for a per-thousand rate; an index or a level changes in its own units.
-  const points = /‰|per thousand/i.test(unit) ? " pt" : /%|percent/i.test(unit) && !/index/i.test(unit) ? " pp" : "";
+  // The series says how its change reads: percentage points, points, or its own units.
+  const change = measure(unit).change;
+  const points = change === "pt" ? " pt" : change === "pp" ? " pp" : "";
   if (Math.abs(difference) < 0.000001) {
     if (style === "long") return `Unchanged from ${observationLabel(previous.date, frequency)}`;
     // The short form sits beside "+0.3 pp" on the Home list, so an unchanged rate says "0.0 pp" too.
@@ -253,7 +260,7 @@ export function yearEarlier(period: string): string {
  * stock is read; the previous month's difference is seasonality, not news. Empty when the
  * year-earlier point is missing or zero, so the caller can fall back to the period difference.
  */
-export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesPoint | undefined, options: { absolute?: boolean; unit?: string } = {}): string {
+export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesPoint | undefined, options: { absolute?: boolean; unit?: UnitLike } = {}): string {
   if (!latest || !yearAgo) return "";
   // A net figure or a balance can cross zero, where a percentage means nothing: its change is in its own units.
   if (options.absolute || yearAgo.value === 0 || Math.sign(latest.value) !== Math.sign(yearAgo.value)) {

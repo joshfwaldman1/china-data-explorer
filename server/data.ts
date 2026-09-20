@@ -17,6 +17,7 @@ import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, MONEY_ROWS, RESERVE_ROWS, CREDIT_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
 import { periodRange } from "./nbs-catalog";
+import { measureOf, type Measure } from "../shared/measure";
 import { fetchSafe, BOP_ITEMS, CROSS_BORDER_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
 
@@ -2015,6 +2016,8 @@ export interface CatalogEntry {
   homeTitle?: string;
   /** Every Home row this key has: one for most, one per named line for a table whose lines each get a row. */
   homeRows?: HomeRow[];
+  /** What the number is, as fields: the page formats from this rather than from the unit sentence. */
+  measure: Measure;
 }
 
 /**
@@ -2140,10 +2143,23 @@ HOME_ROWS.forEach((group, groupIndex) => group.rows.forEach((row, rowIndex) => {
   HOME_INDEX.set(row.key, rows);
 }));
 
+/**
+ * Where the unit sentence would mislead the derivation, the series says what
+ * it is. Keep this short: a growing list means the derivation is wrong.
+ */
+const UNIT_OVERRIDES: Record<string, Partial<Measure>> = {
+  // A count of firms, not a quantity with a unit to print.
+  fdi_new_enterprises: { suffix: "" },
+  // Rates the market quotes to two decimals, whose unit sentence says only "Percent".
+  lpr: { decimals: 2 },
+  lgb_rate: { decimals: 2 },
+};
+
 export function catalogList(): CatalogEntry[] {
   return Object.entries(CATALOG).map(([key, c]) => ({
     key, title: c.title, group: c.group, agency: c.agency,
     frequency: c.frequency, unit: c.unit, source: c.kind,
+    measure: measureOf(c.unit, UNIT_OVERRIDES[key]),
     ...(c.ended ? { ended: c.ended, endedNote: c.endedNote } : {}),
     // On Home only when listed in HOME_ROWS (or a hero tile); the listing carries the row's rank and name.
     ...(HOME_INDEX.has(key) || HERO_KEYS.includes(key)
