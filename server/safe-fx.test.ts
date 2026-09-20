@@ -36,7 +36,8 @@ test("the yuan monthly sheet parses every item from January 2010 to August 2026"
 
 test("August 2026 settlement, sales and the net match SAFE's release headline in yuan and in dollars", async () => {
   const headline = parseFxHeadline(new TextDecoder().decode(await fixture("fx-release-2026-08.html")));
-  expect(headline).toEqual({ period: "2026-08", settlement: 17090, sales: 13800, settlementUsd: 2518, salesUsd: 2033 });
+  // The release also states the cross-border figures, which safe-flows.test.ts covers.
+  expect(headline).toMatchObject({ period: "2026-08", settlement: 17090, sales: 13800, settlementUsd: 2518, salesUsd: 2033 });
   const cny = parseFxWorkbook(await fixture(WORKBOOK), "以人民币计价（月度）");
   const usd = parseFxWorkbook(await fixture(WORKBOOK), "以美元计价（月度）");
   const last = (series: Map<string, { date: string; value: number }[]>, label: string) => series.get(label)?.at(-1);

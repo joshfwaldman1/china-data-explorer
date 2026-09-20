@@ -386,6 +386,19 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "SAFE's monthly and annual sheets of the same workbook; the months are kept to two decimals.",
   },
   {
+    name: "Cross-border net receipts: months vs year (亿元)", kind: "annual",
+    monthly: { key: "cross_border_flows", label: "Net receipts" },
+    annual: { key: "cross_border_flows_annual", label: "Net receipts" },
+    tolerance: 1,
+    note: "SAFE's monthly and annual sheets of the same workbook; the months are kept to two decimals.",
+  },
+  {
+    name: "Cross-border receipts: months vs year (亿元)", kind: "annual",
+    monthly: { key: "cross_border_flows", label: "Receipts" },
+    annual: { key: "cross_border_flows_annual", label: "Receipts" },
+    tolerance: 1,
+  },
+  {
     name: "Bank FX settlement: months vs year (亿元)", kind: "annual",
     monthly: { key: "bank_fx_settlement", label: "Settlement" },
     annual: { key: "bank_fx_settlement_annual", label: "Settlement" },
@@ -459,6 +472,7 @@ export const NO_PAIR: Record<string, string> = {
   shibor_average: "As shibor: the same fixings, averaged over the month.",
   repo_fixing: "CFETS's fixings are the only source; the DR weighted averages they are fixed from are not on an endpoint the site reaches.",
   repo_fixing_average: "As repo_fixing: the same fixings, averaged over the month.",
+  cross_border_flows_usd: "The dollar valuation of cross_border_flows from the same workbook; the yuan series is summed against the annual table.",
   bank_fx_settlement_usd: "The dollar valuation of bank_fx_settlement from the same workbook; the yuan series is summed against the annual table.",
 };
 

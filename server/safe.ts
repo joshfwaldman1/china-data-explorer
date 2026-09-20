@@ -20,7 +20,8 @@
  */
 
 import type { SeriesPoint, SeriesResult } from "./data";
-import { columnLetters, readXlsx } from "./xlsx";
+import { columnLetters, readXlsx, type Sheet } from "./xlsx";
+import { readXls } from "./xls";
 
 const SITE = "https://www.safe.gov.cn";
 const PAGE = `${SITE}/en/2019/0329/1496.html`;
@@ -40,8 +41,8 @@ export interface SafeIndicator {
   home?: boolean;
   ended?: string;
   endedNote?: string;
-  /** Which SAFE publication: the balance of payments (default) or bank FX settlement and sales. */
-  table?: "bop" | "fx_settlement";
+  /** Which SAFE publication: the balance of payments (default), bank FX settlement and sales, or cross-border receipts and payments. */
+  table?: "bop" | "fx_settlement" | "cross_border";
   /** The workbook sheet read for fx_settlement (a monthly or annual sheet, in yuan or dollars). */
   sheet?: string;
   /** Day of the month by which the monthly release is normally out. */
@@ -85,6 +86,19 @@ export const FX_SETTLEMENT_ITEMS: SafeItem[] = [
 ];
 
 const FX_PAGE = `${SITE}/safe/2023/0215/22329.html`;
+/** 银行代客涉外收付款: the bank's receipts from and payments to non-residents on customers' behalf. */
+const FLOWS_PAGE = `${SITE}/safe/2018/0419/8806.html`;
+
+/** The 银行代客涉外收付款 rows served, the net first: it is the headline a reader wants. */
+export const CROSS_BORDER_ITEMS: SafeItem[] = [
+  { match: /^三、\s*收支差额/, label: "Net receipts" },
+  { match: /^一、\s*收入/, label: "Receipts" },
+  { match: /^二、\s*支出/, label: "Payments" },
+  { section: /^三、/, match: /^1\.经常账户/, label: "Net, current account" },
+  { section: /^三、/, match: /^1\.1货物贸易/, label: "Net, goods trade" },
+  { section: /^三、/, match: /^1\.2服务/, label: "Net, services" },
+  { section: /^三、/, match: /^2\.资本和金融账户/, label: "Net, capital and financial account" },
+];
 
 /** An Excel date serial (days since 30 December 1899) as "YYYY-MM"; SAFE's month headers are dates inside the month. */
 function serialMonth(serial: number): string {
@@ -99,8 +113,21 @@ function serialMonth(serial: number): string {
  * are in 亿元 or 亿美元 to two decimals, as the workbook keeps them to more.
  */
 export function parseFxWorkbook(bytes: ArrayBuffer | Uint8Array, sheetName: string, items = FX_SETTLEMENT_ITEMS): Map<string, SeriesPoint[]> {
-  const sheet = readXlsx(bytes).find((candidate) => candidate.name === sheetName);
-  if (!sheet) throw new Error(`SAFE FX workbook: no ${sheetName} sheet`);
+  return parseSeriesSheet(readXlsx(bytes), sheetName, items, "SAFE FX workbook");
+}
+
+/**
+ * The same shape of table in the older Excel format: SAFE publishes the
+ * cross-border receipts and payments time series as a BIFF .xls (xls.ts
+ * reads it) while the settlement workbook is .xlsx.
+ */
+export function parseFlowsWorkbook(bytes: ArrayBuffer | Uint8Array, sheetName: string, items = CROSS_BORDER_ITEMS): Map<string, SeriesPoint[]> {
+  return parseSeriesSheet(readXls(bytes), sheetName, items, "SAFE cross-border workbook");
+}
+
+function parseSeriesSheet(sheets: Sheet[], sheetName: string, items: SafeItem[], what: string): Map<string, SeriesPoint[]> {
+  const sheet = sheets.find((candidate) => candidate.name === sheetName);
+  if (!sheet) throw new Error(`${what}: no ${sheetName} sheet`);
   let headerRow = 0, periods: { column: number; period: string }[] = [];
   for (let row = 1; row <= 12; row += 1) {
     const found: { column: number; period: string }[] = [];
@@ -111,11 +138,11 @@ export function parseFxWorkbook(bytes: ArrayBuffer | Uint8Array, sheetName: stri
     }
     if (found.length > periods.length) { periods = found; headerRow = row; }
   }
-  if (periods.length === 0) throw new Error("SAFE FX workbook: no period header");
+  if (periods.length === 0) throw new Error(`${what}: no period header`);
   // A monthly header must step one month at a time; a slipped serial would shift every later month.
   for (let index = 1; index < periods.length; index += 1) {
     const previous = periods[index - 1]!.period, current = periods[index]!.period;
-    if (previous.length === 7 && current !== nextMonth(previous)) throw new Error(`SAFE FX workbook: header jumps from ${previous} to ${current}`);
+    if (previous.length === 7 && current !== nextMonth(previous)) throw new Error(`${what}: header jumps from ${previous} to ${current}`);
   }
   const out = new Map<string, SeriesPoint[]>();
   let section = "";
@@ -134,7 +161,7 @@ export function parseFxWorkbook(bytes: ArrayBuffer | Uint8Array, sheetName: stri
     }
     if (points.length > 0) out.set(item.label, points);
   }
-  if (!out.has("Net settlement") && !out.has("Settlement")) throw new Error("SAFE FX workbook: no settlement row found");
+  if (out.size === 0) throw new Error(`${what}: no configured row found`);
   return out;
 }
 
@@ -143,7 +170,11 @@ function nextMonth(period: string): string {
   return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
 }
 
-export interface FxHeadline { period: string; settlement: number; sales: number; settlementUsd: number; salesUsd: number }
+export interface FxHeadline {
+  period: string; settlement: number; sales: number; settlementUsd: number; salesUsd: number;
+  /** The same release's cross-border figures, in 亿元; absent from a release that omits them. */
+  receipts?: number; payments?: number;
+}
 
 /**
  * The monthly release ("国家外汇管理局公布N年M月银行结售汇和银行代客涉外收付款数据")
@@ -155,7 +186,12 @@ export function parseFxHeadline(html: string): FxHeadline | null {
   const cny = text.match(/(\d{4})年(\d{1,2})月，银行结汇(-?\d+)亿元人民币，售汇(-?\d+)亿元人民币/);
   const usd = text.match(/按美元计值，(\d{4})年(\d{1,2})月，银行结汇(-?\d+)亿美元，售汇(-?\d+)亿美元/);
   if (!cny || !usd) return null;
-  return { period: `${cny[1]}-${cny[2]!.padStart(2, "0")}`, settlement: Number(cny[3]), sales: Number(cny[4]), settlementUsd: Number(usd[3]), salesUsd: Number(usd[4]) };
+  // The same release states the cross-border receipts and payments after the settlement figures.
+  const flows = text.match(/(\d{4})年(\d{1,2})月，银行代客涉外收入(-?\d+)亿元人民币，对外付款(-?\d+)亿元人民币/);
+  return {
+    period: `${cny[1]}-${cny[2]!.padStart(2, "0")}`, settlement: Number(cny[3]), sales: Number(cny[4]), settlementUsd: Number(usd[3]), salesUsd: Number(usd[4]),
+    ...(flows ? { receipts: Number(flows[3]), payments: Number(flows[4]) } : {}),
+  };
 }
 
 /**
@@ -277,6 +313,7 @@ async function get(url: string): Promise<ArrayBuffer> {
  */
 export async function fetchSafe(key: string, cfg: SafeIndicator, limit: number, read: (url: string) => Promise<ArrayBuffer> = get): Promise<SeriesResult> {
   if (cfg.table === "fx_settlement") return fetchFxSettlement(key, cfg, limit, read);
+  if (cfg.table === "cross_border") return fetchCrossBorder(key, cfg, limit, read);
   const page = new TextDecoder().decode(await read(PAGE));
   const link = workbookLink(page);
   if (!link) throw new Error("SAFE: the time-series page carries no workbook link");
@@ -333,6 +370,32 @@ async function fetchFxSettlement(key: string, cfg: SafeIndicator, limit: number,
   }
   return {
     key, title: cfg.title, agency: cfg.agency, sourceUrl: FX_PAGE, frequency: cfg.frequency, unit: cfg.unit,
+    series: cfg.items.filter((item) => series.has(item.label)).map((item) => ({ label: item.label, points: (series.get(item.label) ?? []).slice(-Math.max(1, limit)) })),
+  };
+}
+
+/**
+ * The last `limit` periods of each configured item from one sheet of the
+ * cross-border receipts and payments workbook, which the statistics page
+ * links as the time series (the link changes with each month's replacement).
+ */
+async function fetchCrossBorder(key: string, cfg: SafeIndicator, limit: number, read: (url: string) => Promise<ArrayBuffer>): Promise<SeriesResult> {
+  const page = new TextDecoder().decode(await read(FLOWS_PAGE));
+  const link = workbookLink(page, /时间序列/);
+  if (!link) throw new Error("SAFE: the cross-border page carries no time-series workbook link");
+  if (!cfg.sheet) throw new Error(`${key}: a SAFE cross_border series names its sheet`);
+  const bytes = await read(link);
+  const series = parseFlowsWorkbook(bytes, cfg.sheet, cfg.items);
+  // As the settlement workbook: an annual sheet's last column can be the year so far.
+  if (cfg.sheet.includes("年度")) {
+    const monthly = parseFlowsWorkbook(bytes, cfg.sheet.replace("年度", "月度"), cfg.items);
+    const lastMonth = [...monthly.values()].map((points) => points.at(-1)?.date ?? "").sort().at(-1) ?? "";
+    if (lastMonth && !lastMonth.endsWith("-12")) {
+      for (const [label, points] of series) series.set(label, points.filter((point) => point.date !== lastMonth.slice(0, 4)));
+    }
+  }
+  return {
+    key, title: cfg.title, agency: cfg.agency, sourceUrl: FLOWS_PAGE, frequency: cfg.frequency, unit: cfg.unit,
     series: cfg.items.filter((item) => series.has(item.label)).map((item) => ({ label: item.label, points: (series.get(item.label) ?? []).slice(-Math.max(1, limit)) })),
   };
 }

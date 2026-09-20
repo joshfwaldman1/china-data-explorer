@@ -17,7 +17,7 @@ import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, MONEY_ROWS, RESERVE_ROWS, CREDIT_ROWS, type PbocIndicator } from "./pboc";
 import { fetchMof, mofLabels, type MofIndicator } from "./mof";
 import { periodRange } from "./nbs-catalog";
-import { fetchSafe, BOP_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
+import { fetchSafe, BOP_ITEMS, CROSS_BORDER_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
 
 const UA =
@@ -69,6 +69,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   household_income_growth: ["disposable income", "household income", "income growth", "可支配收入"],
   lgb_issuance: ["local government bonds", "special bonds", "bond issuance", "地方政府债券", "专项债券"],
   tax_by_type: ["vat", "value added tax", "income tax", "stamp duty", "tariffs", "增值税", "所得税", "印花税", "关税"],
+  cross_border_flows: ["cross-border receipts", "cross border payments", "涉外收付款", "涉外收入"],
+  cross_border_flows_usd: ["cross-border receipts usd", "涉外收付款 美元"],
   tax_by_type_growth: ["tax growth by type", "税收增长"],
   lgb_debt: ["local government debt", "debt outstanding", "地方政府债务", "债务余额"],
   lgb_rate: ["bond issuance rate", "发行利率"],
@@ -1146,6 +1148,30 @@ export const CATALOG: Record<string, Indicator> = {
     // twelve months are summed against the workbook's annual table.
     sheet: "以人民币计价（月度）", items: FX_SETTLEMENT_ITEMS, releaseDay: 18,
   },
+  cross_border_flows: {
+    kind: "safe", table: "cross_border", group: "Trade & External",
+    title: "Bank Cross-Border Receipts and Payments", agency: "State Administration of Foreign Exchange",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元)",
+    // SAFE's 银行代客涉外收付款: what banks received from and paid to
+    // non-residents on their customers' behalf, replaced each month around
+    // the 15th beside the settlement workbook. Wider than settlement, which
+    // counts only the currency actually exchanged. Published as a legacy
+    // .xls, which server/xls.ts reads. Concordance: the months of each
+    // complete year are summed against the workbook's annual table.
+    sheet: "以人民币计值（月度）", items: CROSS_BORDER_ITEMS, releaseDay: 18,
+  },
+  cross_border_flows_usd: {
+    kind: "safe", table: "cross_border", group: "Trade & External",
+    title: "Bank Cross-Border Receipts and Payments (USD)", agency: "State Administration of Foreign Exchange",
+    frequency: "Monthly", unit: "Hundred million USD (亿美元)", home: false,
+    sheet: "以美元计值（月度）", items: CROSS_BORDER_ITEMS, releaseDay: 18,
+  },
+  cross_border_flows_annual: {
+    kind: "safe", table: "cross_border", group: "Trade & External",
+    title: "Bank Cross-Border Receipts and Payments, Annual", agency: "State Administration of Foreign Exchange",
+    frequency: "Annual", unit: "Hundred million yuan (亿元)", home: false,
+    sheet: "以人民币计值（年度）", items: CROSS_BORDER_ITEMS, releaseDay: 18,
+  },
   bank_fx_settlement_usd: {
     kind: "safe", table: "fx_settlement", group: "Trade & External",
     title: "Bank FX Settlement and Sales (USD)", agency: "State Administration of Foreign Exchange",
@@ -1909,6 +1935,7 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "balance_of_payments", title: "Current Account Balance" },
     { key: "forex_reserves", title: "Official Foreign Exchange Reserves" },
     { key: "bank_fx_settlement", title: "Net Bank FX Settlement" },
+    { key: "cross_border_flows", title: "Net Bank Cross-Border Receipts" },
     { key: "fdi_actual_use", title: "Foreign Direct Investment, Actual Use, Year to Date" },
   ] },
   { group: "Public Finance", rows: [
