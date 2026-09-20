@@ -47,6 +47,7 @@ export interface MofIndicator {
 }
 
 export type MofItem = "revenue" | "tax" | "nonTax" | "expenditure" | "fundRevenue" | "landSales" | "fundExpenditure"
+  | "domesticVat" | "consumptionTax" | "corporateTax" | "personalTax" | "importVat" | "tariffs" | "exportRebate" | "stampDuty" | "securitiesStamp" | "landVat" | "deedTax" | "vehicleTax"
   | "bondIssuance" | "bondGeneral" | "bondSpecial" | "bondNew" | "bondRefinancing" | "bondRate" | "debtBalance" | "debtGeneral" | "debtSpecial";
 
 /** The phrase that introduces each item in the release, and the site's label for it. */
@@ -58,6 +59,20 @@ export const MOF_ITEMS: Record<MofItem, { phrase: string; label: string }> = {
   fundRevenue: { phrase: "全国政府性基金预算收入", label: "Government fund budget revenue, year to date" },
   landSales: { phrase: "国有土地使用权出让收入", label: "Land sale revenue, year to date" },
   fundExpenditure: { phrase: "全国政府性基金预算支出", label: "Government fund budget expenditure, year to date" },
+  // The release's "主要税收收入项目" paragraph: each tax's year-to-date take and its growth. The
+  // phrases are unique in the text (国内增值税 is not 土地增值税; 印花税 comes before 证券交易印花税).
+  domesticVat: { phrase: "国内增值税", label: "Domestic VAT, year to date" },
+  consumptionTax: { phrase: "国内消费税", label: "Domestic consumption tax, year to date" },
+  corporateTax: { phrase: "企业所得税", label: "Corporate income tax, year to date" },
+  personalTax: { phrase: "个人所得税", label: "Personal income tax, year to date" },
+  importVat: { phrase: "进口货物增值税、消费税", label: "Import VAT and consumption tax, year to date" },
+  tariffs: { phrase: "关税", label: "Tariffs, year to date" },
+  exportRebate: { phrase: "(?:出口退税|出口货物退增值税、消费税)", label: "Export tax rebates, year to date" },
+  stampDuty: { phrase: "印花税", label: "Stamp duty, year to date" },
+  securitiesStamp: { phrase: "证券交易印花税", label: "Securities transaction stamp duty, year to date" },
+  landVat: { phrase: "土地增值税", label: "Land appreciation tax, year to date" },
+  deedTax: { phrase: "契税", label: "Deed tax, year to date" },
+  vehicleTax: { phrase: "车辆购置税", label: "Vehicle purchase tax, year to date" },
   // The bond release; parseBondRelease reads these by sentence, so the phrase is the sentence's opening.
   bondIssuance: { phrase: "合计，全国发行地方政府债券", label: "Bonds issued in the month, total" },
   bondGeneral: { phrase: "其中一般债券", label: "General bonds issued in the month" },

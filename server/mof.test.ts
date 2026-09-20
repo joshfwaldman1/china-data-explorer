@@ -31,7 +31,8 @@ test("the listing pages yield the releases newest first, with absolute URLs and 
 
 test("a month's release gives the year-to-date levels and their growth", async () => {
   const figures = parseFiscalRelease(await fixture("release-2026-07.html"));
-  expect(figures?.level).toEqual({ revenue: 143696, tax: 118381, nonTax: 25315, expenditure: 162889, fundRevenue: 18219, landSales: 11731, fundExpenditure: 45410 });
+  // The budget aggregates; the same release's tax breakdown is covered in mof-tax.test.ts.
+  expect(figures?.level).toMatchObject({ revenue: 143696, tax: 118381, nonTax: 25315, expenditure: 162889, fundRevenue: 18219, landSales: 11731, fundExpenditure: 45410 });
   expect(figures?.growth.revenue).toBe(5.8);
   expect(figures?.growth.landSales).toBe(-30.8);
   expect(figures?.growth.fundRevenue).toBe(-21.2);

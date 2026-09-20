@@ -68,6 +68,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   services_production: ["services production", "services output", "services index", "服务业生产指数", "服务业"],
   household_income_growth: ["disposable income", "household income", "income growth", "可支配收入"],
   lgb_issuance: ["local government bonds", "special bonds", "bond issuance", "地方政府债券", "专项债券"],
+  tax_by_type: ["vat", "value added tax", "income tax", "stamp duty", "tariffs", "增值税", "所得税", "印花税", "关税"],
+  tax_by_type_growth: ["tax growth by type", "税收增长"],
   lgb_debt: ["local government debt", "debt outstanding", "地方政府债务", "债务余额"],
   lgb_rate: ["bond issuance rate", "发行利率"],
   household_income: ["disposable income per capita", "居民人均可支配收入"],
@@ -1293,6 +1295,26 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
     measure: "growth",
     items: ["revenue", "tax", "expenditure", "landSales", "fundRevenue"],
+    releaseDay: 25,
+  },
+  tax_by_type: {
+    kind: "mof", group: "Public Finance", home: false,
+    title: "Tax Revenue by Type, Year to Date", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    // The 财政收支情况 release's list of the main taxes, January to the month.
+    // Export rebates are a deduction from revenue, shown as the ministry
+    // prints them. No pair: total tax revenue from the same release is paired.
+    measure: "level",
+    items: ["domesticVat", "corporateTax", "personalTax", "consumptionTax", "importVat", "tariffs", "exportRebate", "stampDuty", "securitiesStamp", "landVat", "deedTax", "vehicleTax"],
+    releaseDay: 25,
+  },
+  tax_by_type_growth: {
+    kind: "mof", group: "Public Finance", home: false,
+    title: "Tax Revenue by Type, Growth Year to Date", agency: "Ministry of Finance",
+    frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
+    // A tax the release describes as up "1.1倍" (more than doubled) rather than in percent has no point that month.
+    measure: "growth",
+    items: ["domesticVat", "corporateTax", "personalTax", "consumptionTax", "importVat", "tariffs", "exportRebate", "stampDuty", "securitiesStamp", "landVat", "deedTax", "vehicleTax"],
     releaseDay: 25,
   },
   tax_revenue: {

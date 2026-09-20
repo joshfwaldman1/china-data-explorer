@@ -437,6 +437,8 @@ export const NO_PAIR: Record<string, string> = {
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
   electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
+  tax_by_type: "The ministry's release is the only source of the tax breakdown; total tax revenue from the same release is paired.",
+  tax_by_type_growth: "As tax_by_type: the rates the ministry prints beside the levels.",
   lgb_issuance: "The ministry's monthly release is the only aggregate of local government bond issuance; the exchanges publish per bond.",
   lgb_debt: "As lgb_issuance: the same release's outstanding debt.",
   lgb_rate: "As lgb_issuance: the same release's average rate.",
