@@ -112,6 +112,7 @@ type Route =
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
   | { view: "regions"; period: string; key: string }
+  | { view: "methodology"; key: string }
   | { view: "saved" }
   | { view: "recent" };
 
@@ -388,6 +389,7 @@ function parseRoute(hash: string): Route {
   if (head === "category" && parts[1]) return { view: "search", q: "", freq: "", cat: decodeURIComponent(parts[1]), dataset: "", geo: "" };
   if (head === "releases") return { view: "releases", month: query.get("month") ?? "" };
   if (head === "regions") return { view: "regions", period: query.get("period") ?? "", key: query.get("key") ?? "" };
+  if (head === "methodology") return { view: "methodology", key: query.get("key") ?? "" };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -401,6 +403,7 @@ function routeHash(route: Route): string {
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
     case "regions": return `#/regions${qs([["period", route.period], ["key", route.key]])}`;
+    case "methodology": return `#/methodology${qs([["key", route.key]])}`;
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -601,6 +604,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
         <div className="side-list">
           <a className="nav-row" href="#/saved" aria-current={props.route.view === "saved" ? "page" : undefined}><span className="label">Saved series</span><span className="count">{props.saved.length}</span></a>
           <a className="nav-row" href="#/recent" aria-current={props.route.view === "recent" ? "page" : undefined}><span className="label">Recently viewed</span><span className="count">{props.recent.length}</span></a>
+          <a className="nav-row" href="#/methodology" aria-current={props.route.view === "methodology" ? "page" : undefined}><span className="label">How these figures are made</span></a>
         </div>
       </details>
       </div>
@@ -949,6 +953,98 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
         <div className="result-list" style={{ marginTop: 20 }}>
           {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a></article>; })}
         </div>
+      )}
+    </main>
+  );
+}
+
+// ── Methodology ───────────────────────────────────────────────────────────────
+
+interface SourceSection { id: string; title: string; publisher: string; reads: string; how: string; revisions: string; caveats: string[]; keys: string[] }
+interface KeyMethod { key: string; title: string; agency: string; source: string; frequency: string; unit: string; caveats: string[]; check: { kind: string; names?: string[]; reason?: string } }
+
+/**
+ * How each figure was made and how it reached the site. A section per path the
+ * data takes, the site's own handling, and, when a series is named in the
+ * link, that series first.
+ */
+function MethodologyPage(props: { route: Extract<Route, { view: "methodology" }>; curated: CuratedEntry[] }) {
+  const [sources, setSources] = useState<SourceSection[]>([]);
+  const [keys, setKeys] = useState<KeyMethod[]>([]);
+  const [site, setSite] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  useEffect(() => {
+    let cancelled = false;
+    json("/api/methodology").then((body) => {
+      if (cancelled) return;
+      const rawSources = listOf(body, "sources");
+      setSources(rawSources.map((item) => ({
+        id: str(item, "id"), title: str(item, "title"), publisher: str(item, "publisher"),
+        reads: str(item, "reads"), how: str(item, "how"), revisions: str(item, "revisions"),
+        caveats: listOf(item, "caveats").filter((line): line is string => typeof line === "string"),
+        keys: listOf(item, "keys").filter((key): key is string => typeof key === "string"),
+      })));
+      setKeys(listOf(body, "keys").map((item) => ({
+        key: str(item, "key"), title: str(item, "title"), agency: str(item, "agency"), source: str(item, "source"),
+        frequency: str(item, "frequency"), unit: str(item, "unit"),
+        caveats: listOf(item, "caveats").filter((line): line is string => typeof line === "string"),
+        check: { kind: str(obj(item, "check") ?? {}, "kind"), names: listOf(obj(item, "check") ?? {}, "names").filter((name): name is string => typeof name === "string"), reason: str(obj(item, "check") ?? {}, "reason") },
+      })));
+      const rawSite = obj(body, "site");
+      setSite(rawSite ? Object.fromEntries(Object.entries(rawSite).filter(([, value]) => typeof value === "string")) as Record<string, string> : {});
+      setStatus("ok");
+    }).catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, []);
+  const named = props.route.key ? keys.find((item) => item.key === props.route.key) : undefined;
+  const checkLine = (item: KeyMethod) =>
+    item.check.kind === "pair" ? `Cross-checked by: ${(item.check.names ?? []).join("; ")}.`
+    : item.check.kind === "foreign" ? "Not a Chinese official statistic; carried for comparison and not cross-checked here."
+    : `No independent reading: ${item.check.reason}`;
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Methodology</span></div>
+      <h1>How These Figures Are Made</h1>
+      <p className="lede">Who compiled each number, how it reached this site, what the publisher revises, and how the figure is checked here.</p>
+      {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading…</div>}
+      {status === "error" && <div className="state"><b>Methodology unavailable</b><p>The server did not answer.</p></div>}
+      {status === "ok" && (
+        <>
+          {named && (
+            <section className="method-key">
+              <h2>{named.title}</h2>
+              <p>{named.agency}. {named.frequency}. {named.unit}.</p>
+              <p>{checkLine(named)}</p>
+              {named.caveats.length > 0 && <ul>{named.caveats.map((line) => <li key={line}>{line}</li>)}</ul>}
+              <p><a href={seriesHash([named.key])}>Back to the series ›</a></p>
+            </section>
+          )}
+          <section>
+            <h2>What this site does with a figure</h2>
+            <dl className="method-site">
+              {[["Storage", site.storage], ["Checking", site.audit], ["Attribution", site.attribution], ["Derivation", site.derivation]].map(([label, text]) => text ? (
+                <div key={label}><dt>{label}</dt><dd>{text}</dd></div>
+              ) : null)}
+            </dl>
+          </section>
+          {sources.map((section) => (
+            <section key={section.id} id={`source-${section.id}`}>
+              <h2>{section.title}</h2>
+              <p><b>Publisher.</b> {section.publisher}</p>
+              <p><b>What is read.</b> {section.reads}</p>
+              <p><b>How.</b> {section.how}</p>
+              <p><b>Revisions.</b> {section.revisions}</p>
+              {section.caveats.length > 0 && <ul>{section.caveats.map((line) => <li key={line}>{line}</li>)}</ul>}
+              <details>
+                <summary>{section.keys.length} series on this path</summary>
+                <div className="links">{section.keys.map((key) => {
+                  const entry = props.curated.find((item) => item.key === key);
+                  return <a key={key} href={seriesHash([key])}>{entry?.title ?? key}</a>;
+                })}</div>
+              </details>
+            </section>
+          ))}
+        </>
       )}
     </main>
   );
@@ -1454,7 +1550,7 @@ function SeriesPage(props: {
         <div className="card">
           <h2>Series Details</h2>
           <dl>
-            <dt>Source</dt><dd>{primary.agency}</dd>
+            <dt>Source</dt><dd>{primary.agency}{curated && <> · <a href={routeHash({ view: "methodology", key: primary.key })}>How this figure is made ›</a></>}</dd>
             <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"}</a></dd>
             {meta && <><dt>Dataset</dt><dd>{meta.datasetEn ? <>{meta.datasetEn} <Zh className="gloss">{meta.dataset}</Zh></> : <Zh>{meta.dataset}</Zh>}</dd></>}
             <dt>Category</dt><dd>{meta ? categoryPath(meta) : curated?.group ?? "—"}</dd>
@@ -1777,7 +1873,7 @@ function App() {
     setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
-      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
@@ -1844,6 +1940,7 @@ function App() {
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
         {route.view === "browse" && <BrowsePage stats={stats} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
+        {route.view === "methodology" && <MethodologyPage route={route} curated={curated} />}
         {route.view === "regions" && <RegionsPage route={route} lang={lang} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}

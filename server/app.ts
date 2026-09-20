@@ -39,6 +39,7 @@ import { PRIORITY, createWorker } from "./worker";
 import { formatResult, runConcordance } from "./concordance";
 import { fetchCustomsReleases } from "./customs-calendar";
 import { createReadinessProbe } from "./readiness";
+import { methodology } from "./methodology";
 import { createBackupManager } from "./backup";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
@@ -191,6 +192,9 @@ const routes = {
     "/ready": () => readiness.check(),
     "/live": () => Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }),
     "/api/catalog": () => Response.json(catalogList()),
+    // How each figure was made and how it reached the site: a section per path
+    // the data takes, the site's own handling, and a section per curated key.
+    "/api/methodology": () => Response.json(methodology(catalogList())),
     // Every headline series at once for the Home page: the stored copy of each with its last
     // 24 points, in one round trip instead of one request per indicator after the catalog.
     "/api/home": () => {

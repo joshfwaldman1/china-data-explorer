@@ -538,6 +538,10 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
  * or to a pair; a new curated headline must land in one or the other.
  */
 export const NO_PAIR: Record<string, string> = {
+  cgb_yields: "The trading system's own closes are the only Chinese sovereign curve on the site; nothing else here carries one to compare them with.",
+  caixin_pmi: "A different panel from NBS's survey — smaller, more export-oriented firms — so the two are not readings of the same statistic and a disagreement between them is information, not an error.",
+  caixin_services_pmi: "As caixin_pmi: a different panel from the bureau's non-manufacturing survey, and not a second reading of it.",
+
   electricity_by_source_growth: "The rates NBS prints beside the levels; the levels they summarise are checked against each other and against their sum.",
   fuel_output_growth: "As electricity_by_source_growth: the coal, oil and gas levels carry the checks.",
   provincial_cpi: "A province's index is published once; the national CPI is a different geography.",
