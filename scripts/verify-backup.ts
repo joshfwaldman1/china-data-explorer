@@ -37,6 +37,20 @@ export async function verifyBackup(path: string, expected: BackupManifest): Prom
 }
 
 if (import.meta.main) {
+  // Say what happened, then leave, deliberately.
+  //
+  // Setting `process.exitCode` and falling off the end means the process
+  // exits only once the event loop drains, and this script opens SQLite
+  // through its imports and spawns a child of its own. A single handle that
+  // outlives the work turns "finished" into "never exits", and a caller
+  // reading this process's output waits for an end of file that does not
+  // come. That is what happened on CI on 20 September 2026: the verifier
+  // test did not run slowly, it hung, first against the default five-second
+  // budget and then against a sixty-second one. Writing the streams and then
+  // exiting on a stated code makes the outcome independent of what any
+  // import left running. Bun.write resolves once the bytes are handed over,
+  // so nothing is truncated by the exit that follows.
+  let code = 0;
   try {
     const [path, metadataPath] = Bun.argv.slice(2);
     if (!path || !metadataPath) throw new Error("Usage: bun scripts/verify-backup.ts SNAPSHOT MANIFEST_OR_CURL_HEADERS");
@@ -47,9 +61,10 @@ if (import.meta.main) {
     if (/[\r\n\\]/.test(name)) throw new Error("Invalid backup filename");
     await writeFile(`${path}.manifest.json`, `${JSON.stringify({ ...manifest, verifiedAt: new Date().toISOString(), restoreVerified: true }, null, 2)}\n`);
     await writeFile(`${path}.sha256`, `${manifest.sha256}  ${name}\n`);
-    console.log(`Verified and restored ${manifest.observations} observations, ${manifest.series} series; SHA-256 ${manifest.sha256}`);
+    await Bun.write(Bun.stdout, `Verified and restored ${manifest.observations} observations, ${manifest.series} series; SHA-256 ${manifest.sha256}\n`);
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
+    await Bun.write(Bun.stderr, `${error instanceof Error ? error.message : String(error)}\n`);
+    code = 1;
   }
+  process.exit(code);
 }
