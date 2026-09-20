@@ -118,6 +118,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Both lines from NBS's quarterly index table (当季 and 累计).",
   },
   {
+    name: "Services production: month vs year to date", kind: "cumulative",
+    period: { key: "services_production", label: "Services production, month (YoY %)" },
+    yearToDate: { key: "services_production", label: "Services production, year to date (YoY %)" },
+    tolerance: 0.05,
+    note: "Both lines from NBS's monthly 服务业生产指数 table (当月 and 累计); January and February are published together.",
+  },
+  {
     name: "Electricity consumption growth: month vs year to date", kind: "cumulative",
     period: { key: "electricity_demand_growth", label: "All users, month (YoY %)" },
     yearToDate: { key: "electricity_demand_growth", label: "All users, year to date (YoY %)" },

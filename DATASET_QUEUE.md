@@ -1,44 +1,80 @@
 # Dataset queue
 
 Worked top to bottom by `DATASET_LOOP.md`, one item per round. Each item
-carries the test that defines it as done. Prerequisites in brackets.
+carries the test that defines it as done. Prerequisites in brackets. Refilled
+on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **Remaining English glosses.** [needs API credit] `bun run
-    china:translate --concurrency=8` for the 14,244 annual base concepts
-    still on the token dictionary, then `china:translate-notes`.
-    *Test:* `gloss-en.json` entry count rises above 55,000; a sample of ten
-    annual titles that read as Chinese fragments now read as English.
+1. **Services production index.** NBS's monthly 服务业生产指数 (month and year
+   to date, YoY %), the services counterpart of industrial production, as a
+   Growth row; a cumulative pair between its two lines.
+   *Test:* both ids resolve; the pair holds at every first period of a year.
 
-2. **NEA follow-ups.** May 2026 consumption is an image in the fuller
-   release; watch for a text version or a later revision table. The demand
-   note's day is set (the 21st).
+2. **Tax revenue by type.** The same MOF fiscal release carries domestic
+   VAT, consumption tax, corporate and personal income tax, import VAT and
+   consumption tax, export rebates and stamp duty (year to date, 亿元, with
+   growth). Extend the MOF items; a `tax_by_type` key with levels and one
+   with growth.
+   *Test:* the July 2026 fixture parses to the ministry's figures for each.
+
+3. **SAFE cross-border receipts and payments.** 银行代客涉外收付款 from the
+   same SAFE statistics page as bank FX settlement (workbook, monthly and
+   annual, yuan and dollars): receipts, payments, net, by current and
+   capital account. An annual-sum pair like round 24's.
+   *Test:* August 2026 receipts and payments match SAFE's release headline.
+
+4. **PBOC quarterly surveys.** The bank's 城镇储户问卷调查 (income confidence,
+   employment sentiment, saving and spending intentions), 企业家问卷调查 and
+   银行家问卷调查 indices, quarterly, from pbc.gov.cn's survey pages (text or
+   PDF); a Sentiment row for the employment sentiment index.
+   *Test:* Q2 2026 indices parse and match the bank's release.
+
+5. **Port throughput.** MOT's monthly 港口货物吞吐量 and 集装箱吞吐量 (month
+   and year to date) from mot.gov.cn's statistics releases; probe first.
+   *Test:* August 2026 container throughput parses and matches the release.
+
+6. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
+   primary, secondary and tertiary value added (当季值 and 累计值, 亿元) as a
+   Growth key; no growth rates exist in the quarterly database.
+   *Test:* eight ids resolve; Q2 2026 levels match NBS's release.
+
+7. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
+   employment line (already collected).
+   *Test:* the row renders with the August 2026 value.
+
+8. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
+   monthly retail and wholesale passenger-vehicle sales as text; CAAM is
+   parked (images).
+   *Test:* August 2026 retail sales parse and match the release.
+
+9. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
+   fuller release; watch for a text version or a later revision table. The
+   demand note's day is set (the 21st). August 2026's note is due about
+   21 September.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-3. **Property: developer financing and mortgages.** [parked: source not
-   found] From PBOC's quarterly 金融机构贷款投向统计报告: real estate loans
-   outstanding, mortgages (个人住房贷款) and their growth. On 16 September
-   none of the survey-and-statistics department's sections nor the news
-   listing carried the report and the listings do not paginate under
-   index_N.html; try the bank's site search, the 货币政策执行报告 (quarterly,
-   with the same figures in its text), or a headed browser on the listing.
-   *Test:* Q2 2026 mortgage balance parses from the release and matches the
-   bank's headline.
+10. **Notes and annotations in English.** [needs API credit] Titles are
+    now NBS's own; `bun run china:translate-notes` for the explanatory notes
+    and annotations under them, then re-read the five tables that timed out
+    in the English crawl.
+    *Test:* `notes-en.json` covers every note the catalog carries.
 
-4. **MOFCOM weekly prices.** [parked: source not found] The weekly
-   食用农产品 and 生产资料 market price indices are not on price.mofcom.gov.cn
-   (its columns — 监测周报, 粮农土畜, 能源化工, 经贸简讯 — hold international
-   commodity monitoring, trade news and daily briefs; the list endpoint is
-   `POST /datamofcom/front/price/list` with `cid=yjzx/jczb&pageNumber=N`),
-   and the ministry's news list carries no weekly market-price item in 2026.
-   Try the 商务预报 site (cif.mofcom.gov.cn) or the weekly item in 每日经贸简讯.
-   *Test:* one report parses to the two indices.
+11. **Property: developer financing and mortgages.** [parked: source not
+    found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
+    survey-and-statistics department's sections on 16 September; try the
+    bank's site search, the 货币政策执行报告, or a headed browser.
+    *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-5. **High-frequency group.** [blocked: needs AKTools on the deployment] Freight index (`macro_china_freight_index`)
-    and Baltic indices in a group labelled "High-frequency (commercial)".
-    *Test:* each series labelled with its channel; the home page does not list
-    them.
+12. **MOFCOM weekly prices.** [parked: source not found] The weekly
+    食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
+    endpoint (`POST /datamofcom/front/price/list`, which carries international
+    monitoring only).
+    *Test:* the latest week parses and matches the ministry's release.
+
+13. **High-frequency group.** [blocked: needs AKTools on the deployment]
+    Freight index, port throughput, daily commodity prices from AkShare.
+    *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
 - **MOHRSS urban new jobs (城镇新增就业).** [parked: mohrss.gov.cn answers
   every request with a script challenge that sets a bot cookie; the site
@@ -46,8 +82,7 @@ carries the test that defines it as done. Prerequisites in brackets.
   figure in prose only.]
 
 - **Auto sales (CAAM).** [parked: caam.org.cn publishes each monthly release as
-  an image, and its listing stops at May 2026; MIIT's copy is script-rendered.
-  CPCA (乘联会) is the remaining candidate; probe before building.]
+  an image, and its listing stops at May 2026; MIIT's copy is script-rendered.]
 
 ## Done
 

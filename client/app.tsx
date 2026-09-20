@@ -241,6 +241,7 @@ const ABOUT: Record<string, string> = {
   household_income: "Per-capita disposable income in yuan, year to date, from the quarterly household survey; the fourth quarter is the full year.",
   household_spending_growth: "Per-capita consumption spending from the quarterly household survey, year to date, nominal growth on a year earlier, all residents and urban and rural.",
   household_spending: "Per-capita consumption spending in yuan, year to date, from the quarterly household survey.",
+  services_production: "NBS's index of services production, the services counterpart of industrial production: growth on a year earlier for the month and for the year to date. January and February are published together, so the month line's February value covers both months.",
   working_hours: "Average hours worked per week by enterprise employees, from NBS's monthly labour force survey: the one measure of labour intensity the bureau publishes monthly.",
   employment: "NBS's year-end count of employed persons, total and by urban and rural residence, from the annual dataset. China publishes no monthly labour force participation rate.",
   population_nbs: "NBS's year-end population, total and by urban and rural residence. The World Bank series on the site is a UN estimate on a different basis.",

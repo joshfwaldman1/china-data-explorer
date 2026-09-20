@@ -65,6 +65,7 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   provincial_gdp: ["guangdong", "provincial gdp", "regional gdp", "广东", "地区生产总值"],
   migrant_workers: ["migrant workers", "rural migrants", "外出务工", "农民工"],
   working_hours: ["hours worked", "working hours", "working week", "工作时间"],
+  services_production: ["services production", "services output", "services index", "服务业生产指数", "服务业"],
   household_income_growth: ["disposable income", "household income", "income growth", "可支配收入"],
   lgb_issuance: ["local government bonds", "special bonds", "bond issuance", "地方政府债券", "专项债券"],
   lgb_debt: ["local government debt", "debt outstanding", "地方政府债务", "债务余额"],
@@ -775,6 +776,22 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_INDUS_GROW",
     fields: [{ field: "BASE_SAME", januaryFebruaryField: "BASE_ACCUMULATE", label: "Industrial production (YoY %)" }],
+  },
+  services_production: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Index of Services Production", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // NBS's 服务业生产指数, the services counterpart of industrial production:
+    // the month's growth and the year to date, from the bureau's monthly
+    // table. January and February are published together, so the month
+    // line's February value is the two months' combined figure. Pair: the
+    // two lines against each other, as GDP's quarter and year to date.
+    cid: "2eb7c0ebd79a4225887d5ea68c7aed4c",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "3fc5439f03ec46a5a76e8032036e8c17", label: "Services production, month (YoY %)" },
+      { id: "6efd45f6154649adb4f0176f016d3a36", label: "Services production, year to date (YoY %)" },
+    ],
   },
   cpi: {
     kind: "eastmoney", group: "Prices",
@@ -1817,6 +1834,7 @@ export interface CatalogEntry {
 export const HOME_ROWS: { group: string; rows: { key: string; title?: string; line?: string }[] }[] = [
   { group: "Growth & Output", rows: [
     { key: "industrial_production", title: "Industrial Production Growth" },
+    { key: "services_production", title: "Services Production Growth" },
     { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
     { key: "industrial_profits", title: "Industrial Profits Growth, Year to Date" },
     { key: "electricity_demand", title: "Electricity Consumption" },
