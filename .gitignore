@@ -42,3 +42,7 @@ catalog/nbs-official-en.json
 
 # AKTools (AkShare), when run locally
 venv/
+
+# stray SQLite sidecars from a seed rebuild
+seed/*.tmp-shm
+seed/*.tmp-wal
