@@ -2785,3 +2785,25 @@ not from scratch. Rounds are small on purpose.
   check that caught the GDP bug still applies and the test holds it to that.
   Live: July 2026 148,541 万吨 across all ports, down 2.9 percent on a year
   earlier while the year to date is up 1.3; 43 pairs, 0 findings.
+
+- 2026-09-20 (dataset loop, round 34: nominal GDP): the site carried GDP
+  only as a real growth rate, which is the wrong thing for every ratio a
+  reader wants — debt to GDP, a sector's share, output per unit of
+  anything. NBS's quarterly 国内生产总值 (现价) table holds the levels, and
+  three keys now serve them: `gdp_nominal` (the quarter, for the economy
+  and its three sectors), `gdp_nominal_ytd` (the same cumulative) and
+  `gdp_by_industry` (the quarter's value added for twelve industries, with
+  manufacturing and industry inside the secondary sector and real estate,
+  finance, wholesale and retail, construction, information technology,
+  transport, agriculture, leasing and business services, accommodation and
+  catering and the rest making up the tertiary). The table carries no
+  growth rates; the bureau publishes those as a separate index, which the
+  existing `gdp` key already serves. A cumulative pair holds the quarter
+  against the year to date — on levels rather than rates, which the note
+  says, since the arithmetic is the same and the year to date at the first
+  quarter is that quarter. Test: every id resolves to the named series of
+  that one table, the industry lines are all 当季值, and the pair still
+  catches a year-to-date line wearing a quarter's label. Live: Q2 2026 GDP
+  361,511 亿元 in the quarter and 695,704 for the half year, real estate
+  21,038 (about six percent of output), manufacturing 95,370; 44 pairs, 0
+  findings.
