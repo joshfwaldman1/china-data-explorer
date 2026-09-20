@@ -82,3 +82,20 @@ test("a monthly pair with no January or February in common is judged on the late
   const copy = [3, 4, 5, 6, 7].map((m) => ({ date: `2026-0${m}`, value: m + 0.5 }));
   expect(compareCumulative("Electricity", copy, yearToDate, { tolerance: 0.05 }).status).toBe("mismatch");
 });
+
+test("on levels, a single period larger than its year to date is a finding", async () => {
+  const { compareCumulative } = await import("./concordance.ts");
+  // August read off the year-to-date sentence: one month of 71,730 where the year to date is 71,730.
+  const month = [{ date: "2026-06", value: 8981 }, { date: "2026-07", value: 10400 }, { date: "2026-08", value: 71730 }];
+  const ytd = [{ date: "2026-06", value: 50999 }, { date: "2026-07", value: 61399 }, { date: "2026-08", value: 71730 }];
+  const caught = compareCumulative("t", month, ytd, { tolerance: 1, firstPeriodAgrees: false, periodWithin: true });
+  expect(caught.status).toBe("mismatch");
+  expect(caught.disagreements.map((row) => row.period)).toEqual(["2026-08"]);
+  // The same months read correctly pass.
+  const fixed = [...month.slice(0, 2), { date: "2026-08", value: 10332 }];
+  expect(compareCumulative("t", fixed, ytd, { tolerance: 1, firstPeriodAgrees: false, periodWithin: true }).status).toBe("ok");
+  // Rates may exceed their year to date, so a pair of rates does not ask for this.
+  const fast = [{ date: "2026-07", value: 6.9 }, { date: "2026-08", value: 8.1 }];
+  const slow = [{ date: "2026-07", value: 4.4 }, { date: "2026-08", value: 4.7 }];
+  expect(compareCumulative("t", fast, slow, { tolerance: 0.05, firstPeriodAgrees: false }).status).toBe("ok");
+});
