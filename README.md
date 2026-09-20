@@ -159,6 +159,14 @@ uses plain requests, paced a second apart. The site reads
 points it at another snapshot for a trial run. The glossed catalog is
 rebuilt automatically when any file under `catalog/` changes.
 
+## Continuous integration
+
+Every push and pull request runs `.github/workflows/ci.yml`: the type check
+and the whole suite, the same gates a change has to pass locally. A nightly
+job (`backup.yml`) asks the running site for a consistent copy of the store
+and keeps it as a workflow artifact for 90 days; it needs `BACKUP_TOKEN` as
+a repository secret and the same variable on the deployment.
+
 ## Conventions
 
 - Work on `main`. Never force-push.

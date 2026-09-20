@@ -5,11 +5,20 @@
  * directory this run created is removed when the process exits.
  */
 
-import { readdirSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const startedAt = Date.now() - 5_000;
+
+// A test that forgets to name its own store writes to the repository's, and the
+// catalog cache it builds is 350 MB. Both default to this run's scratch directory
+// instead; a test that sets its own path still wins, because it is imported after
+// this and these are ??= assignments there too.
+const scratch = mkdtempSync(join(tmpdir(), "china-test-run-"));
+process.env.CHINA_DB_PATH ??= join(scratch, "china.db");
+process.env.CHINA_CATALOG_DB_PATH ??= join(scratch, "catalog.db");
+process.env.CHINA_SEED ??= "off";
 
 process.on("exit", () => {
   let base = "";

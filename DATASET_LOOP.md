@@ -8,8 +8,8 @@ in `DATASET_QUEUE.md`, before doing anything.
 
 ## Ground rules
 
-- Work on `main` (`china-data-explorer` is pushed in step with it). Never
-  force-push, never rewrite history. Never run `bun run seed`, never
+- Work on `main` of `joshfwaldman1/china-data-explorer`. Never force-push,
+  never rewrite history. Never run `bun run seed`, never
   commit `china.db`, `catalog.db` or anything under `catalog/*.partial`.
 - One queue item per round, the highest one you can finish. If an item turns
   out to need a decision from the owner (a paid source, a key, a merge), record
@@ -62,7 +62,7 @@ in `DATASET_QUEUE.md`, before doing anything.
    (33 pre-existing errors elsewhere are known); `bun test` must pass; the
    item's own acceptance test must pass.
 6. Commit with a message that says what was missing and what now answers it,
-   in the voice of `git log`. Push to `main` and to `china-data-explorer`.
+   in the voice of `git log`. Push to `main`.
    Deploy with `railway up --detach` from the repo root (a push does not
    deploy). Wait for the build, then verify live: `/health`, the new series
    through `/api/series/<key>`, and `/api/schedule` if scheduling changed.

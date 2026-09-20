@@ -1,7 +1,7 @@
 EconStats China Data Explorer - handoff
-Written 2026-09-12, updated 2026-09-15. Branch: main (the explorer became the
-repository's main on 15 September; the agent app that was main moved to
-github.com/joshfwaldman1/econstats-agent).
+Written 2026-09-12, updated 2026-09-15. Branch: main. On 20 September the explorer moved to its own repository,
+github.com/joshfwaldman1/china-data-explorer; the agent app it used to share
+a repository with is at github.com/joshfwaldman1/datatool.
 
 STATE ON 15 SEPTEMBER, EVENING
 
@@ -46,8 +46,9 @@ A FRED-style site for Chinese official statistics: 15,078 stored series,
 https://econstats-china-production.up.railway.app
 
 Stack: Bun + React 19 + Recharts + SQLite. Everything server-side reads a
-store first and falls back to the source. Repo github.com/joshfwaldman1/datatool,
-working copy is the repository root (the checkout of joshfwaldman1/datatool).
+store first and falls back to the source. Repo github.com/joshfwaldman1/china-data-explorer (split out of
+joshfwaldman1/datatool on 20 September 2026 with its history; the working
+copy is the repository root).
 
 Read AGENTS.md at the repo root first. It is the real project document and it
 is current: sources and how each is reached, the store's rules, search and
