@@ -2,45 +2,37 @@
 
 Worked top to bottom by `DATASET_LOOP.md`, one item per round. Each item
 carries the test that defines it as done. Prerequisites in brackets. Refilled
-on 21 September 2026, when the 20 September list was down to parked and
-credit-gated items.
+on 21 September 2026 (twice: the morning list ran out by the evening, and
+the four items below came from probing the shipped catalog snapshot for
+what the site does not carry).
 
 ## Queue
 
-1. **The release as a first-class entity.** A release (date, agency, the keys
-    it carries, its URL) is implied by `due.ts` and `/api/releases` but is not
-    stored; storing it would let the site say when a figure arrived, show a
-    calendar, and let the audit compare a figure to the release that carried
-    it.
-    *Test:* every stored point resolves to the release that published it, or
-    to "before releases were recorded".
+1. **What is driving growth: contributions to GDP.** NBS's quarterly table
+    gives the contribution rate of final consumption, capital formation and
+    net exports of goods and services to GDP growth, in the quarter and
+    cumulatively (`cid 62cd73e3fcb4492fab8e998ca3a7dc5b`, dataset 2). The
+    site says how fast the economy grew and nothing about what grew it.
+    *Test:* the three contribution rates of a quarter sum to 100 percent
+    within rounding — a `components` pair, the kind added in round 40.
 
-2. **Notes and annotations in English.** [needs API credit] Titles are
-    now NBS's own; `bun run translate-notes` for the explanatory notes
-    and annotations under them, then re-read the five tables that timed out
-    in the English crawl.
-    *Test:* `notes-en.json` covers every note the catalog carries.
+2. **Transport turnover by mode.** Freight and passenger turnover for road,
+    rail, water and air, monthly, as levels and growth (dataset 1, e.g.
+    `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
+    already carried; the rest of the freight picture is not.
+    *Test:* the modes' freight turnover sums to the published total for
+    August 2026 within rounding.
 
-3. **Property: developer financing and mortgages.** [parked: source not
-    found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
-    survey-and-statistics department's sections on 16 September; try the
-    bank's site search, the 货币政策执行报告, or a headed browser.
-    *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
+3. **Average wages by sector.** The annual average wage of employed persons
+    in urban non-private and private units, by industry (dataset 3). The
+    site carries household income but nothing about pay.
+    *Test:* the latest year parses for every industry the bureau lists, and
+    the non-private and private figures differ for every one of them.
 
-4. **MOFCOM weekly prices.** [parked: source not found] The weekly
-    食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
-    endpoint (`POST /datamofcom/front/price/list`, which carries international
-    monitoring only).
-    *Test:* the latest week parses and matches the ministry's release.
-
-5. **High-frequency group.** [blocked: needs AKTools on the deployment]
-    Freight index, port throughput, daily commodity prices from AkShare.
-    *Test:* three series refresh on a deployment with AKTOOLS_URL set.
-
-- **The bundle's script path.** Bun's HTML bundler writes the script tag as
-  `src="/../chunk-<hash>.js"`. Browsers resolve the leading `..` away and the
-  page loads, but a strict fetcher gets a 404. Cosmetic; recorded so it is
-  not rediscovered as a deploy failure.
+4. **Agriculture: grain and meat output.** Annual grain output with its
+    summer and autumn components, and pork output (dataset 3). Food prices
+    are carried in the consumer price detail; the quantities are not.
+    *Test:* summer and autumn grain sum to the year's total within rounding.
 
 - **The IMF's data quality assessment pages.** [parked: dsbb.imf.org serves
   the country pages from a client-rendered application — a plain request
@@ -76,6 +68,15 @@ credit-gated items.
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-21 — The release as a first-class entity: `server/arrivals.ts`
+  stores the publishers' calendar items as they are fetched and resolves
+  every stored point to how it got here — with a release the site watched
+  for, as a restatement, or in a backfill of the archive, which names no
+  publication date because the site does not know one. Windows are per
+  frequency. New routes `/api/arrivals/:key` and `/api/release-log`, and a
+  line on every series page. Live: August 2026 industrial output first seen
+  the day of the bureau's release.
 
 - 2026-09-21 — A methodology page: `server/methodology.ts`, `/api/methodology`
   and `#/methodology`, linked from every curated series and from the nav. A

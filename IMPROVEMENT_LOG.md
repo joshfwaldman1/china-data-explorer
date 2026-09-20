@@ -3032,3 +3032,35 @@ not from scratch. Rounds are small on purpose.
   navigation and no data endpoint behind it answered. That is recorded in
   the queue rather than left for the next round to rediscover. 360 tests;
   52 pairs, 0 findings.
+
+- 2026-09-21 (dataset loop, round 43: when each figure arrived): the store
+  has known this since the first round and never said it. Nothing is
+  overwritten, so the first vintage of a period is the moment the site first
+  saw that figure and every later vintage is a restatement it saw
+  afterwards. What was missing was a name for it. A reader could not ask
+  when August's industrial output appeared, or whether the number on the
+  chart is the one first published.
+  `server/arrivals.ts` reads it, and the distinction it draws is the whole
+  point of the round. A figure seen days after its period closed arrived
+  with the publisher's release. A figure seen years later came out of an
+  archive during a backfill, and calling that a publication date would
+  attribute to the publisher a date it never set. The window between them is
+  per frequency — 75 days for a month, 150 for a quarter, 400 for a year —
+  and a point outside it is reported as a backfill in plain words rather
+  than given a date the site cannot support. Nothing may arrive more than
+  three days before its period ends, with the allowance that the purchasing
+  managers' index is published on the last day of the month it describes.
+  Releases are stored now rather than only proxied. The bureau's calendar is
+  already fetched for the release page, so each item is recorded as it
+  passes and stays nameable long after the cache has expired and the window
+  has moved on; recording the same release twice updates the row rather than
+  adding a second. An arrival inside the window that matches a recorded
+  release carries its title and link, and one with no match still says when
+  the figure appeared and says only that.
+  The test writes a store whose three periods are each of the cases — a
+  month backfilled two years late, a month that arrived with its release,
+  and a month restated a month after it first appeared — and holds every
+  stored point to resolving as one or the other, with the backfilled one
+  held to naming no date at all. New: `/api/arrivals/:key`,
+  `/api/release-log`, and a line on every series page saying how its newest
+  period got here. 366 tests; 52 pairs, 0 findings.
