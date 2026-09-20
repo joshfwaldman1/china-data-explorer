@@ -28,8 +28,8 @@ process.
   contributing opens a pull request and needs a green CI check; the dataset
   loop commits to `main` directly, because it runs the same gates locally
   and verifies the live site afterwards. `CONTRIBUTING.md` is the short
-  version for a collaborator, and `OPERATIONS.md` says how a change reaches
-  production — which today is a manual `railway up`, not a push.
+  version for a collaborator. A push to `main` deploys: Railway builds this
+  repository, so `railway up` is now the rollback path, not the normal one.
 - Never commit `china.db`, `catalog.db` or anything under `catalog/*.partial`.
   `seed/china.db` is committed on purpose; refresh it only deliberately, and
   never from production data.

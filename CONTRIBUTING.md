@@ -25,13 +25,13 @@ headless render test, which needs Chrome, or Playwright's Chromium with
 ## How a change reaches production
 
 Open a pull request against `main`. Continuous integration runs the same two
-gates you ran locally, and the pull request needs a green check before it can
-merge. A merge to `main` deploys.
+gates you ran locally. **A merge to `main` deploys to the live site**, so
+treat a green check as the thing standing between your branch and
+production, and read it rather than merging past it.
 
-Deploys are currently manual while the Railway service is being attached to
-this repository; `OPERATIONS.md` has the current state and the two steps
-still outstanding. Until that is done, a merge does **not** ship — ask the
-owner to deploy.
+Nothing yet blocks a merge with a red check — branch protection needs a paid
+GitHub plan and is not on yet. Until it is, the check is a convention, which
+means it is on you.
 
 ## The two gates
 
