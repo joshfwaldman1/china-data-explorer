@@ -6,10 +6,14 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
-   monthly retail and wholesale passenger-vehicle sales as text; CAAM is
-   parked (images).
-   *Test:* August 2026 retail sales parse and match the release.
+1. **Structured unit metadata.** Every series carries one free-text `unit`
+   string and the client infers meaning from it with regular expressions
+   (`isRate`, `unitSuffix`), which is what printed a per-thousand birth rate
+   as a percentage. Give a series explicit fields instead: kind (level, rate,
+   index, ratio), scale, currency, and whether it is cumulative. FRED keeps
+   units, a short unit and seasonal adjustment as separate structured fields.
+   *Test:* the client chooses its formatting from the fields, not the string,
+   and every curated series declares them.
 
 2. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
    fuller release; watch for a text version or a later revision table. The
@@ -53,7 +57,18 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   table behind it. Revisit if the bank resumes them or posts the indices as
   data.]
 
+- **Auto sales (CPCA).** [parked: cpcaauto.com answers 403 and
+  data.cpcaauto.com redirects to a firewall block page for requests from
+  outside China. With CAAM parked for publishing images, NBS's motor vehicle
+  retail value is what the site carries instead; unit sales would need a
+  request from inside China or a paid feed.]
+
 ## Done
+
+- 2026-09-20 — Retail sales by commodity: `retail_by_category` and
+  `retail_by_category_growth` (twelve categories, each from its own NBS
+  table), with the motor vehicle rate lifted onto Home; CPCA parked. Live:
+  August 2026 motor vehicles down 18.5 percent, oil products down 7.
 
 - 2026-09-20 — PMI employment on Home: both surveys' employment indexes
   lifted from the PMI tables into the Labor group; a Home row can now name

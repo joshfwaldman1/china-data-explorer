@@ -2818,3 +2818,24 @@ not from scratch. Rounds are small on purpose.
   as a misfiled key. Live: August 2026 manufacturing employment 48.7 and
   non-manufacturing 45.4, both below the 50 that separates hiring from
   shedding, under youth unemployment at 18.9 percent; 44 pairs, 0 findings.
+
+- 2026-09-20 (dataset loop, round 36: retail by commodity; CPCA parked):
+  the queue asked for auto sales from the passenger car association, whose
+  sites answer 403 and redirect to a firewall block page for requests from
+  outside China; CAAM was already parked for publishing its releases as
+  images. NBS carries the commodity detail of retail sales itself, and
+  motor vehicles are the largest category in it, so that is what the site
+  carries in place of unit sales. `retail_by_category` serves the month's
+  value for twelve categories and `retail_by_category_growth` the rates
+  beside them. Each category is a separate table on the portal, so every
+  line names its own table through the per-line cid added in round 28; a
+  fetch is eleven requests and takes about sixteen seconds. The motor
+  vehicle rate is lifted onto Home under retail sales, using round 35's
+  mechanism. These are above-scale units, firms over a revenue threshold,
+  which the notes say rather than implying the figures are all of retail.
+  Live: August 2026 motor vehicles down 18.5 percent on a year earlier (the
+  2025 trade-in subsidy is the base), oil products down 7, appliances up
+  2.3, food up 4; 44 pairs, 0 findings. The queue also gained an item from
+  the week's design discussion: units are free text and the client infers
+  meaning from them with regular expressions, which is what printed a
+  per-thousand birth rate as a percentage.
