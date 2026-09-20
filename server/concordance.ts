@@ -126,6 +126,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Both lines from NBS's quarterly index table (当季 and 累计).",
   },
   {
+    name: "Nominal GDP: quarter vs year to date (亿元)", kind: "cumulative",
+    period: { key: "gdp_nominal", label: "GDP, quarter (亿元)" },
+    yearToDate: { key: "gdp_nominal_ytd", label: "GDP, year to date (亿元)" },
+    tolerance: 1,
+    note: "Levels, not rates: NBS's current-price table prints both, and the year to date at the first quarter is that quarter.",
+  },
+  {
     name: "Port throughput: month vs year to date", kind: "cumulative",
     period: { key: "port_throughput_growth", label: "All ports, month (YoY %)" },
     yearToDate: { key: "port_throughput_growth", label: "All ports, year to date (YoY %)" },
@@ -475,6 +482,7 @@ export const NO_PAIR: Record<string, string> = {
   household_income: "The levels; the survey is the only source.",
   household_spending_growth: "As household_income_growth: the survey's spending line.",
   household_spending: "The levels; the survey is the only source.",
+  gdp_by_industry: "The industry detail of the same table the paired GDP lines come from; a pair per industry would only repeat the check.",
   port_throughput: "The tonnage; the pair is on port_throughput_growth, the rates NBS prints beside it.",
   working_hours: "The labour force survey's only reading of hours; nothing else on the site measures them.",
   employment: "NBS's annual employment count is the only source; the census years are the same series.",

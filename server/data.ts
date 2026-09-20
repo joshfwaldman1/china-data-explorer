@@ -71,6 +71,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   tax_by_type: ["vat", "value added tax", "income tax", "stamp duty", "tariffs", "增值税", "所得税", "印花税", "关税"],
   cross_border_flows: ["cross-border receipts", "cross border payments", "涉外收付款", "涉外收入"],
   port_throughput: ["port throughput", "ports", "cargo throughput", "港口", "吞吐量"],
+  gdp_nominal: ["nominal gdp", "gdp level", "current price gdp", "现价", "国内生产总值"],
+  gdp_by_industry: ["gdp by industry", "value added", "real estate share", "增加值", "房地产业"],
   port_throughput_growth: ["port throughput growth", "港口吞吐量增长"],
   cross_border_flows_usd: ["cross-border receipts usd", "涉外收付款 美元"],
   tax_by_type_growth: ["tax growth by type", "税收增长"],
@@ -608,6 +610,62 @@ export const CATALOG: Record<string, Indicator> = {
     ids: [
       { id: "170e7f00f8c24ede863c0526b42ae81f", valueOffset: -100, label: "Real GDP, quarter (YoY %)" },
       { id: "f5b82b2b6ad345a29a337d256a9d5ded", valueOffset: -100, label: "Real GDP, year to date (YoY %)" },
+    ],
+  },
+  gdp_nominal: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Nominal GDP", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Hundred million yuan (亿元), quarter",
+    // NBS's quarterly 国内生产总值 (现价): the quarter's output at current
+    // prices, for the whole economy and its three sectors. The headline GDP
+    // series on this site is the real growth rate; this is the level the
+    // ratios need (debt to GDP, a sector's share). No growth rates are in
+    // this table; the bureau publishes those separately as an index.
+    // Pair: the quarter against the year to date, which must coincide in Q1.
+    cid: "28d936104e304aa191e338eb82b6dc09",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "d22612f09aeb4241bc557ef0ac61b3ba", label: "GDP, quarter (亿元)" },
+      { id: "5f9d870499024341862a97826d66ec3d", label: "Tertiary industry, quarter (亿元)" },
+      { id: "4c9eec4f1cdd4c138ed3a25c9cb9cbaf", label: "Secondary industry, quarter (亿元)" },
+      { id: "a26bbeef7cac49ef9162c2411e0b211e", label: "Primary industry, quarter (亿元)" },
+    ],
+  },
+  gdp_nominal_ytd: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Nominal GDP, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Hundred million yuan (亿元), cumulative year to date",
+    cid: "28d936104e304aa191e338eb82b6dc09",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "8c5fab362d124fa7b91af833b3bd7397", label: "GDP, year to date (亿元)" },
+      { id: "e908d8dbcccf47c498075a2abd6fa235", label: "Tertiary industry, year to date (亿元)" },
+      { id: "a7c4cc22c1e240aaa7573110ce71d5a4", label: "Secondary industry, year to date (亿元)" },
+      { id: "36fe1057b5bb4839aca4614b7f2ab0d5", label: "Primary industry, year to date (亿元)" },
+    ],
+  },
+  gdp_by_industry: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Nominal GDP by Industry", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Hundred million yuan (亿元), quarter",
+    // The same table's industry detail, the quarter's value added at current
+    // prices. Manufacturing sits inside industry, which sits inside the
+    // secondary sector; the rest make up the tertiary sector with "other".
+    cid: "28d936104e304aa191e338eb82b6dc09",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "ee1888d32d84452e871760589bd27b05", label: "Manufacturing, quarter (亿元)" },
+      { id: "035fc18c660842deb1d392b70e334be3", label: "Industry, quarter (亿元)" },
+      { id: "6ea65de52b6b41e8837497a69782c603", label: "Real estate, quarter (亿元)" },
+      { id: "b244a032e2f1417f8825463dbbe6ba34", label: "Finance, quarter (亿元)" },
+      { id: "671aa8d9f85d420585a7677520087a88", label: "Wholesale and retail, quarter (亿元)" },
+      { id: "d5496e884ff04aa287cd8d3431b80476", label: "Construction, quarter (亿元)" },
+      { id: "b46978955565481eb801c97029bbc779", label: "Information technology, quarter (亿元)" },
+      { id: "3323aa992a2d4c31bcb815b1f1668d12", label: "Transport, storage and post, quarter (亿元)" },
+      { id: "66e748d902e949b5bb343b82d96bdadb", label: "Agriculture, forestry and fishing, quarter (亿元)" },
+      { id: "6c2faca79747406ea31a22b2774aeb03", label: "Leasing and business services, quarter (亿元)" },
+      { id: "11c18b1ada6845e3aacfed8e0af5b224", label: "Accommodation and catering, quarter (亿元)" },
+      { id: "870c261fc85f4b06a9a549ab415b1628", label: "Other industries, quarter (亿元)" },
     ],
   },
   provincial_gdp: {
@@ -1921,6 +1979,7 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
   { group: "Growth & Output", rows: [
     { key: "industrial_production", title: "Industrial Production Growth" },
     { key: "services_production", title: "Services Production Growth" },
+    { key: "gdp_nominal", title: "Nominal GDP, Quarter" },
     { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
     { key: "industrial_profits", title: "Industrial Profits Growth, Year to Date" },
     { key: "electricity_demand", title: "Electricity Consumption" },
