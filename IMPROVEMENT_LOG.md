@@ -3064,3 +3064,14 @@ not from scratch. Rounds are small on purpose.
   held to naming no date at all. New: `/api/arrivals/:key`,
   `/api/release-log`, and a line on every series page saying how its newest
   period got here. 366 tests; 52 pairs, 0 findings.
+  Verifying that deploy found two faults in it, both fixed the same round.
+  GDP's second quarter was reported as having arrived "with the release
+  'Fixed-asset investment (excluding rural households), monthly'", because
+  the matcher accepted any release from the same agency within three days
+  when the calendar had named no keys for it — a false statement about
+  which publication carried a number, and precisely the error the round
+  exists to avoid. A release that names nothing now matches nothing. And a
+  table of 41 industries answered "when did August appear" 41 times, once
+  per line; without a label the lines now fold into one row per period, the
+  earliest sighting across them, so a line added later cannot redate the
+  table. 368 tests.
