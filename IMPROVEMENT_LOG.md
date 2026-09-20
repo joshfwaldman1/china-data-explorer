@@ -2993,3 +2993,42 @@ not from scratch. Rounds are small on purpose.
   manufacturing +6.1%, utilities +4.9%; motor vehicles +8.7%, computers and
   communications equipment +17.2%, coal mining −5.6%. 354 tests; 52 pairs,
   0 findings.
+
+- 2026-09-21 (dataset loop, round 42: how these figures are made): a reader
+  who sees a figure here can ask three things — who counted it, what exactly
+  was counted, and what this site did to it on the way. The chart page
+  answered the middle one wherever the bureau had written an explanatory
+  note. The other two lived in the code and in this log.
+  `server/methodology.ts` puts them on a page, at `/api/methodology` and
+  `#/methodology`. A section per path the data takes states the publisher,
+  what is read, how it is read, what the publisher revises and what a reader
+  should know before quoting it: the bureau's own portal, Customs' release,
+  the central bank's tables, the finance and commerce ministries' releases,
+  the exchange administration's workbooks, the energy administration's
+  prose note, the trading system's fixings, the mirror, FRED, and the
+  AkShare bridge the deployment does not have. Beside them sits what this
+  site does with a figure, which no publisher can state for us: an
+  append-only store where a revision is visible as a revision, the
+  pair-by-pair audit, attribution to the agency that compiled a number
+  rather than the mirror that carried it, and a rule against deriving what
+  was not published.
+  The per-key half is generated, not written: each series' entry reads its
+  agency and unit from the catalog and its check from the audit, so a
+  cumulative series says so, a stopped one says when, a mirrored one says it
+  was mirrored, and "how it is checked" is the pair's own name or the
+  recorded reason there is none. A series added without a path or without a
+  check fails the test rather than shipping an empty section.
+  Writing that test found three series with neither a pair nor a reason:
+  government bond yields and the two Caixin surveys. The coverage test had
+  been excusing them, because the regular expression listing foreign
+  institutions matched on "Caixin" and "China Foreign Exchange" — both
+  domestic publishers. The list is now what it was meant to be and the three
+  carry reasons. The Caixin one is the interesting one: it is a different
+  panel from the bureau's survey, smaller and more export-oriented, so the
+  two are not readings of one statistic and a gap between them is
+  information rather than an error.
+  The IMF's Data Quality Assessment pages, which the queue named as the
+  source, are served by a client-rendered application; the page returns only
+  navigation and no data endpoint behind it answered. That is recorded in
+  the queue rather than left for the next round to rediscover. 360 tests;
+  52 pairs, 0 findings.
