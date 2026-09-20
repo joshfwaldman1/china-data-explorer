@@ -138,7 +138,7 @@ test("the audit carries the sum check and the three year-to-date checks", () => 
   expect(sum?.kind).toBe("components");
   if (sum?.kind !== "components") throw new Error("expected a components pair");
   expect(sum.parts.map((part) => part.label)).toEqual(SOURCES);
-  expect(sum.total.label).toBe("Total, month (亿千瓦时)");
+  expect(sum.total?.label).toBe("Total, month (亿千瓦时)");
   for (const name of ["Electricity generation: month vs year to date", "Raw coal output: month vs year to date", "Natural gas output: month vs year to date"]) {
     const pair = CONCORDANCE_PAIRS.find((candidate) => candidate.name.startsWith(name));
     expect(pair?.kind).toBe("cumulative");

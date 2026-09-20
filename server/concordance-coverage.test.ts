@@ -17,7 +17,7 @@ const { CONCORDANCE_PAIRS, NO_PAIR } = await import("./concordance.ts");
 const pairSides = (pair: (typeof CONCORDANCE_PAIRS)[number]) =>
   pair.kind === "value" ? [pair.left, pair.right]
   : pair.kind === "annual" ? [pair.monthly, pair.annual]
-  : pair.kind === "components" ? [...pair.parts, pair.total]
+  : pair.kind === "components" ? (pair.total ? [...pair.parts, pair.total] : pair.parts)
   : [pair.period, pair.yearToDate];
 
 // Institutions outside China, which publish about China rather than compiling

@@ -104,7 +104,15 @@ export interface ComponentPair {
   kind: "components";
   /** The lines that together make the total. */
   parts: SeriesRef[];
-  total: SeriesRef;
+  /** The published whole, where the publisher prints one. */
+  total?: SeriesRef;
+  /**
+   * The whole as a number, where the identity is definitional rather than
+   * published: the shares of GDP growth contributed by consumption, capital
+   * formation and net exports are three parts of one hundred percent, and
+   * NBS prints no series that says so.
+   */
+  constant?: number;
   /** The largest absolute difference that still counts as agreement; a sum of rounded parts is rarely exact. */
   tolerance: number;
   periods?: number;
@@ -527,7 +535,29 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     tolerance: 0.05,
     firstPeriodAgrees: false,
   },
+  {
+    name: "GDP growth: the three contributions sum to 100 percent", kind: "components",
+    parts: [
+      { key: "gdp_contributions", label: "Final consumption expenditure, quarter (% of growth)" },
+      { key: "gdp_contributions", label: "Gross capital formation, quarter (% of growth)" },
+      { key: "gdp_contributions", label: "Net exports of goods and services, quarter (% of growth)" },
+    ],
+    constant: 100,
+    tolerance: 0.15,
+    note: "An identity of the national accounts rather than a published total: the three expenditure categories divide the quarter's growth between them. The tolerance is what rounding three figures to a tenth can cost.",
+  },
+  {
+    name: "GDP growth year to date: the three contributions sum to 100 percent", kind: "components",
+    parts: [
+      { key: "gdp_contributions_ytd", label: "Final consumption expenditure, year to date (% of growth)" },
+      { key: "gdp_contributions_ytd", label: "Gross capital formation, year to date (% of growth)" },
+      { key: "gdp_contributions_ytd", label: "Net exports of goods and services, year to date (% of growth)" },
+    ],
+    constant: 100,
+    tolerance: 0.15,
+  },
 ];
+
 
 
 
@@ -710,12 +740,17 @@ export function compareAnnualSum(name: string, monthly: SeriesPoint[], annual: S
  * holds is compared, so a component the publisher has not yet released does
  * not read as a shortfall in the total.
  */
-export function compareComponentSum(name: string, parts: SeriesPoint[][], total: SeriesPoint[], options: { tolerance: number; periods?: number; note?: string }): ConcordanceResult {
+export function compareComponentSum(name: string, parts: SeriesPoint[][], total: SeriesPoint[] | number, options: { tolerance: number; periods?: number; note?: string }): ConcordanceResult {
   const summed = new Map<string, number>();
   const partMaps = parts.map((points) => new Map(points.map((point) => [point.date, point.value])));
-  const wholeRange = rangeOf(total);
+  // A constant whole is held at every period the parts share, so the identity
+  // is checked wherever it can be, not only where a published total exists.
+  const published = typeof total === "number"
+    ? [...new Set(parts.flat().map((point) => point.date))].map((date) => ({ date, value: total }))
+    : total;
+  const wholeRange = typeof total === "number" ? { first: null, last: null, points: published.length } : rangeOf(published);
   const base = { name, kind: "components" as const, note: options.note, sides: { left: rangeOf(parts.flat()), right: wholeRange } };
-  if (partMaps.length === 0 || partMaps.some((part) => part.size === 0) || total.length === 0) {
+  if (partMaps.length === 0 || partMaps.some((part) => part.size === 0) || published.length === 0) {
     return { ...base, status: "missing", compared: 0, disagreements: [] };
   }
   for (const date of partMaps[0]!.keys()) {
@@ -723,7 +758,7 @@ export function compareComponentSum(name: string, parts: SeriesPoint[][], total:
     if (values.some((value) => value === undefined)) continue;
     summed.set(date, values.reduce((running: number, value) => running + (value ?? 0), 0));
   }
-  const whole = new Map(total.map((point) => [point.date, point.value]));
+  const whole = new Map(published.map((point) => [point.date, point.value]));
   const periods = commonPeriods(summed, whole, options.periods ?? 6);
   if (periods.length === 0) return { ...base, status: "no-overlap", compared: 0, disagreements: [] };
   const rows = periods.map((period) => ({ period, left: round(summed.get(period) ?? NaN), right: round(whole.get(period) ?? NaN) }));
@@ -754,7 +789,7 @@ export function readSide(ref: SeriesRef, limit = 24): SeriesPoint[] {
 export function runConcordance(pairs: ConcordancePair[] = CONCORDANCE_PAIRS): ConcordanceResult[] {
   return pairs.map((pair) => {
     if (pair.kind === "value") return compareValues(pair.name, readSide(pair.left), readSide(pair.right), { tolerance: pair.tolerance, periods: pair.periods, leftOffset: pair.left.offset, rightOffset: pair.right.offset, note: pair.note });
-    if (pair.kind === "components") return compareComponentSum(pair.name, pair.parts.map((part) => readSide(part)), readSide(pair.total), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
+    if (pair.kind === "components") return compareComponentSum(pair.name, pair.parts.map((part) => readSide(part)), pair.total ? readSide(pair.total) : (pair.constant ?? 0), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
     if (pair.kind === "annual") return compareAnnualSum(pair.name, readSide(pair.monthly, 12 * ((pair.periods ?? 3) + 1)), readSide(pair.annual, 12), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
     return compareCumulative(pair.name, readSide(pair.period), readSide(pair.yearToDate), { tolerance: pair.tolerance, periods: pair.periods, firstPeriodAgrees: pair.firstPeriodAgrees, periodWithin: pair.periodWithin, note: pair.note });
   });

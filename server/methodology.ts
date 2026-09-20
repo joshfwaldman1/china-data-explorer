@@ -192,7 +192,7 @@ const FOREIGN = /^(Federal Reserve|Bank for International|International Monetary
 function sideKeys(pair: (typeof CONCORDANCE_PAIRS)[number]): SeriesRef[] {
   if (pair.kind === "value") return [pair.left, pair.right];
   if (pair.kind === "annual") return [pair.monthly, pair.annual];
-  if (pair.kind === "components") return [...pair.parts, pair.total];
+  if (pair.kind === "components") return pair.total ? [...pair.parts, pair.total] : pair.parts;
   return [pair.period, pair.yearToDate];
 }
 

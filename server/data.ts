@@ -1971,6 +1971,37 @@ export const CATALOG: Record<string, Indicator> = {
     rootId: "fc982599aa684be7969d7b90b1bd0e84",
     ids: [{ id: "5cc686f383d84ed9bd11f4293ab4170e", januaryFebruaryId: "619254b0b9f24a5aa0c336bdf5998c4e", label: "Electricity output (YoY %)" }],
   },
+  gdp_contributions: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Contributions to GDP Growth", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Percent of GDP growth",
+    // 对国内生产总值增长贡献率, the quarter's own. The three expenditure
+    // categories of the national accounts — what households and government
+    // consumed, what was invested, and what was sold abroad net of what was
+    // bought — divide the quarter's growth between them, so the three are
+    // three parts of one hundred percent and the audit holds them to it.
+    // A contribution is a share of growth, not a share of GDP: net exports
+    // can contribute a third of growth while being a small part of output.
+    cid: "62cd73e3fcb4492fab8e998ca3a7dc5b",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "ce94d6319c5e4a55b271c6a0a0f671c2", label: "Final consumption expenditure, quarter (% of growth)" },
+      { id: "cd5cb165190b4a9ab8f2f5674c58618b", label: "Gross capital formation, quarter (% of growth)" },
+      { id: "8df845d93daa42359314690b9721de19", label: "Net exports of goods and services, quarter (% of growth)" },
+    ],
+  },
+  gdp_contributions_ytd: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Contributions to GDP Growth, Year to Date", agency: "National Bureau of Statistics",
+    frequency: "Quarterly", unit: "Percent of GDP growth, cumulative year to date",
+    cid: "62cd73e3fcb4492fab8e998ca3a7dc5b",
+    rootId: "a94b8b7365a94874968cabbe392cf679",
+    ids: [
+      { id: "74879952748d45eeb193c165c00196a8", label: "Final consumption expenditure, year to date (% of growth)" },
+      { id: "a5eb634225de4c24a2827dc8ba979e19", label: "Gross capital formation, year to date (% of growth)" },
+      { id: "35271309c7754640a997fdb316f43208", label: "Net exports of goods and services, year to date (% of growth)" },
+    ],
+  },
   industrial_output_by_division: {
     kind: "nbs", group: "Growth & Output", home: false,
     title: "Industrial Output Growth by Division", agency: "National Bureau of Statistics",
@@ -2285,6 +2316,7 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "industrial_production", title: "Industrial Production Growth" },
     { key: "services_production", title: "Services Production Growth" },
     { key: "gdp_nominal", title: "Nominal GDP, Quarter" },
+    { key: "gdp_contributions", line: "Final consumption expenditure, quarter (% of growth)", title: "Consumption's Contribution to GDP Growth" },
     { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
     { key: "industrial_profits", title: "Industrial Profits Growth, Year to Date" },
     { key: "electricity_demand", title: "Electricity Consumption" },
