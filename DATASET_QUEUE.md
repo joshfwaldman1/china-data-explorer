@@ -50,7 +50,7 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
 9. **Notes and annotations in English.** [needs API credit] Titles are
-    now NBS's own; `bun run china:translate-notes` for the explanatory notes
+    now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.

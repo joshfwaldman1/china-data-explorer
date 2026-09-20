@@ -14,11 +14,11 @@ until he stops the loop. Read this whole file before doing anything.
 - One improvement per round. Small beats ambitious. If a change would take
   more than about 150 lines, log it as a queue item instead and pick
   something smaller.
-- Never run `bun run china:seed`, never commit `china.db`, `catalog.db` or
-  anything under `china-explorer/catalog/*.partial`. The store lives on a
+- Never run `bun run seed`, never commit `china.db`, `catalog.db` or
+  anything under `catalog/*.partial`. The store lives on a
   Railway volume, not in git.
-- Do not add dependencies, do not change `Dockerfile.china` or
-  `railway.china.toml`, do not touch `.github/workflows`.
+- Do not add dependencies, do not change `Dockerfile` or
+  `railway.toml`, do not touch `.github/workflows`.
 - Follow the repo's conventions: Bun, no `as` casts, no emojis in code,
   direct plain-English headings (measure, geography, period), no middle-dot
   separators, no em dashes in UI copy, English first with the Chinese
@@ -29,7 +29,7 @@ until he stops the loop. Read this whole file before doing anything.
 ## The round
 
 1. `git pull --ff-only origin main`. Read
-   `china-explorer/IMPROVEMENT_LOG.md`: the queue and the last rounds.
+   `IMPROVEMENT_LOG.md`: the queue and the last rounds.
 2. Pick the highest-value item you can finish in this round. If the queue
    has nothing suitable, audit one surface instead and fix what it shows.
    Audit surfaces, rotate through them in this order: search quality for ten
@@ -44,8 +44,7 @@ until he stops the loop. Read this whole file before doing anything.
 3. Reproduce the problem against the live site (curl the API) before
    changing code.
 4. Make the change. Then, from the repo root:
-   `bunx tsc --noEmit -p tsconfig.json | grep china-explorer` must print
-   nothing, and `bun test` must pass. Add or extend a test when the change
+   `bun run typecheck` must print nothing, and `bun test` must pass. Add or extend a test when the change
    is logic. Gate the commit on that output rather than piping it into
    `grep` and carrying on: a chain that did not stop shipped a broken build
    once (round 31).
@@ -61,7 +60,7 @@ until he stops the loop. Read this whole file before doing anything.
    (see `git log` for the voice), and push to `china-data-explorer`.
    Pushing deploys the live site if the Railway service is linked to GitHub;
    if it is not, say so in the log so the owner can deploy.
-6. Append a dated entry to the Log in `china-explorer/IMPROVEMENT_LOG.md`
+6. Append a dated entry to the Log in `IMPROVEMENT_LOG.md`
    (what was wrong, what changed, how it was verified), remove the item from
    the queue if it was one, add anything the round surfaced to the queue,
    and commit and push that too.

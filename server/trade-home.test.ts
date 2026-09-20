@@ -63,8 +63,10 @@ test("the home page names the US, EU and ASEAN rows and the ranking page ranks e
   const seeded = await seed();
   expect(seeded.count).toBe(30);
   const server = await startServer();
-  // The installed Chrome, as scripts/portal.ts uses it; Playwright's own build need not be downloaded.
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  // Locally the installed Chrome, as scripts/portal.ts uses it, so Playwright's own build need
+  // not be downloaded; in CI the bundled Chromium the workflow installs (PLAYWRIGHT_CHANNEL=chromium).
+  const channel = process.env.PLAYWRIGHT_CHANNEL ?? "chrome";
+  const browser = await chromium.launch({ headless: true, ...(channel === "chromium" ? {} : { channel }) });
   try {
     const page = await browser.newPage();
     await page.goto(`${server.url}/#/`);

@@ -2,7 +2,7 @@
  * Refresh the committed seed snapshot from the live store. Run after a good
  * ingest; commit the result. A fresh deployment copies it in on first boot.
  *
- *   bun run china:seed
+ *   bun run seed
  */
 
 import { Database } from "bun:sqlite";

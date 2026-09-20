@@ -10,7 +10,7 @@
  * server/official-english.ts validates: each entry pins the English title to
  * the current key and the exact Chinese title from the snapshot.
  *
- *   bun run china-explorer/scripts/sync-nbs-english.ts [--delay=1000] [--out=path]
+ *   bun run scripts/sync-nbs-english.ts [--delay=1000] [--out=path]
  *
  * A partial file is written every 100 tables and picked up on restart.
  */

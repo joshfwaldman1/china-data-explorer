@@ -1,0 +1,44 @@
+# dependencies (bun install)
+node_modules
+
+# output
+out
+dist
+*.tgz
+
+# logs
+logs
+*.log
+
+# environment
+.env
+.env.local
+
+# caches
+.cache
+*.tsbuildinfo
+
+# editors and Finder
+.idea
+.DS_Store
+
+# The local store, rebuilt with: bun run ingest
+china.db
+china.db-shm
+china.db-wal
+
+# The derived catalog cache, rebuilt from catalog/*.json in under a second
+catalog.db
+catalog.db-shm
+catalog.db-wal
+
+# In-progress crawls; the site ships the merged, gzipped snapshots
+catalog/*.partial
+catalog/*.tmp
+catalog/nbs-catalog.json
+catalog/nbs-catalog-annual.json
+catalog/nbs-catalog-regional.json
+catalog/nbs-official-en.json
+
+# AKTools (AkShare), when run locally
+venv/

@@ -34,7 +34,7 @@ const SEED_PATH = `${import.meta.dir}/../seed/china.db`;
 /**
  * A fresh deployment starts with an empty volume. Rather than an empty site
  * until the first ingest, copy the committed seed snapshot into place once.
- * The seed is refreshed by `bun run china:seed`.
+ * The seed is refreshed by `bun run seed`.
  */
 function seedStoreIfMissing(): void {
   if (process.env.CHINA_SEED === "off" || existsSync(DB_PATH) || !existsSync(SEED_PATH)) return;

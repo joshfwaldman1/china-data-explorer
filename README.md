@@ -18,17 +18,17 @@ figures to the publishing agency, never to this site.
 | NBS catalog | 66,302 series across 12 datasets: national monthly, quarterly and annual; provincial (31 provinces); city; Hong Kong, Macao and Taiwan; three international tables. 64,509 are stored; the rest are fetched on first view. |
 | Headline series | 112, curated by hand in `server/data.ts`: 31 from NBS tables, 17 from the Eastmoney mirror of NBS/PBOC releases, 8 Customs, 8 CFETS, 7 PBOC, 4 SAFE, 4 MOF, 4 MOFCOM, 2 NEA, 3 AkShare, 24 international series via FRED. |
 | Store | 6.7 million observations in one SQLite file, append-only, so revisions are kept from the day a series was first stored. |
-| Cross-checks | 39 pairs of series that should agree, compared nightly (`bun run china:audit`). Every domestic headline is paired or carries a written reason why it cannot be. |
+| Cross-checks | 39 pairs of series that should agree, compared nightly (`bun run audit`). Every domestic headline is paired or carries a written reason why it cannot be. |
 | English | NBS's own English titles where its portal's English mode has them (`scripts/sync-nbs-english.ts`); generated translations elsewhere, marked as such. |
 | Tests | 260 in 44 files: parser fixtures for every publisher, the store, the audit, a headless-Chrome render of the Home and ranking pages. |
 
 ## Quick start
 
-From the repository root (Bun 1.3 or later):
+Bun 1.3 or later:
 
 ```sh
 bun install
-bun run china            # dev server with hot reload
+bun run dev            # dev server with hot reload
 # open http://localhost:5173   (PORT=... to change)
 ```
 
@@ -37,54 +37,51 @@ data before its first refresh. No API key is required. `FRED_API_KEY` lets
 the 24 international series refresh; `ANTHROPIC_API_KEY` expands English
 search queries that miss. See the environment table at the end.
 
-Other commands, all from the root:
+Other commands:
 
 | Command | What it does |
 | --- | --- |
-| `bun test` | The whole suite (run from `china-explorer/` to run only the explorer's). |
-| `bunx tsc --noEmit -p tsconfig.json` | Type check; must report nothing under `china-explorer`. |
-| `bun run china:audit` | The concordance audit against the local store. |
-| `bun run china:ingest [keys]` | Refresh headline series into the local store. |
-| `bun run china:catalog` | Re-crawl the NBS catalog (hours; see below). |
-| `bun run china:regions` | Collect the place lists of regional tables. |
-| `bun run china-explorer/scripts/sync-nbs-english.ts` | Collect NBS's English titles from the portal's English mode. |
-| `bun run china:translate` | Model-translate remaining titles (needs `ANTHROPIC_API_KEY` and credit). |
-| `bun run china:seed` | Rebuild `seed/china.db` from a good local store. Never on production data. |
+| `bun test` | The whole suite (run from `` to run only the explorer's). |
+| `bun run typecheck` | Type check; must report nothing. |
+| `bun run audit` | The concordance audit against the local store. |
+| `bun run ingest [keys]` | Refresh headline series into the local store. |
+| `bun run catalog` | Re-crawl the NBS catalog (hours; see below). |
+| `bun run regions` | Collect the place lists of regional tables. |
+| `bun run english` | Collect NBS's English titles from the portal's English mode. |
+| `bun run translate` | Model-translate remaining titles (needs `ANTHROPIC_API_KEY` and credit). |
+| `bun run seed` | Rebuild `seed/china.db` from a good local store. Never on production data. |
 
 ## Repository map
 
 ```
-china-explorer/
-  server/
-    app.ts            Bun.serve: routes, schedules (ingest, release refresh, sweeps, audit, crawl)
-    data.ts           the curated headline catalog: every key, its source and lines; HOME_ROWS
-    db.ts             the SQLite store: observations, series, fetch_log, catalog cache
-    ingest.ts         refresh logic; never-stored keys first
-    due.ts            when a series is due, by frequency and release day
-    concordance.ts    the nightly cross-checks (CONCORDANCE_PAIRS, NO_PAIR)
-    nbs-catalog.ts    the NBS catalog: search, English labels, regions, esData fetches
-    gloss.ts          generated English for Chinese titles (token dictionary, pinyin fallback)
-    official-english.ts  NBS's own English titles, pinned to id and Chinese name
-    customs.ts pboc.ts mof.ts mofcom.ts safe.ts nea.ts cfets.ts   one adapter per publisher
-    releases.ts release-plan.ts   the NBS release calendar and release-day refreshes
-    fixtures/         captured publisher pages and workbooks the tests parse
-    *.test.ts         tests beside the code they cover
-  client/
-    app.tsx           the whole UI (React 19, Recharts); lib.ts holds the chart arithmetic
-    styles.css
-  shared/places.ts    provinces, cities and countries with English names
-  catalog/            shipped data: nbs-catalog.json.gz, nbs-regions.json, gloss-en.json,
-                      notes-en.json, nbs-official-en.json.gz
-  scripts/            catalog crawls and translation runs (run from your machine, not the server)
-  seed/china.db       the small store a fresh deployment starts from
-  DATASET_LOOP.md     how a round of dataset work is done; DATASET_QUEUE.md what is next
-  IMPROVEMENT_LOG.md  what changed and why, round by round; PROJECT_BRIEF.md the summary
-  HANDOFF.txt         state and pending decisions for whoever picks this up
+server/
+  app.ts            Bun.serve: routes, schedules (ingest, release refresh, sweeps, audit, crawl)
+  data.ts           the curated headline catalog: every key, its source and lines; HOME_ROWS
+  db.ts             the SQLite store: observations, series, fetch_log, catalog cache
+  ingest.ts         refresh logic; never-stored keys first
+  due.ts            when a series is due, by frequency and release day
+  concordance.ts    the nightly cross-checks (CONCORDANCE_PAIRS, NO_PAIR)
+  nbs-catalog.ts    the NBS catalog: search, English labels, regions, esData fetches
+  gloss.ts          generated English for Chinese titles (token dictionary, pinyin fallback)
+  official-english.ts  NBS's own English titles, pinned to id and Chinese name
+  customs.ts pboc.ts mof.ts mofcom.ts safe.ts nea.ts cfets.ts   one adapter per publisher
+  releases.ts release-plan.ts   the NBS release calendar and release-day refreshes
+  fixtures/         captured publisher pages and workbooks the tests parse
+  *.test.ts         tests beside the code they cover
+client/
+  app.tsx           the whole UI (React 19, Recharts); lib.ts holds the chart arithmetic
+  styles.css
+shared/places.ts    provinces, cities and countries with English names
+catalog/            shipped data: nbs-catalog.json.gz, nbs-regions.json, gloss-en.json,
+                    notes-en.json, nbs-official-en.json.gz
+scripts/            catalog crawls and translation runs (run from your machine, not the server)
+seed/china.db       the small store a fresh deployment starts from
+Dockerfile          the image Railway builds; railway.toml points at it
+.github/workflows/  ci.yml (tests and type check on every push), backup.yml (nightly store copy)
+DATASET_LOOP.md     how a round of dataset work is done; DATASET_QUEUE.md what is next
+IMPROVEMENT_LOG.md  what changed and why, round by round; PROJECT_BRIEF.md the summary
+HANDOFF.txt         state and pending decisions for whoever picks this up
 ```
-
-Repository-root files that belong to the explorer: `Dockerfile.china`,
-`railway.china.toml`, and the `china:*` scripts in `package.json`. The root
-`railway.toml` and `src/` belong to the other app in this repository.
 
 ## How it works
 
@@ -147,12 +144,12 @@ parked item's reason.
 The shipped snapshot comes from the portal's live hierarchy, not a hand list:
 
 ```sh
-bun run china:catalog                 # all dataset families; hours; checkpoints to .partial
-bun run china:catalog --codes=3 --out=china-explorer/catalog/nbs-catalog-annual.json
-bun run china:catalog-merge --out=china-explorer/catalog/nbs-catalog.json.gz \
-  china-explorer/catalog/nbs-catalog.json china-explorer/catalog/nbs-catalog-annual.json
-bun run china:regions                 # the places each regional table covers
-bun run china-explorer/scripts/sync-nbs-english.ts   # NBS's English titles, one request per table
+bun run catalog                 # all dataset families; hours; checkpoints to .partial
+bun run catalog --codes=3 --out=catalog/nbs-catalog-annual.json
+bun run catalog:merge --out=catalog/nbs-catalog.json.gz \
+  catalog/nbs-catalog.json catalog/nbs-catalog-annual.json
+bun run regions                 # the places each regional table covers
+bun run english                       # NBS's English titles, one request per table
 ```
 
 The metadata endpoints challenge a plain HTTP client, so the catalog crawl
@@ -164,14 +161,13 @@ rebuilt automatically when any file under `catalog/` changes.
 
 ## Conventions
 
-- Work on `main`; `china-data-explorer` is pushed in step with it. Never
-  force-push.
+- Work on `main`. Never force-push.
 - Never commit `china.db`, `catalog.db` or anything under `catalog/*.partial`.
   `seed/china.db` is committed on purpose and refreshed only deliberately.
 - No new dependencies without a reason written in the commit. The parsers
   are dependency-free (`xlsx.ts` reads workbooks itself).
-- Don't touch `Dockerfile.china`, `railway.china.toml` or `.github/workflows`
-  in a dataset round.
+- Don't touch `Dockerfile`, `railway.toml` or `.github/workflows` in a
+  dataset round.
 - Attribute to the publisher, not the mirror. Say "year to date" when a
   series is cumulative. Keep the Home row titles literal.
 - Commit messages explain the why; `IMPROVEMENT_LOG.md` carries the round.
@@ -212,19 +208,19 @@ point elsewhere); set `AKTOOLS_URL=off` on a deployment without it.
 
 ## Deploying
 
-One process, two SQLite files. `Dockerfile.china` at the repository root:
+One process, two SQLite files. `Dockerfile` at the repository root:
 
 ```sh
-docker build -f Dockerfile.china -t econstats-china .
+docker build -f Dockerfile -t econstats-china .
 docker run -p 5173:5173 -v china-data:/data econstats-china
 ```
 
 - `/data/china.db` is the store; mount a persistent volume. `/data/catalog.db`
   is a cache rebuilt from `catalog/*` when those files change.
-- Railway: project `econstats-china`; config file `railway.china.toml`
-  (selects `Dockerfile.china` and the `/health` check); a volume at `/data`;
-  variables `FRED_API_KEY` and `AKTOOLS_URL=off`. Redeploy with
-  `railway up --detach` from the repository root. The first refresh runs two
+- Railway: project `econstats-china`; `railway.toml` selects the Dockerfile
+  and the `/health` check; a volume at `/data`; variables `FRED_API_KEY` and
+  `AKTOOLS_URL=off`. Redeploy with `railway up --detach` from the repository
+  root. The first refresh runs two
   minutes after boot, the first catalog crawl ten minutes after.
 
 ### Environment variables
@@ -234,8 +230,8 @@ None is required. Every one the server reads, with its default:
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `5173` | Port the web process listens on. |
-| `CHINA_DB_PATH` | `china-explorer/china.db` | The store. `/data/china.db` in the container. |
-| `CHINA_CATALOG_DB_PATH` | `china-explorer/catalog.db` | The derived catalog cache. |
+| `CHINA_DB_PATH` | `./china.db` | The store. `/data/china.db` in the container. |
+| `CHINA_CATALOG_DB_PATH` | `./catalog.db` | The derived catalog cache. |
 | `CHINA_SEED` | on | `off` stops an empty store being seeded from `seed/china.db` (the tests set it). |
 | `CHINA_LIVE_FALLBACK` | `1` | `0` answers 503 for a series not yet stored instead of fetching it on view. |
 | `FRED_API_KEY` | unset | Needed for the international series to refresh. |

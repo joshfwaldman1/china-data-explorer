@@ -9,7 +9,7 @@ not from scratch. Rounds are small on purpose.
 
 1. Pick the top item from the queue (or whatever the last round surfaced).
 2. Reproduce it on the live site, not just locally.
-3. Fix, typecheck (`bunx tsc --noEmit -p tsconfig.json | grep china-explorer`
+3. Fix, typecheck (`bun run typecheck`
    must print nothing), `bun test`, commit, `railway up --detach`, then
    verify the fix on the live URL.
 4. Log it below and add anything the round surfaced to the queue.
@@ -2108,7 +2108,7 @@ not from scratch. Rounds are small on purpose.
   quarterly line against its year-to-date line under the rule that a period
   series equal to the cumulative one everywhere is the cumulative one). Six
   tests. Served at `/api/audit/concordance`, run nightly with findings in
-  `fetch_log` under `concordance`, and as `bun run china:audit`. The first live
+  `fetch_log` under `concordance`, and as `bun run audit`. The first live
   run found two things: PPI read as "no overlap" because the pair named a
   2007-2013 year slice of the table (the monthly dataset carries the same
   table sliced by years and once unsliced; results now report each side's

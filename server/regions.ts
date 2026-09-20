@@ -5,7 +5,7 @@
  * over places, and the list of places belongs to the table, not to the
  * country: the provincial tables carry 31 provinces, the city tables carry the
  * cities that table was collected for. That list lives behind a challenged
- * metadata endpoint, so it is collected once by `bun run china:regions` and
+ * metadata endpoint, so it is collected once by `bun run regions` and
  * shipped beside the catalog; see scripts/sync-nbs-regions.ts.
  *
  * Reading order: the collected list for this table, then the live endpoint if

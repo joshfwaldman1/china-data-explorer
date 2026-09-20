@@ -6,9 +6,9 @@
  * monthly or quarterly) and the web app never has to touch a foreign portal
  * during a page load.
  *
- *   bun run china-explorer/ingest.ts                        # curated + every stored catalog series
- *   bun run china-explorer/ingest.ts cpi gdp                # named curated series only
- *   bun run china-explorer/ingest.ts nbs_<id>@440000000000  # one catalog series, one region
+ *   bun run ingest                        # curated + every stored catalog series
+ *   bun run ingest cpi gdp                # named curated series only
+ *   bun run ingest nbs_<id>@440000000000  # one catalog series, one region
  *
  * Failures are per-series and recorded, not fatal. If AKTools is not running,
  * the AkShare series fail and the rest still land. A deployment that has said

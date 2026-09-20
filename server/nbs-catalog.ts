@@ -1123,7 +1123,7 @@ export async function getNbsDimensions(entry: NbsCatalogEntry, options: { offlin
     return regions;
   };
 
-  // The list collected for this table, if `bun run china:regions` has reached
+  // The list collected for this table, if `bun run regions` has reached
   // it. That is the only source that knows a city table's own cities; the live
   // endpoint below is challenged from a plain client and usually declines.
   const collected = await collectedRegions(entry.cid);
@@ -1388,7 +1388,7 @@ async function resolveNbsRegion(entry: NbsCatalogEntry, regionValue?: string): P
   const found = dimensions.find((item) => item.value === regionValue) ?? dimensions[0];
   if (found) return found;
   if (entry.geography !== "National") {
-    throw new Error(`the places ${entry.dataset} publishes this table for have not been collected; run bun run china:regions`);
+    throw new Error(`the places ${entry.dataset} publishes this table for have not been collected; run bun run regions`);
   }
   return NATIONAL;
 }

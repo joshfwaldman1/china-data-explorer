@@ -1,7 +1,7 @@
 # One round of the dataset loop
 
 You are running one round of a standing loop that works through
-`china-explorer/COVERAGE_PLAN.md`: adding the sources and series that give a
+`COVERAGE_PLAN.md`: adding the sources and series that give a
 cohesive picture of the Chinese economy. The owner wants steady, tested,
 verifiable progress, one item per round. Read this whole file, then the queue
 in `DATASET_QUEUE.md`, before doing anything.
@@ -9,7 +9,7 @@ in `DATASET_QUEUE.md`, before doing anything.
 ## Ground rules
 
 - Work on `main` (`china-data-explorer` is pushed in step with it). Never
-  force-push, never rewrite history. Never run `bun run china:seed`, never
+  force-push, never rewrite history. Never run `bun run seed`, never
   commit `china.db`, `catalog.db` or anything under `catalog/*.partial`.
 - One queue item per round, the highest one you can finish. If an item turns
   out to need a decision from the owner (a paid source, a key, a merge), record
@@ -30,8 +30,8 @@ in `DATASET_QUEUE.md`, before doing anything.
   the publisher (Customs, PBOC, MOF, NEA, SAFE), never to a mirror. Cumulative
   year-to-date stays labelled as such. A proxy is labelled a proxy. No January
   is derived. No unchanged value is stored as a revision.
-- Do not add dependencies. Do not touch `Dockerfile.china`,
-  `railway.china.toml` or `.github/workflows`. Do not raise request
+- Do not add dependencies. Do not touch `Dockerfile`,
+  `railway.toml` or `.github/workflows`. Do not raise request
   concurrency against any government portal; pace as the existing adapters do.
 - The Anthropic API account may be out of credit: the gloss translation and
   search expansion degrade gracefully. Do not spend rounds on translation until
@@ -58,7 +58,7 @@ in `DATASET_QUEUE.md`, before doing anything.
    the model for a release-table source, `server/data.ts` for a curated key,
    `server/release-plan.ts` and `server/due.ts` for scheduling.
 5. Gates, from the repo root, each read in full rather than piped into grep:
-   `bunx tsc --noEmit -p tsconfig.json` must show no `china-explorer` errors
+   `bun run typecheck` must report nothing
    (33 pre-existing errors elsewhere are known); `bun test` must pass; the
    item's own acceptance test must pass.
 6. Commit with a message that says what was missing and what now answers it,

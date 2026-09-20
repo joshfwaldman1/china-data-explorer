@@ -13,25 +13,25 @@ across a restart (still in-process timers), the official release-page adapter
 in shadow mode, per-host rate limits shared across processes, and a Chinese
 working-day calendar (the retry window is elapsed time). 14,244 annual base
 concepts still lack an English gloss because the API account ran out of
-credit mid-run; `bun run china:translate --concurrency=8` resumes when credit
+credit mid-run; `bun run translate --concurrency=8` resumes when credit
 is restored, then commit gloss-en.json and deploy.
 
 IN FLIGHT EARLIER ON 15 SEPTEMBER (now complete)
 
 The annual national dataset (NBS code 3, about 43,700 series) is being
-crawled into china-explorer/catalog/nbs-catalog-annual.json by
+crawled into catalog/nbs-catalog-annual.json by
 
-  bun run china:catalog --codes=3 --out=china-explorer/catalog/nbs-catalog-annual.json \
+  bun run catalog --codes=3 --out=catalog/nbs-catalog-annual.json \
     --cache=<scratch>/nbs-cache --concurrency=2 --delay=1200
 
 The portal throttles hard, so this takes hours; the --cache directory means a
 restart replays what it already collected. When it finishes:
 
-  1. bun run china:catalog-merge --out=china-explorer/catalog/nbs-catalog.json.gz \
-       china-explorer/catalog/nbs-catalog.json.gz china-explorer/catalog/nbs-catalog-annual.json
-  2. NBS_CATALOG_PATH=china-explorer/catalog/nbs-catalog-annual.json bun run china:translate
+  1. bun run catalog:merge --out=catalog/nbs-catalog.json.gz \
+       catalog/nbs-catalog.json.gz catalog/nbs-catalog-annual.json
+  2. NBS_CATALOG_PATH=catalog/nbs-catalog-annual.json bun run translate
      (English glosses for the new base concepts; resumable, writes gloss-en.json)
-  3. bun test && bunx tsc --noEmit -p tsconfig.json | grep china-explorer
+  3. bun test && bun run typecheck
   4. git commit, git push, railway up --detach
 
 The provincial and city tables are already live; the production crawl is
@@ -73,11 +73,11 @@ change, gate on both checks below, commit, push, deploy, verify live, log it.
 
 COMMANDS
 
-  bun run china              start the dev server (port 5173)
-  bun run china:start        production mode, serves the built client
-  bun run china:ingest       refresh every curated series; pass keys to narrow
+  bun run dev              start the dev server (port 5173)
+  bun run start        production mode, serves the built client
+  bun run ingest       refresh every curated series; pass keys to narrow
   bun test                   139 tests, 6 files. Must pass.
-  bunx tsc --noEmit -p tsconfig.json | grep china-explorer   must print nothing
+  bun run typecheck   must print nothing
 
 The typecheck gate has a trap with history: a tsconfig error makes tsc exit
 before checking any file, so a clean grep can be vacuous. Read the whole tsc
@@ -101,7 +101,7 @@ At each container switch the edge answers 502 for a few seconds; a check that
 fails right after a deploy should be retried before it is believed.
 
 The store lives on a Railway volume at /data, not in git. Never run
-`bun run china:seed` (it would copy the whole store into the repo; the seed is
+`bun run seed` (it would copy the whole store into the repo; the seed is
 headline-only by design), never commit china.db or catalog.db.
 
 

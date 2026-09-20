@@ -7,8 +7,8 @@
  * Writes catalog/notes-en.json as { chinese: english }. Re-running only
  * translates strings the table does not have yet.
  *
- *   bun run china-explorer/scripts/translate-notes.ts
- *   bun run china-explorer/scripts/translate-notes.ts --limit=50
+ *   bun run scripts/translate-notes.ts
+ *   bun run scripts/translate-notes.ts --limit=50
  */
 
 import Anthropic from "@anthropic-ai/sdk";

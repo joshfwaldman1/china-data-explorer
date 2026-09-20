@@ -1,0 +1,49 @@
+{
+  "name": "china-data-explorer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A FRED-style web app for Chinese official statistics: the NBS database in English and Chinese, beside headline indicators read from the publishers themselves and cross-checked nightly.",
+  "module": "server/app.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run server/app.ts",
+    "start": "NODE_ENV=production bun run server/app.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "ingest": "bun run server/ingest.ts",
+    "audit": "bun run server/concordance.ts",
+    "catalog": "bun run scripts/sync-nbs-catalog.ts",
+    "catalog:merge": "bun run scripts/merge-nbs-catalogs.ts",
+    "regions": "bun run scripts/sync-nbs-regions.ts",
+    "english": "bun run scripts/sync-nbs-english.ts",
+    "translate": "bun run scripts/translate-catalog.ts",
+    "translate-notes": "bun run scripts/translate-notes.ts",
+    "official-en": "bun run scripts/import-nbs-official-en.ts",
+    "seed": "bun run server/seed.ts",
+    "china": "bun run server/app.ts",
+    "china:start": "NODE_ENV=production bun run server/app.ts",
+    "china:ingest": "bun run server/ingest.ts",
+    "china:audit": "bun run server/concordance.ts",
+    "china:catalog": "bun run scripts/sync-nbs-catalog.ts",
+    "china:catalog-merge": "bun run scripts/merge-nbs-catalogs.ts",
+    "china:regions": "bun run scripts/sync-nbs-regions.ts",
+    "china:translate": "bun run scripts/translate-catalog.ts",
+    "china:translate-notes": "bun run scripts/translate-notes.ts",
+    "china:official-en": "bun run scripts/import-nbs-official-en.ts",
+    "china:seed": "bun run server/seed.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.94.0",
+    "pinyin-pro": "^3.29.3",
+    "react": "^19",
+    "react-dom": "^19",
+    "recharts": "^3.7.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "playwright": "^1.63.0",
+    "typescript": "^5.9.3"
+  }
+}

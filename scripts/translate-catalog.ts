@@ -6,8 +6,8 @@
  * catalog/gloss-en.json, which gloss.ts then prefers over its token
  * dictionary. Re-running only translates what the table does not have yet.
  *
- *   bun run china-explorer/scripts/translate-catalog.ts            # everything missing
- *   bun run china-explorer/scripts/translate-catalog.ts --limit=200
+ *   bun run scripts/translate-catalog.ts            # everything missing
+ *   bun run scripts/translate-catalog.ts --limit=200
  */
 
 import Anthropic from "@anthropic-ai/sdk";

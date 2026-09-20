@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+dist
+venv
+captures
+screenshot.png
+china.db*
+catalog.db*
+catalog/*.partial
+catalog/*.tmp
+catalog/nbs-catalog.json
+catalog/nbs-catalog-annual.json
+catalog/nbs-catalog-regional.json
+catalog/nbs-official-en.json

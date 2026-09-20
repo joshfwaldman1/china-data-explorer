@@ -7,7 +7,7 @@
  * them together: entries are keyed by the bureau's own indicator id, so a later
  * input replaces an earlier one for the same series and nothing is duplicated.
  *
- *   bun run china:catalog-merge --out=catalog/nbs-catalog.json.gz \
+ *   bun run catalog:merge --out=catalog/nbs-catalog.json.gz \
  *     catalog/nbs-catalog.json catalog/nbs-catalog-regional.json
  *
  * An output path ending .gz is written compressed; the site reads either.

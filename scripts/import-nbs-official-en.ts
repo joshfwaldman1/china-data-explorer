@@ -5,7 +5,7 @@
  * match both a current opaque key and its exact Chinese title. This script does
  * not guess translations or fuzzy-match legacy IDs.
  *
- *   bun run china-explorer/scripts/import-nbs-official-en.ts --in=reviewed.json
+ *   bun run scripts/import-nbs-official-en.ts --in=reviewed.json
  */
 
 import { dirname, resolve } from "node:path";

@@ -6,7 +6,7 @@
  *   - React 19 for the UI, Recharts for the charts (both already in the project)
  *   - data.ts proxies Eastmoney / NBS server-side (avoids browser CORS)
  *
- * Run:  bun run china-explorer/server.ts   (from the project root)
+ * Run:  bun run dev   (from the project root)
  */
 
 import index from "../client/index.html";

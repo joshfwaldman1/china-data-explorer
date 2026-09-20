@@ -1,0 +1,51 @@
+# Nightly copy of the China Data Explorer's store.
+#
+# The store lives on a Railway volume, not in this repository: it is 400 MB
+# and growing, and a volume is not a backup. This job asks the running site
+# for a consistent copy (GET /api/backup, a VACUUM INTO snapshot) and keeps it
+# as a workflow artifact for 90 days. It needs the same BACKUP_TOKEN the site
+# was deployed with, as a repository secret; without it the job says so and
+# stops, rather than failing every night.
+#
+# An earlier version of this workflow ran its own ingest in CI and committed
+# the resulting database to the repository. That was right when the store was
+# 764 KB and wrong once it was hundreds of megabytes; and a store built in CI
+# was never a copy of the one the site serves.
+
+name: China store backup
+
+on:
+  schedule:
+    - cron: "30 18 * * *" # 18:30 UTC daily, after the day's releases and refreshes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download a consistent copy of the store
+        env:
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+          SITE: https://econstats-china-production.up.railway.app
+        run: |
+          if [ -z "$BACKUP_TOKEN" ]; then
+            echo "BACKUP_TOKEN is not set as a repository secret; nothing to do."
+            echo "Set it to the value the Railway service was deployed with to enable nightly copies."
+            exit 0
+          fi
+          name="china-$(date -u +%F).db"
+          curl -fsS --retry 3 --retry-delay 30 -H "Authorization: Bearer $BACKUP_TOKEN" "$SITE/api/backup" -o "$name"
+          ls -l "$name"
+          echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
+
+      - name: Keep the copy for 90 days
+        if: env.BACKUP_FILE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90
+          compression-level: 6

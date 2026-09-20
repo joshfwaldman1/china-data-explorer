@@ -8,9 +8,9 @@
  * the tables in a catalog snapshot, asks the portal which places each one
  * covers, and writes the answer next to the catalog.
  *
- *   bun run china:regions                       # every regional table in the snapshot
- *   bun run china:regions --codes=6,8           # only these datasets
- *   bun run china:regions --merge=true          # keep what was collected before
+ *   bun run regions                       # every regional table in the snapshot
+ *   bun run regions --codes=6,8           # only these datasets
+ *   bun run regions --merge=true          # keep what was collected before
  *
  * Output shape: region lists are shared by many tables, so they are stored once
  * under the bureau's own identifier for the list and each table points at one.
