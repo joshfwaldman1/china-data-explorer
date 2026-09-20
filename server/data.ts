@@ -70,6 +70,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   lgb_issuance: ["local government bonds", "special bonds", "bond issuance", "地方政府债券", "专项债券"],
   tax_by_type: ["vat", "value added tax", "income tax", "stamp duty", "tariffs", "增值税", "所得税", "印花税", "关税"],
   cross_border_flows: ["cross-border receipts", "cross border payments", "涉外收付款", "涉外收入"],
+  port_throughput: ["port throughput", "ports", "cargo throughput", "港口", "吞吐量"],
+  port_throughput_growth: ["port throughput growth", "港口吞吐量增长"],
   cross_border_flows_usd: ["cross-border receipts usd", "涉外收付款 美元"],
   tax_by_type_growth: ["tax growth by type", "税收增长"],
   lgb_debt: ["local government debt", "debt outstanding", "地方政府债务", "债务余额"],
@@ -1775,6 +1777,42 @@ export const CATALOG: Record<string, Indicator> = {
     measure: "growth",
     releaseDay: 21,
   },
+  port_throughput: {
+    kind: "nbs", group: "Growth & Output",
+    title: "Port Cargo Throughput", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Ten thousand tonnes (万吨), month",
+    // NBS's monthly 全国港口货物吞吐量: the tonnage handled at the nation's
+    // ports in the month, with the foreign-trade cargo inside it and the
+    // coastal ports' share. The bureau republished the table in 2019 and the
+    // older one (2005-2018) carries the foreign-trade line, which is stitched
+    // behind it. The transport ministry publishes the same figures, but its
+    // statistics paths were gone when this was built.
+    cid: "2b73086af01e4e998d8e0a197705e9d4",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "28143dc9210949239d18fb70082fb36c", label: "All ports, month (10,000 tonnes)" },
+      { id: "3c57837b5732465d8485192ce6540415", label: "Foreign trade cargo, month (10,000 tonnes)" },
+      { id: "55c2fc8f7e51470fa24addc109ae6b04", label: "Coastal ports, month (10,000 tonnes)" },
+    ],
+    slices: [{ cid: "c1538234fc47427db692f31f7cee45ed", rootId: "fc982599aa684be7969d7b90b1bd0e84", ids: [
+      { id: "241b41defd6a4679bde04a358a485af4", label: "Foreign trade cargo, month (10,000 tonnes)" },
+      { id: "5ba21ff786674c1292adce80661a4fdc", label: "Coastal ports, month (10,000 tonnes)" },
+    ] }],
+  },
+  port_throughput_growth: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Port Cargo Throughput Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // The rates NBS prints beside the tonnage: the month's and the year to
+    // date's. Pair: the two against each other, as GDP's quarter and year to date.
+    cid: "2b73086af01e4e998d8e0a197705e9d4",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "2bc3e930d425482bbdead5ee4c0d4c28", label: "All ports, month (YoY %)" },
+      { id: "3d54ea797ee04d76b9b7bdca37b2414a", label: "All ports, year to date (YoY %)" },
+      { id: "25416fae26c0402c89dbea140f109044", label: "Foreign trade cargo, month (YoY %)" },
+    ],
+  },
   electricity_output: {
     kind: "nbs", group: "Growth & Output",
     title: "Electricity Generation", agency: "National Bureau of Statistics",
@@ -1886,6 +1924,7 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
     { key: "industrial_profits", title: "Industrial Profits Growth, Year to Date" },
     { key: "electricity_demand", title: "Electricity Consumption" },
+    { key: "port_throughput", title: "Port Cargo Throughput" },
     { key: "capacity_utilisation", title: "Industrial Capacity Utilisation" },
   ] },
   { group: "Consumption", rows: [
