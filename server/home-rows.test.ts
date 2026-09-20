@@ -20,7 +20,9 @@ test("every Home row names an existing key in its own group, once per line, and 
     for (const row of group.rows) {
       const cfg: unknown = CATALOG[row.key];
       expect(cfg).toBeDefined();
-      expect(Reflect.get(cfg as object, "group")).toBe(group.group);
+      // A row in a group other than its key's own must be lifting one named line
+      // (the PMI employment indexes into Labor); otherwise it is a misfiled key.
+      if (Reflect.get(cfg as object, "group") !== group.group) expect(row.line).toBeDefined();
       const id = `${row.key}|${row.line ?? ""}`;
       expect(seen.has(id)).toBe(false);
       seen.add(id);
@@ -54,6 +56,8 @@ test("the catalog ranks listed keys in Home order and takes every other domestic
       expect(served?.rank).toBeGreaterThan(last);
       last = served?.rank ?? last;
       if (row.title) expect(served?.title).toBe(row.title);
+      const own = Reflect.get(CATALOG[row.key] as object, "group");
+      expect(served?.group ?? own).toBe(group.group);
     }
   }
   const listed = new Set([...HOME_ROWS.flatMap((group) => group.rows.map((row) => row.key)), ...HERO_KEYS]);

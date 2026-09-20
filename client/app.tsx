@@ -13,7 +13,7 @@ import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName,
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; homeRows?: { rank: number; title?: string; line?: string }[]; }
+interface CuratedEntry { key: string; title: string; group: string; agency: string; frequency: string; unit: string; ended?: string; endedNote?: string; home?: boolean; refreshBlocked?: string; source?: string; releaseDay?: number; homeRegions?: string[]; homeRank?: number; homeTitle?: string; homeRows?: { rank: number; title?: string; line?: string; group?: string }[]; }
 interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
@@ -656,6 +656,8 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
   const headlineEntries = props.curated.filter((entry) => entry.home !== false);
   // The curated series from publishers other than the bureau and FRED, counted whether or not they sit on this page.
   const domesticEntries = props.curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics"));
+  // Every Home row, paired with the entry it comes from; a row may sit in another group.
+  const homeRows = props.curated.flatMap((entry) => (entry.homeRows ?? []).map((row) => ({ entry, row })));
   const publisherCounts = [...new Set(domesticEntries.map((entry) => entry.agency))].map((agency) => ({ agency, count: domesticEntries.filter((entry) => entry.agency === agency).length })).sort((a, b) => b.count - a.count);
   useEffect(() => {
     let cancelled = false;
@@ -718,11 +720,10 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
           })}
         </div>
         <div className="indicator-list">
-          {[...new Set(props.curated.filter((entry) => entry.homeRows && entry.homeRows.length > 0).map((entry) => entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
+          {[...new Set(homeRows.map(({ entry, row }) => row.group ?? entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
             <section key={group} aria-label={group}>
               <h3>{group}</h3>
-              {props.curated.filter((entry) => entry.group === group && entry.homeRows && entry.homeRows.length > 0)
-                .flatMap((entry) => (entry.homeRows ?? []).map((row) => ({ entry, row })))
+              {homeRows.filter(({ entry, row }) => (row.group ?? entry.group) === group)
                 .sort((a, b) => a.row.rank - b.row.rank)
                 .flatMap(({ entry, row }) => {
                 // A series that names home regions (trade by partner) is one row per
@@ -754,7 +755,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 );
                 });
               })}
-              {props.curated.filter((entry) => entry.group === group && entry.homeRegions && entry.home !== false).map((entry) => { const link = allRegionsLink(entry); return <a key={`${entry.key}-all`} className="group-more" href={link.href}>{link.label} ›</a>; })}
+              {props.curated.filter((entry) => entry.group === group && entry.homeRegions && entry.home !== false && (entry.homeRows ?? []).some((row) => (row.group ?? entry.group) === group)).map((entry) => { const link = allRegionsLink(entry); return <a key={`${entry.key}-all`} className="group-more" href={link.href}>{link.label} ›</a>; })}
             </section>
           ))}
         </div>

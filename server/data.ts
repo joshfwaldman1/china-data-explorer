@@ -1976,6 +1976,9 @@ export interface CatalogEntry {
  * on its own page and its group's release links.
  */
 export const HOME_ROWS: { group: string; rows: { key: string; title?: string; line?: string }[] }[] = [
+  // A row may lift one line of a table into a group other than the table's own
+  // (the PMI employment indexes belong beside the labour series, though the PMI
+  // tables sit under Sentiment). Such a row must name the line it lifts.
   { group: "Growth & Output", rows: [
     { key: "industrial_production", title: "Industrial Production Growth" },
     { key: "services_production", title: "Services Production Growth" },
@@ -2000,6 +2003,8 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
   // labour force's size.
   { group: "Labor", rows: [
     { key: "unemployment", line: "Youth 16-24, ex-students (%)", title: "Youth Unemployment, 16-24 Excluding Students" },
+    { key: "pmi_manufacturing", line: "Employment", title: "Manufacturing PMI, Employment" },
+    { key: "pmi_nonmanufacturing", line: "Employment", title: "Non-Manufacturing PMI, Employment" },
     { key: "unemployment", line: "31 major cities (%)", title: "Unemployment Rate, 31 Major Cities" },
     { key: "working_hours", title: "Average Weekly Hours Worked" },
     { key: "migrant_workers", title: "Rural Migrant Workers Away from Home" },
@@ -2061,12 +2066,24 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
 /** The four tiles above the Home list; they are not rows. */
 export const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
 
-export interface HomeRow { rank: number; title?: string; line?: string }
+export interface HomeRow {
+  rank: number;
+  title?: string;
+  line?: string;
+  /** The group the row is shown in, when it is not the key's own group. */
+  group?: string;
+}
 /** A key's Home rows, in page order: usually one; a table whose lines each get a row has several. */
 const HOME_INDEX = new Map<string, HomeRow[]>();
 HOME_ROWS.forEach((group, groupIndex) => group.rows.forEach((row, rowIndex) => {
   const rows = HOME_INDEX.get(row.key) ?? [];
-  rows.push({ rank: groupIndex * 100 + rowIndex, ...(row.title ? { title: row.title } : {}), ...(row.line ? { line: row.line } : {}) });
+  const own = CATALOG[row.key]?.group;
+  rows.push({
+    rank: groupIndex * 100 + rowIndex,
+    ...(row.title ? { title: row.title } : {}),
+    ...(row.line ? { line: row.line } : {}),
+    ...(own && own !== group.group ? { group: group.group } : {}),
+  });
   HOME_INDEX.set(row.key, rows);
 }));
 
