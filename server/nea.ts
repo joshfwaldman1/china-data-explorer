@@ -94,7 +94,13 @@ function breakdown(paragraph: string, totalMatch: RegExpExecArray): NeaBreakdown
   };
 }
 
-const TOTAL = /全社会用电量\s*(?:累计)?\s*([\d,]+(?:\.\d+)?)\s*亿千瓦时/g;
+// "全社会用电量71730亿千瓦时", "全社会用电量累计71730亿千瓦时", and the August 2026
+// phrasing "全社会用电量再破万亿，达到10332亿千瓦时", where a clause sits between the
+// subject and its figure. The clause may not contain a full stop or another figure.
+const TOTAL = /全社会用电量\s*(?:累计)?\s*(?:[^。\d]{0,12}?达到\s*)?([\d,]+(?:\.\d+)?)\s*亿千瓦时/g;
+
+/** The dashes a range is written with: hyphen, tilde, en dash, em dash, full-width dash, or 至. */
+const RANGE_DASH = "[-~～–—－至]";
 
 /**
  * The figures of one release page. `publishedAt` ("YYYY-MM-DD") gives the
@@ -113,8 +119,8 @@ export function parseNeaRelease(html: string, publishedAt: string): NeaFigures |
     const exec = TOTAL.exec.bind(new RegExp(TOTAL.source))(text.slice(at));
     if (!exec) continue;
     const figures = breakdown(paragraph, exec);
-    const single = lead.match(/(?:^|[^\d～~\-])(\d{1,2})\s*月份?\s*，\s*$/);
-    const range = lead.match(/(\d{1,2})\s*[～~\-]\s*(\d{1,2})\s*月份?\s*，\s*$/);
+    const single = lead.match(new RegExp(`(?:^|[^\\d${RANGE_DASH.slice(1, -1)}])(\\d{1,2})\\s*月份?\\s*，\\s*$`));
+    const range = lead.match(new RegExp(`(\\d{1,2})\\s*${RANGE_DASH}\\s*(\\d{1,2})\\s*月份?\\s*，\\s*$`));
     const annual = lead.match(/(\d{4})\s*年\s*，\s*$/);
     if (single?.[1] && !range) {
       const month = Number(single[1]);
@@ -125,6 +131,11 @@ export function parseNeaRelease(html: string, publishedAt: string): NeaFigures |
     } else if (annual?.[1]) {
       result = { ...(result ?? { period: "" }), period: `${annual[1]}-12`, yearToDate: figures };
     }
+  }
+  // A month is part of its year to date, never equal to it. When both are read and they
+  // match, the release was misread rather than the country having used no power since January.
+  if (result?.month && result.yearToDate && result.month.total !== undefined && result.month.total === result.yearToDate.total && !result.period.endsWith("-01")) {
+    throw new Error(`NEA release for ${result.period}: the month and the year to date are both ${result.month.total} 亿千瓦时`);
   }
   return result && result.period ? result : null;
 }

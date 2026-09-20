@@ -71,3 +71,20 @@ test("the adapter turns releases into level and growth lines, one point per peri
   expect(growth.series.find((line) => line.label === "Households, month (YoY %)")?.points).toEqual([{ date: "2026-07", value: -5.1 }]);
   expect(growth.series.find((line) => line.label === "All users, year to date (YoY %)")?.points).toEqual([{ date: "2026-02", value: 6.1 }, { date: "2026-07", value: 4.7 }]);
 });
+
+test("the August 2026 release, which writes its range with an em dash, keeps the month off the year-to-date line", async () => {
+  const { parseNeaRelease } = await import("./nea.ts");
+  const figures = parseNeaRelease(await fixture("release-2026-08.html"), "2026-09-20");
+  expect(figures?.period).toBe("2026-08");
+  // "2026年8月，全社会用电量再破万亿，达到10332亿千瓦时" and "1—8月，全社会用电量累计71730亿千瓦时".
+  expect(figures?.month?.total).toBe(10332);
+  expect(figures?.yearToDate?.total).toBe(71730);
+  expect(figures?.month?.households).toBe(1883);
+  expect(figures?.month?.secondary).toBe(6124);
+});
+
+test("a release whose month equals its year to date is refused rather than stored", async () => {
+  const { parseNeaRelease } = await import("./nea.ts");
+  const doctored = (await fixture("release-2026-08.html")).replace("达到10332亿千瓦时", "达到71730亿千瓦时");
+  expect(() => parseNeaRelease(doctored, "2026-09-20")).toThrow(/month and the year to date are both/);
+});

@@ -148,6 +148,18 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Both lines from NBS's monthly 服务业生产指数 table (当月 and 累计); January and February are published together.",
   },
   {
+    name: "Electricity consumption: month vs year to date (亿千瓦时)", kind: "cumulative",
+    period: { key: "electricity_demand", label: "All users, month" },
+    yearToDate: { key: "electricity_demand", label: "All users, year to date" },
+    tolerance: 1,
+    firstPeriodAgrees: false,
+    // On 20 September 2026 the August release wrote its range as "1—8月" with an em dash,
+    // which the parser's range pattern did not accept, so the year to date was stored as the
+    // month: 71,730 亿千瓦时 where a month is about 10,000. Nothing on the site noticed,
+    // because the pair then in place compared the growth rates rather than the levels.
+    note: "Levels from NEA's monthly release. The month line has no January or February, so the two coincide in no published period; what this holds is that a month is never its own year to date.",
+  },
+  {
     name: "Electricity consumption growth: month vs year to date", kind: "cumulative",
     period: { key: "electricity_demand_growth", label: "All users, month (YoY %)" },
     yearToDate: { key: "electricity_demand_growth", label: "All users, year to date (YoY %)" },
@@ -471,7 +483,6 @@ export const NO_PAIR: Record<string, string> = {
   major_exports_cny: "As trade_partners_cny.",
   major_imports_cny: "As trade_partners_cny.",
   real_estate: "The real estate climate index (国房景气指数) is not in the monthly database the catalog crawls.",
-  electricity_demand: "The levels; the pair is on electricity_demand_growth, whose rates NEA prints beside them.",
   lpr: "PBOC's loan prime rate reaches the site by the mirror only; NBS does not carry it.",
   tax_by_type: "The ministry's release is the only source of the tax breakdown; total tax revenue from the same release is paired.",
   tax_by_type_growth: "As tax_by_type: the rates the ministry prints beside the levels.",
