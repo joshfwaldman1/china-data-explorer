@@ -113,3 +113,36 @@ test("recording the same release twice updates it rather than duplicating it", (
   expect(log.find((release) => release.id === "nbs-2026-09-15")?.titleEn).toContain("revised title");
   expect(log.find((release) => release.id === "nbs-2026-09-15")?.keys).toEqual(["test_output"]);
 });
+
+test("a release that names no series matches none, rather than lending its headline", () => {
+  recordReleases([{
+    id: "nbs-2026-09-15-other", agency: "National Bureau of Statistics",
+    publishedAt: "2026-09-15T01:00:00.000Z",
+    title: "别的发布", titleEn: "Some other release the calendar named no keys for",
+    url: "https://www.stats.gov.cn/", keys: [],
+  }]);
+  const unnamed = arrivalsFor("unrelated_key_with_no_release", { frequency: "Monthly", agency: "National Bureau of Statistics" });
+  expect(unnamed.length).toBe(0);
+  // And the series that does have a named release still gets its own, not the other one.
+  const again = arrivalsFor("test_output", { frequency: "Monthly", agency: "National Bureau of Statistics" });
+  expect(again.find((arrival) => arrival.period === "2026-08")?.release?.title).toBe("Industrial output, August 2026 (revised title)");
+});
+
+test("without a label the lines of a table fold into one answer per period", () => {
+  const wide = (label: string, value: number) => ({
+    key: "test_table", title: "Test Table", agency: "National Bureau of Statistics",
+    sourceUrl: "https://data.stats.gov.cn/", frequency: "Monthly", unit: "Percent",
+    series: [{ label, points: [{ date: "2026-08", value }] }],
+  });
+  writeSeries(wide("Line A", 1), "", "2026-09-15T02:00:00.000Z");
+  writeSeries(wide("Line B", 2), "", "2026-09-15T02:00:00.000Z");
+  writeSeries(wide("Line C", 3), "", "2026-09-16T02:00:00.000Z");
+  const folded = arrivalsFor("test_table", { frequency: "Monthly", agency: "National Bureau of Statistics" });
+  // One row for August, not three: "when did August appear" has one answer.
+  expect(folded.length).toBe(1);
+  expect(folded[0]?.period).toBe("2026-08");
+  // The earliest sighting across the lines, so a line added later does not redate the table.
+  expect(folded[0]?.firstSeen.slice(0, 10)).toBe("2026-09-15");
+  // Naming a line still answers for that line alone.
+  expect(arrivalsFor("test_table", { label: "Line C", frequency: "Monthly" })[0]?.firstSeen.slice(0, 10)).toBe("2026-09-16");
+});

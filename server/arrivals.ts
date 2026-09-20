@@ -171,9 +171,13 @@ function releaseNear(agency: string, key: string, seenAt: string): ReleaseEvent 
   `).all({ $agency: agency, $at: seenAt });
   for (const row of rows) {
     const keys = parseKeys(row.keys);
-    // A release with no key list is the agency's release for that day and is
-    // accepted; one that names keys must name this one.
-    if (keys.length === 0 || keys.includes(key)) {
+    // The release must name this series. An earlier version accepted any
+    // release from the same agency within three days when the calendar had
+    // named no keys, and that put GDP's Q2 figure under the headline of the
+    // fixed-asset investment release: a false statement about which
+    // publication carried a number. A release that names nothing now matches
+    // nothing, and the arrival reports its date without a title.
+    if (keys.includes(key)) {
       // Within three days of the fetch: the scheduler refreshes minutes after
       // a release, and a match weeks earlier would be a different release.
       const gap = (new Date(seenAt).getTime() - new Date(row.publishedAt).getTime()) / 86_400_000;
@@ -191,19 +195,37 @@ function releaseNear(agency: string, key: string, seenAt: string): ReleaseEvent 
  * which is what "when did this month appear" means for a table.
  */
 export function arrivalsFor(key: string, options: { region?: string; label?: string; frequency?: string; agency?: string; limit?: number } = {}): Arrival[] {
-  const rows = db().query<{ label: string; period: string; firstSeen: string; lastSeen: string; vintages: number }, Record<string, string | number | null>>(`
-    SELECT label, period,
-           MIN(fetched_at) AS firstSeen,
-           MAX(fetched_at) AS lastSeen,
-           COUNT(*)        AS vintages
-    FROM observations
-    WHERE key = $key
-      AND ($region IS NULL OR region = $region)
-      AND ($label IS NULL OR label = $label)
-    GROUP BY label, period
-    ORDER BY period DESC
-    LIMIT $limit
-  `).all({ $key: key, $region: options.region ?? null, $label: options.label ?? null, $limit: options.limit ?? 48 });
+  // Without a label the lines of a table are folded together: "when did
+  // August appear" is one answer for a table of 41 industries, not 41. The
+  // period's first sighting is the earliest across its lines, and its
+  // vintage count is the most any one line has, because a table restated
+  // once restates its lines together.
+  const rows = db().query<{ label: string; period: string; firstSeen: string; lastSeen: string; vintages: number }, Record<string, string | number | null>>(
+    options.label === undefined
+      ? `SELECT '' AS label, period,
+                MIN(fetched_at) AS firstSeen,
+                MAX(fetched_at) AS lastSeen,
+                MAX(perLabel)   AS vintages
+         FROM (
+           SELECT label, period, fetched_at, COUNT(*) OVER (PARTITION BY label, period) AS perLabel
+           FROM observations
+           WHERE key = $key AND ($region IS NULL OR region = $region)
+         )
+         GROUP BY period
+         ORDER BY period DESC
+         LIMIT $limit`
+      : `SELECT label, period,
+                MIN(fetched_at) AS firstSeen,
+                MAX(fetched_at) AS lastSeen,
+                COUNT(*)        AS vintages
+         FROM observations
+         WHERE key = $key AND ($region IS NULL OR region = $region) AND label = $label
+         GROUP BY label, period
+         ORDER BY period DESC
+         LIMIT $limit`,
+  ).all(options.label === undefined
+    ? { $key: key, $region: options.region ?? null, $limit: options.limit ?? 48 }
+    : { $key: key, $region: options.region ?? null, $label: options.label, $limit: options.limit ?? 48 });
 
   const frequency = options.frequency ?? "Monthly";
   return rows
