@@ -231,6 +231,8 @@ const UNIT_EN: Record<string, string> = {
 /** Two sentences each, written for a reader rather than a catalog. */
 const ABOUT: Record<string, string> = {
   gdp: "Real GDP growth, year over year, from the NBS quarterly national accounts. Constant-price series are chain-linked by base period, and quarterly values are not seasonally adjusted.",
+  provincial_industry: "Growth in the value added of large industrial firms, by province, for the month and the year to date. NBS publishes it for the 31 provinces a few days after the national figure, around the 20th.",
+  provincial_cpi: "A province's consumer price index against a year earlier, from NBS's provincial monthly table. The bureau republishes the table every five years; the earlier ones are stitched behind the current one.",
   provincial_gdp: "Guangdong's real GDP growth as reported by the provincial bureau. NBS publishes it as a cumulative year-to-date index against the same period a year earlier, so the Q2 figure is first-half growth.",
   industrial_production: "Value added of industrial enterprises above designated size (annual revenue over 20 million yuan), year over year. January and February are published together to avoid Lunar New Year distortion. The February point carries the combined January-February figure and there is no January point.",
   cpi: "Consumer price index, year over year, from the NBS monthly price survey. Food carries a large weight, so pork and vegetable prices move the headline more than in most economies.",

@@ -73,6 +73,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   cross_border_flows: ["cross-border receipts", "cross border payments", "涉外收付款", "涉外收入"],
   port_throughput: ["port throughput", "ports", "cargo throughput", "港口", "吞吐量"],
   gdp_nominal: ["nominal gdp", "gdp level", "current price gdp", "现价", "国内生产总值"],
+  provincial_industry: ["provincial industry", "industrial output by province", "分省工业"],
+  provincial_cpi: ["provincial cpi", "inflation by province", "分省居民消费价格"],
   retail_by_category: ["retail by category", "car sales", "auto sales", "汽车类", "限额以上"],
   retail_by_category_growth: ["car sales growth", "appliance sales", "jewellery sales", "零售类值"],
   gdp_by_industry: ["gdp by industry", "value added", "real estate share", "增加值", "房地产业"],
@@ -669,6 +671,43 @@ export const CATALOG: Record<string, Indicator> = {
       { id: "6c2faca79747406ea31a22b2774aeb03", label: "Leasing and business services, quarter (亿元)" },
       { id: "11c18b1ada6845e3aacfed8e0af5b224", label: "Accommodation and catering, quarter (亿元)" },
       { id: "870c261fc85f4b06a9a549ab415b1628", label: "Other industries, quarter (亿元)" },
+    ],
+  },
+  provincial_industry: {
+    kind: "nbs", group: "Regional",
+    title: "Provincial Industrial Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // NBS's provincial monthly 工业增加值增长速度: the month's growth in the
+    // value added of large industrial firms, and the year to date beside it.
+    // Published for the 31 provinces about the 20th, a few days after the
+    // national figure. Pair: the month against the year to date.
+    cid: "9593fb551802499683f758e0f6f45bc7",
+    rootId: "f4c6cd795fea436c807163397dd36b98",
+    region: GUANGDONG,
+    regions: NBS_PROVINCES,
+    homeRegions: ["440000000000", "320000000000", "370000000000", "330000000000", "510000000000", "410000000000"],
+    ids: [
+      { id: "6e073cf3b36644e6bee881d312c95681", label: "Industrial output, month (YoY %)" },
+      { id: "e2da5a05def84138b9d33828951adc59", label: "Industrial output, year to date (YoY %)" },
+    ],
+  },
+  provincial_cpi: {
+    kind: "nbs", group: "Regional", home: false,
+    title: "Provincial Consumer Price Index", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // The provincial CPI on a year earlier = 100, served as the change. NBS
+    // republishes the table every five years and the older ones keep their
+    // own indicator ids, so the earlier tables are stitched behind this one.
+    // No pair: the national CPI is a different geography, and a province's
+    // index is published once.
+    cid: "b5e122302ad745358ba7415bd4a22c2f",
+    rootId: "f4c6cd795fea436c807163397dd36b98",
+    region: GUANGDONG,
+    regions: NBS_PROVINCES,
+    ids: [{ id: "02d75ee002764e2ea53f263e52109e8f", label: "CPI (YoY %)", valueOffset: -100 }],
+    slices: [
+      { cid: "c7b31f465b2b4a40b9999090b03b5a37", rootId: "f4c6cd795fea436c807163397dd36b98", ids: [{ id: "a2713908ee9a4a86a6e1bf90a6c1df68", label: "CPI (YoY %)", valueOffset: -100 }] },
+      { cid: "f6b9c87376ad4b24b170766f419dc076", rootId: "f4c6cd795fea436c807163397dd36b98", ids: [{ id: "072104df94b749dc8d0aa744718ba09b", label: "CPI (YoY %)", valueOffset: -100 }] },
     ],
   },
   provincial_gdp: {
@@ -2116,6 +2155,7 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
   ] },
   { group: "Regional", rows: [
     { key: "provincial_gdp" },
+    { key: "provincial_industry" },
   ] },
 ];
 

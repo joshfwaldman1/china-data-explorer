@@ -148,6 +148,13 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "Both rates from NBS's monthly port table (当期 and 累计). Unlike the activity series, this table prints February on its own and no January: in February 2026 the month grew 3.3 percent and the year to date 7.2, because the levels behind them are 128,166 万吨 for February against 286,789 for the two months. The two lines therefore coincide only in a January the table omits.",
   },
   {
+    name: "Guangdong industrial output: month vs year to date", kind: "cumulative",
+    period: { key: "provincial_industry", label: "Industrial output, month (YoY %)", region: "440000000000" },
+    yearToDate: { key: "provincial_industry", label: "Industrial output, year to date (YoY %)", region: "440000000000" },
+    tolerance: 0.05,
+    note: "Both lines of NBS's provincial monthly table, read for Guangdong; January and February are published together.",
+  },
+  {
     name: "Services production: month vs year to date", kind: "cumulative",
     period: { key: "services_production", label: "Services production, month (YoY %)" },
     yearToDate: { key: "services_production", label: "Services production, year to date (YoY %)" },
@@ -456,6 +463,7 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
  * or to a pair; a new curated headline must land in one or the other.
  */
 export const NO_PAIR: Record<string, string> = {
+  provincial_cpi: "A province's index is published once; the national CPI is a different geography.",
   provincial_gdp: "Provincial bureaus' figures reach the site by one path (NBS's provincial quarterly table); nothing else on the site carries them.",
   tsf_flow: "PBOC's own table is the only source of 社会融资规模; the mirror's copy is not served.",
   tsf_stock: "As tsf_flow.",
