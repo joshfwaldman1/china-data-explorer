@@ -7,19 +7,13 @@ credit-gated items.
 
 ## Queue
 
-1. **Industrial output by sector.** The value added growth of the 41 two-digit
-    industries NBS publishes monthly, as one key with a line per sector,
-    beside the existing headline.
-    *Test:* August 2026 parses for every sector NBS lists and the motor
-    vehicle line matches the figure in the release's prose.
-
-2. **A methodology page.** The IMF's Data Quality Assessment Framework pages
+1. **A methodology page.** The IMF's Data Quality Assessment Framework pages
     for China describe how each headline is compiled and revised. A page per
     source, written from them, with the survey frame, the revision policy and
     the coverage caveats, linked from every series that source publishes.
     *Test:* every curated key resolves to a methodology section.
 
-3. **The release as a first-class entity.** A release (date, agency, the keys
+2. **The release as a first-class entity.** A release (date, agency, the keys
     it carries, its URL) is implied by `due.ts` and `/api/releases` but is not
     stored; storing it would let the site say when a figure arrived, show a
     calendar, and let the audit compare a figure to the release that carried
@@ -27,25 +21,25 @@ credit-gated items.
     *Test:* every stored point resolves to the release that published it, or
     to "before releases were recorded".
 
-4. **Notes and annotations in English.** [needs API credit] Titles are
+3. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-5. **Property: developer financing and mortgages.** [parked: source not
+4. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-6. **MOFCOM weekly prices.** [parked: source not found] The weekly
+5. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-7. **High-frequency group.** [blocked: needs AKTools on the deployment]
+6. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -80,6 +74,16 @@ credit-gated items.
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-21 — Industrial output by sector: `industrial_output_by_sector`
+  and `_ytd` (all 41 two-digit industries, the month and the year to date)
+  and `industrial_output_by_division` (mining, manufacturing, utilities),
+  labelled with the bureau's own English. The acceptance test reads the
+  sixteen industries NBS names in the prose of its August release and holds
+  the table to every one, including the one reported as 同比持平. Two
+  cumulative pairs, motor vehicles and manufacturing. Live: August 2026
+  motor vehicles +8.7%, computers and communications equipment +17.2%,
+  mining −1.4%.
 
 - 2026-09-21 — Energy production by type: `electricity_by_source` and
   `_growth` (thermal, hydro, nuclear, wind, solar and the total),

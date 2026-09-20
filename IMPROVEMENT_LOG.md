@@ -2963,3 +2963,33 @@ not from scratch. Rounds are small on purpose.
   "100M m³". Live: August 2026 generation 9,437.8 亿千瓦时, thermal 6,020.3,
   solar 700.2 (up 10.3 percent), raw coal 36,182.3 万吨, crude oil 1,843.3,
   natural gas 214.2 亿立方米. 348 tests; 50 pairs, 0 findings.
+
+- 2026-09-21 (dataset loop, round 41: which industries): the site said how
+  fast industry grew and nothing about which industries were growing. Three
+  keys now carry that: all 41 two-digit industries of the national
+  classification as the month's rate and as the year to date, and the three
+  divisions the bureau's release leads with (mining, manufacturing, the
+  utilities). The labels are the bureau's own English with its boilerplate
+  removed — it writes each as "Value-added of X, Growth Rate (The same
+  period last year=100)" — and all 41 had an official name already in the
+  English crawl, so none needed translating. They run in the
+  classification's order, coal mining first and water supply last, rather
+  than the order the bureau's index happens to list them in.
+  The test is the release itself. NBS names sixteen industries in the prose
+  of each monthly release, and the prose and the table are the same bureau's
+  figures, so a difference between them is this site's mistake: a line
+  pointed at the wrong industry, a rate read off the cumulative column, a
+  sign dropped from a fall. The test reads the sixteen out of the release of
+  15 September 2026 and holds the table to every one. Two details of the
+  bureau's wording had to be read correctly: a fall is written 下降 and must
+  come back negative, and an industry that did not move is written 同比持平,
+  a zero the bureau stated rather than a figure it omitted. The release also
+  states that there are 41 大类行业, which is the check that none was
+  dropped from the list.
+  Two cumulative pairs join the audit, motor vehicles and manufacturing
+  against their own year to date. Neither declares `periodWithin`: these are
+  rates, and a month can grow faster than the year has, which is exactly the
+  distinction round 38 had to draw. Live: August 2026 mining −1.4%,
+  manufacturing +6.1%, utilities +4.9%; motor vehicles +8.7%, computers and
+  communications equipment +17.2%, coal mining −5.6%. 354 tests; 52 pairs,
+  0 findings.
