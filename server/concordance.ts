@@ -92,7 +92,26 @@ export interface AnnualPair {
   note?: string;
 }
 
-export type ConcordancePair = ValuePair | CumulativePair | AnnualPair;
+/**
+ * A total against the parts the publisher breaks it into: NBS prints
+ * electricity generation and, beside it, the thermal, hydro, nuclear, wind
+ * and solar tables. The parts must add up to the total in every month. This
+ * catches what a pair of two series cannot — one component read from the
+ * wrong table, or a component the bureau adds and the site does not.
+ */
+export interface ComponentPair {
+  name: string;
+  kind: "components";
+  /** The lines that together make the total. */
+  parts: SeriesRef[];
+  total: SeriesRef;
+  /** The largest absolute difference that still counts as agreement; a sum of rounded parts is rarely exact. */
+  tolerance: number;
+  periods?: number;
+  note?: string;
+}
+
+export type ConcordancePair = ValuePair | CumulativePair | AnnualPair | ComponentPair;
 
 export interface Disagreement { period: string; left: number; right: number }
 
@@ -454,7 +473,47 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     annual: { key: "bank_fx_settlement_annual", label: "Settlement" },
     tolerance: 1,
   },
+  {
+    name: "Electricity generation: sources vs the total", kind: "components",
+    parts: [
+      { key: "electricity_by_source", label: "Thermal, month (亿千瓦时)" },
+      { key: "electricity_by_source", label: "Hydro, month (亿千瓦时)" },
+      { key: "electricity_by_source", label: "Nuclear, month (亿千瓦时)" },
+      { key: "electricity_by_source", label: "Wind, month (亿千瓦时)" },
+      { key: "electricity_by_source", label: "Solar, month (亿千瓦时)" },
+    ],
+    total: { key: "electricity_by_source", label: "Total, month (亿千瓦时)" },
+    tolerance: 1,
+    note: "Each generating source is its own NBS table; the five must add to 发电量. The tolerance is a tenth of a percent of a month's output, which is what rounding five figures to 0.1 costs.",
+  },
+  {
+    name: "Electricity generation: month vs year to date (亿千瓦时)", kind: "cumulative",
+    period: { key: "electricity_by_source", label: "Total, month (亿千瓦时)" },
+    yearToDate: { key: "electricity_by_source", label: "Total, year to date (亿千瓦时)" },
+    tolerance: 1,
+    firstPeriodAgrees: false,
+    periodWithin: true,
+    note: "Levels. The bureau prints no January and a February year to date covering both months, so the two lines never coincide on a first period.",
+  },
+  {
+    name: "Raw coal output: month vs year to date (万吨)", kind: "cumulative",
+    period: { key: "fuel_output", label: "Raw coal, month (10,000 tonnes)" },
+    yearToDate: { key: "fuel_output", label: "Raw coal, year to date (10,000 tonnes)" },
+    tolerance: 1,
+    firstPeriodAgrees: false,
+    periodWithin: true,
+    note: "As electricity: no January, and February's year to date is the two months together.",
+  },
+  {
+    name: "Natural gas output: month vs year to date (亿立方米)", kind: "cumulative",
+    period: { key: "natural_gas_output", label: "Natural gas, month (亿立方米)" },
+    yearToDate: { key: "natural_gas_output", label: "Natural gas, year to date (亿立方米)" },
+    tolerance: 0.5,
+    firstPeriodAgrees: false,
+    periodWithin: true,
+  },
 ];
+
 
 /**
  * Curated series from a domestic publisher that have no pair, each with the
@@ -463,6 +522,8 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
  * or to a pair; a new curated headline must land in one or the other.
  */
 export const NO_PAIR: Record<string, string> = {
+  electricity_by_source_growth: "The rates NBS prints beside the levels; the levels they summarise are checked against each other and against their sum.",
+  fuel_output_growth: "As electricity_by_source_growth: the coal, oil and gas levels carry the checks.",
   provincial_cpi: "A province's index is published once; the national CPI is a different geography.",
   provincial_gdp: "Provincial bureaus' figures reach the site by one path (NBS's provincial quarterly table); nothing else on the site carries them.",
   tsf_flow: "PBOC's own table is the only source of 社会融资规模; the mirror's copy is not served.",
@@ -624,6 +685,33 @@ export function compareAnnualSum(name: string, monthly: SeriesPoint[], annual: S
   return { ...base, status: disagreements.length > 0 ? "mismatch" : "ok", compared: rows.length, disagreements, latest: rows[0] };
 }
 
+/**
+ * The parts against the whole, period by period. Only a period every part
+ * holds is compared, so a component the publisher has not yet released does
+ * not read as a shortfall in the total.
+ */
+export function compareComponentSum(name: string, parts: SeriesPoint[][], total: SeriesPoint[], options: { tolerance: number; periods?: number; note?: string }): ConcordanceResult {
+  const summed = new Map<string, number>();
+  const partMaps = parts.map((points) => new Map(points.map((point) => [point.date, point.value])));
+  const wholeRange = rangeOf(total);
+  const base = { name, kind: "components" as const, note: options.note, sides: { left: rangeOf(parts.flat()), right: wholeRange } };
+  if (partMaps.length === 0 || partMaps.some((part) => part.size === 0) || total.length === 0) {
+    return { ...base, status: "missing", compared: 0, disagreements: [] };
+  }
+  for (const date of partMaps[0]!.keys()) {
+    const values = partMaps.map((part) => part.get(date));
+    if (values.some((value) => value === undefined)) continue;
+    summed.set(date, values.reduce((running: number, value) => running + (value ?? 0), 0));
+  }
+  const whole = new Map(total.map((point) => [point.date, point.value]));
+  const periods = commonPeriods(summed, whole, options.periods ?? 6);
+  if (periods.length === 0) return { ...base, status: "no-overlap", compared: 0, disagreements: [] };
+  const rows = periods.map((period) => ({ period, left: round(summed.get(period) ?? NaN), right: round(whole.get(period) ?? NaN) }));
+  const disagreements = rows.filter((row) => Math.abs(row.left - row.right) > options.tolerance);
+  // The summed side is what the parts say the total is; the right side is what the publisher printed.
+  return { ...base, sides: { left: { first: periods.at(-1) ?? null, last: periods[0] ?? null, points: summed.size }, right: wholeRange }, status: disagreements.length > 0 ? "mismatch" : "ok", compared: rows.length, disagreements, latest: rows[0] };
+}
+
 function round(value: number): number { return Math.round(value * 1000) / 1000; }
 
 /**
@@ -646,6 +734,7 @@ export function readSide(ref: SeriesRef, limit = 24): SeriesPoint[] {
 export function runConcordance(pairs: ConcordancePair[] = CONCORDANCE_PAIRS): ConcordanceResult[] {
   return pairs.map((pair) => {
     if (pair.kind === "value") return compareValues(pair.name, readSide(pair.left), readSide(pair.right), { tolerance: pair.tolerance, periods: pair.periods, leftOffset: pair.left.offset, rightOffset: pair.right.offset, note: pair.note });
+    if (pair.kind === "components") return compareComponentSum(pair.name, pair.parts.map((part) => readSide(part)), readSide(pair.total), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
     if (pair.kind === "annual") return compareAnnualSum(pair.name, readSide(pair.monthly, 12 * ((pair.periods ?? 3) + 1)), readSide(pair.annual, 12), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
     return compareCumulative(pair.name, readSide(pair.period), readSide(pair.yearToDate), { tolerance: pair.tolerance, periods: pair.periods, firstPeriodAgrees: pair.firstPeriodAgrees, periodWithin: pair.periodWithin, note: pair.note });
   });

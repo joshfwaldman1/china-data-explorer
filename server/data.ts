@@ -1971,6 +1971,86 @@ export const CATALOG: Record<string, Indicator> = {
     rootId: "fc982599aa684be7969d7b90b1bd0e84",
     ids: [{ id: "5cc686f383d84ed9bd11f4293ab4170e", januaryFebruaryId: "619254b0b9f24a5aa0c336bdf5998c4e", label: "Electricity output (YoY %)" }],
   },
+  electricity_by_source: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Electricity Generation by Source", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million kWh (亿千瓦时)",
+    // 发电量 and the four tables the bureau publishes beside it: 火力, 水力,
+    // 核能, 风力, 太阳能. Each generating source is its own table, so the lines
+    // carry their own cid and the adapter pools the periods of all six.
+    //
+    // January and February are published together. The bureau prints no
+    // month figure for either and a year-to-date figure at February that
+    // covers the two, so the month lines simply have no point until March
+    // and the year-to-date line carries the pair, labelled as such. Nothing
+    // here derives a January the bureau did not publish.
+    cid: "1abb1cfea75847b8bf1a0e395d85966b",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "baafe3a9a09d4b39a366e5b625574aea", label: "Total, month (亿千瓦时)" },
+      { id: "4723cfb7d8094928b5ba443c45e2ce20", cid: "ac260d2df49c46d095878c48ca7f87c6", label: "Thermal, month (亿千瓦时)" },
+      { id: "24ed422675eb47fbb78b2c5d6995fcd6", cid: "5112b748bb0b46239f2a9856d4224394", label: "Hydro, month (亿千瓦时)" },
+      { id: "6501e26639694858849b9f2ca9050576", cid: "d7be61fa956d4d2999b08def200b066b", label: "Nuclear, month (亿千瓦时)" },
+      { id: "b8c05a8cf53a42119badc105a74ef864", cid: "d4a873573bdc4b7990af8dfda2ba0e84", label: "Wind, month (亿千瓦时)" },
+      { id: "36f6f5983d5745f7a1a0f9466a642d32", cid: "8ba787f80f1e418d97002de401a9c49c", label: "Solar, month (亿千瓦时)" },
+      { id: "a4c1c4e322c040488527169fb322844c", label: "Total, year to date (亿千瓦时)" },
+    ],
+  },
+  electricity_by_source_growth: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Electricity Generation Growth by Source", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    // 同比增长 of each generating source, on the month a year earlier.
+    cid: "1abb1cfea75847b8bf1a0e395d85966b",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "5cc686f383d84ed9bd11f4293ab4170e", label: "Total (YoY %)" },
+      { id: "68f2976fff9c40a3907b317f3fcb9c2b", cid: "ac260d2df49c46d095878c48ca7f87c6", label: "Thermal (YoY %)" },
+      { id: "c12c1561448f433dbf76569053c18a7c", cid: "5112b748bb0b46239f2a9856d4224394", label: "Hydro (YoY %)" },
+      { id: "a3af922016414cd397424aca66475199", cid: "d7be61fa956d4d2999b08def200b066b", label: "Nuclear (YoY %)" },
+      { id: "d22d91ff170f415e871495f1d91289a1", cid: "d4a873573bdc4b7990af8dfda2ba0e84", label: "Wind (YoY %)" },
+      { id: "5be7fc3974fb4a02823c511829686d86", cid: "8ba787f80f1e418d97002de401a9c49c", label: "Solar (YoY %)" },
+    ],
+  },
+  fuel_output: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Coal and Crude Oil Output", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Ten thousand tonnes (万吨)",
+    // 原煤产量 and 原油产量, the month and the year to date. Both are weights,
+    // so they share a key; natural gas is a volume and has its own.
+    cid: "0f433422e93141f49f3445bae65d0ff3",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "8f384e0069b34e5c89def94fdc58272e", label: "Raw coal, month (10,000 tonnes)" },
+      { id: "f5edb3198d784b69bcac09e644d69a61", cid: "3cded687aa5841bfaa208b297ae83aa4", label: "Crude oil, month (10,000 tonnes)" },
+      { id: "116062f88e894b70978358a9c8927147", label: "Raw coal, year to date (10,000 tonnes)" },
+      { id: "77492f170b0a46028d5e2aa255d2f8d2", cid: "3cded687aa5841bfaa208b297ae83aa4", label: "Crude oil, year to date (10,000 tonnes)" },
+    ],
+  },
+  natural_gas_output: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Natural Gas Output", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Hundred million cubic metres (亿立方米)",
+    // 天然气产量: a volume, so it is not in the tonnage key beside coal and oil.
+    cid: "da54e77a11674b7e8bf00a76e01b26ac",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "287716f82aa64be4ac4ee020d88764e7", label: "Natural gas, month (亿立方米)" },
+      { id: "e989e74407694363b640a38520f93991", label: "Natural gas, year to date (亿立方米)" },
+    ],
+  },
+  fuel_output_growth: {
+    kind: "nbs", group: "Growth & Output", home: false,
+    title: "Coal, Oil and Gas Output Growth", agency: "National Bureau of Statistics",
+    frequency: "Monthly", unit: "Percent change from year ago",
+    cid: "0f433422e93141f49f3445bae65d0ff3",
+    rootId: "fc982599aa684be7969d7b90b1bd0e84",
+    ids: [
+      { id: "2f76fed8960547e0a69ab99917423fc0", label: "Raw coal (YoY %)" },
+      { id: "c3afd057fc5344cebc0a23d483c7c92d", cid: "3cded687aa5841bfaa208b297ae83aa4", label: "Crude oil (YoY %)" },
+      { id: "85e4aed005804201b1817c305ec0c77f", cid: "da54e77a11674b7e8bf00a76e01b26ac", label: "Natural gas (YoY %)" },
+    ],
+  },
   lpr: {
     kind: "eastmoney", group: "Interest Rates",
     title: "Loan Prime Rate (LPR)", agency: "People's Bank of China",
@@ -2080,6 +2160,8 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "fai", title: "Fixed-Asset Investment Growth, Year to Date" },
     { key: "industrial_profits", title: "Industrial Profits Growth, Year to Date" },
     { key: "electricity_demand", title: "Electricity Consumption" },
+    { key: "electricity_by_source", line: "Solar, month (亿千瓦时)", title: "Solar Electricity Generation" },
+    { key: "fuel_output", line: "Raw coal, month (10,000 tonnes)", title: "Raw Coal Output" },
     { key: "port_throughput", title: "Port Cargo Throughput" },
     { key: "capacity_utilisation", title: "Industrial Capacity Utilisation" },
   ] },
@@ -2193,6 +2275,8 @@ const UNIT_OVERRIDES: Record<string, Partial<Measure>> = {
   // Rates the market quotes to two decimals, whose unit sentence says only "Percent".
   lpr: { decimals: 2 },
   lgb_rate: { decimals: 2 },
+  // "Hundred million cubic metres" shortens to a unit that fits beside a value.
+  natural_gas_output: { suffix: "100M m³" },
 };
 
 export function catalogList(): CatalogEntry[] {

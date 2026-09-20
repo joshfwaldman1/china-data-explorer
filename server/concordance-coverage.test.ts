@@ -14,7 +14,11 @@ process.env.CHINA_SEED = "off";
 const { catalogList } = await import("./data.ts");
 const { CONCORDANCE_PAIRS, NO_PAIR } = await import("./concordance.ts");
 
-const pairSides = (pair: (typeof CONCORDANCE_PAIRS)[number]) => pair.kind === "value" ? [pair.left, pair.right] : pair.kind === "annual" ? [pair.monthly, pair.annual] : [pair.period, pair.yearToDate];
+const pairSides = (pair: (typeof CONCORDANCE_PAIRS)[number]) =>
+  pair.kind === "value" ? [pair.left, pair.right]
+  : pair.kind === "annual" ? [pair.monthly, pair.annual]
+  : pair.kind === "components" ? [...pair.parts, pair.total]
+  : [pair.period, pair.yearToDate];
 
 const FOREIGN = /^(Federal Reserve|Bank for International|International Monetary|OECD|Baker|US |Nasdaq|World Bank|Caixin|China Foreign Exchange)/;
 
