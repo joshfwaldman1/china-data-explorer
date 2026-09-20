@@ -56,6 +56,11 @@ credit-gated items.
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
+- **The bundle's script path.** Bun's HTML bundler writes the script tag as
+  `src="/../chunk-<hash>.js"`. Browsers resolve the leading `..` away and the
+  page loads, but a strict fetcher gets a 404. Cosmetic; recorded so it is
+  not rediscovered as a deploy failure.
+
 - **Provincial retail sales.** [parked: NBS publishes the monthly provincial
   table only as a slice ending in 2011 (社会消费品零售总额, 分省月度), so
   there is no current figure to serve. Provincial industry and CPI are
@@ -339,8 +344,10 @@ credit-gated items.
 
 ## Needs the owner
 
-- A decision on whether to make the repository public or add a Carnegie
-  China colleague as a collaborator (handle needed).
+- Whether to make the repository public. A collaborator was added on
+  21 September 2026: GitHub user `Evanzvu` holds a pending write invitation.
+  The account carries no name or affiliation, so confirm it is the person
+  intended before they accept.
 - `BACKUP_TOKEN` set on Railway and as a repository secret, to enable the
   nightly store copy.
 - Anthropic API credit, for the remaining-glosses item and for search query expansion.
