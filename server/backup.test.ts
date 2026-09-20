@@ -180,7 +180,7 @@ test("cleanup removes only abandoned private snapshot directories", async () => 
   await utimes(old, yesterday, yesterday);
   await utimes(unrelated, yesterday, yesterday);
   await cleanupStaleBackups(directory, 24 * 60 * 60_000);
-  expect(await readdir(directory)).toEqual(["other-data", "snapshot-link123", "snapshot-new123"]);
+  expect((await readdir(directory)).sort()).toEqual(["other-data", "snapshot-link123", "snapshot-new123"]);
 });
 
 test("manifest validation rejects altered downloads, invented counts and missing response provenance", async () => {
