@@ -2693,3 +2693,21 @@ not from scratch. Rounds are small on purpose.
   refinancing 3,342), debt outstanding 592,411 亿元 (+12.3% on a year
   earlier), 18 months stored; the rate key's first read hit a 502 and waits
   for the daily refresh; 39 pairs, 0 findings.
+
+- 2026-09-20 (dataset loop, round 30: services production; queue refilled):
+  the NEA follow-up was not runnable (May 2026 is still an image and the
+  August note is due about the 21st), and every other item was parked,
+  blocked or waiting on credit, so the queue was refilled from the
+  cohesive-picture list: services production, tax revenue by type, SAFE
+  cross-border receipts and payments, PBOC's quarterly surveys, port
+  throughput, nominal GDP by industry (the quarterly database holds levels
+  only; the real growth rates live in the release), a PMI employment row,
+  CPCA auto sales, then the watch, credit-gated, parked and blocked items.
+  The English-gloss item is retired, titles being NBS's own now. Built the
+  top item: `services_production` from NBS's monthly 服务业生产指数 table,
+  the month's growth and the year to date, with a cumulative pair between
+  them as GDP has, and a Growth row under industrial production. Test: both
+  ids resolve to the named series of the one table; the pair holds at a
+  year's first period and rejects a year-to-date line under a month label.
+  Live: August 2026 +4.1% (year to date +4.7%), 24 months; 40 pairs, 0
+  findings, the new pair ok on its first audit.

@@ -6,73 +6,68 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **Services production index.** NBS's monthly 服务业生产指数 (month and year
-   to date, YoY %), the services counterpart of industrial production, as a
-   Growth row; a cumulative pair between its two lines.
-   *Test:* both ids resolve; the pair holds at every first period of a year.
-
-2. **Tax revenue by type.** The same MOF fiscal release carries domestic
+1. **Tax revenue by type.** The same MOF fiscal release carries domestic
    VAT, consumption tax, corporate and personal income tax, import VAT and
    consumption tax, export rebates and stamp duty (year to date, 亿元, with
    growth). Extend the MOF items; a `tax_by_type` key with levels and one
    with growth.
    *Test:* the July 2026 fixture parses to the ministry's figures for each.
 
-3. **SAFE cross-border receipts and payments.** 银行代客涉外收付款 from the
+2. **SAFE cross-border receipts and payments.** 银行代客涉外收付款 from the
    same SAFE statistics page as bank FX settlement (workbook, monthly and
    annual, yuan and dollars): receipts, payments, net, by current and
    capital account. An annual-sum pair like round 24's.
    *Test:* August 2026 receipts and payments match SAFE's release headline.
 
-4. **PBOC quarterly surveys.** The bank's 城镇储户问卷调查 (income confidence,
+3. **PBOC quarterly surveys.** The bank's 城镇储户问卷调查 (income confidence,
    employment sentiment, saving and spending intentions), 企业家问卷调查 and
    银行家问卷调查 indices, quarterly, from pbc.gov.cn's survey pages (text or
    PDF); a Sentiment row for the employment sentiment index.
    *Test:* Q2 2026 indices parse and match the bank's release.
 
-5. **Port throughput.** MOT's monthly 港口货物吞吐量 and 集装箱吞吐量 (month
+4. **Port throughput.** MOT's monthly 港口货物吞吐量 and 集装箱吞吐量 (month
    and year to date) from mot.gov.cn's statistics releases; probe first.
    *Test:* August 2026 container throughput parses and matches the release.
 
-6. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
+5. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
    primary, secondary and tertiary value added (当季值 and 累计值, 亿元) as a
    Growth key; no growth rates exist in the quarterly database.
    *Test:* eight ids resolve; Q2 2026 levels match NBS's release.
 
-7. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
+6. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
    employment line (already collected).
    *Test:* the row renders with the August 2026 value.
 
-8. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
+7. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
    monthly retail and wholesale passenger-vehicle sales as text; CAAM is
    parked (images).
    *Test:* August 2026 retail sales parse and match the release.
 
-9. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
+8. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
    fuller release; watch for a text version or a later revision table. The
    demand note's day is set (the 21st). August 2026's note is due about
    21 September.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-10. **Notes and annotations in English.** [needs API credit] Titles are
+9. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run china:translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-11. **Property: developer financing and mortgages.** [parked: source not
+10. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-12. **MOFCOM weekly prices.** [parked: source not found] The weekly
+11. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-13. **High-frequency group.** [blocked: needs AKTools on the deployment]
+12. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -85,6 +80,11 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   an image, and its listing stops at May 2026; MIIT's copy is script-rendered.]
 
 ## Done
+
+- 2026-09-20 — Index of services production: `services_production` (month
+  and year to date, YoY %) from NBS's monthly table; a cumulative pair
+  between its lines; a Growth row. Live: August 2026 +4.1% (year to date
+  +4.7%), pair ok. The queue was refilled the same round.
 
 - 2026-09-19 — Local government bonds: `lgb_issuance` (the month's issuance,
   total, general, special, new, refinancing), `lgb_debt` (debt outstanding
