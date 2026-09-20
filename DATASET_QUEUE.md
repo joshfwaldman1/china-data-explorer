@@ -5,6 +5,7 @@ carries the test that defines it as done. Prerequisites in brackets. Refilled
 on 21 September 2026 (twice: the morning list ran out by the evening, and
 the four items below came from probing the shipped catalog snapshot for
 what the site does not carry).
+
 ## Queue
 
 1. **Move the headline rates off the mirror and onto the bureau's own
