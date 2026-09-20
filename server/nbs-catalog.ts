@@ -7,7 +7,7 @@ import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
 import { catalogPath, readCatalogSnapshot } from "./catalog-file";
 import { collectedRegions, withEnglishNames } from "./regions";
 import { findGeographyInQuery, findPlaceInQuery } from "../shared/places.ts";
-import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, storedLatest, writeSeries } from "./db";
+import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, seriesFullHistoryCheck, storedLatest, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 
@@ -1419,7 +1419,7 @@ function storedPoints(entry: NbsCatalogEntry, region: NbsRegionOption): SeriesPo
 function isFresh(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[]): boolean {
   const updatedAt = seriesFreshness(entry.key, region.value);
   const lastPeriod = points[points.length - 1]?.date ?? null;
-  return !isDue(entry.frequency, lastPeriod, updatedAt, new Date());
+  return !isDue(entry.frequency, lastPeriod, updatedAt, new Date(), undefined, seriesFullHistoryCheck(entry.key, region.value));
 }
 
 /**
@@ -1428,7 +1428,7 @@ function isFresh(entry: NbsCatalogEntry, region: NbsRegionOption, points: Series
  * region/indicator pairing with a well-formed grid of blanks, and storing that
  * would look exactly like a successful ingest.
  */
-export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValue?: string): Promise<{
+export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValue?: string, options: { fetchPoints?: typeof fetchNbsRawPoints } = {}): Promise<{
   region: NbsRegionOption;
   points: SeriesPoint[];
   changed: number;
@@ -1437,7 +1437,7 @@ export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValu
   const startedAt = new Date().toISOString();
   let points: SeriesPoint[];
   try {
-    points = await fetchNbsRawPoints(entry, region);
+    points = await (options.fetchPoints ?? fetchNbsRawPoints)(entry, region, "full");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logFetch({ key: entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(),
@@ -1450,7 +1450,7 @@ export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValu
       points: 0, changed: 0, message: "source returned a grid with no values" });
     throw new Error(`NBS returned no observations for ${entry.key} in ${region.text}`);
   }
-  const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt);
+  const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt, { historyWindow: "full" });
   logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok",
     points: summary.points, changed: summary.changed });
   return { region, points, changed: summary.changed };
@@ -1491,13 +1491,13 @@ export async function fetchNbsTableBatch(entries: NbsCatalogEntry[], region: Nbs
 }
 
 /** Store one indicator's fetched points and log the outcome. */
-export function storeNbsPoints(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[], startedAt: string): "ok" | "empty" {
+export function storeNbsPoints(entry: NbsCatalogEntry, region: NbsRegionOption, points: SeriesPoint[], startedAt: string, window: FetchWindow = "full"): "ok" | "empty" {
   const finishedAt = new Date().toISOString();
   if (points.length === 0) {
     logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "empty", points: 0, changed: 0, message: "source returned a grid with no values" });
     return "empty";
   }
-  const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt);
+  const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt, { historyWindow: window });
   logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed });
   return "ok";
 }

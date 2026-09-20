@@ -79,3 +79,19 @@ describe("a publisher's own release day", () => {
     expect(expectedPeriod("Monthly", on14September)).toBe("2026-07");
   });
 });
+
+test("a full-history audit is due even after a successful recent refresh and while a new month is missing", () => {
+  const history = { lastFullHistoryCheck: "2026-08-01T00:00:00.000Z", firstFullHistoryCheckDueAt: null };
+  const now = on("2026-09-25T00:00:00.000Z");
+  const checkedYesterday = "2026-09-24T00:00:00.000Z";
+  expect(dueReason("Monthly", "2026-08", checkedYesterday, now, undefined, history)).toBe("revision");
+  expect(dueReason("Monthly", "2026-07", checkedYesterday, now, undefined, history)).toBe("revision");
+});
+
+test("an unknown legacy full-history clock uses its persisted first deadline without blocking new periods", () => {
+  const history = { lastFullHistoryCheck: null, firstFullHistoryCheckDueAt: "2026-10-01T00:00:00.000Z" };
+  const now = on("2026-09-25T00:00:00.000Z");
+  expect(dueReason("Monthly", "2026-08", "2026-06-01T00:00:00.000Z", now, undefined, history)).toBeNull();
+  expect(dueReason("Monthly", "2026-07", "2026-09-15T00:00:00.000Z", now, undefined, history)).toBe("new-period");
+  expect(dueReason("Monthly", "2026-08", "2026-09-30T00:00:00.000Z", on(history.firstFullHistoryCheckDueAt), undefined, history)).toBe("revision");
+});

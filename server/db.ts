@@ -20,6 +20,7 @@ import { Database } from "bun:sqlite";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Series, SeriesResult } from "./data.ts";
+import { REVISION_CHECK_DAYS, type FullHistoryCheckState } from "./due.ts";
 
 const DB_PATH = process.env.CHINA_DB_PATH ?? `${import.meta.dir}/../china.db`;
 
@@ -140,6 +141,41 @@ function backfillSeriesRanges(database: Database): void {
   console.log(`  Store: summarised in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
 }
 
+/** Spread legacy series' first known audit over one revision interval, never at boot. */
+function firstFullHistoryCheckDueAt(key: string, region: string, now: Date): string {
+  let hash = 2166136261;
+  for (const character of `${key}@${region}`) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0;
+  const days = 1 + hash % REVISION_CHECK_DAYS;
+  return new Date(now.getTime() + days * 86400000).toISOString();
+}
+
+function migrateFullHistoryChecks(database: Database): void {
+  // Earlier fetches did not record their window. Do not pretend updated_at
+  // proves a full audit, or schedule the entire catalog on its first new boot.
+  // A separate first deadline preserves that uncertainty and bounds the delay
+  // to 45 days. It is written once; restarts and recent fetches never move it.
+  database.transaction(() => {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS series_refresh_state (
+        key                             TEXT NOT NULL,
+        region                          TEXT NOT NULL,
+        last_full_history_check         TEXT,
+        first_full_history_check_due_at TEXT NOT NULL,
+        PRIMARY KEY (key, region)
+      ) WITHOUT ROWID
+    `);
+    const missing = database.query<{ key: string; region: string }, []>(`
+      SELECT DISTINCT s.key, s.region FROM series s
+      WHERE s.key GLOB 'nbs_*' AND NOT EXISTS (
+        SELECT 1 FROM series_refresh_state r WHERE r.key = s.key AND r.region = s.region
+      )
+    `).all();
+    const insert = database.prepare("INSERT INTO series_refresh_state (key, region, first_full_history_check_due_at) VALUES (?, ?, ?)");
+    const now = new Date();
+    for (const row of missing) insert.run(row.key, row.region, firstFullHistoryCheckDueAt(row.key, row.region, now));
+  })();
+}
+
 export function db(): Database {
   if (handle) return handle;
 
@@ -220,6 +256,7 @@ export function db(): Database {
     database.exec("DELETE FROM series_range");
   }
   backfillSeriesRanges(database);
+  migrateFullHistoryChecks(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
   // visible as a run that failed, not as a chart that quietly goes stale.
@@ -305,6 +342,7 @@ export function writeSeries(
   result: SeriesResult,
   region: string,
   fetchedAt: string,
+  options: { historyWindow?: "full" | "recent" } = {},
 ): WriteSummary {
   const database = db();
 
@@ -370,6 +408,23 @@ export function writeSeries(
                COUNT(DISTINCT period), MAX(fetched_at)
         FROM observations WHERE key = $key AND region = $region
       `).run({ $key: result.key, $region: region });
+    }
+    // A successful nonempty full answer advances the audit clock even when
+    // every value was unchanged. Keep it in the observation transaction: a
+    // failed write must not claim that its history has been checked.
+    if (points > 0 && result.key.startsWith("nbs_")) {
+      database.query(`
+        INSERT INTO series_refresh_state (key, region, last_full_history_check, first_full_history_check_due_at)
+        VALUES ($key, $region, $lastFull, $firstDue)
+        ON CONFLICT (key, region) DO UPDATE SET last_full_history_check = CASE
+          WHEN excluded.last_full_history_check IS NOT NULL AND
+            (series_refresh_state.last_full_history_check IS NULL OR excluded.last_full_history_check > series_refresh_state.last_full_history_check)
+          THEN excluded.last_full_history_check ELSE series_refresh_state.last_full_history_check END
+      `).run({
+        $key: result.key, $region: region,
+        $lastFull: options.historyWindow === "full" ? fetchedAt : null,
+        $firstDue: firstFullHistoryCheckDueAt(result.key, region, new Date(fetchedAt)),
+      });
     }
   });
 
@@ -492,6 +547,14 @@ export function seriesFreshness(key: string, region: string): string | null {
   return row?.updatedAt ?? null;
 }
 
+export function seriesFullHistoryCheck(key: string, region: string): FullHistoryCheckState {
+  return db().query<FullHistoryCheckState, Record<string, string>>(`
+    SELECT last_full_history_check AS lastFullHistoryCheck,
+           first_full_history_check_due_at AS firstFullHistoryCheckDueAt
+    FROM series_refresh_state WHERE key = $key AND region = $region
+  `).get({ $key: key, $region: region }) ?? { lastFullHistoryCheck: null, firstFullHistoryCheckDueAt: null };
+}
+
 /** For each stored series with the prefix: its latest period and when it was last written. */
 /** The most recently stored value for one observation, or null when the store has none. */
 export function storedValue(key: string, region: string, label: string, period: string): number | null {
@@ -504,16 +567,19 @@ export function storedValue(key: string, region: string, label: string, period: 
   return row?.value ?? null;
 }
 
-export function storedLatest(prefix: string): { key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }[] {
+export function storedLatest(prefix: string): ({ key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null } & FullHistoryCheckState)[] {
   // Read from the summary kept by the write path, not from the observations
   // themselves: the answer is the same and it does not walk the store.
   // firstRealPeriod is the first period with a non-zero value: NBS pads the months before an
   // indicator existed with 0.0, which the series page drops from level and index series.
-  return db().query<{ key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null }, Record<string, string>>(`
+  return db().query<{ key: string; region: string; firstPeriod: string | null; firstRealPeriod: string | null; lastPeriod: string | null; updatedAt: string | null } & FullHistoryCheckState, Record<string, string>>(`
     SELECT s.key AS key, s.region AS region,
            r.first_period AS firstPeriod, r.first_real_period AS firstRealPeriod, r.last_period AS lastPeriod,
-           MAX(s.updated_at) AS updatedAt
+           MAX(s.updated_at) AS updatedAt,
+           f.last_full_history_check AS lastFullHistoryCheck,
+           f.first_full_history_check_due_at AS firstFullHistoryCheckDueAt
     FROM series s LEFT JOIN series_range r ON r.key = s.key AND r.region = s.region
+    LEFT JOIN series_refresh_state f ON f.key = s.key AND f.region = s.region
     WHERE s.key LIKE $prefix || '%'
     GROUP BY s.key, s.region
   `).all({ $prefix: prefix });

@@ -135,3 +135,17 @@ test("one attempt takes a bounded slice and leaves the rest pending", async () =
   expect(result.advanced).toBe(2);
   expect(result.pending).toBe(4);
 });
+
+test("failed table calls spend the release request budget and leave all missing series pending", async () => {
+  const provincial = entry("nbs_reltest_budget_failure", "Monthly", "Province");
+  for (const region of ["110000000000", "120000000000", "130000000000"]) {
+    stored(provincial.key, region, region, "2026-07", 1);
+  }
+  let calls = 0;
+  const result = await refreshCatalogForRelease(["工业"], [{ frequency: "Monthly", period: "2026-08" }], {
+    entries: [provincial], pauseMs: 0, maxRequests: 1,
+    fetchBatch: async () => { calls += 1; throw new Error("portal unavailable"); },
+  });
+  expect(calls).toBe(1);
+  expect(result).toEqual({ advanced: 0, checked: 3, requests: 1, pending: 3 });
+});

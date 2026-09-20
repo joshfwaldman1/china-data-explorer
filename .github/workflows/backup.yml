@@ -1,16 +1,5 @@
-# Nightly copy of the China Data Explorer's store.
-#
-# The store lives on a Railway volume, not in this repository: it is 400 MB
-# and growing, and a volume is not a backup. This job asks the running site
-# for a consistent copy (GET /api/backup, a VACUUM INTO snapshot) and keeps it
-# as a workflow artifact for 90 days. It needs the same BACKUP_TOKEN the site
-# was deployed with, as a repository secret; without it the job says so and
-# stops, rather than failing every night.
-#
-# An earlier version of this workflow ran its own ingest in CI and committed
-# the resulting database to the repository. That was right when the store was
-# 764 KB and wrong once it was hundreds of megabytes; and a store built in CI
-# was never a copy of the one the site serves.
+# A green run means a downloaded, integrity-checked and independently restored
+# snapshot was uploaded with its manifest and checksum. Missing credentials fail.
 
 name: China store backup
 
@@ -22,30 +11,58 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: china-store-backup
+  cancel-in-progress: false
+
 jobs:
   backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
+      - name: Require backup credentials
+        env:
+          BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+        run: |
+          if [ -z "$BACKUP_TOKEN" ]; then
+            echo "::error::BACKUP_TOKEN must be configured in repository secrets and on the service. No backup was taken."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3"
+
       - name: Download a consistent copy of the store
         env:
           BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
           SITE: https://econstats-china-production.up.railway.app
         run: |
-          if [ -z "$BACKUP_TOKEN" ]; then
-            echo "BACKUP_TOKEN is not set as a repository secret; nothing to do."
-            echo "Set it to the value the Railway service was deployed with to enable nightly copies."
-            exit 0
-          fi
+          set -euo pipefail
+          directory="$RUNNER_TEMP/china-backup"
+          mkdir -p "$directory"
           name="china-$(date -u +%F).db"
-          curl -fsS --retry 3 --retry-delay 30 -H "Authorization: Bearer $BACKUP_TOKEN" "$SITE/api/backup" -o "$name"
-          ls -l "$name"
-          echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
+          curl -fS --retry 3 --retry-delay 60 --retry-all-errors --retry-max-time 3600 \
+            --connect-timeout 30 --max-time 2400 \
+            -H "Authorization: Bearer $BACKUP_TOKEN" \
+            --dump-header "$directory/headers.txt" \
+            --output "$directory/$name" "$SITE/api/backup"
+          echo "BACKUP_FILE=$directory/$name" >> "$GITHUB_ENV"
+          echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
 
-      - name: Keep the copy for 90 days
-        if: env.BACKUP_FILE != ''
+      - name: Verify checksum, integrity and an independent restore
+        run: bun scripts/verify-backup.ts "$BACKUP_FILE" "$RUNNER_TEMP/china-backup/headers.txt"
+
+      - name: Keep the verified copy for 90 days
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BACKUP_FILE }}
-          path: ${{ env.BACKUP_FILE }}
+          name: ${{ env.BACKUP_NAME }}
+          path: |
+            ${{ env.BACKUP_FILE }}
+            ${{ env.BACKUP_FILE }}.manifest.json
+            ${{ env.BACKUP_FILE }}.sha256
+          if-no-files-found: error
           retention-days: 90
           compression-level: 6
