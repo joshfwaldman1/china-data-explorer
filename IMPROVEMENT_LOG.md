@@ -2863,3 +2863,30 @@ not from scratch. Rounds are small on purpose.
   "births" and "USD". Live: the hero tiles and every row format correctly,
   the loan prime rate reads 3.00%, the birth rate 5.63‰ changing in points;
   305 tests, 44 pairs, 0 findings.
+
+- 2026-09-20 (dataset loop, round 38: a wrong figure on the live site): the
+  NEA item was a watch, and the watch paid: the bureau published August's
+  note this morning and the site stored 71,730 亿千瓦时 as the month's
+  electricity consumption, where a month is about 10,000. Two things in the
+  release defeated the parser. It writes its range as "1—8月" with an em
+  dash, and the range pattern accepted only a hyphen or a tilde, so the
+  year-to-date sentence was read as the month. It also introduces a
+  phrasing the total pattern missed, "全社会用电量再破万亿，达到10332亿千瓦时",
+  where a clause sits between the subject and its figure, so the month's own
+  sentence was skipped rather than overwriting the wrong value. The range now
+  takes every dash a publisher uses, the total takes a short clause, and a
+  release whose month equals its year to date is refused outright.
+  The audit had not caught it, because the electricity pair compares the
+  growth rates and those were read from the right sentences. A second pair
+  compares the levels — and reported "ok" on first deploy, which showed its
+  limit: the cumulative rules fire only when every period matches, the shape
+  of a series mislabelled from the start, not of one month read off the
+  wrong sentence. A cumulative pair on levels can now say `periodWithin`:
+  a period's figure is part of its year to date, so after the year's first
+  period it must be strictly smaller, and a period read off the year-to-date
+  sentence lands on exactly that figure. Rates cannot use this, since a
+  month can grow faster than the year has. Both level pairs (electricity and
+  nominal GDP) declare it, and the test runs the figures the site actually
+  served. The store is append-only, so the wrong value stays as the vintage
+  it was and the correction arrives as a revision on the running refresh.
+  308 tests; 45 pairs.

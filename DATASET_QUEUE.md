@@ -6,31 +6,25 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
-   fuller release; watch for a text version or a later revision table. The
-   demand note's day is set (the 21st). August 2026's note is due about
-   21 September.
-   *Test:* May 2026 appears on the month line, from text, not derived.
-
-2. **Notes and annotations in English.** [needs API credit] Titles are
+1. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-3. **Property: developer financing and mortgages.** [parked: source not
+2. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-4. **MOFCOM weekly prices.** [parked: source not found] The weekly
+3. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-5. **High-frequency group.** [blocked: needs AKTools on the deployment]
+4. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -55,6 +49,14 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-20 — NEA follow-up, as a bug: August's note wrote its range with
+  an em dash the parser did not accept, so the year to date was stored as
+  the month (71,730 亿千瓦时 where a month is about 10,000). The parser now
+  takes every dash and the release's new phrasing, refuses a month equal to
+  its year to date, and a levels pair with `periodWithin` catches one bad
+  period rather than only a wholly mislabelled series. Live: August 10,332
+  亿千瓦时, up 1.7 percent.
 
 - 2026-09-20 — Structured unit metadata: `shared/measure.ts` turns each
   series' unit sentence into fields (kind, suffix, decimals, change,
