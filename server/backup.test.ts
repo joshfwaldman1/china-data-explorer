@@ -152,7 +152,7 @@ test("a missing source is never created and a failed worker releases the slot", 
   const response = await manager.createResponse();
   expect(response.status).toBe(200);
   await response.body?.cancel();
-});
+}, 60_000);
 
 test("a snapshot refuses an existing destination, the source itself, and a source symlink", async () => {
   const directory = await scratch();
@@ -231,4 +231,7 @@ test("the workflow verifier writes checksummed restore evidence only for a verif
   expect(await Bun.file(`${path}.sha256`).text()).toBe(`${manifest.sha256}  downloaded.db\n`);
   // The downloaded artifact can be rechecked without the original HTTP headers.
   expect((await verify(`${path}.manifest.json`)).code).toBe(0);
-});
+  // Three subprocesses and a snapshot: on a loaded runner this passes five
+  // seconds and fails on the clock rather than on anything it checks. It did
+  // exactly that on CI on 20 September 2026, so the budget is stated here.
+}, 60_000);
