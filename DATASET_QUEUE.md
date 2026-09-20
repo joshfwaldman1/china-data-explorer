@@ -6,55 +6,45 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 
 ## Queue
 
-1. **PBOC quarterly surveys.** The bank's 城镇储户问卷调查 (income confidence,
-   employment sentiment, saving and spending intentions), 企业家问卷调查 and
-   银行家问卷调查 indices, quarterly, from pbc.gov.cn's survey pages (text or
-   PDF); a Sentiment row for the employment sentiment index.
-   *Test:* Q2 2026 indices parse and match the bank's release.
-
-2. **Port throughput.** MOT's monthly 港口货物吞吐量 and 集装箱吞吐量 (month
-   and year to date) from mot.gov.cn's statistics releases; probe first.
-   *Test:* August 2026 container throughput parses and matches the release.
-
-3. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
+1. **GDP by industry, nominal.** NBS's quarterly current-price GDP and
    primary, secondary and tertiary value added (当季值 and 累计值, 亿元) as a
    Growth key; no growth rates exist in the quarterly database.
    *Test:* eight ids resolve; Q2 2026 levels match NBS's release.
 
-4. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
+2. **PMI employment on Home.** A Labor row from `pmi_manufacturing`'s
    employment line (already collected).
    *Test:* the row renders with the August 2026 value.
 
-5. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
+3. **Auto sales (CPCA).** Probe 乘联会 (cpcadata.com / cpca.org.cn) for
    monthly retail and wholesale passenger-vehicle sales as text; CAAM is
    parked (images).
    *Test:* August 2026 retail sales parse and match the release.
 
-6. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
+4. **NEA follow-ups.** [watch] May 2026 consumption is an image in the
    fuller release; watch for a text version or a later revision table. The
    demand note's day is set (the 21st). August 2026's note is due about
    21 September.
    *Test:* May 2026 appears on the month line, from text, not derived.
 
-7. **Notes and annotations in English.** [needs API credit] Titles are
+5. **Notes and annotations in English.** [needs API credit] Titles are
     now NBS's own; `bun run translate-notes` for the explanatory notes
     and annotations under them, then re-read the five tables that timed out
     in the English crawl.
     *Test:* `notes-en.json` covers every note the catalog carries.
 
-8. **Property: developer financing and mortgages.** [parked: source not
+6. **Property: developer financing and mortgages.** [parked: source not
     found] PBOC's quarterly 金融机构贷款投向统计报告 was on none of the
     survey-and-statistics department's sections on 16 September; try the
     bank's site search, the 货币政策执行报告, or a headed browser.
     *Test:* Q2 2026 mortgage balance parses and matches the bank's headline.
 
-9. **MOFCOM weekly prices.** [parked: source not found] The weekly
+7. **MOFCOM weekly prices.** [parked: source not found] The weekly
     食用农产品 and 生产资料 indices are not on price.mofcom.gov.cn's list
     endpoint (`POST /datamofcom/front/price/list`, which carries international
     monitoring only).
     *Test:* the latest week parses and matches the ministry's release.
 
-10. **High-frequency group.** [blocked: needs AKTools on the deployment]
+8. **High-frequency group.** [blocked: needs AKTools on the deployment]
     Freight index, port throughput, daily commodity prices from AkShare.
     *Test:* three series refresh on a deployment with AKTOOLS_URL set.
 
@@ -66,7 +56,19 @@ on 20 September 2026 after the 17 September list ran out of runnable items.
 - **Auto sales (CAAM).** [parked: caam.org.cn publishes each monthly release as
   an image, and its listing stops at May 2026; MIIT's copy is script-rendered.]
 
+- **PBOC quarterly surveys.** [parked: the bank stopped publishing them. The
+  survey listing (diaochatongjisi/116219/116227) ends at the fourth quarter
+  of 2025, posted 23 January 2026, and each report is a PDF with no HTML or
+  table behind it. Revisit if the bank resumes them or posts the indices as
+  data.]
+
 ## Done
+
+- 2026-09-20 — Port cargo throughput: `port_throughput` (all ports, foreign
+  trade, coastal; month) and `port_throughput_growth` from NBS's monthly
+  table, with the 2005-2018 table stitched behind; a Growth row; a
+  cumulative pair that says February stands alone here. Live: July 2026
+  148,541 万吨, down 2.9 percent.
 
 - 2026-09-20 — SAFE cross-border receipts and payments: `cross_border_flows`,
   `_usd`, `_annual` (net, receipts, payments and the net by account) from

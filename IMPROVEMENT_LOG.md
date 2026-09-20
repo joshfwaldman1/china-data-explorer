@@ -2762,3 +2762,26 @@ not from scratch. Rounds are small on purpose.
   takes them too and the test holds the workbook to the release. Live:
   August 2026 receipts 52,718 亿元, payments 48,486, net 4,232, goods
   +7,987 against services −658; 42 pairs, 0 findings.
+
+- 2026-09-20 (dataset loop, round 33: port throughput; PBOC surveys parked):
+  the bank's quarterly surveys (城镇储户, 企业家, 银行家问卷调查) stop at the
+  fourth quarter of 2025, posted on 23 January 2026, and each report is a
+  PDF behind an HTML wrapper with no figures in the page, so the item is
+  parked with that reason. The next item asked for port throughput from the
+  transport ministry, whose statistics paths answer 404; NBS publishes the
+  same figures in its own monthly table, which is the better source anyway.
+  `port_throughput` serves the month's tonnage for all ports, the
+  foreign-trade cargo inside it and the coastal ports' share, with the
+  bureau's 2005-2018 table stitched behind the one it began in 2019;
+  `port_throughput_growth` serves the rates printed beside them.
+  The audit then produced its first finding in weeks, and it was ours: a
+  cumulative pair requires the two lines to agree in the year's first
+  published period, which holds for the activity series because February
+  carries the combined January-February figure. This table prints February
+  alone and no January — 128,166 万吨 for February against 286,789 for the
+  two months — so the month grew 3.3 percent where the year to date grew
+  7.2, and both are right. A cumulative pair can now say
+  `firstPeriodAgrees: false`, with the levels in its note; the half of the
+  check that caught the GDP bug still applies and the test holds it to that.
+  Live: July 2026 148,541 万吨 across all ports, down 2.9 percent on a year
+  earlier while the year to date is up 1.3; 43 pairs, 0 findings.
