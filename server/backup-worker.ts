@@ -26,6 +26,18 @@ export async function writeBackupSnapshot(source: string, destination: string): 
 }
 
 if (import.meta.main) {
+  // Write the answer, then exit on a stated code.
+  //
+  // Everything waiting on this process is waiting on its pipes closing:
+  // `backup.ts` spawns it for a snapshot, `verify-backup.ts` spawns it to
+  // inspect a restored copy, and both read stdout to end of file. Setting
+  // `process.exitCode` and falling off the end defers that to the event
+  // loop draining, and this process opens SQLite. One handle outliving the
+  // work turns a finished job into a process that never exits and a reader
+  // that never sees the end — a hang, not a slow run, and intermittent
+  // because it depends on what is still registered when the work ends.
+  // That is what held CI for sixty seconds on 20 September 2026.
+  let code = 0;
   try {
     const [command, source, destination] = Bun.argv.slice(2);
     if (!source || (command !== "inspect" && command !== "snapshot")) throw new Error("Usage: backup-worker.ts inspect FILE | snapshot SOURCE DESTINATION");
@@ -33,9 +45,10 @@ if (import.meta.main) {
       if (!destination) throw new Error("A snapshot destination is required");
       await writeBackupSnapshot(source, destination);
     }
-    console.log(JSON.stringify(await inspectBackup(command === "snapshot" ? destination! : source)));
+    await Bun.write(Bun.stdout, `${JSON.stringify(await inspectBackup(command === "snapshot" ? destination! : source))}\n`);
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
+    await Bun.write(Bun.stderr, `${error instanceof Error ? error.message : String(error)}\n`);
+    code = 1;
   }
+  process.exit(code);
 }
