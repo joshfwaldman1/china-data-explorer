@@ -60,6 +60,14 @@ export interface CumulativePair {
   yearToDate: SeriesRef;
   tolerance: number;
   periods?: number;
+  /**
+   * Set false where the first period the table publishes is not the year's
+   * first: NBS's port table prints February on its own and no January, so
+   * the two lines coincide only in a January it omits. The other half of the
+   * check — that the period line is not the cumulative one under another
+   * label — still applies.
+   */
+  firstPeriodAgrees?: boolean;
   note?: string;
 }
 
@@ -122,7 +130,8 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     period: { key: "port_throughput_growth", label: "All ports, month (YoY %)" },
     yearToDate: { key: "port_throughput_growth", label: "All ports, year to date (YoY %)" },
     tolerance: 0.05,
-    note: "Both rates from NBS's monthly port table (当期 and 累计).",
+    firstPeriodAgrees: false,
+    note: "Both rates from NBS's monthly port table (当期 and 累计). Unlike the activity series, this table prints February on its own and no January: in February 2026 the month grew 3.3 percent and the year to date 7.2, because the levels behind them are 128,166 万吨 for February against 286,789 for the two months. The two lines therefore coincide only in a January the table omits.",
   },
   {
     name: "Services production: month vs year to date", kind: "cumulative",
@@ -519,7 +528,7 @@ export function compareValues(name: string, left: SeriesPoint[], right: SeriesPo
  * disagree somewhere else: a "period" series equal to the cumulative one at
  * every period is the cumulative one under the wrong label.
  */
-export function compareCumulative(name: string, period: SeriesPoint[], yearToDate: SeriesPoint[], options: { tolerance: number; periods?: number; note?: string }): ConcordanceResult {
+export function compareCumulative(name: string, period: SeriesPoint[], yearToDate: SeriesPoint[], options: { tolerance: number; periods?: number; firstPeriodAgrees?: boolean; note?: string }): ConcordanceResult {
   const base = { name, kind: "cumulative" as const, note: options.note, sides: { left: rangeOf(period), right: rangeOf(yearToDate) } };
   if (period.length === 0 || yearToDate.length === 0) return { ...base, status: "missing", compared: 0, disagreements: [] };
   const a = byPeriod(period), b = byPeriod(yearToDate);
@@ -531,8 +540,9 @@ export function compareCumulative(name: string, period: SeriesPoint[], yearToDat
   // January (NBS and NEA publish the two months together).
   const quarterly = rows.every((row) => /-(03|06|09|12)$/.test(row.period));
   const firstOfYear = (p: string) => quarterly ? p.endsWith("-03") : p.endsWith("-01") || (p.endsWith("-02") && !rows.some((row) => row.period === `${p.slice(0, 4)}-01`));
-  const disagreements = rows.filter((row) => firstOfYear(row.period) && Math.abs(row.left - row.right) > options.tolerance);
-  const later = rows.filter((row) => !firstOfYear(row.period));
+  const anchored = options.firstPeriodAgrees !== false;
+  const disagreements = anchored ? rows.filter((row) => firstOfYear(row.period) && Math.abs(row.left - row.right) > options.tolerance) : [];
+  const later = rows.filter((row) => !anchored || !firstOfYear(row.period));
   const identical = later.length > 0 && later.every((row) => Math.abs(row.left - row.right) <= options.tolerance);
   // Every later period agreeing is the finding itself; report those rows so the reader sees it.
   const status = disagreements.length > 0 || identical ? "mismatch" : "ok";
@@ -590,7 +600,7 @@ export function runConcordance(pairs: ConcordancePair[] = CONCORDANCE_PAIRS): Co
   return pairs.map((pair) => {
     if (pair.kind === "value") return compareValues(pair.name, readSide(pair.left), readSide(pair.right), { tolerance: pair.tolerance, periods: pair.periods, leftOffset: pair.left.offset, rightOffset: pair.right.offset, note: pair.note });
     if (pair.kind === "annual") return compareAnnualSum(pair.name, readSide(pair.monthly, 12 * ((pair.periods ?? 3) + 1)), readSide(pair.annual, 12), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
-    return compareCumulative(pair.name, readSide(pair.period), readSide(pair.yearToDate), { tolerance: pair.tolerance, periods: pair.periods, note: pair.note });
+    return compareCumulative(pair.name, readSide(pair.period), readSide(pair.yearToDate), { tolerance: pair.tolerance, periods: pair.periods, firstPeriodAgrees: pair.firstPeriodAgrees, note: pair.note });
   });
 }
 

@@ -58,8 +58,13 @@ test("the growth lines are the rates beside the tonnage, and they form a cumulat
   ]);
   const pair = CONCORDANCE_PAIRS.find((item) => item.name.startsWith("Port throughput"));
   expect(pair?.kind).toBe("cumulative");
-  // February carries the combined January-February figure on both lines, as NBS publishes it.
-  const month = [{ date: "2026-02", value: 3.1 }, { date: "2026-03", value: 2.4 }, { date: "2026-04", value: 1.8 }];
-  const ytd = [{ date: "2026-02", value: 3.1 }, { date: "2026-03", value: 2.8 }, { date: "2026-04", value: 2.5 }];
-  expect(compareCumulative("t", month, ytd, { tolerance: 0.05 }).status).toBe("ok");
+  // This table prints February alone and no January, so the two lines differ there too;
+  // the pair says so, and the note explains it with the levels behind it.
+  expect(pair?.kind === "cumulative" && pair.firstPeriodAgrees).toBe(false);
+  expect(pair?.note).toContain("February on its own");
+  const month = [{ date: "2026-02", value: 3.3 }, { date: "2026-03", value: -1.5 }, { date: "2026-04", value: 0.6 }];
+  const ytd = [{ date: "2026-02", value: 7.2 }, { date: "2026-03", value: 4.0 }, { date: "2026-04", value: 3.1 }];
+  expect(compareCumulative("t", month, ytd, { tolerance: 0.05, firstPeriodAgrees: false }).status).toBe("ok");
+  // The check that matters still holds: a year-to-date line under a month label is caught.
+  expect(compareCumulative("t", ytd, ytd, { tolerance: 0.05, firstPeriodAgrees: false }).status).toBe("mismatch");
 });
