@@ -67,6 +67,43 @@ missed runs extend it. Restore time is not yet an operational guarantee. GitHub
 artifact expiry is not a long-term archive: independent object storage, retention
 controls and periodic recovery drills remain follow-up work.
 
+## How a change reaches production
+
+Read this before assuming a merge ships anything.
+
+**Today (manual).** The Railway service `econstats-china` has no repository
+attached. It builds only what `railway up --detach` uploads from a working
+directory. A push to GitHub deploys nothing on its own, and an uncommitted
+local edit would ship. Every deployment so far has been preceded by a commit
+and a push in the same minute, but that is a habit, not a mechanism.
+
+**The target (GitHub-triggered).** The service is attached to
+`joshfwaldman1/china-data-explorer` on `main`, so a merge builds and deploys
+using the `Dockerfile` that `railway.toml` already names, and CI's typecheck
+and test run is the gate in front of it. Two steps, both of which need the
+repository owner and neither of which can be done from a script:
+
+1. Grant Railway's GitHub app access to `china-data-explorer`. Railway's app
+   is installed with access to selected repositories only, and this one is
+   not among them, so Railway cannot see it. In GitHub: Settings → 
+   Applications → Railway → Configure → add the repository. Then attach it
+   in the Railway service's Settings → Source.
+2. Upgrade the GitHub account to Pro. Branch protection is unavailable on a
+   private repository on the free plan, so required status checks and
+   required reviews cannot be turned on until then.
+
+**Once both are done**, `main` is protected as follows: a pull request with a
+green CI check is required for collaborators, and administrators may still
+push directly. That is deliberate. The dataset loop runs the same two gates
+locally before every push and verifies the live site afterwards, so putting
+it behind its own review would add a step without adding a check. Everyone
+else goes through a pull request.
+
+## Contributing
+
+`CONTRIBUTING.md` is the short version for a collaborator: the two gates, what
+must never be committed, and how a series is added.
+
 ## Readiness and deployment
 
 `/live` reports that the HTTP process answers. `/ready` and legacy `/health`
@@ -79,7 +116,10 @@ Before committing or deploying, run `bun run typecheck` and `bun test`. Browser
 tests require Chrome, or Playwright Chromium with `PLAYWRIGHT_CHANNEL=chromium`.
 Tests use scratch stores; never point them at production data.
 
-Deploy from the repository root using `railway up --detach`. Railway and Docker
+Deploy from the repository root using `railway up --detach` while the service
+has no repository attached; once it is attached, a push to `main` with a green
+CI check deploys instead, and `railway up` stays available for a rollback or a
+deploy from a working directory. Railway and Docker
 allow 180 seconds for startup. Confirm deployment success and `/ready`, inspect
 the startup log, then exercise the backup workflow. Do not treat a successful
 upload or a process that answers `/live` as a completed deployment.

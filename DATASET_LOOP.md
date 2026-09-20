@@ -63,8 +63,12 @@ in `DATASET_QUEUE.md`, before doing anything.
    item's own acceptance test must pass.
 6. Commit with a message that says what was missing and what now answers it,
    in the voice of `git log`. Push to `main`.
-   Deploy with `railway up --detach` from the repo root (a push does not
-   deploy). Wait for the build, then verify live: `/health`, the new series
+   Deploy with `railway up --detach` from the repo root. A push does not
+   deploy *yet*: the Railway service has no repository attached, and the two
+   steps needed to attach it are in `OPERATIONS.md` under "How a change
+   reaches production". Once it is attached, a push to `main` with a green
+   CI check deploys instead, and this step becomes waiting for that build.
+   Either way the round is not finished until the live site is verified: `/health`, the new series
    through `/api/series/<key>`, and `/api/schedule` if scheduling changed.
    Health alone is not verification.
 7. Append a dated entry to the Log in `IMPROVEMENT_LOG.md`: what was missing,

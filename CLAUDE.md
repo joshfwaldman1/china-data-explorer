@@ -24,7 +24,12 @@ process.
 
 ## Ground rules
 
-- Work on `main`. Never force-push, never rewrite history.
+- Work on `main`. Never force-push, never rewrite history. A person
+  contributing opens a pull request and needs a green CI check; the dataset
+  loop commits to `main` directly, because it runs the same gates locally
+  and verifies the live site afterwards. `CONTRIBUTING.md` is the short
+  version for a collaborator, and `OPERATIONS.md` says how a change reaches
+  production — which today is a manual `railway up`, not a push.
 - Never commit `china.db`, `catalog.db` or anything under `catalog/*.partial`.
   `seed/china.db` is committed on purpose; refresh it only deliberately, and
   never from production data.
