@@ -3075,3 +3075,33 @@ not from scratch. Rounds are small on purpose.
   per line; without a label the lines now fold into one row per period, the
   earliest sighting across them, so a line added later cannot redate the
   table. 368 tests.
+
+- 2026-09-21 (dataset loop, round 44: what drove the growth): the site said
+  the economy grew 5.2 percent and nothing about what grew it. NBS divides
+  GDP growth between three expenditure categories — what households and
+  government consumed, what was invested, and what was sold abroad net of
+  what was bought — and publishes each as a share of the growth, for the
+  quarter and cumulatively. Both tables are carried now as
+  `gdp_contributions` and `gdp_contributions_ytd`, with a Home row for
+  consumption's share.
+  Because the three divide the growth between them they are three parts of
+  one hundred percent, and that identity is the round's check. It is an
+  identity of the national accounts rather than a series the bureau
+  publishes, so a components pair can now be given a constant whole instead
+  of a published total; the audit holds both tables to it every quarter. It
+  is also the only check that would catch what is easiest to get wrong
+  here: a line pointed at the wrong table, or the cumulative column read
+  under the quarter's label.
+  The test runs the identity across six years of the bureau's own answer,
+  then swaps capital formation for its cumulative twin and requires a
+  finding. The wrong version still sums to a hundred in every first
+  quarter, because a year's first quarter is its own year to date, and the
+  test says so rather than letting that pass unnoticed: the finding has to
+  come from the other three quarters.
+  Recorded for the next reader: a contribution is a share of growth, not a
+  share of output. Net exports contributed 20.8 percent of the second
+  quarter's growth while being a far smaller part of GDP.
+  Also recorded, because it cost time: the backup test that fails
+  intermittently does so only when two full suites run at once. Five
+  consecutive single runs were clean. It is contention, not a defect.
+  374 tests; 54 pairs, 0 findings.

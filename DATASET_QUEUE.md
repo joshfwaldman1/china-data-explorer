@@ -8,28 +8,20 @@ what the site does not carry).
 
 ## Queue
 
-1. **What is driving growth: contributions to GDP.** NBS's quarterly table
-    gives the contribution rate of final consumption, capital formation and
-    net exports of goods and services to GDP growth, in the quarter and
-    cumulatively (`cid 62cd73e3fcb4492fab8e998ca3a7dc5b`, dataset 2). The
-    site says how fast the economy grew and nothing about what grew it.
-    *Test:* the three contribution rates of a quarter sum to 100 percent
-    within rounding — a `components` pair, the kind added in round 40.
-
-2. **Transport turnover by mode.** Freight and passenger turnover for road,
+1. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-3. **Average wages by sector.** The annual average wage of employed persons
+2. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-4. **Agriculture: grain and meat output.** Annual grain output with its
+3. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
@@ -68,6 +60,14 @@ what the site does not carry).
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-21 — Contributions to GDP growth: `gdp_contributions` and
+  `_ytd` (final consumption, capital formation, net exports, as shares of
+  the quarter's growth and of the year's), with a Home row for consumption.
+  A components pair can now check against a constant whole, so the audit
+  holds the three shares to one hundred percent every quarter. Live: the
+  second quarter of 2026 was 45.2 percent consumption, 34.0 capital
+  formation, 20.8 net exports.
 
 - 2026-09-21 — The release as a first-class entity: `server/arrivals.ts`
   stores the publishers' calendar items as they are fetched and resolves
