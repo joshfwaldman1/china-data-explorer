@@ -512,7 +512,23 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     firstPeriodAgrees: false,
     periodWithin: true,
   },
+  {
+    name: "Motor vehicle output: month vs year to date", kind: "cumulative",
+    period: { key: "industrial_output_by_sector", label: "Manufacture of Automobiles (YoY %)" },
+    yearToDate: { key: "industrial_output_by_sector_ytd", label: "Manufacture of Automobiles, year to date (YoY %)" },
+    tolerance: 0.05,
+    firstPeriodAgrees: false,
+    note: "The bureau prints no January for a monthly industry rate; February's year to date covers the two months.",
+  },
+  {
+    name: "Manufacturing output: month vs year to date", kind: "cumulative",
+    period: { key: "industrial_output_by_division", label: "Manufacturing (YoY %)" },
+    yearToDate: { key: "industrial_output_by_division", label: "Manufacturing, year to date (YoY %)" },
+    tolerance: 0.05,
+    firstPeriodAgrees: false,
+  },
 ];
+
 
 
 /**
