@@ -1,0 +1,176 @@
+/**
+ * What is wrong with the data right now, on one page.
+ *
+ * The site does a lot of checking and showed none of it. Every night it
+ * compares 54 pairs of series that ought to agree; every ingest run records
+ * what it fetched and what it could not. Both lived behind API paths that a
+ * person had to know about and curl. Nothing on the site said "this source
+ * has been failing since the 7th".
+ *
+ * That is not a cosmetic gap. Customs changed the wording of the unit line
+ * above its tables in about 2022, the parser refused every older month, and
+ * "22 of 55 months failed to parse" repeated on every run for as long as the
+ * fetch log goes back — while the page looked healthy, because the months it
+ * could read were the recent ones. The check that would have caught it had
+ * been running and reporting the whole time, into a log nobody reads.
+ *
+ * So this assembles the three things that can be wrong, in the order a reader
+ * should care about them:
+ *
+ *  - A **finding**: two readings of the same statistic disagree. Something on
+ *    the site may be wrong, and that is the worst case.
+ *  - A **failing source**: a publisher's page is there and the site cannot
+ *    read it. Nothing shown is wrong; something is missing, and silently.
+ *  - A **series behind**: the newest figure is older than its release cadence
+ *    implies, separated into publishers that have gone quiet and series this
+ *    deployment cannot refresh, because those are different problems and only
+ *    one of them is ours.
+ *
+ * Everything here is read from the store and the audit. Nothing fetches, so
+ * the page costs a publisher nothing however often it is opened.
+ */
+
+import { CATALOG, catalogList } from "./data";
+import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
+import { dbHealth, fetchFailures, fetchLogOldest, storedLatest } from "./db";
+import { comparablePeriod, expectedPeriod } from "./due";
+
+/** A pair of readings that disagree, with enough to act on it. */
+export interface Finding {
+  name: string;
+  kind: string;
+  /** The newest period compared and the two values. */
+  latest?: { period: string; left: number; right: number };
+  /** Every period that disagrees, newest first. */
+  disagreements: { period: string; left: number; right: number }[];
+  note?: string;
+}
+
+/** A source the ingest could not read, and how long it has been that way. */
+export interface FailingSource {
+  key: string;
+  title: string;
+  agency: string;
+  /** How many of the recorded failures are this key's. */
+  failures: number;
+  /** The oldest and newest recorded failure for it. */
+  since: string;
+  latest: string;
+  message: string;
+}
+
+/** A curated series whose newest figure is older than it should be. */
+export interface BehindSeries {
+  key: string;
+  title: string;
+  agency: string;
+  frequency: string;
+  lastPeriod: string | null;
+  expected: string;
+  /** Set when the site, not the publisher, is the reason it cannot advance. */
+  blocked?: string;
+  /** Set when the publisher has stopped the series for good. */
+  ended?: string;
+}
+
+export interface HealthReport {
+  ranAt: string;
+  checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
+  sources: { failing: FailingSource[]; consideredSince: string };
+  behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
+  store: { observations: number; keys: number; lastFetch: string | null };
+}
+
+/** The newest period a curated series ought to have by now. */
+function overdue(frequency: string, lastPeriod: string | null): { expected: string; late: boolean } {
+  const expected = expectedPeriod(frequency, new Date());
+  if (!lastPeriod) return { expected, late: true };
+  return { expected, late: comparablePeriod(lastPeriod) < comparablePeriod(expected) };
+}
+
+/**
+ * Group the recorded failures by series. The fetch log holds one row per
+ * attempt, so a source that fails every run appears many times; what a reader
+ * needs is that it is one source, failing since a date, for one reason.
+ */
+function failingSources(rows: { key: string; failures: number; since: string; latest: string; message: string }[]): FailingSource[] {
+  return rows.map((row) => {
+    const config = CATALOG[row.key];
+    return {
+      key: row.key,
+      // Named for a reader, not by key alone; a key nobody curates still shows its key.
+      title: config?.title ?? row.key,
+      agency: config?.agency ?? "",
+      failures: row.failures,
+      since: row.since,
+      latest: row.latest,
+      message: row.message ?? "",
+    };
+  });
+}
+
+/**
+ * The whole report. `results` is injectable so a test can state what the audit
+ * found rather than depending on whatever the store happens to hold.
+ */
+export function healthReport(results: ConcordanceResult[] = runConcordance(CONCORDANCE_PAIRS), options: { windowDays?: number } = {}): HealthReport {
+  // A fortnight by default: long enough that a weekly source failing once is
+  // still visible, short enough that a fault fixed last month is not.
+  const since = new Date(Date.now() - (options.windowDays ?? 14) * 86_400_000).toISOString();
+  const failures = fetchFailures(since);
+  const health = dbHealth();
+
+  const findings: Finding[] = results
+    .filter((result) => result.status === "mismatch")
+    .map((result) => ({ name: result.name, kind: result.kind, latest: result.latest, disagreements: result.disagreements, note: result.note }));
+
+  // Newest stored period per curated key, at whichever region the site serves.
+  const latestByKey = new Map<string, string | null>();
+  for (const row of storedLatest("")) {
+    const found = latestByKey.get(row.key);
+    if (found === undefined || (row.lastPeriod ?? "") > (found ?? "")) latestByKey.set(row.key, row.lastPeriod);
+  }
+
+  const publisher: BehindSeries[] = [], blocked: BehindSeries[] = [], ended: BehindSeries[] = [];
+  for (const entry of catalogList()) {
+    // Series held by other institutions about China are on their own schedules
+    // and are comparisons, not this site's obligation to be timely about.
+    if (entry.source === "fred") continue;
+    const lastPeriod = latestByKey.get(entry.key) ?? null;
+    const { expected, late } = overdue(entry.frequency, lastPeriod);
+    if (!late) continue;
+    const row: BehindSeries = { key: entry.key, title: entry.title, agency: entry.agency, frequency: entry.frequency, lastPeriod, expected };
+    if (entry.ended) ended.push({ ...row, ended: entry.ended });
+    else if (entry.refreshBlocked) blocked.push({ ...row, blocked: entry.refreshBlocked });
+    else publisher.push(row);
+  }
+  const byAge = (left: BehindSeries, right: BehindSeries) => (left.lastPeriod ?? "").localeCompare(right.lastPeriod ?? "");
+
+  return {
+    ranAt: new Date().toISOString(),
+    checks: {
+      total: results.length,
+      ok: results.filter((result) => result.status === "ok").length,
+      findings,
+      missing: results.filter((result) => result.status === "missing" || result.status === "no-overlap").map((result) => result.name),
+    },
+    sources: {
+      failing: failingSources(failures),
+      // The window the failures were counted over, floored at the oldest row
+      // the log still holds, so "nothing failing" reads as "none since this".
+      consideredSince: [since, fetchLogOldest() ?? since].sort().at(-1) ?? since,
+    },
+    behind: { publisher: publisher.sort(byAge), blocked: blocked.sort(byAge), ended: ended.sort(byAge) },
+    store: { observations: health.observations, keys: latestByKey.size, lastFetch: health.lastFetch },
+  };
+}
+
+/** One line saying whether anything needs attention, for the page's heading. */
+export function healthHeadline(report: HealthReport): string {
+  const parts: string[] = [];
+  if (report.checks.findings.length > 0) parts.push(`${report.checks.findings.length} cross-check${report.checks.findings.length === 1 ? "" : "s"} disagreeing`);
+  if (report.sources.failing.length > 0) parts.push(`${report.sources.failing.length} source${report.sources.failing.length === 1 ? "" : "s"} failing to parse`);
+  if (report.behind.publisher.length > 0) parts.push(`${report.behind.publisher.length} series behind`);
+  if (parts.length === 0) return `All ${report.checks.total} cross-checks agree, every source read cleanly, nothing overdue.`;
+  return `${parts.join("; ")}.`;
+}

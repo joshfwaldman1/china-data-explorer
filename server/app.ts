@@ -40,6 +40,7 @@ import { formatResult, runConcordance } from "./concordance";
 import { fetchCustomsReleases } from "./customs-calendar";
 import { createReadinessProbe } from "./readiness";
 import { methodology } from "./methodology";
+import { healthHeadline, healthReport } from "./health-report";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 
@@ -243,6 +244,13 @@ const routes = {
     // How each figure was made and how it reached the site: a section per path
     // the data takes, the site's own handling, and a section per curated key.
     "/api/methodology": () => Response.json(methodology(catalogList())),
+    // What is wrong with the data right now: cross-checks that disagree,
+    // sources that will not parse, series behind their cadence. All from the
+    // store and the audit, so opening it costs a publisher nothing.
+    "/api/health-report": () => {
+      const report = healthReport();
+      return Response.json({ ...report, headline: healthHeadline(report) });
+    },
     // Every headline series at once for the Home page, in one round trip
     // instead of one request per indicator after the catalog.
     //

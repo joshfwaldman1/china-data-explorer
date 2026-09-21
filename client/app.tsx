@@ -113,6 +113,7 @@ type Route =
   | { view: "releases"; month: string }
   | { view: "regions"; period: string; key: string }
   | { view: "methodology"; key: string }
+  | { view: "health" }
   | { view: "saved" }
   | { view: "recent" };
 
@@ -390,6 +391,7 @@ function parseRoute(hash: string): Route {
   if (head === "releases") return { view: "releases", month: query.get("month") ?? "" };
   if (head === "regions") return { view: "regions", period: query.get("period") ?? "", key: query.get("key") ?? "" };
   if (head === "methodology") return { view: "methodology", key: query.get("key") ?? "" };
+  if (head === "health") return { view: "health" };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -404,6 +406,7 @@ function routeHash(route: Route): string {
     case "releases": return `#/releases${qs([["month", route.month]])}`;
     case "regions": return `#/regions${qs([["period", route.period], ["key", route.key]])}`;
     case "methodology": return `#/methodology${qs([["key", route.key]])}`;
+    case "health": return "#/health";
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -605,6 +608,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
           <a className="nav-row" href="#/saved" aria-current={props.route.view === "saved" ? "page" : undefined}><span className="label">Saved series</span><span className="count">{props.saved.length}</span></a>
           <a className="nav-row" href="#/recent" aria-current={props.route.view === "recent" ? "page" : undefined}><span className="label">Recently viewed</span><span className="count">{props.recent.length}</span></a>
           <a className="nav-row" href="#/methodology" aria-current={props.route.view === "methodology" ? "page" : undefined}><span className="label">How these figures are made</span></a>
+          <a className="nav-row" href="#/health" aria-current={props.route.view === "health" ? "page" : undefined}><span className="label">Data health</span></a>
         </div>
       </details>
       </div>
@@ -991,6 +995,123 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
         <div className="result-list" style={{ marginTop: 20 }}>
           {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a></article>; })}
         </div>
+      )}
+    </main>
+  );
+}
+
+// ── Data health ───────────────────────────────────────────────────────────────
+
+interface Finding { name: string; kind: string; note?: string; latest?: { period: string; left: number; right: number }; disagreements: { period: string; left: number; right: number }[] }
+interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string }
+interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
+interface Health {
+  headline: string; ranAt: string;
+  checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
+  sources: { failing: FailingSource[]; consideredSince: string };
+  behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
+  store: { observations: number; keys: number; lastFetch: string | null };
+}
+
+/**
+ * What is wrong with the data, where a reader can see it.
+ *
+ * The site runs 54 cross-checks a night and records every fetch, and showed
+ * neither. Customs changed the wording above its tables, the parser refused
+ * every month before the change, and that repeated on every run for weeks
+ * into a log nobody reads, while the page looked healthy because the months
+ * it could still read were the recent ones. This page is where that would
+ * have been visible on the first day.
+ */
+function HealthPage() {
+  const [data, setData] = useState<Health | null>(null);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  useEffect(() => {
+    let cancelled = false;
+    json("/api/health-report").then((body) => {
+      if (cancelled) return;
+      setData(body as unknown as Health);
+      setStatus("ok");
+    }).catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, []);
+  const day = (iso: string | null) => iso ? fmtDate(iso.slice(0, 10)) : "—";
+  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0;
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Data health</span></div>
+      <h1>Data Health</h1>
+      <p className="lede">Everything the site knows to be wrong with its own data: readings that disagree, sources it cannot parse, and series that have not advanced. Read from the store, so opening this costs the publishers nothing.</p>
+      {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Checking…</div>}
+      {status === "error" && <div className="state"><b>The health report is unavailable</b><p>The server did not answer.</p></div>}
+      {status === "ok" && data && (
+        <>
+          <p className={clean ? "health-headline ok" : "health-headline bad"}>{data.headline}</p>
+
+          <section>
+            <h2>Cross-checks</h2>
+            <p>{data.checks.ok} of {data.checks.total} pairs agree. A pair is one statistic read two ways, or an identity the numbers must satisfy. A disagreement means something here may be wrong.</p>
+            {data.checks.findings.length === 0
+              ? <p className="quiet">Nothing disagrees.</p>
+              : <ul className="health-list">{data.checks.findings.map((finding) => (
+                  <li key={finding.name}>
+                    <b>{finding.name}</b>
+                    {finding.latest && <div className="quiet">{finding.latest.period}: {finding.latest.left} against {finding.latest.right}{finding.disagreements.length > 1 ? `, and ${finding.disagreements.length - 1} more period${finding.disagreements.length === 2 ? "" : "s"}` : ""}</div>}
+                    {finding.note && <div className="quiet">{finding.note}</div>}
+                  </li>
+                ))}</ul>}
+            {data.checks.missing.length > 0 && <p className="quiet">{data.checks.missing.length} pair{data.checks.missing.length === 1 ? " has" : "s have"} no overlapping period to compare yet.</p>}
+          </section>
+
+          <section>
+            <h2>Sources that will not parse</h2>
+            <p>A publisher's page is reachable and the site cannot read it. Nothing shown on the site is wrong; something is missing. Counted since {day(data.sources.consideredSince)}.</p>
+            {data.sources.failing.length === 0
+              ? <p className="quiet">Every source read cleanly.</p>
+              : <ul className="health-list">{data.sources.failing.map((source) => (
+                  <li key={source.key}>
+                    <b><a href={seriesHash([source.key])}>{source.title}</a></b> <span className="quiet">{source.agency}</span>
+                    <div className="quiet">Failed {source.failures} time{source.failures === 1 ? "" : "s"}, first on {day(source.since)}, most recently {day(source.latest)}.</div>
+                    <div className="health-message">{source.message}</div>
+                  </li>
+                ))}</ul>}
+          </section>
+
+          <section>
+            <h2>Series that have not advanced</h2>
+            {data.behind.publisher.length === 0
+              ? <p className="quiet">Every series is as current as its publisher's cadence implies.</p>
+              : <>
+                  <p>The newest figure is older than the publishing cadence implies. Either the publisher has not released, or the site has not managed to read what it released.</p>
+                  <ul className="health-list">{data.behind.publisher.map((row) => (
+                    <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency} · newest {row.lastPeriod ?? "nothing stored"}, expected {row.expected}</span></li>
+                  ))}</ul>
+                </>}
+            {data.behind.blocked.length > 0 && (
+              <>
+                <h3>Not refreshable on this deployment</h3>
+                <p className="quiet">The publisher is still publishing. These reach the site through a service this deployment does not run, so the gap is ours, not theirs.</p>
+                <ul className="health-list">{data.behind.blocked.map((row) => (
+                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency} · newest {row.lastPeriod ?? "nothing stored"} · needs {row.blocked}</span></li>
+                ))}</ul>
+              </>
+            )}
+            {data.behind.ended.length > 0 && (
+              <>
+                <h3>Discontinued by the publisher</h3>
+                <p className="quiet">Kept and labelled rather than deleted, so a reader can still see what was published while it existed.</p>
+                <ul className="health-list">{data.behind.ended.map((row) => (
+                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency} · ended {row.ended}</span></li>
+                ))}</ul>
+              </>
+            )}
+          </section>
+
+          <section>
+            <h2>The store</h2>
+            <p>{data.store.observations.toLocaleString("en-US")} observations across {data.store.keys.toLocaleString("en-US")} series. Last written {data.store.lastFetch ? `${day(data.store.lastFetch)}` : "never"}. Checked {day(data.ranAt)}.</p>
+          </section>
+        </>
       )}
     </main>
   );
@@ -1934,7 +2055,7 @@ function App() {
     setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
-      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
@@ -2002,6 +2123,7 @@ function App() {
         {route.view === "browse" && <BrowsePage stats={stats} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
         {route.view === "methodology" && <MethodologyPage route={route} curated={curated} />}
+        {route.view === "health" && <HealthPage />}
         {route.view === "regions" && <RegionsPage route={route} lang={lang} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}

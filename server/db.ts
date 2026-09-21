@@ -673,6 +673,37 @@ const STATUS_TTL_MS = 5 * 60 * 1000;
  * across the whole store and a 2.6 MB payload, so it is computed and sent only when asked for
  * (`/api/status?series=1`). A status call during a boot ingest once hung for over a minute on it.
  */
+/**
+ * Every failing fetch recorded since a cutoff, grouped by series with a count
+ * and the first and last time it failed.
+ *
+ * `dbStatus` also carries recent failures, but behind a five-minute cache and
+ * capped at the last fifty rows: right for a monitor polling it, wrong for a
+ * page whose whole question is what is broken now. A source failing on every
+ * run also fills that cap on its own and hides the others. This asks the log
+ * directly, for the window the page states.
+ */
+export function fetchFailures(sinceIso: string): { key: string; failures: number; since: string; latest: string; message: string }[] {
+  return db().query<{ key: string; failures: number; since: string; latest: string; message: string }, { $since: string }>(`
+    SELECT key,
+           COUNT(*)            AS failures,
+           MIN(finished_at)    AS since,
+           MAX(finished_at)    AS latest,
+           (SELECT message FROM fetch_log newer
+             WHERE newer.key = fetch_log.key AND newer.status <> 'ok' AND newer.finished_at >= $since
+             ORDER BY newer.finished_at DESC LIMIT 1) AS message
+    FROM fetch_log
+    WHERE status <> 'ok' AND finished_at >= $since
+    GROUP BY key
+    ORDER BY failures DESC, key ASC
+  `).all({ $since: sinceIso });
+}
+
+/** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */
+export function fetchLogOldest(): string | null {
+  return db().query<{ oldest: string | null }, []>("SELECT MIN(finished_at) AS oldest FROM fetch_log").get()?.oldest ?? null;
+}
+
 export function dbStatus() {
   const now = Date.now();
   if (!cachedStatus || now - cachedStatusAt >= STATUS_TTL_MS) { cachedStatus = computeStatus(); cachedStatusAt = now; }
