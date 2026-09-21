@@ -73,10 +73,20 @@ export interface BehindSeries {
   ended?: string;
 }
 
+/** The crawl's own failures, which are a volume to watch rather than a list to read. */
+export interface CrawlFailures {
+  /** Distinct catalog series that failed at least once in the window. */
+  series: number;
+  /** Attempts, since one series failing daily is not the same as many failing once. */
+  attempts: number;
+  /** The reasons, commonest first, with how many series each accounts for. */
+  reasons: { reason: string; series: number }[];
+}
+
 export interface HealthReport {
   ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
-  sources: { failing: FailingSource[]; consideredSince: string };
+  sources: { failing: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
   store: { observations: number; keys: number; lastFetch: string | null };
 }
@@ -98,7 +108,6 @@ function failingSources(rows: { key: string; failures: number; since: string; la
     const config = CATALOG[row.key];
     return {
       key: row.key,
-      // Named for a reader, not by key alone; a key nobody curates still shows its key.
       title: config?.title ?? row.key,
       agency: config?.agency ?? "",
       failures: row.failures,
@@ -108,6 +117,36 @@ function failingSources(rows: { key: string; failures: number; since: string; la
     };
   });
 }
+
+/**
+ * The catalog crawl's failures, counted rather than listed.
+ *
+ * The crawl walks 66,000 NBS series, and a good many of them are entries the
+ * bureau lists with nothing behind them — it answers with a grid and no
+ * values. That is a fact about the bureau's index, not a fault to chase, and
+ * there are twelve thousand of them. Listed one per line beside the curated
+ * sources they buried the real news completely: the first version of this
+ * page opened with "12187 sources failing to parse", which is both true and
+ * useless. Here they are a volume and a set of reasons.
+ */
+function crawlFailures(rows: { key: string; failures: number; message: string }[]): CrawlFailures {
+  const byReason = new Map<string, number>();
+  let attempts = 0;
+  for (const row of rows) {
+    attempts += row.failures;
+    // The message carries the series id in some phrasings; the reason is the shape of it.
+    const reason = (row.message || "no reason recorded").replace(/nbs_[0-9a-f]{8,}/g, "a series").trim();
+    byReason.set(reason, (byReason.get(reason) ?? 0) + 1);
+  }
+  return {
+    series: rows.length,
+    attempts,
+    reasons: [...byReason.entries()].map(([reason, series]) => ({ reason, series })).sort((left, right) => right.series - left.series).slice(0, 6),
+  };
+}
+
+/** A catalog series, as the crawl stores it, rather than one of the curated keys. */
+const isCrawlKey = (key: string) => key.startsWith("nbs_") && !CATALOG[key];
 
 /**
  * The whole report. `results` is injectable so a test can state what the audit
@@ -154,7 +193,8 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
       missing: results.filter((result) => result.status === "missing" || result.status === "no-overlap").map((result) => result.name),
     },
     sources: {
-      failing: failingSources(failures),
+      failing: failingSources(failures.filter((row) => !isCrawlKey(row.key))),
+      crawl: crawlFailures(failures.filter((row) => isCrawlKey(row.key))),
       // The window the failures were counted over, floored at the oldest row
       // the log still holds, so "nothing failing" reads as "none since this".
       consideredSince: [since, fetchLogOldest() ?? since].sort().at(-1) ?? since,

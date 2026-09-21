@@ -159,3 +159,27 @@ test("the report stays cheap on a log the size production actually keeps", () =>
   // blocks, not that the page is slow.
   expect(took).toBeLessThan(2_000);
 });
+
+test("the catalog crawl's failures are counted, not listed beside the curated ones", () => {
+  // The crawl walks 66,000 NBS series and a good many are entries the bureau
+  // indexes with nothing behind them. Twelve thousand of those, listed one per
+  // line, buried the news completely: the first live report of this page
+  // opened with "12187 sources failing to parse", which was true and useless.
+  for (let index = 0; index < 40; index += 1) {
+    const at = daysAgo(2);
+    logFetch({ key: `nbs_${index.toString(16).padStart(32, "0")}`, startedAt: at, finishedAt: at, status: "error", points: 0, changed: 0, message: "source returned a grid with no values" });
+  }
+  const at = daysAgo(2);
+  logFetch({ key: "trade_partners", startedAt: at, finishedAt: at, status: "error", points: 0, changed: 0, message: "by-country table: unexpected unit line" });
+
+  const report = healthReport([agreeing]);
+  // A curated series is named and listed.
+  expect(report.sources.failing.some((source) => source.key === "trade_partners")).toBe(true);
+  // A crawl series never is, however many there are.
+  expect(report.sources.failing.some((source) => source.key.startsWith("nbs_"))).toBe(false);
+  expect(report.sources.crawl.series).toBeGreaterThanOrEqual(40);
+  expect(report.sources.crawl.attempts).toBeGreaterThanOrEqual(report.sources.crawl.series);
+  expect(report.sources.crawl.reasons[0]?.reason).toBe("source returned a grid with no values");
+  // The headline counts the sources a person can act on, not the crawl's tail.
+  expect(healthHeadline(report)).not.toContain(`${report.sources.crawl.series}`);
+});

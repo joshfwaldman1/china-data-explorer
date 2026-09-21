@@ -1005,10 +1005,11 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
 interface Finding { name: string; kind: string; note?: string; latest?: { period: string; left: number; right: number }; disagreements: { period: string; left: number; right: number }[] }
 interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string }
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
+interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
 interface Health {
   headline: string; ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
-  sources: { failing: FailingSource[]; consideredSince: string };
+  sources: { failing: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
   store: { observations: number; keys: number; lastFetch: string | null };
 }
@@ -1075,6 +1076,20 @@ function HealthPage() {
                     <div className="health-message">{source.message}</div>
                   </li>
                 ))}</ul>}
+            {data.sources.crawl && data.sources.crawl.series > 0 && (
+              <>
+                <h3>The catalog crawl</h3>
+                <p className="quiet">
+                  Separate, because it is a volume rather than a list. The crawl walks every series the bureau indexes, and a good
+                  many are entries it lists with nothing behind them. {data.sources.crawl.series.toLocaleString("en-US")} of them
+                  failed at least once ({data.sources.crawl.attempts.toLocaleString("en-US")} attempts). None of this affects a
+                  curated series.
+                </p>
+                <ul className="health-list">{data.sources.crawl.reasons.map((reason) => (
+                  <li key={reason.reason}><b>{reason.series.toLocaleString("en-US")} series</b> <span className="quiet">{reason.reason}</span></li>
+                ))}</ul>
+              </>
+            )}
           </section>
 
           <section>
