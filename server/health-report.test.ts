@@ -129,3 +129,33 @@ test("the store line reports what is actually stored", () => {
   // can be read as "none since that date" rather than "none ever".
   expect(report.sources.consideredSince).toMatch(/^\d{4}-\d{2}-\d{2}T/);
 });
+
+test("the report stays cheap on a log the size production actually keeps", () => {
+  // The first version of this endpoint asked SQLite for the newest message per
+  // failing key with a correlated subquery, against an unindexed table, and
+  // read every stored series to find the curated ones. bun:sqlite is
+  // synchronous, so that ran on the thread serving HTTP: polling the page was
+  // enough to stop the site answering anything at all, which is exactly what
+  // happened on 21 September 2026. This is the check that would have caught it
+  // before the deploy rather than after.
+  const bulk = 20_000;
+  const start = Date.now() - 40 * 86_400_000;
+  for (let index = 0; index < bulk; index += 1) {
+    // Mostly successful runs, as a real log is, with a recurring failure in it.
+    const at = new Date(start + index * 60_000).toISOString();
+    logFetch({
+      key: index % 50 === 0 ? `noisy_source_${index % 200}` : "cpi",
+      startedAt: at, finishedAt: at,
+      status: index % 50 === 0 ? "error" : "ok",
+      points: 1, changed: 0, message: index % 50 === 0 ? "a failure worth reporting" : "",
+    });
+  }
+  const began = Date.now();
+  const report = healthReport([agreeing]);
+  const took = Date.now() - began;
+  expect(report.sources.failing.length).toBeGreaterThan(0);
+  // Generous: the point is that it is milliseconds rather than seconds, and
+  // that it does not grow with the log. A regression here means the server
+  // blocks, not that the page is slow.
+  expect(took).toBeLessThan(2_000);
+});

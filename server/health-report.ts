@@ -32,7 +32,7 @@
 
 import { CATALOG, catalogList } from "./data";
 import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
-import { dbHealth, fetchFailures, fetchLogOldest, storedLatest } from "./db";
+import { dbHealth, fetchFailures, fetchLogOldest, latestPeriods } from "./db";
 import { comparablePeriod, expectedPeriod } from "./due";
 
 /** A pair of readings that disagree, with enough to act on it. */
@@ -124,15 +124,14 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
     .filter((result) => result.status === "mismatch")
     .map((result) => ({ name: result.name, kind: result.kind, latest: result.latest, disagreements: result.disagreements, note: result.note }));
 
-  // Newest stored period per curated key, at whichever region the site serves.
-  const latestByKey = new Map<string, string | null>();
-  for (const row of storedLatest("")) {
-    const found = latestByKey.get(row.key);
-    if (found === undefined || (row.lastPeriod ?? "") > (found ?? "")) latestByKey.set(row.key, row.lastPeriod);
-  }
+  // Newest stored period, asked for the curated keys only. Asking for all of
+  // them joins three tables across every series the catalog crawl ever stored,
+  // to answer a question about the hundred and fifty that are curated.
+  const entries = catalogList();
+  const latestByKey = latestPeriods(entries.map((entry) => entry.key));
 
   const publisher: BehindSeries[] = [], blocked: BehindSeries[] = [], ended: BehindSeries[] = [];
-  for (const entry of catalogList()) {
+  for (const entry of entries) {
     // Series held by other institutions about China are on their own schedules
     // and are comparisons, not this site's obligation to be timely about.
     if (entry.source === "fred") continue;

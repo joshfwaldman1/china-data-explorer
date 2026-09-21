@@ -228,6 +228,28 @@ function homeWindow(frequency: string): number {
   return 72;
 }
 
+/**
+ * The health report, at most once a minute.
+ *
+ * It reads the whole audit and a window of the fetch log, and `bun:sqlite` is
+ * synchronous: the work happens on the thread that serves every other request.
+ * One reader refreshing the page, or one script polling it, should not be able
+ * to decide how much of the server's time goes to answering it. A minute is
+ * well inside how often anything here changes — the ingest runs daily and the
+ * audit nightly — and it turns any amount of polling into one computation.
+ */
+let healthCache: { at: number; body: unknown } | null = null;
+const HEALTH_TTL_MS = 60_000;
+
+function cachedHealthReport(): unknown {
+  const now = Date.now();
+  if (healthCache && now - healthCache.at < HEALTH_TTL_MS) return healthCache.body;
+  const report = healthReport();
+  const body = { ...report, headline: healthHeadline(report) };
+  healthCache = { at: now, body };
+  return body;
+}
+
 const bootAt = Date.now();
 const readiness = createReadinessProbe(dbHealth);
 
@@ -247,10 +269,7 @@ const routes = {
     // What is wrong with the data right now: cross-checks that disagree,
     // sources that will not parse, series behind their cadence. All from the
     // store and the audit, so opening it costs a publisher nothing.
-    "/api/health-report": () => {
-      const report = healthReport();
-      return Response.json({ ...report, headline: healthHeadline(report) });
-    },
+    "/api/health-report": () => Response.json(cachedHealthReport()),
     // Every headline series at once for the Home page, in one round trip
     // instead of one request per indicator after the catalog.
     //

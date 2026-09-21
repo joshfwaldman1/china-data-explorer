@@ -273,6 +273,11 @@ export function db(): Database {
     )
   `);
 
+  // The health report asks the log for recent failures; without this that is a
+  // scan of every row ever written (370,000 and growing), synchronously, on the
+  // thread that also serves HTTP. It was, briefly, enough to take the site down.
+  database.exec("CREATE INDEX IF NOT EXISTS fetch_log_status_time ON fetch_log (status, finished_at)");
+
   // fetch_log gained a region column after the first schema shipped; add it
   // to databases created before then. A blank region is a national or
   // curated series.
@@ -684,19 +689,43 @@ const STATUS_TTL_MS = 5 * 60 * 1000;
  * directly, for the window the page states.
  */
 export function fetchFailures(sinceIso: string): { key: string; failures: number; since: string; latest: string; message: string }[] {
-  return db().query<{ key: string; failures: number; since: string; latest: string; message: string }, { $since: string }>(`
-    SELECT key,
-           COUNT(*)            AS failures,
-           MIN(finished_at)    AS since,
-           MAX(finished_at)    AS latest,
-           (SELECT message FROM fetch_log newer
-             WHERE newer.key = fetch_log.key AND newer.status <> 'ok' AND newer.finished_at >= $since
-             ORDER BY newer.finished_at DESC LIMIT 1) AS message
+  // One indexed pass over the window, grouped here. The first version asked
+  // SQLite for the newest message per key with a correlated subquery, which on
+  // an unindexed table is a full scan of the log for every failing key — and
+  // bun:sqlite is synchronous, so that ran on the thread serving HTTP. Polling
+  // the health page was enough to stop the site answering at all.
+  const rows = db().query<{ key: string; finishedAt: string; message: string }, { $since: string }>(`
+    SELECT key, finished_at AS finishedAt, message
     FROM fetch_log
     WHERE status <> 'ok' AND finished_at >= $since
-    GROUP BY key
-    ORDER BY failures DESC, key ASC
+    ORDER BY finished_at ASC
   `).all({ $since: sinceIso });
+  const grouped = new Map<string, { key: string; failures: number; since: string; latest: string; message: string }>();
+  for (const row of rows) {
+    const found = grouped.get(row.key);
+    // Rows arrive oldest first, so the last one seen for a key is the newest.
+    if (found) { found.failures += 1; found.latest = row.finishedAt; found.message = row.message; continue; }
+    grouped.set(row.key, { key: row.key, failures: 1, since: row.finishedAt, latest: row.finishedAt, message: row.message });
+  }
+  return [...grouped.values()].sort((left, right) => right.failures - left.failures || left.key.localeCompare(right.key));
+}
+
+/**
+ * The newest stored period for each of the named keys, at whichever region
+ * reaches furthest. Reads the summary the write path keeps.
+ *
+ * `storedLatest("")` answers this too and is the wrong tool: it joins three
+ * tables across every stored series — 78,000 of them, nearly all from the
+ * catalog crawl — to answer a question about the 149 that are curated.
+ */
+export function latestPeriods(keys: string[]): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  if (keys.length === 0) return out;
+  const statement = db().query<{ key: string; lastPeriod: string | null }, { $key: string }>(
+    "SELECT key, MAX(last_period) AS lastPeriod FROM series_range WHERE key = $key",
+  );
+  for (const key of keys) out.set(key, statement.get({ $key: key })?.lastPeriod ?? null);
+  return out;
 }
 
 /** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */
