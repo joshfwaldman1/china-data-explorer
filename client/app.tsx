@@ -677,6 +677,22 @@ function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean; years?: bool
   );
 }
 
+/**
+ * Why a Home row is showing an old figure, when it is.
+ *
+ * The period alone turns amber and leaves the reader to guess. There are two
+ * quite different reasons a row can be behind, and the difference is the
+ * publisher's reputation: either nothing newer has been published, or the
+ * publisher has published and this deployment cannot reach it. The Caixin
+ * surveys are the second — they come through a service the deployment does
+ * not run, so their figures stop dead while the page around them stays
+ * current. The series page has always said so; the Home page said nothing.
+ */
+function staleNote(entry: CuratedEntry, latest: SeriesPoint | undefined): string {
+  if (entry.ended || !latest || !isBehind(latest.date, entry.frequency)) return "";
+  return entry.refreshBlocked ? ` · not refreshed here (needs ${entry.refreshBlocked})` : " · nothing newer published";
+}
+
 function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
   const [headline, setHeadline] = useState<Map<string, SeriesResult>>(new Map());
   const [homeFailed, setHomeFailed] = useState(false);
@@ -776,7 +792,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 const levelChange = latest && measure.kind === "level" ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: measure }) : "";
                 return (
                   <a key={`${spec}|${row.line ?? ""}`} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
-                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}</small></span>
+                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, measure) : "—"}<i>{latest ? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
