@@ -12,7 +12,7 @@
 import index from "../client/index.html";
 import { timingSafeEqual } from "node:crypto";
 import { regionCoverage } from "./regions";
-import { CATALOG, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type SeriesResult, seriesRegion, configuredLabels } from "./data";
+import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
 function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult | null {
@@ -194,6 +194,28 @@ const crawlState: { scheduled: boolean; startedAt: string | null; finishedAt: st
 let scheduleStatus: () => { nextReleases: { en: string; at: string; keys: string[] }[]; lastReleaseRefresh: null | { en: string; at: string; attempts: number; advanced: number } } = () => ({ nextReleases: [], lastReleaseRefresh: null });
 
 /**
+ * The lines of a table the Home page actually draws, and no others.
+ *
+ * A Home row shows one line: the one its `line` names, or the table's first.
+ * The payload used to carry every line of every table on the page — 250 lines
+ * where 59 are drawn, because the manufacturing PMI's fourteen sub-indices and
+ * the twelve retail categories travel whether or not a row names them. At six
+ * years a line, that was half a megabyte of JSON on every visit to answer with
+ * a few dozen sparklines.
+ *
+ * The first line is kept whenever a row does not name one (and for the hero
+ * tiles, which always read it), so the client's `series[0]` still means what
+ * it meant. A named line missing from the store is missing here too, which is
+ * the same empty row it was before.
+ */
+function homeLines(entry: CatalogEntry, series: Series[]): Series[] {
+  const rows = entry.homeRows ?? [];
+  const named = new Set(rows.map((row) => row.line).filter((line): line is string => typeof line === "string"));
+  const needsFirst = rows.length === 0 || rows.some((row) => !row.line) || HERO_KEYS.includes(entry.key);
+  return series.filter((line, index) => (needsFirst && index === 0) || named.has(line.label));
+}
+
+/**
  * How many points of a series the Home page needs to show about six years:
  * seventy-two months, twenty-four quarters, or six years. Daily series are
  * capped at a readable number of trading days rather than 1,500.
@@ -242,7 +264,9 @@ const routes = {
         for (const region of wanted) {
           const stored = onlyConfigured(entry.key, readSeries(entry.key, homeWindow(entry.frequency), region?.value));
           if (!stored || !stored.series.some((s) => s.points.length > 0)) continue;
-          out[entry.homeRegions && region ? `${entry.key}@${region.value}` : entry.key] = { ...stored, region, source: "store", transform: "raw" };
+          const series = homeLines(entry, stored.series);
+          if (series.length === 0) continue;
+          out[entry.homeRegions && region ? `${entry.key}@${region.value}` : entry.key] = { ...stored, series, region, source: "store", transform: "raw" };
         }
       }
       return Response.json(out);
