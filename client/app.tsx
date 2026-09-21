@@ -646,13 +646,35 @@ function publisherList(entries: CuratedEntry[]): string {
 }
 /** What distinguishes the bureau's three international datasets, which share a geography and mostly a frequency. */
 const DATASET_NOTE: Record<number, string> = { 12: "the US, the EU and Japan", 13: "world commodity prices", 14: "major countries" };
-function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean }) {
+/** The year a period falls in, whatever shape the period is written in. */
+function periodYear(period: string): string {
+  return period.slice(0, 4);
+}
+
+/**
+ * A sparkline, with the years it covers written under it.
+ *
+ * A line with no time axis is a shape, not a reading: the same width of chart
+ * held six years of quarters and two years of months, and nothing on the page
+ * said which. The end years are small and muted, and they are the years the
+ * line actually draws rather than the series' full range, so the label cannot
+ * claim more than the picture shows.
+ */
+function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean; years?: boolean }) {
   const values = props.points.map((point) => point.value);
   if (values.length < 2) return <svg viewBox="0 0 160 28" aria-hidden="true" />;
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || 1;
   const path = values.map((value, index) => `${(index / (values.length - 1)) * 160},${26 - ((value - min) / span) * 24}`).join(" ");
-  return <svg viewBox="0 0 160 28" preserveAspectRatio="none" aria-hidden="true"><polyline points={path} fill="none" stroke={props.alarm ? "var(--red)" : "var(--chart-1)"} strokeWidth="1.8" strokeLinejoin="round" /><circle cx="160" cy={26 - ((values[values.length - 1] ?? 0) - min) / span * 24} r="2.5" fill={props.alarm ? "var(--red)" : "var(--chart-1)"} /></svg>;
+  const from = periodYear(props.points[0]?.date ?? ""), to = periodYear(props.points[props.points.length - 1]?.date ?? "");
+  const chart = <svg viewBox="0 0 160 28" preserveAspectRatio="none" aria-hidden="true"><polyline points={path} fill="none" stroke={props.alarm ? "var(--red)" : "var(--chart-1)"} strokeWidth="1.8" strokeLinejoin="round" /><circle cx="160" cy={26 - ((values[values.length - 1] ?? 0) - min) / span * 24} r="2.5" fill={props.alarm ? "var(--red)" : "var(--chart-1)"} /></svg>;
+  if (!props.years || !from || !to) return chart;
+  return (
+    <span className="spark-dated">
+      {chart}
+      <span className="spark-years" aria-label={`${from} to ${to}`}><i>{from}</i>{from !== to && <i>{to}</i>}</span>
+    </span>
+  );
 }
 
 function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
@@ -720,7 +742,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
               <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{measure.suffix}</span></span>
-                {first && <Sparkline points={first.points} />}
+                {first && <Sparkline points={first.points} years />}
                 <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
             );
@@ -758,7 +780,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                     <span className="value">{latest ? fmt(latest.value, measure) : "—"}<i>{latest ? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
-                    <span className="spark">{first && <Sparkline points={first.points} />}</span>
+                    <span className="spark">{first && <Sparkline points={first.points} years />}</span>
                   </a>
                 );
                 });

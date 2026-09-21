@@ -193,6 +193,18 @@ const crawlState: { scheduled: boolean; startedAt: string | null; finishedAt: st
 
 let scheduleStatus: () => { nextReleases: { en: string; at: string; keys: string[] }[]; lastReleaseRefresh: null | { en: string; at: string; attempts: number; advanced: number } } = () => ({ nextReleases: [], lastReleaseRefresh: null });
 
+/**
+ * How many points of a series the Home page needs to show about six years:
+ * seventy-two months, twenty-four quarters, or six years. Daily series are
+ * capped at a readable number of trading days rather than 1,500.
+ */
+function homeWindow(frequency: string): number {
+  if (frequency === "Annual") return 12;
+  if (frequency === "Quarterly") return 24;
+  if (frequency === "Daily") return 180;
+  return 72;
+}
+
 const bootAt = Date.now();
 const readiness = createReadinessProbe(dbHealth);
 
@@ -209,8 +221,14 @@ const routes = {
     // How each figure was made and how it reached the site: a section per path
     // the data takes, the site's own handling, and a section per curated key.
     "/api/methodology": () => Response.json(methodology(catalogList())),
-    // Every headline series at once for the Home page: the stored copy of each with its last
-    // 24 points, in one round trip instead of one request per indicator after the catalog.
+    // Every headline series at once for the Home page, in one round trip
+    // instead of one request per indicator after the catalog.
+    //
+    // The window is a span of time, not a count of points. A fixed 24 points
+    // meant a quarterly sparkline covered six years and a monthly one covered
+    // two, drawn the same width on the same page, so their shapes could not be
+    // read against each other and neither said what it covered. Each frequency
+    // now reaches back about six years, and the page labels the span it drew.
     "/api/home": () => {
       const out: Record<string, unknown> = {};
       for (const entry of catalogList()) {
@@ -222,7 +240,7 @@ const routes = {
           ? entry.homeRegions.map((code) => regions.find((item) => item.value === code)).filter((item): item is NonNullable<typeof item> => item !== undefined)
           : [regions.length > 0 ? (regions.find((item) => item.value === seriesRegion(entry.key)) ?? regions[0]) : undefined];
         for (const region of wanted) {
-          const stored = onlyConfigured(entry.key, readSeries(entry.key, 24, region?.value));
+          const stored = onlyConfigured(entry.key, readSeries(entry.key, homeWindow(entry.frequency), region?.value));
           if (!stored || !stored.series.some((s) => s.points.length > 0)) continue;
           out[entry.homeRegions && region ? `${entry.key}@${region.value}` : entry.key] = { ...stored, region, source: "store", transform: "raw" };
         }
