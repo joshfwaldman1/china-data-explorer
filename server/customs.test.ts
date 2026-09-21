@@ -83,3 +83,21 @@ test("the commodity tables kept one layout across years", async () => {
     expect(rows[0]?.name).toMatch(/^Agricultur/);
   }
 });
+
+test("the 2020 tables, which word the unit line differently, parse to the same shape", async () => {
+  // Customs wrote "Value Unit: USD1 Million" through about 2022 and writes
+  // "Unit: USD1 Million" now. The parser matched only the newer wording, so
+  // every month before the change was refused outright — 22 of the 55 the
+  // backfill reaches, failing on every run while the recent months it could
+  // read kept the series looking healthy.
+  const rows = parseCommodities(await fixture("major-exports-2020-12-usd.html"), "USD");
+  expect(rows.length).toBeGreaterThan(25);
+  const aquatic = rows.find((row) => row.name.startsWith("Aquatic"));
+  expect(aquatic).toMatchObject({ quantityUnit: "10,000 Tons", quantity: 36.8, value: 1949.1, ytdQuantity: 374.8, ytdValue: 18755.3 });
+  // The unit row itself is not a commodity, whichever way it is worded.
+  expect(rows.some((row) => /unit/i.test(row.name))).toBe(false);
+  expect(rows.some((row) => row.name.startsWith("("))).toBe(false);
+  // A table whose unit line names the other currency is still refused.
+  const usdPage = await fixture("major-exports-2020-12-usd.html");
+  expect(() => parseCommodities(usdPage, "CNY")).toThrow(/unexpected unit line/);
+});

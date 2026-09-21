@@ -105,9 +105,24 @@ export interface PartnerRow { name: string; exports: number | null; imports: num
 /** The unit line each currency's tables carry: "USD 1 Million", "CNY 100 Million" (亿元). */
 const UNIT_LINE: Record<CustomsCurrency, RegExp> = { USD: /USD\s*1\s*Milli/i, CNY: /CNY\s*100\s*Milli/i };
 
+/**
+ * The cell that states a table's unit, however Customs worded it that year.
+ *
+ * It writes "Unit: USD1 Million" now and wrote "Value Unit: USD1 Million"
+ * through about 2022, and a parser that matched only a cell *starting* with
+ * "Unit" rejected every older month outright — 22 of the 55 the backfill
+ * reaches, which is the whole of 2020 to 2022 failing quietly on every run
+ * while the recent months it could read kept the series looking healthy.
+ */
+const UNIT_CELL = /^(?:[A-Za-z]+\s+)?Unit\s*[:：]/i;
+
+function unitLine(rows: string[][]): string {
+  return rows.find((row) => UNIT_CELL.test(row[0] ?? ""))?.[0] ?? "";
+}
+
 export function parseByCountry(html: string, currency: CustomsCurrency = "USD"): PartnerRow[] {
   const rows = rowsOf(html);
-  const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
+  const unit = unitLine(rows);
   if (!UNIT_LINE[currency].test(unit)) throw new Error(`by-country table: unexpected unit line "${unit}" for ${currency}`);
   // The header has been written three ways since 2023: two label rows
   // ("Import Source" / "Export Destination"), the same with merged cells, and
@@ -143,7 +158,7 @@ export interface TotalsRow { item: "total" | "exports" | "imports" | "balance"; 
  */
 export function parseTotals(html: string, currency: CustomsCurrency = "USD"): TotalsRow[] {
   const rows = rowsOf(html);
-  const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
+  const unit = unitLine(rows);
   if (!new RegExp(`${currency}\\s*100\\s*Milli`, "i").test(unit)) throw new Error(`totals table: unexpected unit line "${unit}" for ${currency}`);
   const items: { match: RegExp; item: TotalsRow["item"] }[] = [
     { match: /^Total Export\s*&\s*Import/i, item: "total" }, { match: /^Total Export$/i, item: "exports" }, { match: /^Total Import$/i, item: "imports" }, { match: /^Export-Import Balance/i, item: "balance" },
@@ -164,13 +179,13 @@ export interface CommodityRow { name: string; quantityUnit: string; quantity: nu
 /** The major exports or imports table: quantity and value, month and year to date. */
 export function parseCommodities(html: string, currency: CustomsCurrency = "USD"): CommodityRow[] {
   const rows = rowsOf(html);
-  const unit = rows.find((row) => /^Unit/i.test(row[0] ?? ""))?.[0] ?? "";
+  const unit = unitLine(rows);
   if (!UNIT_LINE[currency].test(unit)) throw new Error(`commodity table: unexpected unit line "${unit}" for ${currency}`);
   const header = rows.find((row) => /^Commodity/i.test(row[0] ?? "") && /Unit/i.test(row[1] ?? ""));
   if (!header) throw new Error("commodity table: header not recognised");
   const out: CommodityRow[] = [];
   for (const row of rows) {
-    if (row.length < 6 || !row[0] || /^(Unit\s*:|Note|Commodity|Quantity)/i.test(row[0]) || row[0].startsWith("(")) continue;
+    if (row.length < 6 || !row[0] || UNIT_CELL.test(row[0]) || /^(Note|Commodity|Quantity)/i.test(row[0]) || row[0].startsWith("(")) continue;
     out.push({
       name: row[0].trim(), quantityUnit: (row[1] ?? "").replace(/^[-—]$/, ""),
       quantity: cellNumber(row[2] ?? ""), value: cellNumber(row[3] ?? ""),
