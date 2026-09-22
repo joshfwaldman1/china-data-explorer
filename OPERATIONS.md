@@ -113,7 +113,13 @@ Tests use scratch stores; never point them at production data.
 
 A push to `main` deploys; `railway up --detach` from the repository root is
 the rollback path and the way to deploy a working directory deliberately.
-Railway and Docker allow 180 seconds for startup. Confirm deployment success and `/ready`, inspect
+Railway allows 420 seconds for startup (`healthcheckTimeout` in `railway.toml`).
+It was 180, and the catalog warm-up that `/ready` waits for has been measured at
+168.5 s and 179.8 s on the deployed instance: the second missed the window by two
+seconds, Railway killed the new container, and the previous one, which shares the
+volume, stopped answering until it was restarted by hand (21 September 2026). A
+failed deploy is not a no-op here; it can take the running site down with it.
+Confirm deployment success and `/ready`, inspect
 the startup log, then exercise the backup workflow. Do not treat a successful
 upload or a process that answers `/live` as a completed deployment.
 
@@ -138,6 +144,11 @@ configured request budget just like successful ones.
 
 This hardening pass does not make the service horizontally scalable. Next:
 
+- Make the catalog warm-up fast, or make `/ready` not wait for it. Three minutes
+  to load a catalog that has not changed since the last boot is what turned a
+  two-second healthcheck miss into an outage; the widened window covers the
+  symptom. Loading the catalog from a prebuilt cache on the volume, or serving
+  curated series before the search index is up, would remove the cause.
 - Persist jobs, attempts, retry times and leases so restarts cannot lose work;
   separate scheduled ingestion from HTTP serving while preserving portal pacing.
 - Archive original publisher responses with content hashes, parser versions and
