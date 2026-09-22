@@ -21,7 +21,20 @@ what the site does not carry).
     *Test:* the current release parses to the headline the bank states in
     its prose, and the fixture from before the change still parses.
 
-2. **Move the headline rates off the mirror and onto the bureau's own
+2. **Customs' 2018 layouts.** The by-country table for May to December
+    2018 and the commodity tables for parts of 2018, November 2019 and
+    February 2020 have neither "Unit:" nor "Value Unit:" above them and fail
+    with an empty unit line. Since 22 September 2026 that is a logged gap
+    rather than a reason to discard the run — the newest-months rule in
+    `layoutBroken` — so the current data and five years of history are
+    stored; the older months are simply absent. Finding the pages means
+    walking Customs' listing back eight years, one paced request a page, so
+    do it as a round of its own: capture one page of each table as a
+    fixture, read what the unit line became, and hold both to real figures.
+    *Test:* the 2018 fixtures parse to known figures, and the empty-unit
+    months no longer appear in the fetch log's warnings.
+
+3. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -44,20 +57,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-3. **Transport turnover by mode.** Freight and passenger turnover for road,
+4. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-4. **Average wages by sector.** The annual average wage of employed persons
+5. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-5. **Agriculture: grain and meat output.** Annual grain output with its
+6. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.

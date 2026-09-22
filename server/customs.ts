@@ -116,6 +116,9 @@ const UNIT_LINE: Record<CustomsCurrency, RegExp> = { USD: /USD\s*1\s*Milli/i, CN
  */
 const UNIT_CELL = /^(?:[A-Za-z]+\s+)?Unit\s*[:：]/i;
 
+/** The commodity table's header cell, in every wording Customs has used for it. */
+const HEADER_CELL = /^(?:Import\s+|Export\s+)?Commodity\b/i;
+
 function unitLine(rows: string[][]): string {
   return rows.find((row) => UNIT_CELL.test(row[0] ?? ""))?.[0] ?? "";
 }
@@ -181,11 +184,15 @@ export function parseCommodities(html: string, currency: CustomsCurrency = "USD"
   const rows = rowsOf(html);
   const unit = unitLine(rows);
   if (!UNIT_LINE[currency].test(unit)) throw new Error(`commodity table: unexpected unit line "${unit}" for ${currency}`);
-  const header = rows.find((row) => /^Commodity/i.test(row[0] ?? "") && /Unit/i.test(row[1] ?? ""));
+  // "Commodity" in some years, "Import Commodity" or "Export Commodity" in
+  // others (December 2020 says "Import Commodity"). A header check that
+  // required the bare word refused every month of the other wording as
+  // "header not recognised" — 348 log lines in one twenty-minute ingest.
+  const header = rows.find((row) => HEADER_CELL.test(row[0] ?? "") && /Unit/i.test(row[1] ?? ""));
   if (!header) throw new Error("commodity table: header not recognised");
   const out: CommodityRow[] = [];
   for (const row of rows) {
-    if (row.length < 6 || !row[0] || UNIT_CELL.test(row[0]) || /^(Note|Commodity|Quantity)/i.test(row[0]) || row[0].startsWith("(")) continue;
+    if (row.length < 6 || !row[0] || UNIT_CELL.test(row[0]) || HEADER_CELL.test(row[0]) || /^(Note|Quantity)/i.test(row[0]) || row[0].startsWith("(")) continue;
     out.push({
       name: row[0].trim(), quantityUnit: (row[1] ?? "").replace(/^[-—]$/, ""),
       quantity: cellNumber(row[2] ?? ""), value: cellNumber(row[3] ?? ""),
@@ -324,6 +331,30 @@ export interface CustomsIndicator {
  * first fetch of a two-year window is about fifty requests; every table read
  * is cached, so the second partner in the same table costs nothing.
  */
+/**
+ * Whether a run's parse failures mean the table's layout has changed.
+ *
+ * The old rule was "more than a third of months failed", and it threw the
+ * whole run away — every month that had parsed, the current one included.
+ * That is right when Customs changes its layout and every month from now on
+ * fails; it is wrong when the months that fail are old ones in an earlier
+ * layout, which is the case the backfill hits. Twenty-one of fifty-four
+ * months from 2018–2020 fail, the run is discarded, and major imports and
+ * exports are left with seven months of history for the want of a rule that
+ * could tell the two apart.
+ *
+ * The distinguishing fact is recency. A layout change breaks the newest
+ * months; an old layout breaks only old ones. So: broken if any of the three
+ * newest months with a table failed, or if nothing parsed at all. Otherwise
+ * the failures are a gap to record, not a reason to discard what is good.
+ */
+export function layoutBroken(failedMonths: string[], parsedMonths: string[], newest = 3): boolean {
+  if (parsedMonths.length === 0) return true;
+  if (failedMonths.length >= parsedMonths.length) return true;
+  const recent = new Set([...parsedMonths].sort().reverse().slice(0, newest));
+  return failedMonths.some((month) => recent.has(month));
+}
+
 export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, region: NbsRegion, limit: number, options: { oldestStored?: string | null } = {}): Promise<SeriesResult> {
   const months = monthsToFetch(limit, options.oldestStored ?? null);
   const points: Record<string, SeriesPoint[]> = {};
@@ -336,6 +367,7 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
   // page does not empty the series; more than a third failing is a layout
   // change and fails the run, as the parsers are written to.
   const failed: string[] = [];
+  const parsedMonths: string[] = [];
   let parsed = 0;
   for (const month of months) {
     const entry = await findTable(cfg.table, month, { currency: cfg.currency ?? "USD" });
@@ -346,6 +378,7 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     const html = await tableHtml(entry);
     try {
     parsed += 1;
+    parsedMonths.push(month);
     if (cfg.table === "totals") {
       const rows = parseTotals(html, cfg.currency ?? "USD");
       const of = (item: TotalsRow["item"]) => rows.find((row) => row.item === item);
@@ -378,7 +411,17 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
       console.warn(`  Customs ${cfg.table} ${month}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  if (failed.length > 0 && failed.length * 3 > parsed) throw new Error(`Customs ${cfg.table}: ${failed.length} of ${parsed} months failed to parse; first: ${failed[0]}`);
+  if (failed.length > 0) {
+    const failedMonths = failed.map((line) => line.slice(0, 7));
+    if (layoutBroken(failedMonths, parsedMonths)) {
+      throw new Error(`Customs ${cfg.table}: ${failed.length} of ${parsed} months failed to parse, including the newest; first: ${failed[0]}`);
+    }
+    // Only older months failed. Keep what parsed and say what did not, once:
+    // the alternative discarded every month that did parse — five years of
+    // history and the current month with it — because 2018 is laid out
+    // differently, and capped major imports and exports at seven months.
+    console.warn(`  Customs ${cfg.table}: ${failed.length} older month${failed.length === 1 ? "" : "s"} did not parse (${failedMonths.at(-1)}..${failedMonths[0]}) and ${parsed - failed.length} did; the older layout is a known gap`);
+  }
   const series = Object.entries(points).map(([label, list]) => ({ label, points: list.sort((a, b) => a.date.localeCompare(b.date)) }));
   return {
     key, title: cfg.title, agency: cfg.agency, sourceUrl: `${CUSTOMS_BASE}/Statistics/Statistics?ColumnId=${LISTING_COLUMN}`,

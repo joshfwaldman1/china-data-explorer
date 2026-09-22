@@ -6,7 +6,7 @@
 
 import { test, expect } from "bun:test";
 import { resolve } from "node:path";
-import { monthOfTitle, parseByCountry, parseCommodities, parseListing, slugOf } from "./customs.ts";
+import { layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, slugOf } from "./customs.ts";
 
 const fixture = (name: string) => Bun.file(resolve(import.meta.dir, "fixtures/customs", name)).text();
 
@@ -100,4 +100,40 @@ test("the 2020 tables, which word the unit line differently, parse to the same s
   // A table whose unit line names the other currency is still refused.
   const usdPage = await fixture("major-exports-2020-12-usd.html");
   expect(() => parseCommodities(usdPage, "CNY")).toThrow(/unexpected unit line/);
+});
+
+test("the 2020 imports tables, headed \"Import Commodity\", parse in both currencies", async () => {
+  // Customs heads the imports table "Import Commodity" in some years and
+  // "Commodity" in others. The header check required the bare word, so every
+  // month of the other wording was refused as "header not recognised": 348
+  // log lines in one twenty-minute ingest, all of them December 2020 and
+  // earlier, none of them a real problem with the data.
+  const usd = parseCommodities(await fixture("major-imports-2020-12-usd.html"), "USD");
+  const cny = parseCommodities(await fixture("major-imports-2020-12-cny.html"), "CNY");
+  expect(usd.length).toBeGreaterThan(25);
+  expect(cny.length).toBe(usd.length);
+  const meatUsd = usd.find((row) => row.name.startsWith("Meat"));
+  const meatCny = cny.find((row) => row.name.startsWith("Meat"));
+  expect(meatUsd).toMatchObject({ quantityUnit: "10,000 Tons", quantity: 96.4, value: 3018.1, ytdQuantity: 991.1, ytdValue: 30733.1 });
+  // Same quantity, the value in the other currency's unit: 亿元 against USD millions.
+  expect(meatCny).toMatchObject({ quantity: 96.4, value: 199.0, ytdQuantity: 991.1, ytdValue: 2131.5 });
+  // The header row is a header, not a commodity called "Import Commodity".
+  expect(usd.some((row) => /commodity/i.test(row.name))).toBe(false);
+});
+
+test("a layout change is when the newest months fail; an old layout is a gap, not a reason to discard", () => {
+  const months = ["2026-08", "2026-07", "2026-06", "2026-05", "2021-01", "2020-12", "2020-11", "2018-12"];
+  // The backfill's actual shape: old months fail, the current ones parse. Keep them.
+  expect(layoutBroken(["2020-12", "2020-11", "2018-12"], months)).toBe(false);
+  // Customs changes its layout: the newest month fails. That is broken.
+  expect(layoutBroken(["2026-08"], months)).toBe(true);
+  expect(layoutBroken(["2026-06", "2018-12"], months)).toBe(true);
+  // Nothing parsed at all is broken however it happened.
+  expect(layoutBroken([], [])).toBe(true);
+  expect(layoutBroken(["2026-08"], ["2026-08"])).toBe(true);
+  // The old rule's case — more than a third failing — is no longer fatal on its own
+  // when the failures are old: 21 of 54 with the recent months fine is a gap.
+  const fiftyFour = Array.from({ length: 54 }, (_, index) => `20${String(26 - Math.floor(index / 12)).padStart(2, "0")}-${String(12 - (index % 12)).padStart(2, "0")}`);
+  const oldTwentyOne = fiftyFour.slice(-21);
+  expect(layoutBroken(oldTwentyOne, fiftyFour)).toBe(false);
 });
