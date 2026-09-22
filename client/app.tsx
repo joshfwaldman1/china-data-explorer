@@ -1010,7 +1010,7 @@ interface Share { key: string; label: string; value: number; share: number }
 interface ProvinceProfile {
   code: string; region: { value: string; text: string; en: string };
   sections: { title: string; note?: string; rows: ProfileRow[] }[];
-  structure: { year: string; gdp: number; sectors: Share[]; industries: Share[] } | null;
+  structure: { year: string; gdp: number; sectors: Share[]; industries: { year: string; gdp: number; items: Share[] } | null } | null;
 }
 
 /**
@@ -1079,9 +1079,9 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
                     </a>
                   ))}
                 </div>
-                <h4 className="quiet">Largest industries, by value added</h4>
+                {data.structure.industries && <h4 className="quiet">Largest industries, by value added · {data.structure.industries.year}{data.structure.industries.year !== data.structure.year ? ", the latest year the bureau has published them for" : ""}</h4>}
                 <div className="share-list">
-                  {data.structure.industries.map((item) => (
+                  {(data.structure.industries?.items ?? []).map((item) => (
                     <a key={item.key} className="share-row" href={seriesHash([item.key], { region: data.region.value })}>
                       <span className="share-label">{item.label}</span>
                       <span className="share-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, item.share * 2)}%` }} /></span>

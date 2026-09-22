@@ -80,9 +80,20 @@ test("shares come from the levels of one year, sum to the whole, and rank larges
   expect(Math.abs(total - 100)).toBeLessThanOrEqual(0.2);
   expect(structure!.sectors.map((item) => item.label)).toEqual(["Tertiary (services)", "Secondary (industry and construction)", "Primary (agriculture)"]);
   expect(structure!.sectors[0]?.share).toBe(58.3);
-  // Finance has a 2025 figure and is included; industry has none for 2025 and is left out rather than misdated.
-  expect(structure!.industries.map((item) => item.label)).toEqual(["Finance"]);
-  expect(structure!.industries[0]?.share).toBe(8.6);
+  // The named industries are published a year later than GRP. They take the
+  // latest year every one of them has — none here, since only two are written —
+  // and say which year that is, rather than borrowing GRP's year and coming up empty.
+  expect(structure!.industries).toBeNull();
+  const alreadyWritten: string[] = [STRUCTURE.industries[0]!.key, STRUCTURE.industries[4]!.key];
+  for (const item of STRUCTURE.industries) if (!alreadyWritten.includes(item.key)) annual(item.key, [{ date: "2024", value: 1000 }]);
+  const complete = structureOf(code)!;
+  expect(complete.year).toBe("2025");
+  expect(complete.industries?.year).toBe("2024");
+  expect(complete.industries?.gdp).toBe(141633.8);
+  // Ranked largest first, against 2024's GRP: industry 47,682.6 of 141,633.8.
+  expect(complete.industries?.items[0]?.label).toBe("Industry");
+  expect(complete.industries?.items[0]?.share).toBe(33.7);
+  expect(complete.industries?.items[1]?.label).toBe("Finance");
 });
 
 test("a profile names its province in both languages and refuses a code that is not one", async () => {

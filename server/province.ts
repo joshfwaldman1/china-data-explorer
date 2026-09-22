@@ -130,9 +130,27 @@ export interface ProvinceProfile {
   code: string;
   region: { value: string; text: string; en: string };
   sections: { title: string; note?: string; rows: ProfileRow[] }[];
-  /** The economy's makeup in the latest year every part is published for; null until the store holds it. */
-  structure: { year: string; gdp: number; sectors: Share[]; industries: Share[] } | null;
+  /**
+   * The economy's makeup. The three sectors are for the latest year GRP is
+   * published; the named industries for the latest year *they* are, which is
+   * usually a year earlier — the bureau publishes GRP and its sectors first
+   * and the industry detail with the next yearbook. Each carries its own
+   * year so a share never sits beside a level from a different one.
+   */
+  structure: { year: string; gdp: number; sectors: Share[]; industries: { year: string; gdp: number; items: Share[] } | null } | null;
 }
+
+/**
+ * The bureau's units, as the rest of the site writes them. A catalog series
+ * carries the unit the bureau wrote — 亿元, 万人, 元/人 — where the curated
+ * series beside it say "100M yuan" and "10k persons"; one page should not
+ * switch languages between rows. Anything not listed is shown as the bureau
+ * wrote it, which is honest if not tidy.
+ */
+const UNIT_EN: Record<string, string> = {
+  "亿元": "100M yuan", "万人": "10k persons", "元/人": "yuan per person", "元": "yuan",
+  "千美元": "k USD", "万美元": "10k USD", "亿美元": "100M USD", "%": "%", "万吨": "10k tonnes",
+};
 
 /** What the catalog knows about a key: a curated entry, or the bureau's own listing for a catalog series. */
 async function describe(key: string): Promise<{ agency: string; frequency: string; unit: string }> {
@@ -149,8 +167,11 @@ async function readRow(entry: ProfileEntry, code: string): Promise<ProfileRow> {
   const points = line?.points ?? [];
   const latest = points.at(-1), previous = points.at(-2);
   const measure = measureOf(about.unit);
+  // A catalog row's suffix is the bureau's unit; write it the way the site does.
+  const bureauUnit = about.unit.trim();
+  const shown = CATALOG[entry.key] ? measure : { ...measure, suffix: UNIT_EN[bureauUnit] ?? measure.suffix };
   return {
-    key: entry.key, label: entry.label, agency: about.agency, frequency: about.frequency, unit: about.unit, measure,
+    key: entry.key, label: entry.label, agency: about.agency, frequency: about.frequency, unit: about.unit, measure: shown,
     ...(entry.ended ? { ended: entry.ended, endedNote: entry.endedNote } : {}),
     lastPeriod: latest?.date ?? null, latest: latest?.value ?? null, previous: previous?.value ?? null, points,
   };
@@ -174,14 +195,23 @@ function valueAt(key: string, code: string, period?: string): { date: string; va
 export function structureOf(code: string): ProvinceProfile["structure"] {
   const gdp = valueAt(NBS.gdp, code);
   if (!gdp) return null;
-  const year = gdp.date;
-  const shares = (list: readonly { key: string; label: string }[]) =>
-    list.map((item) => { const at = valueAt(item.key, code, year); return at ? { key: item.key, label: item.label, value: at.value, share: gdp.value ? Math.round((at.value / gdp.value) * 1000) / 10 : 0 } : null; })
+  const sharesIn = (list: readonly { key: string; label: string }[], year: string, whole: number) =>
+    list.map((item) => { const at = valueAt(item.key, code, year); return at ? { key: item.key, label: item.label, value: at.value, share: whole ? Math.round((at.value / whole) * 1000) / 10 : 0 } : null; })
       .filter((item): item is Share => item !== null)
       .sort((left, right) => right.value - left.value);
-  const sectors = shares(STRUCTURE.sectors);
+  const sectors = sharesIn(STRUCTURE.sectors, gdp.date, gdp.value);
   if (sectors.length < 3) return null;
-  return { year, gdp: gdp.value, sectors, industries: shares(STRUCTURE.industries) };
+  // The named industries lag: take the latest year in which every one of
+  // them is published, and measure them against that year's GRP, so the
+  // list is the bureau's latest complete breakdown rather than a year that
+  // most of them do not have yet — which is what left it empty on first
+  // deploy, correctly and uselessly.
+  const years = STRUCTURE.industries.map((item) => new Set((readSeries(item.key, 40, code)?.series[0]?.points ?? []).map((point) => point.date)));
+  const common = [...(years[0] ?? new Set<string>())].filter((year) => years.every((set) => set.has(year))).sort().reverse();
+  const industryYear = common[0];
+  const industryGdp = industryYear ? valueAt(NBS.gdp, code, industryYear) : null;
+  const industries = industryYear && industryGdp ? { year: industryYear, gdp: industryGdp.value, items: sharesIn(STRUCTURE.industries, industryYear, industryGdp.value) } : null;
+  return { year: gdp.date, gdp: gdp.value, sectors, industries };
 }
 
 export function provinceByCode(code: string): NbsRegion | undefined {
