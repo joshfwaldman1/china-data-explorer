@@ -7,13 +7,18 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/ready"
-# /ready answers 503 until the catalog is warm, and warming it on the deployed
-# instance has been measured at 168.5 s and 179.8 s. With the window at 180 s
-# the second of those missed by two seconds, the new container was killed, and
-# the previous one — which shares the volume — was left not answering at all.
-# The site was down until it was restarted by hand (21 September 2026). The
-# window is now well clear of the warm-up; making the warm-up itself faster is
-# the real fix and is recorded in OPERATIONS.md.
+# Railway does NOT read this file for the production service. The service has
+# `railwayConfigFile` unset and carries its own settings, which override this
+# one; the value below is documentation of what the service holds, not what
+# sets it. Change it with the API, as OPERATIONS.md describes:
+#   serviceInstanceUpdate(input: { healthcheckTimeout: 420 })
+# Raising it here alone did nothing, and the deploy that followed failed at
+# exactly 180 s (21 September 2026).
+#
+# Why 420: /ready answers 503 until the catalog is warm, and warming it on the
+# deployed instance has been measured at 168.5 s and 179.8 s. At 180 s the
+# second missed by two seconds, the new container was killed, and the previous
+# one — which shares the volume — stopped answering until restarted by hand.
 healthcheckTimeout = 420
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5

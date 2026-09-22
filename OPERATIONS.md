@@ -113,7 +113,18 @@ Tests use scratch stores; never point them at production data.
 
 A push to `main` deploys; `railway up --detach` from the repository root is
 the rollback path and the way to deploy a working directory deliberately.
-Railway allows 420 seconds for startup (`healthcheckTimeout` in `railway.toml`).
+Railway allows 420 seconds for startup. That number lives on the service, not in
+`railway.toml`: the production service has `railwayConfigFile` unset and its own
+settings override the file, so editing the file changes nothing (the deploy after
+such an edit failed at exactly 180 s). Change it with the GraphQL API, the same
+way the Dockerfile path and repository connection were set:
+
+```
+mutation { serviceInstanceUpdate(serviceId: "<service>", environmentId: "<env>",
+  input: { healthcheckTimeout: 420 }) }
+```
+
+and read it back to confirm. The file's value is kept in step as documentation.
 It was 180, and the catalog warm-up that `/ready` waits for has been measured at
 168.5 s and 179.8 s on the deployed instance: the second missed the window by two
 seconds, Railway killed the new container, and the previous one, which shares the
