@@ -556,7 +556,20 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     constant: 100,
     tolerance: 0.15,
   },
+  {
+    name: "Guangdong: the three sectors sum to gross regional product", kind: "components",
+    parts: [
+      { key: "nbs_615ce248396a4a5fa52bca05f0633e95", region: "440000000000" },
+      { key: "nbs_b8e109ec8d3f465fa39a0de909f730b3", region: "440000000000" },
+      { key: "nbs_b6ede904e72c41bba796c98d185e62c5", region: "440000000000" },
+    ],
+    total: { key: "nbs_aff57de5ee994283974705914fbed246", region: "440000000000" },
+    tolerance: 1,
+    periods: 5,
+    note: "An identity of the accounts, held on the bureau's provincial annual table: primary, secondary and tertiary value added divide gross regional product between them. The province page computes its sector shares from these same levels.",
+  },
 ];
+
 
 
 

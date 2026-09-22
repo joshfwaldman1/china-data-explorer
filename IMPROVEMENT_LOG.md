@@ -3215,3 +3215,37 @@ not from scratch. Rounds are small on purpose.
   live run, to 47, to 7, to what is left after this — the finance ministry's
   502s and the bond series they delay. 402 tests; 54 pairs, 0 findings; two
   deploys today for all of it, each watched to success.
+
+- 2026-09-23 (owner-directed: a province page): the regions page ranked
+  every province on one series at a time; a reader who clicked Guangdong
+  got one figure and a link. The owner asked for the other direction —
+  everything about one place — with unemployment and the largest industries
+  named, and companies only if they could update themselves.
+  `#/province?code=` now shows one province across everything the site
+  holds for it, read from the store by the province's code and nothing else:
+  growth from the curated provincial keys (real GDP, industrial output,
+  consumer prices), and from the bureau's own provincial tables in the
+  catalog, size (gross regional product, per person, resident population),
+  labour and households (the unemployment rate, disposable income), trade
+  (exports of operating units), and the makeup of the economy — primary,
+  secondary and tertiary value added as shares of GRP, and the seven named
+  industries the bureau breaks out, ranked. No adapter: the crawl and the
+  ingest keep every series current, which is what the owner asked for.
+  Two things the page says rather than hides. The unemployment rate the
+  bureau publishes by province is the registered rate, and it stopped after
+  2021 — the surveyed rate the site shows nationally is published for the
+  nation and 31 cities only, not by province — so the row reads "Ended
+  2021" with the reason under it, rather than a four-year-old figure shown
+  as current. And shares are computed from the published levels of one
+  year, so a share always refers to the year beside it; an industry not yet
+  published for the latest year is left out rather than misdated.
+  The structure gave the audit a new identity: Guangdong's primary,
+  secondary and tertiary value added sum to its gross regional product to
+  the decimal (5,891.8 + 54,993.5 + 84,961.5 = 145,846.8 in 2025), and a
+  `components` pair now holds that nightly on the same ids the page uses.
+  Companies are not here. No bureau table carries them, so nothing would
+  update itself, and the owner's condition was exactly that.
+  Also in this deploy: the Home page's value column, which at 96 pixels
+  wrapped "143,696 100M yuan" onto two lines while the five-digit figure
+  beside it fit; it is 150 pixels and never wraps at desktop width, and
+  stacks the unit under the figure on every row alike on a narrow screen.

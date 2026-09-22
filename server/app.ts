@@ -41,6 +41,7 @@ import { fetchCustomsReleases } from "./customs-calendar";
 import { createReadinessProbe } from "./readiness";
 import { methodology } from "./methodology";
 import { healthHeadline, healthReport } from "./health-report";
+import { provinceProfile } from "./province";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 
@@ -270,6 +271,14 @@ const routes = {
     // sources that will not parse, series behind their cadence. All from the
     // store and the audit, so opening it costs a publisher nothing.
     "/api/health-report": () => Response.json(cachedHealthReport()),
+    // One province across every series the site holds for it, read from the
+    // store by the province's code; nothing here fetches.
+    "/api/province/:code": async (req: RouteRequest) => {
+      const code = req.params.code ?? "";
+      const profile = await provinceProfile(code);
+      if (!profile) return Response.json({ error: "Unknown province code" }, { status: 404 });
+      return Response.json(profile);
+    },
     // Every headline series at once for the Home page, in one round trip
     // instead of one request per indicator after the catalog.
     //

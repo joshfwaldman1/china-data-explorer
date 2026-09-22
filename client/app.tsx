@@ -114,6 +114,7 @@ type Route =
   | { view: "regions"; period: string; key: string }
   | { view: "methodology"; key: string }
   | { view: "health" }
+  | { view: "province"; code: string }
   | { view: "saved" }
   | { view: "recent" };
 
@@ -392,6 +393,7 @@ function parseRoute(hash: string): Route {
   if (head === "regions") return { view: "regions", period: query.get("period") ?? "", key: query.get("key") ?? "" };
   if (head === "methodology") return { view: "methodology", key: query.get("key") ?? "" };
   if (head === "health") return { view: "health" };
+  if (head === "province") return { view: "province", code: query.get("code") ?? "" };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -407,6 +409,7 @@ function routeHash(route: Route): string {
     case "regions": return `#/regions${qs([["period", route.period], ["key", route.key]])}`;
     case "methodology": return `#/methodology${qs([["key", route.key]])}`;
     case "health": return "#/health";
+    case "province": return `#/province${qs([["code", route.code]])}`;
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -995,6 +998,102 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
         <div className="result-list" style={{ marginTop: 20 }}>
           {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a></article>; })}
         </div>
+      )}
+    </main>
+  );
+}
+
+// ── Province profile ──────────────────────────────────────────────────────────
+
+interface ProfileRow { key: string; label: string; agency: string; frequency: string; unit: string; measure: Measure; ended?: string; endedNote?: string; lastPeriod: string | null; latest: number | null; previous: number | null; points: SeriesPoint[] }
+interface Share { key: string; label: string; value: number; share: number }
+interface ProvinceProfile {
+  code: string; region: { value: string; text: string; en: string };
+  sections: { title: string; note?: string; rows: ProfileRow[] }[];
+  structure: { year: string; gdp: number; sectors: Share[]; industries: Share[] } | null;
+}
+
+/**
+ * One province across everything the site holds for it. The regions page
+ * ranks every province on one series; this is the other direction. Growth
+ * from the curated provincial keys, then size, the makeup of the economy,
+ * labour and households, and trade from the bureau's own provincial tables —
+ * all read from the store by the province's code, so it stays current with
+ * the crawl and needs no adapter of its own.
+ */
+function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
+  const [data, setData] = useState<ProvinceProfile | null>(null);
+  const [status, setStatus] = useState<"loading" | "ok" | "error" | "unknown">("loading");
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    if (!props.route.code) { setStatus("unknown"); return; }
+    fetch(`/api/province/${encodeURIComponent(props.route.code)}`).then(async (response) => {
+      if (cancelled) return;
+      if (response.status === 404) { setStatus("unknown"); return; }
+      const body = (await response.json()) as ProvinceProfile;
+      setData(body); setStatus("ok");
+    }).catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, [props.route.code]);
+  const name = data?.region.en ?? "";
+  return (
+    <main id="main" tabIndex={-1} className="page">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><a href="#/regions">Provinces</a><span aria-hidden="true">›</span><span>{name || "Province"}</span></div>
+      {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading…</div>}
+      {status === "unknown" && <div className="state"><b>No such province</b><p>Pick one from the <a href="#/regions">provinces page</a>.</p></div>}
+      {status === "error" && <div className="state"><b>The profile is unavailable</b><p>The server did not answer.</p></div>}
+      {status === "ok" && data && (
+        <>
+          <h1>{name} <Zh className="gloss">{data.region.text}</Zh></h1>
+          <p className="lede">Every series the site holds for {name}, from the bureau's provincial tables and the curated provincial headlines. Annual figures lag the monthly ones by up to a year.</p>
+          <div className="indicator-list">
+            {data.sections.map((section) => (
+              <section key={section.title} aria-label={section.title}>
+                <h3>{section.title}{section.note && <small className="quiet"> · {section.note}</small>}</h3>
+                {section.rows.map((row) => {
+                  const latest = row.points.at(-1), previous = row.points.at(-2);
+                  const levelChange = latest && row.measure.kind === "level" ? yearOnYearText(latest, row.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: false, unit: row.measure }) : "";
+                  return (
+                    <a key={row.key} className="indicator-row" href={seriesHash([row.key], { region: data.region.value })}>
+                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? ` · ended ${row.ended}` : ""}</small></span>
+                      <span className="value">{latest ? fmt(latest.value, row.measure) : "—"}<i>{latest ? row.measure.suffix : ""}</i></span>
+                      <span className="change">{levelChange || deltaText(latest, previous, row.measure, "short")}</span>
+                      <span className={`period${row.ended ? " behind" : ""}`}>{row.ended ? `Ended ${row.ended}` : latest ? observationLabel(latest.date, row.frequency) : row.frequency}</span>
+                      <span className="spark">{row.points.length > 1 && <Sparkline points={row.points} years />}</span>
+                    </a>
+                  );
+                })}
+                {section.rows.some((row) => row.endedNote) && <p className="quiet profile-note">{section.rows.find((row) => row.endedNote)?.endedNote}</p>}
+              </section>
+            ))}
+            {data.structure && (
+              <section aria-label="Structure of the economy">
+                <h3>Structure of the economy<small className="quiet"> · {data.structure.year}, share of gross regional product, from the bureau's annual value-added tables</small></h3>
+                <div className="share-list">
+                  {data.structure.sectors.map((item) => (
+                    <a key={item.key} className="share-row" href={seriesHash([item.key], { region: data.region.value })}>
+                      <span className="share-label">{item.label}</span>
+                      <span className="share-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, item.share)}%` }} /></span>
+                      <span className="share-value">{item.share.toFixed(1)}%</span>
+                    </a>
+                  ))}
+                </div>
+                <h4 className="quiet">Largest industries, by value added</h4>
+                <div className="share-list">
+                  {data.structure.industries.map((item) => (
+                    <a key={item.key} className="share-row" href={seriesHash([item.key], { region: data.region.value })}>
+                      <span className="share-label">{item.label}</span>
+                      <span className="share-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, item.share * 2)}%` }} /></span>
+                      <span className="share-value">{item.share.toFixed(1)}%</span>
+                    </a>
+                  ))}
+                </div>
+                <p className="quiet profile-note">Shares are computed from the published levels for the same year, so they refer to the year beside them; the three sectors divide gross regional product between them by identity, which the nightly audit holds. The named industries are the ones the bureau breaks out and do not sum to the whole.</p>
+              </section>
+            )}
+          </div>
+        </>
       )}
     </main>
   );
@@ -1984,6 +2083,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, unit)}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>{unitLabel(unit)}, {shownPeriod ? periodPretty(shownPeriod) : ""}{gdp ? ", year to date" : ""}</span></div>
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
+                  {current.province && <a className="button" href={routeHash({ view: "province", code: current.region.value })}>Province profile</a>}
                   <a className="button" href={seriesHash([key], { region: current.region.value })}>Open series</a>
                   {picked.includes(current.region.value)
                     ? <button className="button" onClick={() => setPicked(picked.filter((code) => code !== current.region.value))}>Remove from comparison</button>
@@ -2086,7 +2186,7 @@ function App() {
     setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
-      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
@@ -2155,6 +2255,7 @@ function App() {
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
         {route.view === "methodology" && <MethodologyPage route={route} curated={curated} />}
         {route.view === "health" && <HealthPage />}
+        {route.view === "province" && <ProvincePage route={route} />}
         {route.view === "regions" && <RegionsPage route={route} lang={lang} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}

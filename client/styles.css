@@ -493,11 +493,14 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .indicator-list section { padding: var(--s-2) 0; border-top: 1px solid var(--line); }
 .indicator-list section:first-child { border-top: 0; }
 .indicator-list h3 { margin: var(--s-1) var(--s-4) var(--s-1); color: var(--faint); font-size: var(--fs-1); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-.indicator-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 88px 110px 120px; align-items: center; gap: var(--s-3); min-height: 40px; padding: 0 var(--s-4); color: var(--ink); }
+/* The value column fits the widest figure the page shows with its unit on one
+   line: "592,411 100M yuan". At 96px a six-digit figure wrapped its unit onto
+   a second line while the five-digit one beside it did not. */
+.indicator-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 88px 110px 120px; align-items: center; gap: var(--s-3); min-height: 40px; padding: 0 var(--s-4); color: var(--ink); }
 .indicator-row:hover { background: var(--panel-2); text-decoration: none; }
 .indicator-row .name { display: grid; line-height: 1.25; }
 .indicator-row .name small { color: var(--faint); font-size: var(--fs-1); }
-.indicator-row .value { text-align: right; font-weight: 600; font-size: var(--fs-4); font-variant-numeric: tabular-nums; }
+.indicator-row .value { text-align: right; font-weight: 600; font-size: var(--fs-4); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .indicator-row .value i { font-style: normal; font-weight: 400; color: var(--muted); font-size: var(--fs-1); margin-left: 3px; }
 .indicator-row .change, .indicator-row .period { text-align: right; color: var(--muted); font-size: var(--fs-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .indicator-row .spark svg { width: 100%; height: 24px; display: block; }
@@ -512,9 +515,25 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .health-list .quiet { color: var(--muted); font-size: var(--fs-2); }
 .health-message { margin-top: var(--s-1); font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-1); color: var(--faint); overflow-wrap: anywhere; }
 .page > section > p.quiet { color: var(--muted); }
+
+/* Province profile: the economy's makeup as ranked bars, one row per part. */
+.share-list { display: grid; gap: var(--s-1); margin: var(--s-2) 0 var(--s-3); }
+.share-row { display: grid; grid-template-columns: minmax(0, 220px) 1fr 64px; align-items: center; gap: var(--s-3); padding: 4px var(--s-4); color: var(--ink); }
+.share-row:hover { background: var(--panel-2); text-decoration: none; }
+.share-label { font-size: var(--fs-3); }
+.share-bar { display: block; height: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-1); overflow: hidden; }
+.share-bar i { display: block; height: 100%; background: var(--chart-1); }
+.share-value { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--fs-2); }
+.indicator-list h4.quiet { margin: var(--s-3) var(--s-4) 0; font-size: var(--fs-2); font-weight: 600; color: var(--muted); }
+.profile-note { margin: var(--s-2) var(--s-4) var(--s-3); font-size: var(--fs-2); }
+@media (max-width: 820px) { .share-row { grid-template-columns: minmax(0, 1fr) 56px; } .share-row .share-bar { display: none; } }
 @media (max-width: 820px) {
   .hero-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .indicator-row { grid-template-columns: minmax(0, 1fr) 80px 70px; }
+  .indicator-row { grid-template-columns: minmax(0, 1fr) 96px 70px; }
+  /* Narrow screens: the unit sits under the figure, every row alike, rather than
+     wrapping on some rows and not others. */
+  .indicator-row .value { white-space: normal; }
+  .indicator-row .value i { display: block; margin-left: 0; }
   .indicator-row .period, .indicator-row .spark { display: none; }
 }
 
