@@ -34,7 +34,18 @@ what the site does not carry).
     *Test:* the 2018 fixtures parse to known figures, and the empty-unit
     months no longer appear in the fetch log's warnings.
 
-3. **Move the headline rates off the mirror and onto the bureau's own
+3. **The default commodity for major imports and exports is a line that
+    began in 2026.** `/api/series/major_imports` with no region answers for
+    "Agriculture products", which Customs added to its table in February
+    2026, so the headline series shows seven months while hi-tech products
+    holds eighty-two back to 2019. The data is fine; the default is
+    unfortunate. Pick a long-lived, economically prominent line (hi-tech
+    products, or crude oil for imports and mobile phones for exports) as the
+    default region, and say in the entry's comment why.
+    *Test:* the default region of each Customs commodity key has at least
+    five years stored.
+
+4. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -57,20 +68,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-4. **Transport turnover by mode.** Freight and passenger turnover for road,
+5. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-5. **Average wages by sector.** The annual average wage of employed persons
+6. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-6. **Agriculture: grain and meat output.** Annual grain output with its
+7. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
