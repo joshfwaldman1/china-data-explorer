@@ -3182,3 +3182,36 @@ not from scratch. Rounds are small on purpose.
   is what remains, and is recorded in OPERATIONS.md. Committed locally with
   this entry and not pushed on its own: a docs-only push is a deploy, and a
   deploy is not free here.
+
+- 2026-09-22 (owner-directed: the health page had to stop lying): a
+  twenty-minute log export from the live service, read for lessons. It held
+  no deploy failure. It held 694 Customs parser errors, and behind them a
+  rule that threw away every month that parsed whenever a third failed to —
+  right for a layout change, wrong for old months in an earlier layout,
+  which is what the backfill hits. Major imports and exports were current
+  and held seven months of history while trade by partner held eighty-two.
+  The rule is recency now (`layoutBroken`: broken only if the newest months
+  fail), the 2020 imports header "Import Commodity" is accepted, and the
+  first ingest after the fix stored 54 months for hi-tech products where the
+  same run had been discarded the day before. Verified live: 82 months.
+  Then the health page, twice. First, it listed the aggregate-financing
+  keys as failing to parse and I queued "the central bank's tables have
+  changed shape" at the top as a live bug. They had failed ten times in
+  five hours on the morning their adapter was built and fetched cleanly
+  every day since; the page could not tell a source that failed once from
+  one still failing. It can now: a key whose newest failure is older than
+  its newest success is recovered, listed apart and out of the count. The
+  queue item is withdrawn and the reason recorded under Done. Second, its
+  "behind" list expected August from every series on the 20th, and named
+  nine finance-ministry series as behind on the 22nd — six of them three
+  days from being due on the 25th. A series is behind by its own release
+  day now, and one that states no day is expected only once the following
+  month has ended, because on a page whose job is to say what is wrong a
+  false "behind" costs more than a late one. The audit's own log row and
+  the keys this deployment cannot refresh no longer appear as parse
+  failures either; the first was never a source and the second is a missing
+  service already shown under blocked.
+  Net: the headline went from "12187 sources failing" on the page's first
+  live run, to 47, to 7, to what is left after this — the finance ministry's
+  502s and the bond series they delay. 402 tests; 54 pairs, 0 findings; two
+  deploys today for all of it, each watched to success.

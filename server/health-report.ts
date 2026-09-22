@@ -93,9 +93,22 @@ export interface HealthReport {
   store: { observations: number; keys: number; lastFetch: string | null };
 }
 
-/** The newest period a curated series ought to have by now. */
-function overdue(frequency: string, lastPeriod: string | null): { expected: string; late: boolean } {
-  const expected = expectedPeriod(frequency, new Date());
+/**
+ * The newest period a curated series ought to have by now.
+ *
+ * By the key's own release day where it states one: the finance ministry
+ * publishes on the 25th and the bond release on the 12th, and a rule that
+ * expected August from everything on the 20th listed nine ministry series as
+ * behind on the 22nd — three of which genuinely were, six of which were three
+ * days from being due. A key that states no day is expected only once the
+ * following month has ended. That is late for a series published on the 9th
+ * and right for one published on the 27th, and on a page whose purpose is to
+ * say what is wrong, a false "behind" costs more than a late one.
+ */
+const WHEN_UNSTATED = 31;
+
+function overdue(frequency: string, lastPeriod: string | null, releaseDay: number | undefined): { expected: string; late: boolean } {
+  const expected = expectedPeriod(frequency, new Date(), releaseDay ?? WHEN_UNSTATED);
   if (!lastPeriod) return { expected, late: true };
   return { expected, late: comparablePeriod(lastPeriod) < comparablePeriod(expected) };
 }
@@ -161,7 +174,13 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
   const failures = fetchFailures(since);
   const health = dbHealth();
 
-  const curatedRows = failures.filter((row) => !isCrawlKey(row.key));
+  // A source is a curated key. The audit logs its own past mismatches under
+  // "concordance", which is not a source and never logs a success, so it could
+  // never read as recovered — while the checks section above already says
+  // whether anything disagrees now. And a key this deployment cannot refresh
+  // is a missing service, listed under "blocked" below, not a parse failure.
+  const blockedKeys = new Set(catalogList().filter((entry) => entry.refreshBlocked).map((entry) => entry.key));
+  const curatedRows = failures.filter((row) => !isCrawlKey(row.key) && CATALOG[row.key] !== undefined && !blockedKeys.has(row.key));
   const successes = lastSuccessByKey(curatedRows.map((row) => row.key));
   const curatedFailures = failingSources(curatedRows).map((source) => {
     const ok = successes.get(source.key);
@@ -184,7 +203,7 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
     // and are comparisons, not this site's obligation to be timely about.
     if (entry.source === "fred") continue;
     const lastPeriod = latestByKey.get(entry.key) ?? null;
-    const { expected, late } = overdue(entry.frequency, lastPeriod);
+    const { expected, late } = overdue(entry.frequency, lastPeriod, entry.releaseDay);
     if (!late) continue;
     const row: BehindSeries = { key: entry.key, title: entry.title, agency: entry.agency, frequency: entry.frequency, lastPeriod, expected };
     if (entry.ended) ended.push({ ...row, ended: entry.ended });

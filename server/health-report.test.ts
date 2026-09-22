@@ -214,3 +214,43 @@ test("a source that has fetched cleanly since its last failure is recovered, not
   expect(lgb?.recoveredAt).toBeUndefined();
   expect(report.sources.recovered.some((source) => source.key === "lgb_rate")).toBe(false);
 });
+
+test("the audit's own log row is not a source, and a blocked key is not a parse failure", () => {
+  const at = daysAgo(2);
+  logFetch({ key: "concordance", startedAt: at, finishedAt: at, status: "error", points: 0, changed: 0, message: "mismatch   Port throughput: month vs year to date" });
+  logFetch({ key: "caixin_pmi", startedAt: at, finishedAt: at, status: "error", points: 0, changed: 0, message: "AKTools is not configured on this deployment" });
+  logFetch({ key: "real_estate", startedAt: at, finishedAt: at, status: "error", points: 0, changed: 0, message: "AKTools is not configured on this deployment" });
+  const before = process.env.AKTOOLS_URL; process.env.AKTOOLS_URL = "off";
+  const report = healthReport([agreeing]);
+  if (before === undefined) delete process.env.AKTOOLS_URL; else process.env.AKTOOLS_URL = before;
+  const listed = [...report.sources.failing, ...report.sources.recovered].map((source) => source.key);
+  // Whether anything disagrees is the checks section's job; the audit's log row would say "failing" forever.
+  expect(listed).not.toContain("concordance");
+  // A missing service is shown under blocked, once, not as a source that will not parse.
+  expect(listed).not.toContain("caixin_pmi");
+  expect(listed).not.toContain("real_estate");
+  expect(report.behind.blocked.some((row) => row.key === "real_estate")).toBe(true);
+  // The Caixin surveys are marked ended in the catalog as well as blocked, and
+  // "ended" wins: a publisher that stopped is a different fact from a service
+  // this deployment lacks, and the more permanent one is the one to state.
+  expect(report.behind.ended.some((row) => row.key === "caixin_pmi")).toBe(true);
+  expect(report.behind.blocked.some((row) => row.key === "caixin_pmi")).toBe(false);
+});
+
+test("a series is behind by its own release day, not by a day picked for everything", async () => {
+  const { expectedPeriod } = await import("./due.ts");
+  // The 22nd of a month. Nothing published on the 25th is behind yet; something published on the 12th is.
+  const the22nd = new Date(Date.UTC(2026, 8, 22));
+  expect(expectedPeriod("Monthly", the22nd, 25)).toBe("2026-07");
+  expect(expectedPeriod("Monthly", the22nd, 12)).toBe("2026-08");
+  // A key that states no day is expected only once the following month has ended.
+  expect(expectedPeriod("Monthly", the22nd, 31)).toBe("2026-07");
+  expect(expectedPeriod("Monthly", new Date(Date.UTC(2026, 9, 1)), 31)).toBe("2026-08");
+  // And the report threads each key's own day through, so a finance-ministry
+  // series with the 25th stated is not behind on the 22nd. (Checked through
+  // the catalog rather than a fixture: the rule is only right if it uses the
+  // day the entry actually states.)
+  const { catalogList } = await import("./data.ts");
+  const fiscal = catalogList().find((entry) => entry.key === "fiscal_revenue");
+  expect(fiscal?.releaseDay).toBe(25);
+});
