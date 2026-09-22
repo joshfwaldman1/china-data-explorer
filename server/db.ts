@@ -728,6 +728,26 @@ export function latestPeriods(keys: string[]): Map<string, string | null> {
   return out;
 }
 
+/**
+ * When each of the named keys last fetched successfully, if ever.
+ *
+ * A failure is only news while it is the latest thing that happened to a
+ * source. The aggregate-financing keys failed ten times in five hours on the
+ * morning their adapter was built, fetched cleanly thirty-seven minutes later,
+ * and have every day since — and the health page listed them as "failing to
+ * parse" for a fortnight, which sent one of those failures to the top of the
+ * queue as a live bug. This is what tells a recovered source from a failing one.
+ */
+export function lastSuccessByKey(keys: string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  if (keys.length === 0) return out;
+  const statement = db().query<{ latest: string | null }, { $key: string }>(
+    "SELECT MAX(finished_at) AS latest FROM fetch_log WHERE key = $key AND status = 'ok'",
+  );
+  for (const key of keys) { const latest = statement.get({ $key: key })?.latest; if (latest) out.set(key, latest); }
+  return out;
+}
+
 /** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */
 export function fetchLogOldest(): string | null {
   return db().query<{ oldest: string | null }, []>("SELECT MIN(finished_at) AS oldest FROM fetch_log").get()?.oldest ?? null;

@@ -183,3 +183,34 @@ test("the catalog crawl's failures are counted, not listed beside the curated on
   // The headline counts the sources a person can act on, not the crawl's tail.
   expect(healthHeadline(report)).not.toContain(`${report.sources.crawl.series}`);
 });
+
+test("a source that has fetched cleanly since its last failure is recovered, not failing", () => {
+  // The aggregate-financing keys failed ten times in five hours on the morning
+  // their adapter was built, fetched cleanly thirty-seven minutes later, and
+  // have every day since. The page listed them as "failing to parse" for a
+  // fortnight and sent one to the top of the queue as a live bug. It was not.
+  const at = daysAgo(6);
+  for (let hour = 0; hour < 5; hour += 1) {
+    const when = new Date(new Date(at).getTime() + hour * 3_600_000).toISOString();
+    logFetch({ key: "tsf_flow", startedAt: when, finishedAt: when, status: "error", points: 0, changed: 0, message: "PBOC flow table: header not found" });
+  }
+  const recoveredAt = new Date(new Date(at).getTime() + 5 * 3_600_000 + 37 * 60_000).toISOString();
+  logFetch({ key: "tsf_flow", startedAt: recoveredAt, finishedAt: recoveredAt, status: "ok", points: 1044, changed: 3, message: "" });
+  // And a source that is genuinely still failing: its last event is a failure.
+  logFetch({ key: "lgb_rate", startedAt: daysAgo(3), finishedAt: daysAgo(3), status: "ok", points: 10, changed: 0, message: "" });
+  logFetch({ key: "lgb_rate", startedAt: daysAgo(1), finishedAt: daysAgo(1), status: "error", points: 0, changed: 0, message: "MOF -> HTTP 502" });
+
+  const report = healthReport([agreeing]);
+  const tsf = report.sources.recovered.find((source) => source.key === "tsf_flow");
+  expect(tsf).toBeDefined();
+  expect(tsf?.failures).toBe(5);
+  expect(tsf?.recoveredAt).toBe(recoveredAt);
+  // Recovered means not failing: it is in one list and not the other, and not in the headline.
+  expect(report.sources.failing.some((source) => source.key === "tsf_flow")).toBe(false);
+  expect(healthHeadline({ ...report, sources: { ...report.sources, failing: report.sources.failing.filter((s) => s.key === "tsf_flow") }, behind: { publisher: [], blocked: [], ended: [] } })).toContain("All 1 cross-check");
+  // A source whose last event is a failure is still failing, however many successes preceded it.
+  const lgb = report.sources.failing.find((source) => source.key === "lgb_rate");
+  expect(lgb).toBeDefined();
+  expect(lgb?.recoveredAt).toBeUndefined();
+  expect(report.sources.recovered.some((source) => source.key === "lgb_rate")).toBe(false);
+});

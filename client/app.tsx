@@ -1003,13 +1003,13 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
 // ── Data health ───────────────────────────────────────────────────────────────
 
 interface Finding { name: string; kind: string; note?: string; latest?: { period: string; left: number; right: number }; disagreements: { period: string; left: number; right: number }[] }
-interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string }
+interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string; recoveredAt?: string }
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
 interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
 interface Health {
   headline: string; ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
-  sources: { failing: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
+  sources: { failing: FailingSource[]; recovered?: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
   store: { observations: number; keys: number; lastFetch: string | null };
 }
@@ -1076,6 +1076,22 @@ function HealthPage() {
                     <div className="health-message">{source.message}</div>
                   </li>
                 ))}</ul>}
+            {data.sources.recovered && data.sources.recovered.length > 0 && (
+              <>
+                <h3>Recovered</h3>
+                <p className="quiet">
+                  Failed in the window and has fetched cleanly since. Listed so the history is not lost, and kept out of the
+                  count above so it does not read as a live fault: a failure is news only while it is the latest thing that
+                  happened to a source.
+                </p>
+                <ul className="health-list">{data.sources.recovered.map((source) => (
+                  <li key={source.key}>
+                    <b><a href={seriesHash([source.key])}>{source.title}</a></b> <span className="quiet">{source.agency}</span>
+                    <div className="quiet">Failed {source.failures} time{source.failures === 1 ? "" : "s"}, last on {day(source.latest)}; fetching cleanly since {day(source.recoveredAt ?? null)}.</div>
+                  </li>
+                ))}</ul>
+              </>
+            )}
             {data.sources.crawl && data.sources.crawl.series > 0 && (
               <>
                 <h3>The catalog crawl</h3>

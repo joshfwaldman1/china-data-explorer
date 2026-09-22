@@ -32,7 +32,7 @@
 
 import { CATALOG, catalogList } from "./data";
 import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
-import { dbHealth, fetchFailures, fetchLogOldest, latestPeriods } from "./db";
+import { dbHealth, fetchFailures, fetchLogOldest, lastSuccessByKey, latestPeriods } from "./db";
 import { comparablePeriod, expectedPeriod } from "./due";
 
 /** A pair of readings that disagree, with enough to act on it. */
@@ -57,6 +57,8 @@ export interface FailingSource {
   since: string;
   latest: string;
   message: string;
+  /** Set when a successful fetch has happened since the last failure: the source has recovered. */
+  recoveredAt?: string;
 }
 
 /** A curated series whose newest figure is older than it should be. */
@@ -86,7 +88,7 @@ export interface CrawlFailures {
 export interface HealthReport {
   ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
-  sources: { failing: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
+  sources: { failing: FailingSource[]; recovered: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
   store: { observations: number; keys: number; lastFetch: string | null };
 }
@@ -159,6 +161,13 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
   const failures = fetchFailures(since);
   const health = dbHealth();
 
+  const curatedRows = failures.filter((row) => !isCrawlKey(row.key));
+  const successes = lastSuccessByKey(curatedRows.map((row) => row.key));
+  const curatedFailures = failingSources(curatedRows).map((source) => {
+    const ok = successes.get(source.key);
+    return ok && ok > source.latest ? { ...source, recoveredAt: ok } : source;
+  });
+
   const findings: Finding[] = results
     .filter((result) => result.status === "mismatch")
     .map((result) => ({ name: result.name, kind: result.kind, latest: result.latest, disagreements: result.disagreements, note: result.note }));
@@ -193,7 +202,11 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
       missing: results.filter((result) => result.status === "missing" || result.status === "no-overlap").map((result) => result.name),
     },
     sources: {
-      failing: failingSources(failures.filter((row) => !isCrawlKey(row.key))),
+      // A failure is news only while it is the latest thing that happened to
+      // the source. One whose newest failure is older than its newest success
+      // has recovered, and is listed apart so it neither alarms nor is lost.
+      failing: curatedFailures.filter((source) => !source.recoveredAt),
+      recovered: curatedFailures.filter((source) => source.recoveredAt),
       crawl: crawlFailures(failures.filter((row) => isCrawlKey(row.key))),
       // The window the failures were counted over, floored at the oldest row
       // the log still holds, so "nothing failing" reads as "none since this".

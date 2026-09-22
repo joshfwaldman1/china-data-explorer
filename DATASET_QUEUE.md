@@ -8,20 +8,7 @@ what the site does not carry).
 
 ## Queue
 
-1. **The central bank's aggregate-financing tables have changed shape.**
-    The Data Health page's first live run showed `tsf_flow` failing on
-    "PBOC flow table: header not found" and `tsf_stock` and
-    `tsf_stock_growth` on "PBOC stock table: AFRE(stock) row not found",
-    ten times each in the window. Aggregate financing is a Home row. This
-    goes before the mirror item below by the loop's own rule: a source that
-    will not parse is this round's item before anything in the queue.
-    Capture the bank's current page as a fixture beside the existing ones,
-    find what moved, and keep both layouts readable, as the Customs parser
-    now does for its 2020 wording.
-    *Test:* the current release parses to the headline the bank states in
-    its prose, and the fixture from before the change still parses.
-
-2. **Customs' 2018 layouts.** The by-country table for May to December
+1. **Customs' 2018 layouts.** The by-country table for May to December
     2018 and the commodity tables for parts of 2018, November 2019 and
     February 2020 have neither "Unit:" nor "Value Unit:" above them and fail
     with an empty unit line. Since 22 September 2026 that is a logged gap
@@ -34,7 +21,7 @@ what the site does not carry).
     *Test:* the 2018 fixtures parse to known figures, and the empty-unit
     months no longer appear in the fetch log's warnings.
 
-3. **The default commodity for major imports and exports is a line that
+2. **The default commodity for major imports and exports is a line that
     began in 2026.** `/api/series/major_imports` with no region answers for
     "Agriculture products", which Customs added to its table in February
     2026, so the headline series shows seven months while hi-tech products
@@ -45,7 +32,7 @@ what the site does not carry).
     *Test:* the default region of each Customs commodity key has at least
     five years stored.
 
-4. **Move the headline rates off the mirror and onto the bureau's own
+3. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -68,20 +55,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-5. **Transport turnover by mode.** Freight and passenger turnover for road,
+4. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-6. **Average wages by sector.** The annual average wage of employed persons
+5. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-7. **Agriculture: grain and meat output.** Annual grain output with its
+6. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
@@ -121,6 +108,16 @@ what the site does not carry).
 
 ## Done
 
+- 2026-09-22 — Withdrawn, not done: "the central bank's aggregate-financing
+  tables have changed shape" was queued at the top on 22 September from the
+  Data Health page, which listed `tsf_flow` and `tsf_stock` as failing to
+  parse. They were not. All ten failures fell in five hours on the morning
+  of 16 September, when the adapter was first built; August was stored
+  thirty-seven minutes after the last of them and the keys have fetched
+  cleanly every day since. The page could not tell a source that failed
+  once from one still failing, and now can: a source whose newest failure is
+  older than its newest success is shown as recovered and kept out of the
+  count. The lesson is written into the page rather than the queue.
 - 2026-09-21 — Contributions to GDP growth: `gdp_contributions` and
   `_ytd` (final consumption, capital formation, net exports, as shares of
   the quarter's growth and of the year's), with a Home row for consumption.
