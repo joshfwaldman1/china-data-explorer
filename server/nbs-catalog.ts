@@ -297,18 +297,53 @@ const GLOSS_FORMAT = 24; // 24: official NBS English titles with the generated g
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
+/**
+ * A file's part of the catalog version: a hash of its bytes, not its
+ * modification time.
+ *
+ * The version is the key to the catalog cache on the volume, and it used to be
+ * built from each file's mtime. Every Docker build copies these files into the
+ * image with a fresh mtime whenever the layer is rebuilt — which is nearly
+ * every code change, since `COPY catalog` sits after `COPY server` — so the
+ * key changed on nearly every deploy while the bytes never did. The cache was
+ * thrown away and the catalog rebuilt from scratch: 178 and 189 seconds on the
+ * deployed instance, against a 180-second healthcheck, which is how three
+ * deploys failed in one day. A docs-only commit kept the layer cached, kept
+ * the old mtime, and warmed in 51 seconds. The key was Docker cache luck.
+ *
+ * Hashing the bytes gives the same version to the same file wherever and
+ * whenever it was copied. The stat stays as a change detector, so a file
+ * replaced at runtime (the sync scripts do this) is still noticed without
+ * re-hashing seventeen megabytes on every lookup.
+ */
+const fingerprints = new Map<string, { stamp: string; hash: string }>();
+
+async function fileFingerprint(path: string): Promise<string> {
+  let stamp: string;
+  try { const info = await stat(path); stamp = `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
+  const known = fingerprints.get(path);
+  if (known && known.stamp === stamp) return known.hash;
+  const hasher = new Bun.CryptoHasher("sha256");
+  hasher.update(await Bun.file(path).arrayBuffer());
+  const hash = hasher.digest("hex").slice(0, 24);
+  fingerprints.set(path, { stamp, hash });
+  return hash;
+}
+
+/** The version of a set of files by content, for the cache key and for the test that pins it. */
+export async function contentVersionOf(paths: string[], format: string | number): Promise<string> {
+  const parts = await Promise.all(paths.map(fileFingerprint));
+  // GLOSS_FORMAT bumps when glossTitle's output shape changes, so stored glosses rebuild.
+  return [...parts, `gloss-format:${format}`].join("|");
+}
+
 async function catalogVersion(): Promise<string> {
-  // Four file stats per call is nothing on its own, but every catalog lookup
-  // asks, and an ingest run looks up one entry per stored series. Holding the
-  // answer for a few seconds keeps "the snapshot file changed" working while
-  // costing one stat per five seconds instead of four per lookup.
+  // Every catalog lookup asks, and an ingest run looks up one entry per stored
+  // series; holding the answer for a few seconds keeps "the snapshot file
+  // changed" working at the cost of four stats per five seconds.
   const now = Date.now();
   if (versionCache && now - versionCache.at < VERSION_TTL_MS) return versionCache.version;
-  const parts = await Promise.all([catalogPath(), GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE].map(async (path) => {
-    try { const info = await stat(path); return `${info.mtimeMs}:${info.size}`; } catch { return "-"; }
-  }));
-  // GLOSS_FORMAT bumps when glossTitle's output shape changes, so stored glosses rebuild.
-  const version = [...parts, `gloss-format:${GLOSS_FORMAT}`].join("|");
+  const version = await contentVersionOf([catalogPath(), GLOSS_FILE, OFFICIAL_FILE, NOTES_FILE], GLOSS_FORMAT);
   versionCache = { at: now, version };
   return version;
 }
