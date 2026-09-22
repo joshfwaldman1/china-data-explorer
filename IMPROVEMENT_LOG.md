@@ -3105,3 +3105,55 @@ not from scratch. Rounds are small on purpose.
   intermittently does so only when two full suites run at once. Five
   consecutive single runs were clean. It is contention, not a defect.
   374 tests; 54 pairs, 0 findings.
+
+- 2026-09-22 (owner-directed, not a loop round: bugs, structure, and two
+  outages): a day of fixing things rather than adding series, and the day
+  the site went down twice, both times by my hand.
+  What shipped. The Home payload carried every line of every table on the
+  page — 250 lines to draw 59 sparklines — and yesterday's six-year window
+  had tripled it to 538 KB; it now carries only the lines a row names,
+  173 KB, smaller than before the window grew. A stale Home row says why
+  it is stale: "not refreshed here (needs AkShare)" against a blocked
+  series, "nothing newer published" against a publisher that has gone
+  quiet. The Customs parser reads the tables Customs wrote before 2023,
+  which say "Value Unit:" where the newer ones say "Unit:"; it had refused
+  22 of the 55 months the backfill reaches, on every run, for weeks, while
+  the page looked fine because the months it could read were recent. And
+  the test suite's cleanup never ran — `process.on("exit")` does not fire
+  under Bun's test runner, checked directly — so every run since it was
+  written leaked 700 MB; it filled the disk twice today. Cleanup is now
+  `afterAll`, with a startup sweep for anything a killed run left behind.
+  The Customs bug is why there is now a Data Health page (`#/health`). The
+  check that would have caught it had been running and reporting the whole
+  time, into a fetch log nobody reads. The page puts the three kinds of
+  wrong where a reader sees them: cross-checks that disagree, sources that
+  will not parse, series that have not advanced — the last split by whether
+  the publisher went quiet or this deployment cannot reach them. It reads
+  the store and never fetches. On its first live run it surfaced a latent
+  bug already fixed that morning (the by-country parser had matched
+  "United States" as a unit line, since both start with "Unit") and a real
+  one not yet fixed: the central bank's aggregate-financing tables have
+  changed shape and `tsf_flow` and `tsf_stock` fail on "header not found".
+  That is queued at the top.
+  The outages. The first was the health page itself: a correlated subquery
+  over an unindexed 370,000-row log plus a three-table join across every
+  stored series, both synchronous on the thread that serves HTTP. I polled
+  it waiting for the deploy and stopped the site answering anything at all,
+  restarted it, and blamed the ingest. It was mine. Fixed with an index, a
+  single pass, a query for the 149 curated keys instead of 78,000, and a
+  one-minute cache; a test holds it under a second on a 20,000-row log. The
+  second was a healthcheck that missed the catalog warm-up by two seconds —
+  179.8 s against a 180 s window — after which Railway killed the new
+  container and the previous one, sharing the volume, stopped answering
+  too. Raising the window in `railway.toml` did nothing, because Railway
+  does not read that file for this service; the setting lives on the
+  service and was 180 there. Set to 420 through the API, read back, and
+  written into both documents so nobody repeats the edit. The real fix is a
+  faster warm-up, recorded in OPERATIONS.md.
+  Also today: the first version of the health page led with "12187 sources
+  failing to parse", which was true and useless — twelve thousand catalog
+  series the bureau indexes with nothing behind them. They are counted
+  separately now; the list is the 47 curated sources a person can act on,
+  and most of those are the Customs failures from before the fix, which
+  will roll out of the fourteen-day window on their own.
+  Live: 54 pairs, 0 findings; health report in 0.96 s; 393 tests.

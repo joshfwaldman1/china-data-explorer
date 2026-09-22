@@ -8,7 +8,20 @@ what the site does not carry).
 
 ## Queue
 
-1. **Move the headline rates off the mirror and onto the bureau's own
+1. **The central bank's aggregate-financing tables have changed shape.**
+    The Data Health page's first live run showed `tsf_flow` failing on
+    "PBOC flow table: header not found" and `tsf_stock` and
+    `tsf_stock_growth` on "PBOC stock table: AFRE(stock) row not found",
+    ten times each in the window. Aggregate financing is a Home row. This
+    goes before the mirror item below by the loop's own rule: a source that
+    will not parse is this round's item before anything in the queue.
+    Capture the bank's current page as a fixture beside the existing ones,
+    find what moved, and keep both layouts readable, as the Customs parser
+    now does for its 2020 wording.
+    *Test:* the current release parses to the headline the bank states in
+    its prose, and the fixture from before the change still parses.
+
+2. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -31,20 +44,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-2. **Transport turnover by mode.** Freight and passenger turnover for road,
+3. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-3. **Average wages by sector.** The annual average wage of employed persons
+4. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-4. **Agriculture: grain and meat output.** Annual grain output with its
+5. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
