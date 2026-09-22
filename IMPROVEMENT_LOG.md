@@ -3157,3 +3157,28 @@ not from scratch. Rounds are small on purpose.
   and most of those are the Customs failures from before the fix, which
   will roll out of the fourteen-day window on their own.
   Live: 54 pairs, 0 findings; health report in 0.96 s; 393 tests.
+
+- 2026-09-22 (owner-directed: stop the deploy failures): three deploys had
+  failed their healthcheck in a day and the owner asked why it kept
+  happening. The window had been two seconds shorter than the catalog
+  warm-up, and widening it covered the symptom; this found the cause. The
+  catalog cache on the volume is keyed by a version string, and the version
+  was built from each file's modification time. Every Docker build gives the
+  copied catalog files a fresh mtime whenever their layer is rebuilt —
+  nearly every code change, since `COPY catalog` follows `COPY server` — so
+  the key changed on nearly every deploy while the bytes never did, the
+  cache was discarded, and the catalog rebuilt from scratch on boot: 177.9
+  and 189.1 seconds. The tell was a docs-only commit, which left the layer
+  cached, kept the old mtime, matched the key, and warmed in 50.8 seconds.
+  Which path a deploy got was Docker layer-cache luck.
+  The version is now a hash of each file's bytes, so the same file gets the
+  same key wherever it was copied and the cache is reused across deploys.
+  The stat stays as a change detector so a file the sync scripts replace at
+  runtime is still noticed. The first code deploy after the fix warmed in
+  61.9 seconds and passed its healthcheck with over five minutes to spare.
+  `catalog-version.test.ts` pins the key to the bytes: same content with a
+  different mtime is the same version; different content is not.
+  The fast path itself, a minute to parse and revive 79,836 stored entries,
+  is what remains, and is recorded in OPERATIONS.md. Committed locally with
+  this entry and not pushed on its own: a docs-only push is a deploy, and a
+  deploy is not free here.

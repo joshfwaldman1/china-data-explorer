@@ -125,7 +125,10 @@ mutation { serviceInstanceUpdate(serviceId: "<service>", environmentId: "<env>",
 ```
 
 and read it back to confirm. The file's value is kept in step as documentation.
-It was 180, and the catalog warm-up that `/ready` waits for has been measured at
+It was 180. The catalog warm-up that `/ready` waits for was, until 22 September
+2026, keyed by file mtime and so rebuilt from scratch on nearly every deploy; it
+is now keyed by content and reuses the cache on the volume (see "Remaining
+scaling work"). Before that fix it had been measured at
 168.5 s and 179.8 s on the deployed instance: the second missed the window by two
 seconds, Railway killed the new container, and the previous one, which shares the
 volume, stopped answering until it was restarted by hand (21 September 2026). A
@@ -155,11 +158,15 @@ configured request budget just like successful ones.
 
 This hardening pass does not make the service horizontally scalable. Next:
 
-- Make the catalog warm-up fast, or make `/ready` not wait for it. Three minutes
-  to load a catalog that has not changed since the last boot is what turned a
-  two-second healthcheck miss into an outage; the widened window covers the
-  symptom. Loading the catalog from a prebuilt cache on the volume, or serving
-  curated series before the search index is up, would remove the cause.
+- Make the catalog fast path faster. The three-minute warm-up that turned a
+  two-second healthcheck miss into an outage is fixed at its cause: the cache
+  on the volume was keyed by file mtime, which every Docker build reset, so
+  the catalog rebuilt from scratch on nearly every deploy. The key is now a
+  content hash and the cache is reused (61.9 s on the first code deploy after
+  the fix, against 178–189 before). What remains is the fast path itself: it
+  JSON-parses and revives all 79,836 stored entries on boot. Reading them
+  lazily from the database, or serving curated series before the search
+  index is up, would take `/ready` from a minute to seconds.
 - Persist jobs, attempts, retry times and leases so restarts cannot lose work;
   separate scheduled ingestion from HTTP serving while preserving portal pacing.
 - Archive original publisher responses with content hashes, parser versions and
