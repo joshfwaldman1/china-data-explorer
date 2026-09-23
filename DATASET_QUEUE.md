@@ -8,7 +8,23 @@ what the site does not carry).
 
 ## Queue
 
-1. **Customs' 2018 layouts.** The by-country table for May to December
+1. **A Customs quantity read as a unit label, once.** The commodity series
+    for motor vehicles, mobile phones and ships each carry a stray line —
+    "Quantity (62.0)", "Quantity (5,612.6)", "Quantity (807.0)" — holding a
+    single point at April 2025 whose value is that month's *value* figure,
+    beside the real quantity line ("Quantity (10,000 Autos)"). For that one
+    month the table's unit column carried a number, and `parseCommodities`
+    took it as the unit and shifted the columns by one, so the value landed
+    under quantity and a phantom line was born. Found on 24 September while
+    building the mock-up's export unit values; nothing on the site flags a
+    line with one point. Capture the April 2025 table as a fixture, refuse a
+    numeric unit cell rather than believing it, and drop the phantom lines
+    from the store — they are wrong, not merely stale. Then consider a check
+    in the health report for any series line with a single point.
+    *Test:* the April 2025 fixture parses to the same lines as March and May,
+    and the store holds no "Quantity (<number>)" label.
+
+2. **Customs' 2018 layouts.** The by-country table for May to December
     2018 and the commodity tables for parts of 2018, November 2019 and
     February 2020 have neither "Unit:" nor "Value Unit:" above them and fail
     with an empty unit line. Since 22 September 2026 that is a logged gap
@@ -21,7 +37,7 @@ what the site does not carry).
     *Test:* the 2018 fixtures parse to known figures, and the empty-unit
     months no longer appear in the fetch log's warnings.
 
-2. **The default commodity for major imports and exports is a line that
+3. **The default commodity for major imports and exports is a line that
     began in 2026.** `/api/series/major_imports` with no region answers for
     "Agriculture products", which Customs added to its table in February
     2026, so the headline series shows seven months while hi-tech products
@@ -32,7 +48,7 @@ what the site does not carry).
     *Test:* the default region of each Customs commodity key has at least
     five years stored.
 
-3. **Move the headline rates off the mirror and onto the bureau's own
+4. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -55,20 +71,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-4. **Transport turnover by mode.** Freight and passenger turnover for road,
+5. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-5. **Average wages by sector.** The annual average wage of employed persons
+6. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-6. **Agriculture: grain and meat output.** Annual grain output with its
+7. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
