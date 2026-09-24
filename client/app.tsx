@@ -1055,7 +1055,10 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                     <article key={`${chart.key}|${chart.region ?? ""}|${title}`} className="theme-card">
                       <div className="theme-card-head"><h3>{title}</h3><a href={chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key])}>Open series ›</a></div>
                       {hasPoints && built && result
-                        ? <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} />
+                        ? <>
+                            <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} />
+                            {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
+                          </>
                         : <div className="state small"><b>Nothing stored yet</b></div>}
                       <small className="theme-note">{result ? `${result.agency}${result.unit ? ` · ${unitLabel(result.unit)}` : ""}` : ""}{chart.note ? ` · ${chart.note}` : ""}</small>
                     </article>

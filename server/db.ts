@@ -176,6 +176,36 @@ function migrateFullHistoryChecks(database: Database): void {
   })();
 }
 
+/**
+ * The partner series' February 2022 to 2025 figures were misread: Customs
+ * publishes January and February together, and through 2025 that table had
+ * no month column, so the parser stored the two months' imports as
+ * February's exports and a growth rate as its imports (customs.ts,
+ * parseByCountry). No single-month figure exists for those Februaries. The
+ * store is append-only and the crawl only writes values it reads, so a
+ * corrected parse, which reads nothing for them, cannot retract them; this
+ * writes the retraction as a null revision, once, and the trail keeps what
+ * was shown before it.
+ */
+export const MISREAD_FEBRUARIES = { keys: ["trade_partners", "trade_partners_cny"], periods: ["2022-02", "2023-02", "2024-02", "2025-02"], labels: ["Exports", "Imports", "Balance"] } as const;
+
+export function retractMisreadFebruaries(database: Database, now = new Date()): number {
+  const latest = database.query<{ key: string; region: string; label: string; period: string }, []>(`
+    SELECT o.key, o.region, o.label, o.period FROM observations o
+    WHERE o.key IN (${MISREAD_FEBRUARIES.keys.map((key) => `'${key}'`).join(", ")})
+      AND o.period IN (${MISREAD_FEBRUARIES.periods.map((period) => `'${period}'`).join(", ")})
+      AND o.label IN (${MISREAD_FEBRUARIES.labels.map((label) => `'${label}'`).join(", ")})
+      AND o.value IS NOT NULL
+      AND o.fetched_at = (SELECT MAX(fetched_at) FROM observations WHERE key = o.key AND region = o.region AND label = o.label AND period = o.period)
+  `).all();
+  if (latest.length === 0) return 0;
+  const retract = database.prepare("INSERT OR IGNORE INTO observations (key, region, label, period, value, fetched_at) VALUES (?, ?, ?, ?, NULL, ?)");
+  const at = now.toISOString();
+  database.transaction(() => { for (const row of latest) retract.run(row.key, row.region, row.label, row.period, at); })();
+  console.log(`  Store: retracted ${latest.length} misread February partner figures`);
+  return latest.length;
+}
+
 export function db(): Database {
   if (handle) return handle;
 
@@ -257,6 +287,7 @@ export function db(): Database {
   }
   backfillSeriesRanges(database);
   migrateFullHistoryChecks(database);
+  retractMisreadFebruaries(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
   // visible as a run that failed, not as a chart that quietly goes stale.

@@ -119,6 +119,9 @@ const UNIT_CELL = /^(?:[A-Za-z]+\s+)?Unit\s*[:：]/i;
 /** The commodity table's header cell, in every wording Customs has used for it. */
 const HEADER_CELL = /^(?:Import\s+|Export\s+)?Commodity\b/i;
 
+/** A year-to-date column label: "1-to-8", "1- to-2". */
+const CUMULATIVE_CELL = /^1-?\s*to-?\s*\d{1,2}$/i;
+
 function unitLine(rows: string[][]): string {
   return rows.find((row) => UNIT_CELL.test(row[0] ?? ""))?.[0] ?? "";
 }
@@ -134,18 +137,34 @@ export function parseByCountry(html: string, currency: CustomsCurrency = "USD"):
   // the data rows beneath are the same seven columns in every year.
   const header = rows.find((row) => /Import Source/i.test(row[0] ?? "") && row.some((cell) => /Export\s*&\s*Import/i.test(cell)));
   if (!header) throw new Error("by-country table: header not recognised");
+  // The January-February release of 2022 to 2025 has no month column at all:
+  // total, exports and imports for the two months together, then the three
+  // growth rates. Read as the seven-column layout it stored January-February
+  // imports as February's exports and a growth rate as its imports, for
+  // every partner, four years running. The sub-header names the columns:
+  // a month number beside each "1-to-N" in the ordinary layout, none here.
+  const subHeader = rows.find((row) => row.some((cell) => CUMULATIVE_CELL.test(cell)));
+  const cumulativeOnly = subHeader !== undefined && !subHeader.some((cell) => /^\d{1,2}$/.test(cell.trim()));
   const out: PartnerRow[] = [];
   for (const row of rows) {
     // "Unit:" is the unit line; "United States" is a partner. A partner has
     // letters in its name; the month-number row of the 2023 layout does not.
     if (row.length < 7 || !row[0] || /^(Unit\s*:|Note|Import Source|Export Destinati)/i.test(row[0])) continue;
     if (row[0].startsWith("(") || !/[A-Za-z]/.test(row[0]) || /^\d/.test(row[1] ?? "") === false) continue;
-    out.push({
-      name: partnerName(row[0]),
-      total: cellNumber(row[1] ?? ""), ytdTotal: cellNumber(row[2] ?? ""),
-      exports: cellNumber(row[3] ?? ""), ytdExports: cellNumber(row[4] ?? ""),
-      imports: cellNumber(row[5] ?? ""), ytdImports: cellNumber(row[6] ?? ""),
-    });
+    out.push(cumulativeOnly
+      // No single-month figure is published for these two months, so none is derived.
+      ? {
+        name: partnerName(row[0]),
+        total: null, ytdTotal: cellNumber(row[1] ?? ""),
+        exports: null, ytdExports: cellNumber(row[2] ?? ""),
+        imports: null, ytdImports: cellNumber(row[3] ?? ""),
+      }
+      : {
+        name: partnerName(row[0]),
+        total: cellNumber(row[1] ?? ""), ytdTotal: cellNumber(row[2] ?? ""),
+        exports: cellNumber(row[3] ?? ""), ytdExports: cellNumber(row[4] ?? ""),
+        imports: cellNumber(row[5] ?? ""), ytdImports: cellNumber(row[6] ?? ""),
+      });
   }
   if (out.length < 10) throw new Error(`by-country table: only ${out.length} partner rows found`);
   return out;

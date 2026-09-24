@@ -24,7 +24,20 @@ what the site does not carry).
     *Test:* the April 2025 fixture parses to the same lines as March and May,
     and the store holds no "Quantity (<number>)" label.
 
-2. **Customs' 2018 layouts.** The by-country table for May to December
+2. **The partner series' January–February totals as year-to-date lines.**
+    Customs publishes the two months together, and through 2025 the
+    by-country table carried only the cumulative figure; since 24 September
+    2026 the parser reads it as year to date and stores no month for it, so
+    each partner's chart has a two-month gap every year through 2025. The
+    figure itself is published and worth showing: add "Exports, year to
+    date" and "Imports, year to date" lines to `trade_partners` (and the
+    CNY key) from the `ytdExports`/`ytdImports` columns every month, so the
+    two-month total appears where the monthly one cannot. Home rows and the
+    theme charts name their lines and are unaffected.
+    *Test:* the January–February 2025 fixture stores year-to-date lines and
+    no monthly point; August 2026 stores both.
+
+3. **Customs' 2018 layouts.** The by-country table for May to December
     2018 and the commodity tables for parts of 2018, November 2019 and
     February 2020 have neither "Unit:" nor "Value Unit:" above them and fail
     with an empty unit line. Since 22 September 2026 that is a logged gap
@@ -37,7 +50,7 @@ what the site does not carry).
     *Test:* the 2018 fixtures parse to known figures, and the empty-unit
     months no longer appear in the fetch log's warnings.
 
-3. **The default commodity for major imports and exports is a line that
+4. **The default commodity for major imports and exports is a line that
     began in 2026.** `/api/series/major_imports` with no region answers for
     "Agriculture products", which Customs added to its table in February
     2026, so the headline series shows seven months while hi-tech products
@@ -48,7 +61,7 @@ what the site does not carry).
     *Test:* the default region of each Customs commodity key has at least
     five years stored.
 
-4. **Move the headline rates off the mirror and onto the bureau's own
+5. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -71,20 +84,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-5. **Transport turnover by mode.** Freight and passenger turnover for road,
+6. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-6. **Average wages by sector.** The annual average wage of employed persons
+7. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-7. **Agriculture: grain and meat output.** Annual grain output with its
+8. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
@@ -123,6 +136,14 @@ what the site does not carry).
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-24 — The by-country table's January–February layout (2022–2025):
+  no month column, so February's exports were the two months' imports and
+  its imports a growth rate, for every partner. Parser reads the layout as
+  year to date with no month; the stored figures are retracted as null
+  revisions at boot. Found from the Trade page's partner charts. Fixture
+  `by-country-2025-02-usd.html`; tests in `customs.test.ts` and
+  `retraction.test.ts`.
 
 - 2026-09-22 — Withdrawn, not done: "the central bank's aggregate-financing
   tables have changed shape" was queued at the top on 22 September from the

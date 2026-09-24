@@ -76,6 +76,19 @@ test("the by-country table is read in every header layout Customs has used since
   expect(y2023.length).toBeGreaterThan(25);
 });
 
+test("the January-February table with no month column gives year-to-date figures and no month", async () => {
+  // Through 2025 the two months were published together, as three cumulative
+  // columns and three growth rates. Read as the ordinary layout, the two
+  // months' imports became February's exports and a growth rate its imports.
+  const janFeb = parseByCountry(await fixture("by-country-2025-02-usd.html"));
+  expect(janFeb[0]).toMatchObject({ name: "Total", total: null, exports: null, imports: null, ytdTotal: 909366.4, ytdExports: 539940.8, ytdImports: 369425.6 });
+  expect(janFeb.find((row) => row.name === "United States")).toMatchObject({ exports: null, imports: null, ytdExports: 75558.4, ytdImports: 26511.3 });
+  expect(janFeb.length).toBeGreaterThan(25);
+  // From 2026 the same release carries a February column, and reads as any other month.
+  const feb2026 = parseByCountry(await fixture("by-country-2026-02-usd.html"));
+  expect(feb2026[0]).toMatchObject({ name: "Total", total: 508778.5, ytdTotal: 1099537.2, exports: 299878, imports: 208900.5 });
+});
+
 test("the commodity tables kept one layout across years", async () => {
   for (const name of ["major-imports-2024-08-usd.html", "major-imports-2023-09-usd.html", "major-exports-2023-09-usd.html"]) {
     const rows = parseCommodities(await fixture(name));

@@ -3216,6 +3216,38 @@ not from scratch. Rounds are small on purpose.
   502s and the bond series they delay. 402 tests; 54 pairs, 0 findings; two
   deploys today for all of it, each watched to success.
 
+- 2026-09-24 (owner-directed: a Trade page, and a Customs bug it showed):
+  the owner asked, from the mock-up, for a Trade page on the real site —
+  partners, commodities, "manuf trends and stuff", all charts. The first
+  theme page: `server/themes.ts` holds a fixed list of twenty-eight charts,
+  each naming a series the store holds, the partner or commodity where it
+  has one, and the lines to draw; `/api/theme/trade` reads them with the
+  region resolved as the series route resolves it and the page draws each
+  with the series chart, legend and a link to the series. A test holds
+  every key to the catalog or a national bureau id, every region to the
+  series' own list and every line to its configured labels. Twenty-eight
+  series read in three milliseconds. The owner then named the pages the
+  nav should carry — headline, provinces, manufacturing, property,
+  overcapacity, trade and flows, equities, energy, demographics — and the
+  theme mechanism is the vehicle for the rest.
+  The first look at the live page showed a fault the series page had hidden
+  in plain sight: every partner's imports fell to nothing each February
+  from 2022 to 2025 while exports doubled. Customs publishes January and
+  February together, and through 2025 that table had no month column —
+  three cumulative columns and three growth rates — so `parseByCountry`,
+  reading the seven-column layout, stored the two months' imports as
+  February's exports and a growth rate as its imports, for all thirty
+  partners, in both currencies, four years running. The 2026 release
+  carries a February column and reads correctly, which is why nothing
+  recent looked wrong. The parser now recognises the cumulative-only
+  sub-header and returns no month for it (nothing single-month was
+  published, so nothing is derived), with the January-February 2025 table
+  as the fixture. The store being append-only and the crawl writing only
+  what it reads, a corrected parse could not retract the stored figures;
+  `retractMisreadFebruaries` writes a null revision for exactly those
+  key-region-label-periods once at boot, and the revision trail keeps what
+  was shown before. Queued: the January-February totals those tables do
+  carry, as year-to-date lines on the partner series.
 - 2026-09-23 (owner-directed: a province page): the regions page ranked
   every province on one series at a time; a reader who clicked Guangdong
   got one figure and a link. The owner asked for the other direction —
