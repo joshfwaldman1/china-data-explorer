@@ -33,6 +33,7 @@ export interface ThemeChart {
 }
 
 export interface ThemeSection { title: string; lede?: string; charts: ThemeChart[] }
+/** A theme's lede may be empty: a page that needs no introduction gets none. */
 export interface Theme { title: string; lede: string; sections: ThemeSection[] }
 
 /** Output levels from the bureau's monthly table, by catalog id; the growth rates are curated keys. */
@@ -146,41 +147,28 @@ const PROPERTY: Theme = {
 };
 
 const OVERCAPACITY: Theme = {
-  title: "Overcapacity and involution",
-  lede: "Four questions, each with the series that answer it: are prices falling at the factory gate and at the border; is capacity being used and investment still arriving; is the volume going abroad; and is demand at home keeping up. None of these is a verdict. Together they are the picture the word describes.",
+  title: "Overcapacity",
+  lede: "",
   sections: [
     {
-      title: "Prices",
+      title: "Output, prices and net exports",
       charts: [
-        { title: "Producer prices", key: "ppi", years: 10, note: "Growth on a year earlier. The run of negative months is the involution measure most quoted." },
-        { title: "Producer goods and consumer goods", key: "ppi_detail", labels: ["Producer goods (YoY %)", "Consumer goods (YoY %)"], years: 10 },
-        { title: "Prices at the US border", key: "us_import_prices_china", years: 10, note: "The BLS import price index from China; what the exports fetch, not what they cost to make." },
-        { title: "Consumer prices, core and goods", key: "cpi_detail", labels: ["Core CPI, excluding food and energy (YoY %)", "Consumer goods (YoY %)"], years: 10 },
-        { title: "Factory-gate prices in the PMI", key: "pmi_manufacturing", labels: ["Output prices", "Input prices"], years: 6, note: "Diffusion indices; below 50 is more firms cutting than raising." },
-      ],
-    },
-    {
-      title: "Capacity, investment and profits",
-      charts: [
-        { title: "Capacity utilisation", key: "capacity_utilisation", labels: ["Industry, quarter (%)", "Manufacturing, quarter (%)"], years: 8 },
-        { title: "Manufacturing investment, year to date", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8, note: "Investment growing faster than output is capacity being added." },
         { title: "Manufacturing output", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
-        { title: "Industrial profits, year to date", key: "industrial_profits", labels: ["Industrial profits, year to date (YoY %)", "Manufacturing, year to date (YoY %)"], years: 8 },
-        { title: "Orders and inventories in the PMI", key: "pmi_manufacturing", labels: ["New orders", "Finished goods inventories"], years: 6 },
+        { title: "Factory-gate prices in the PMI", key: "pmi_manufacturing", labels: ["Output prices", "Input prices"], years: 6, note: "Diffusion indices; below 50 is more firms cutting than raising." },
+        { title: "Net exports", key: "trade_values", labels: ["Balance"], years: 10, note: "Customs' monthly trade balance, 100 million USD." },
       ],
     },
     {
-      title: "Volume out the door",
+      title: "Goods",
       charts: [
-        { title: "Exports and imports, growth", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 10 },
-        { title: "New energy vehicles made, growth", key: "output_nev", labels: [MONTH_GROWTH.nev], years: 4 },
-        { title: "Automobiles made, growth", key: "output_autos", labels: [MONTH_GROWTH.autos], years: 10 },
-        { title: "Crude steel made, growth", key: "output_crude_steel", labels: [MONTH_GROWTH.steel], years: 10 },
-        { title: "Cement made, growth", key: "output_cement", labels: [MONTH_GROWTH.cement], years: 10 },
         { title: "Solar cells made (10,000 kW)", key: OUTPUT.solar, years: 10 },
         { title: "Motor vehicle exports", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 8, note: "USD million per month." },
         { title: "Ship exports", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: "USD million per month." },
         { title: "Steel product exports", key: "major_exports", region: "products-of-steel-or-iron", labels: ["Value"], years: 8, note: "USD million per month." },
+        { title: "New energy vehicles made (10,000)", key: OUTPUT.nev, years: 4 },
+        { title: "Automobiles made (10,000)", key: OUTPUT.autos, years: 10 },
+        { title: "Crude steel made, growth", key: "output_crude_steel", labels: [MONTH_GROWTH.steel], years: 10 },
+        { title: "Cement made, growth", key: "output_cement", labels: [MONTH_GROWTH.cement], years: 10 },
       ],
     },
     {

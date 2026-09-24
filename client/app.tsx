@@ -1063,7 +1063,7 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
       {status === "ok" && data && (
         <>
           <h1>{data.title}</h1>
-          <p className="lede">{data.lede}</p>
+          {data.lede && <p className="lede">{data.lede}</p>}
           {data.sections.map((section) => (
             <section key={section.title} className="theme-section" aria-label={section.title}>
               <h2>{section.title}</h2>
