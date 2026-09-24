@@ -46,3 +46,18 @@ test("invalid provenance cannot be imported as an official label", () => {
   invalid.entries[0]!.sourceUrl = "https://example.com/translation";
   expect(() => parseOfficialEnglishSnapshot(invalid)).toThrow("invalid entry");
 });
+
+test("an official label with no letters in it is not a title and fails safe to the gloss", () => {
+  const broken = structuredClone(official);
+  broken.entries[0]!.nameEn = "1";
+  const entries = indexOfficialEnglish(parseOfficialEnglishSnapshot(broken));
+  expect(resolveEnglishLabelFrom(entries, currentKey, official.entries[0]!.nameZh, "Consumer price index")).toEqual({ nameEn: "Consumer price index", nameEnSource: "generated" });
+  expect(resolveEnglishLabelFrom(entries, currentKey, official.entries[0]!.nameZh).nameEnSource).toBe("unavailable");
+});
+
+test("a zero-width character the portal prefixes is stripped from an official label", () => {
+  const prefixed = structuredClone(official);
+  prefixed.entries[0]!.nameEn = "\u200cUrban Population Share (%)";
+  const entries = indexOfficialEnglish(parseOfficialEnglishSnapshot(prefixed));
+  expect(resolveEnglishLabelFrom(entries, currentKey, official.entries[0]!.nameZh, "x").nameEn).toBe("Urban Population Share (%)");
+});

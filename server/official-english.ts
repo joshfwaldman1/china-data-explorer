@@ -110,9 +110,13 @@ export function resolveEnglishLabelFrom(
   generated = "",
 ): EnglishLabel {
   const official = entries.get(currentKey);
-  if (official && official.nameZh === nameZh) {
+  // The portal's English mode answers "1" for a dozen series (a table index
+  // where a title should be) and prefixes six with a zero-width non-joiner.
+  // A label with no letter in it is not a title and fails safe to the gloss.
+  const cleaned = official ? official.nameEn.replace(/[\u200b\u200c\u200d\ufeff]/g, "").trim() : "";
+  if (official && official.nameZh === nameZh && /[A-Za-z]/.test(cleaned)) {
     return {
-      nameEn: official.nameEn,
+      nameEn: cleaned,
       nameEnSource: "nbs-official",
       nameEnSourceUrl: official.sourceUrl,
       nameEnCapturedAt: official.capturedAt,

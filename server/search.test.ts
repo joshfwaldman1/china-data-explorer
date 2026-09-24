@@ -28,6 +28,19 @@ test("the catalog loads and counts", async () => {
   expect(national.reduce((sum, dataset) => sum + dataset.count, 0)).toBeGreaterThan(9000);
 }, 30000);
 
+test("every dataset counts its own categories, so a comparison table's heading is never the nation's", async () => {
+  const stats = await nbsCatalogStats();
+  for (const dataset of stats.datasets) {
+    expect(dataset.categories.reduce((sum, category) => sum + category.count, 0), `dataset ${dataset.code}`).toBe(dataset.count);
+  }
+  // The three-economies table has an unemployment heading of one series; the nation's monthly table has the surveyed rate under its own.
+  const economies = stats.datasets.find((dataset) => dataset.code === 12);
+  expect(economies?.categories.find((category) => category.name === "失业率")?.count).toBe(1);
+  const monthly = stats.datasets.find((dataset) => dataset.code === 1);
+  expect(monthly?.categories.some((category) => category.name === "城镇调查失业率")).toBe(true);
+  expect(monthly?.categories.some((category) => category.name === "失业率")).toBe(false);
+}, 30000);
+
 test("a specific concept outranks a long generic title on a two-character term", async () => {
   const result = await searchNbsCatalog({ query: "steel output", limit: 3 });
   expect(result.results[0]?.name.startsWith("粗钢产量")).toBe(true);

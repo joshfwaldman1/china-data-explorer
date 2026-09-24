@@ -293,7 +293,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 24; // 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 25; // 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -644,22 +644,21 @@ export async function nbsCatalogStats() {
   const snapshot = await loadSnapshot();
   const categories = new Set<string>();
   const categoryCounts = new Map<string, number>();
-  const datasets = new Map<number, { code: number; name: string; frequency: string; geography: string; count: number }>();
+  // Categories are counted within each dataset as well as across all of them:
+  // the bureau's three-economies table has an "unemployment rate" heading of
+  // its own, and counted across datasets it stood beside China's as a card
+  // of one series.
+  const datasets = new Map<number, { code: number; name: string; frequency: string; geography: string; count: number; categories: Map<string, number> }>();
   // Counts describe what a visitor can reach: one series per family, not one per year-range slice.
   const visible = snapshot.entries.filter((entry) => !entry.family || entry.family.head === entry.key);
   for (const entry of visible) {
     for (const category of entry.categories) categories.add(category);
     const topCategory = entry.categories[0];
     if (topCategory) categoryCounts.set(topCategory, (categoryCounts.get(topCategory) ?? 0) + 1);
-    const found = datasets.get(entry.datasetCode);
-    if (found) found.count += 1;
-    else datasets.set(entry.datasetCode, {
-      code: entry.datasetCode,
-      name: entry.dataset,
-      frequency: entry.frequency,
-      geography: entry.geography,
-      count: 1,
-    });
+    const found = datasets.get(entry.datasetCode) ?? { code: entry.datasetCode, name: entry.dataset, frequency: entry.frequency, geography: entry.geography, count: 0, categories: new Map<string, number>() };
+    found.count += 1;
+    if (topCategory) found.categories.set(topCategory, (found.categories.get(topCategory) ?? 0) + 1);
+    datasets.set(entry.datasetCode, found);
   }
   const storedKeys = new Set(listStoredSeries("nbs_").map((row) => row.key));
   return {
@@ -672,7 +671,10 @@ export async function nbsCatalogStats() {
     categories: [...categoryCounts.entries()]
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count),
-    datasets: [...datasets.values()].sort((a, b) => a.code - b.code),
+    datasets: [...datasets.values()].sort((a, b) => a.code - b.code).map((dataset) => ({
+      ...dataset,
+      categories: [...dataset.categories.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+    })),
   };
 }
 

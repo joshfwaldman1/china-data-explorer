@@ -1,6 +1,6 @@
 # EconStats China: what exists, and what more would take
 
-15 September 2026. Live at https://econstats-china-production.up.railway.app, source at
+15 September 2026. Live at https://www.chinastats.org, source at
 github.com/joshfwaldman1/china-data-explorer
 
 ## Summary

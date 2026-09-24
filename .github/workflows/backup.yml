@@ -38,7 +38,7 @@ jobs:
       - name: Download a consistent copy of the store
         env:
           BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
-          SITE: https://econstats-china-production.up.railway.app
+          SITE: https://www.chinastats.org
         run: |
           set -euo pipefail
           directory="$RUNNER_TEMP/china-backup"

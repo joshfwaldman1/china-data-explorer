@@ -43,7 +43,7 @@ WHAT THIS IS
 
 A FRED-style site for Chinese official statistics: 15,078 stored series,
 1.32 million observations, live at
-https://econstats-china-production.up.railway.app
+https://www.chinastats.org
 
 Stack: Bun + React 19 + Recharts + SQLite. Everything server-side reads a
 store first and falls back to the source. Repo github.com/joshfwaldman1/china-data-explorer (split out of

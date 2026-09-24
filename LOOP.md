@@ -1,7 +1,7 @@
 # One round of the improvement loop
 
 You are running one round of a standing improvement loop for the China Data
-Explorer, live at https://econstats-china-production.up.railway.app. The
+Explorer, live at https://www.chinastats.org. The
 owner wants small, safe, verifiable improvements, one per round, forever,
 until he stops the loop. Read this whole file before doing anything.
 

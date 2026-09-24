@@ -50,6 +50,8 @@ export const UNITS: Record<string, string> = {
 
 /** Token dictionary for the fallback segmentation. Longest match wins. */
 const TOKENS: [string, string][] = [
+  // The three-economies table writes its measure into the title ("增长速度 (同比)"), where the measure suffixes above do not reach.
+  ["消费者价格涨跌幅", "consumer price change"], ["涨跌幅", "change"], ["增长速度", "growth rate"], ["同比", "year on year"], ["环比", "month on month"],
   ["国内生产总值", "GDP"], ["地区生产总值", "regional GDP"], ["居民消费价格", "consumer prices"], ["工业生产者出厂价格", "producer prices (factory gate)"],
   ["工业生产者购进价格", "producer purchase prices"], ["商品零售价格", "retail prices"], ["固定资产投资", "fixed-asset investment"], ["房地产开发投资", "real estate development investment"],
   ["社会消费品零售总额", "retail sales of consumer goods"], ["规模以上工业", "industry above designated size"], ["规模以上", "above designated size"],

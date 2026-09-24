@@ -99,7 +99,17 @@ function isBehind(period: string, frequency: string): boolean {
   return frequency === "Monthly" ? months > 4 : frequency === "Quarterly" ? months > 10 : months > 24;
 }
 interface SearchResponse { total: number; offset: number; limit: number; results: NbsCatalogEntry[]; place?: { text: string; en: string; kind: string }; }
-interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; }
+interface DatasetStat { code: number; name: string; frequency: string; geography: string; count: number; categories?: { name: string; count: number }[]; }
+
+/** The bureau's datasets in English, in the order the Browse page shows them: the nation, its provinces and cities, then the comparisons. */
+const DATASET_EN: Record<number, string> = {
+  1: "National, monthly", 2: "National, quarterly", 3: "National, annual",
+  4: "Provinces, monthly", 5: "Provinces, quarterly", 6: "Provinces, annual",
+  7: "Cities, monthly prices", 8: "Cities, annual",
+  10: "Hong Kong, Macao and Taiwan, annual",
+  12: "Three major economies, monthly", 13: "International commodity prices, monthly", 14: "Major countries, annual",
+};
+const DATASET_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 14];
 interface CatalogStats { generatedAt: string; seriesCount: number; storedCount?: number; officialEnglishCount?: number; categoryCount: number; categories: { name: string; count: number }[]; datasets: DatasetStat[]; }
 interface Release { id: string; date: string; title: string; en: string; keys: string[]; categories: string[]; }
 interface Vintage { value: number | null; fetchedAt: string; }
@@ -961,22 +971,37 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
 }
 
 function BrowsePage(props: { stats: CatalogStats | null }) {
+  // One block per dataset, so a heading in the three-economies table is never
+  // mistaken for the nation's. Within a block, headings with the same English
+  // name are one card, the Chinese names listed on it.
+  const datasets = [...(props.stats?.datasets ?? [])].sort((a, b) => (DATASET_ORDER.indexOf(a.code) + 1 || 99) - (DATASET_ORDER.indexOf(b.code) + 1 || 99));
   return (
     <main id="main" tabIndex={-1} className="page">
-      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Categories</span></div>
-      <h1>NBS Categories</h1>
-      <p className="lede">The {props.stats?.categoryCount ?? 0} NBS categories, grouped by top-level heading. Chinese names are official; English names are glosses.</p>
-      <div className="cats" style={{ marginTop: 20 }}>
-        {props.stats?.categories.map((category) => (
-          <a key={category.name} className="cat" href={`#/category/${encodeURIComponent(category.name)}`}>
-            {/* English first with the Chinese alongside, as the rest of the site reads; Chinese alone only when no gloss exists. */}
-            {categoryEn(category.name)
-              ? <><b>{categoryEn(category.name)}</b><span className="gloss"><Zh>{category.name}</Zh></span></>
-              : <b><Zh>{category.name}</Zh></b>}
-            <small>{category.count.toLocaleString("en-US")} series</small>
-          </a>
-        ))}
-      </div>
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Browse</span></div>
+      <h1>Browse</h1>
+      {datasets.map((dataset) => {
+        const cards = new Map<string, { en: string; zh: string[]; count: number }>();
+        for (const category of dataset.categories ?? []) {
+          const en = categoryEn(category.name) || category.name;
+          const card = cards.get(en) ?? { en, zh: [], count: 0 };
+          card.zh.push(category.name); card.count += category.count; cards.set(en, card);
+        }
+        return (
+          <section key={dataset.code} className="browse-dataset" aria-label={DATASET_EN[dataset.code] ?? dataset.name}>
+            <h2>{DATASET_EN[dataset.code] ?? dataset.name} <Zh className="gloss">{dataset.name}</Zh> <small className="quiet">{dataset.count.toLocaleString("en-US")} series</small></h2>
+            <div className="cats">
+              {[...cards.values()].sort((a, b) => b.count - a.count).map((card) => (
+                <a key={card.en} className="cat" href={routeHash({ view: "search", q: "", freq: "", cat: card.zh[0] ?? "", dataset: String(dataset.code), geo: "" })}>
+                  {card.en !== card.zh[0]
+                    ? <><b>{card.en}</b><span className="gloss"><Zh>{card.zh.join(" / ")}</Zh></span></>
+                    : <b><Zh>{card.zh.join(" / ")}</Zh></b>}
+                  <small>{card.count.toLocaleString("en-US")} series</small>
+                </a>
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </main>
   );
 }

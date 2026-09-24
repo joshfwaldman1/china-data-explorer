@@ -6,7 +6,7 @@ indicators read from the publishers themselves (PBOC, Customs, SAFE, the
 Ministries of Finance and Commerce, the National Energy Administration, CFETS)
 and cross-checked against one another every night.
 
-Live: https://econstats-china-production.up.railway.app
+Live: https://www.chinastats.org
 
 Independent project, not affiliated with any statistical agency. Attribute
 figures to the publishing agency, never to this site.
