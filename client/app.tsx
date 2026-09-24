@@ -700,7 +700,7 @@ function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean; years?: bool
  */
 function staleNote(entry: CuratedEntry, latest: SeriesPoint | undefined): string {
   if (entry.ended || !latest || !isBehind(latest.date, entry.frequency)) return "";
-  return entry.refreshBlocked ? ` · not refreshed here (needs ${entry.refreshBlocked})` : " · nothing newer published";
+  return entry.refreshBlocked ? `, not refreshed here (needs ${entry.refreshBlocked})` : ", nothing newer published";
 }
 
 function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
@@ -1083,7 +1083,7 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                             {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
                           </>
                         : <div className="state small"><b>Nothing stored yet</b></div>}
-                      <small className="theme-note">{result ? `${result.agency}${result.unit ? ` · ${unitLabel(result.unit)}` : ""}` : ""}{chart.note ? ` · ${chart.note}` : ""}</small>
+                      <small className="theme-note">{result ? `${result.agency}${result.unit ? `, ${unitLabel(result.unit)}` : ""}` : ""}{chart.note ? `. ${chart.note}` : ""}</small>
                     </article>
                   );
                 })}
@@ -1143,13 +1143,13 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
           <div className="indicator-list">
             {data.sections.map((section) => (
               <section key={section.title} aria-label={section.title}>
-                <h3>{section.title}{section.note && <small className="quiet"> · {section.note}</small>}</h3>
+                <h3>{section.title}{section.note && <small className="quiet">: {section.note}</small>}</h3>
                 {section.rows.map((row) => {
                   const latest = row.points.at(-1), previous = row.points.at(-2);
                   const levelChange = latest && row.measure.kind === "level" ? yearOnYearText(latest, row.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: false, unit: row.measure }) : "";
                   return (
                     <a key={row.key} className="indicator-row" href={seriesHash([row.key], { region: data.region.value })}>
-                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? ` · ended ${row.ended}` : ""}</small></span>
+                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? `, ended ${row.ended}` : ""}</small></span>
                       <span className="value">{latest ? fmt(latest.value, row.measure) : "—"}<i>{latest ? row.measure.suffix : ""}</i></span>
                       <span className="change">{levelChange || deltaText(latest, previous, row.measure, "short")}</span>
                       <span className={`period${row.ended ? " behind" : ""}`}>{row.ended ? `Ended ${row.ended}` : latest ? observationLabel(latest.date, row.frequency) : row.frequency}</span>
@@ -1162,7 +1162,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
             ))}
             {data.structure && (
               <section aria-label="Structure of the economy">
-                <h3>Structure of the economy<small className="quiet"> · {data.structure.year}, share of gross regional product, from the bureau's annual value-added tables</small></h3>
+                <h3>Structure of the economy<small className="quiet">: {data.structure.year}, share of gross regional product, from the bureau's annual value-added tables</small></h3>
                 <div className="share-list">
                   {data.structure.sectors.map((item) => (
                     <a key={item.key} className="share-row" href={seriesHash([item.key], { region: data.region.value })}>
@@ -1172,7 +1172,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
                     </a>
                   ))}
                 </div>
-                {data.structure.industries && <h4 className="quiet">Largest industries, by value added · {data.structure.industries.year}{data.structure.industries.year !== data.structure.year ? ", the latest year the bureau has published them for" : ""}</h4>}
+                {data.structure.industries && <h4 className="quiet">Largest industries, by value added, {data.structure.industries.year}{data.structure.industries.year !== data.structure.year ? ", the latest year the bureau has published them for" : ""}</h4>}
                 <div className="share-list">
                   {(data.structure.industries?.items ?? []).map((item) => (
                     <a key={item.key} className="share-row" href={seriesHash([item.key], { region: data.region.value })}>
@@ -1307,7 +1307,7 @@ function HealthPage() {
               : <>
                   <p>The newest figure is older than the publishing cadence implies. Either the publisher has not released, or the site has not managed to read what it released.</p>
                   <ul className="health-list">{data.behind.publisher.map((row) => (
-                    <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency} · newest {row.lastPeriod ?? "nothing stored"}, expected {row.expected}</span></li>
+                    <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, newest {row.lastPeriod ?? "nothing stored"}, expected {row.expected}</span></li>
                   ))}</ul>
                 </>}
             {data.behind.blocked.length > 0 && (
@@ -1315,7 +1315,7 @@ function HealthPage() {
                 <h3>Not refreshable on this deployment</h3>
                 <p className="quiet">The publisher is still publishing. These reach the site through a service this deployment does not run, so the gap is ours, not theirs.</p>
                 <ul className="health-list">{data.behind.blocked.map((row) => (
-                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency} · newest {row.lastPeriod ?? "nothing stored"} · needs {row.blocked}</span></li>
+                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, newest {row.lastPeriod ?? "nothing stored"}, needs {row.blocked}</span></li>
                 ))}</ul>
               </>
             )}
@@ -1324,7 +1324,7 @@ function HealthPage() {
                 <h3>Discontinued by the publisher</h3>
                 <p className="quiet">Kept and labelled rather than deleted, so a reader can still see what was published while it existed.</p>
                 <ul className="health-list">{data.behind.ended.map((row) => (
-                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency} · ended {row.ended}</span></li>
+                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, ended {row.ended}</span></li>
                 ))}</ul>
               </>
             )}
@@ -1954,7 +1954,7 @@ function SeriesPage(props: {
         <div className="card">
           <h2>Series Details</h2>
           <dl>
-            <dt>Source</dt><dd>{primary.agency}{curated && <> · <a href={routeHash({ view: "methodology", key: primary.key })}>How this figure is made ›</a></>}</dd>
+            <dt>Source</dt><dd>{primary.agency}{curated && <>. <a href={routeHash({ view: "methodology", key: primary.key })}>How this figure is made ›</a></>}</dd>
             {arrival && <><dt>How it arrived</dt><dd>{arrival.sentence}{arrival.release?.url && <> <a href={arrival.release.url} target="_blank" rel="noreferrer">Open the release</a></>}</dd></>}
             <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"}</a></dd>
             {meta && <><dt>Dataset</dt><dd>{meta.datasetEn ? <>{meta.datasetEn} <Zh className="gloss">{meta.dataset}</Zh></> : <Zh>{meta.dataset}</Zh>}</dd></>}
@@ -2102,7 +2102,7 @@ function ProvinceCards() {
               </div>
             )}
             {card.industries && card.industries.items.length > 0 && (
-              <p className="quiet province-industries">Largest industries, {card.industries.year}: {card.industries.items.map((item) => `${item.label} ${item.share.toFixed(1)}%`).join(" · ")}</p>
+              <p className="quiet province-industries">Largest industries, {card.industries.year}: {card.industries.items.map((item) => `${item.label} ${item.share.toFixed(1)}%`).join(", ")}</p>
             )}
           </a>
         ))}
