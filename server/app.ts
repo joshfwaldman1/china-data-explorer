@@ -42,6 +42,7 @@ import { createReadinessProbe } from "./readiness";
 import { methodology } from "./methodology";
 import { healthHeadline, healthReport } from "./health-report";
 import { provinceProfile } from "./province";
+import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 
@@ -271,6 +272,13 @@ const routes = {
     // sources that will not parse, series behind their cadence. All from the
     // store and the audit, so opening it costs a publisher nothing.
     "/api/health-report": () => Response.json(cachedHealthReport()),
+    // A theme page: one story's charts, each read from the store by key,
+    // region and line. Nothing here fetches.
+    "/api/theme/:name": (req: RouteRequest) => {
+      const data = themeData(req.params.name ?? "");
+      if (!data) return Response.json({ error: "Unknown theme" }, { status: 404 });
+      return Response.json(data);
+    },
     // One province across every series the site holds for it, read from the
     // store by the province's code; nothing here fetches.
     "/api/province/:code": async (req: RouteRequest) => {

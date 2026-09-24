@@ -516,6 +516,19 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 .health-message { margin-top: var(--s-1); font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--fs-1); color: var(--faint); overflow-wrap: anywhere; }
 .page > section > p.quiet { color: var(--muted); }
 
+/* Theme pages: a grid of chart cards, each the series page's chart at a smaller size. */
+.theme-section { margin-top: var(--s-6); }
+.theme-section > h2 { margin: 0 0 var(--s-1); }
+.theme-lede { margin: 0 0 var(--s-3); color: var(--muted); font-size: var(--fs-3); }
+.theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
+@media (max-width: 900px) { .theme-grid { grid-template-columns: 1fr; } }
+.theme-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-2); padding: var(--s-3) var(--s-4) var(--s-3); min-width: 0; }
+.theme-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); margin-bottom: var(--s-2); }
+.theme-card-head h3 { margin: 0; font-size: var(--fs-4); font-weight: 600; }
+.theme-card-head a { font-size: var(--fs-2); white-space: nowrap; }
+.theme-card .recharts-responsive-container, .theme-card .chart { height: 220px; }
+.theme-note { display: block; margin-top: var(--s-2); color: var(--faint); font-size: var(--fs-1); }
+.state.small { padding: var(--s-4); }
 /* Province profile: the economy's makeup as ranked bars, one row per part. */
 .share-list { display: grid; gap: var(--s-1); margin: var(--s-2) 0 var(--s-3); }
 .share-row { display: grid; grid-template-columns: minmax(0, 220px) 1fr 64px; align-items: center; gap: var(--s-3); padding: 4px var(--s-4); color: var(--ink); }

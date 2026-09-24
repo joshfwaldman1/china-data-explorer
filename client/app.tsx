@@ -115,6 +115,7 @@ type Route =
   | { view: "methodology"; key: string }
   | { view: "health" }
   | { view: "province"; code: string }
+  | { view: "theme"; name: string }
   | { view: "saved" }
   | { view: "recent" };
 
@@ -394,6 +395,8 @@ function parseRoute(hash: string): Route {
   if (head === "methodology") return { view: "methodology", key: query.get("key") ?? "" };
   if (head === "health") return { view: "health" };
   if (head === "province") return { view: "province", code: query.get("code") ?? "" };
+  if (head === "theme" && parts[1]) return { view: "theme", name: decodeURIComponent(parts[1]) };
+  if (head === "trade") return { view: "theme", name: "trade" };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -410,6 +413,7 @@ function routeHash(route: Route): string {
     case "methodology": return `#/methodology${qs([["key", route.key]])}`;
     case "health": return "#/health";
     case "province": return `#/province${qs([["code", route.code]])}`;
+    case "theme": return route.name === "trade" ? "#/trade" : `#/theme/${encodeURIComponent(route.name)}`;
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -998,6 +1002,69 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
         <div className="result-list" style={{ marginTop: 20 }}>
           {props.keys.map((key) => { const entry = entries.get(key); return <article className="result" key={key}><a className="main" href={seriesHash([key])}><span className="title">{entry ? <Zh>{entry.title}</Zh> : key}</span>{entry && <span className="meta"><Zh>{entry.sub}</Zh></span>}</a></article>; })}
         </div>
+      )}
+    </main>
+  );
+}
+
+// ── Theme pages ───────────────────────────────────────────────────────────────
+
+interface ThemeChartData { title?: string; key: string; region?: string; labels?: string[]; years?: number; note?: string; result: SeriesResult | null; place?: Region }
+interface ThemeData { name: string; title: string; lede: string; sections: { title: string; lede?: string; charts: ThemeChartData[] }[] }
+
+/**
+ * One story told with the series the site already holds, every panel drawn
+ * by the same chart the series page uses and opening on that series. The
+ * definition lives on the server (`server/themes.ts`), held to the catalog
+ * by a test, so this page only draws what it is handed.
+ */
+function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
+  const [data, setData] = useState<ThemeData | null>(null);
+  const [status, setStatus] = useState<"loading" | "ok" | "error" | "unknown">("loading");
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    fetch(`/api/theme/${encodeURIComponent(props.route.name)}`).then(async (response) => {
+      if (cancelled) return;
+      if (response.status === 404) { setStatus("unknown"); return; }
+      setData((await response.json()) as ThemeData); setStatus("ok");
+    }).catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, [props.route.name]);
+  return (
+    <main id="main" tabIndex={-1} className="page page-wide">
+      <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>{data?.title ?? "Theme"}</span></div>
+      {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Loading…</div>}
+      {status === "unknown" && <div className="state"><b>No such page</b></div>}
+      {status === "error" && <div className="state"><b>The page is unavailable</b><p>The server did not answer.</p></div>}
+      {status === "ok" && data && (
+        <>
+          <h1>{data.title}</h1>
+          <p className="lede">{data.lede}</p>
+          {data.sections.map((section) => (
+            <section key={section.title} className="theme-section" aria-label={section.title}>
+              <h2>{section.title}</h2>
+              {section.lede && <p className="quiet theme-lede">{section.lede}</p>}
+              <div className="theme-grid">
+                {section.charts.map((chart) => {
+                  const result = chart.result;
+                  const built = result ? buildTracks([result], new Map()) : null;
+                  const hasPoints = built ? built.tracks.some((track) => track.points.length > 1) : false;
+                  const title = chart.title ?? result?.title ?? chart.key;
+                  return (
+                    <article key={`${chart.key}|${chart.region ?? ""}|${title}`} className="theme-card">
+                      <div className="theme-card-head"><h3>{title}</h3><a href={chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key])}>Open series ›</a></div>
+                      {hasPoints && built && result
+                        ? <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} />
+                        : <div className="state small"><b>Nothing stored yet</b></div>}
+                      <small className="theme-note">{result ? `${result.agency}${result.unit ? ` · ${unitLabel(result.unit)}` : ""}` : ""}{chart.note ? ` · ${chart.note}` : ""}</small>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </>
       )}
     </main>
   );
@@ -2186,7 +2253,7 @@ function App() {
     setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
-      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "theme" ? (route.name === "trade" ? "Trade" : route.name) : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
@@ -2240,6 +2307,7 @@ function App() {
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
           <a href="#/regions" aria-current={current("regions")}>Provinces</a>
+          <a href="#/trade" aria-current={route.view === "theme" && route.name === "trade" ? "page" : undefined}>Trade</a>
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
         </nav>
         <div className="topbar-tools">
@@ -2256,6 +2324,7 @@ function App() {
         {route.view === "methodology" && <MethodologyPage route={route} curated={curated} />}
         {route.view === "health" && <HealthPage />}
         {route.view === "province" && <ProvincePage route={route} />}
+        {route.view === "theme" && <ThemePage route={route} />}
         {route.view === "regions" && <RegionsPage route={route} lang={lang} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
