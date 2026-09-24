@@ -2052,6 +2052,66 @@ function breaksFor(values: number[]): number[] {
 }
 function stepFor(value: number, breaks: number[]): number { let step = 0; for (const edge of breaks) if (value >= edge) step += 1; return Math.min(step, RAMP.length - 1); }
 
+interface ProvinceCard {
+  code: string; en: string; zh: string;
+  gdpGrowth: { period: string; value: number } | null;
+  industrialGrowth: { period: string; value: number } | null;
+  grp: { year: string; value: number } | null;
+  population: { year: string; value: number } | null;
+  sectors: Share[];
+  industries: { year: string; items: Share[] } | null;
+}
+
+/**
+ * One card per province under the map, largest economy first: growth,
+ * industrial output, size, residents, the three sectors and the largest
+ * industries, each card opening on the province's profile. A field the
+ * store lacks is a dash, never a stand-in.
+ */
+function ProvinceCards() {
+  const [cards, setCards] = useState<ProvinceCard[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    json("/api/provinces").then((body) => { if (!cancelled && Array.isArray(body)) setCards(body as ProvinceCard[]); }).catch(() => { if (!cancelled) setCards([]); });
+    return () => { cancelled = true; };
+  }, []);
+  if (!cards || cards.length === 0) return null;
+  const pct = (item: { value: number } | null) => item ? `${item.value.toFixed(1)}%` : "–";
+  const millions = (item: { value: number } | null) => item ? `${(item.value / 100).toFixed(1)}m` : "–";
+  const yuan = (item: { value: number } | null) => item ? Math.round(item.value).toLocaleString("en-US") : "–";
+  const growthPeriod = cards.find((card) => card.gdpGrowth)?.gdpGrowth?.period;
+  const grpYear = cards.find((card) => card.grp)?.grp?.year;
+  return (
+    <section className="province-cards" aria-label="Province profiles">
+      <div className="section-head"><h2>Province profiles</h2><span>Largest economy first. Each card opens the province's full profile.</span></div>
+      <div className="province-grid">
+        {cards.map((card) => (
+          <a key={card.code} className="province-card" href={routeHash({ view: "province", code: card.code })}>
+            <h3>{card.en} <Zh className="gloss">{card.zh}</Zh></h3>
+            <dl>
+              <div><dt>Real GDP growth{card.gdpGrowth && card.gdpGrowth.period !== growthPeriod ? `, ${periodPretty(card.gdpGrowth.period)}` : ""}</dt><dd>{pct(card.gdpGrowth)}</dd></div>
+              <div><dt>Industrial output growth</dt><dd>{pct(card.industrialGrowth)}</dd></div>
+              <div><dt>GRP{card.grp && card.grp.year !== grpYear ? `, ${card.grp.year}` : ""}</dt><dd>{card.grp ? <>{yuan(card.grp)}<small> 100M yuan</small></> : "–"}</dd></div>
+              <div><dt>Residents</dt><dd>{millions(card.population)}</dd></div>
+            </dl>
+            {card.sectors.length > 0 && (
+              <div className="province-shares" aria-label="Sector shares of GRP">
+                {card.sectors.map((item) => (
+                  <div key={item.key}><span>{item.label.replace(/ industry$/i, "")}</span><i aria-hidden="true"><b style={{ width: `${Math.min(100, item.share)}%` }} /></i><em>{item.share.toFixed(1)}%</em></div>
+                ))}
+              </div>
+            )}
+            {card.industries && card.industries.items.length > 0 && (
+              <p className="quiet province-industries">Largest industries, {card.industries.year}: {card.industries.items.map((item) => `${item.label} ${item.share.toFixed(1)}%`).join(" · ")}</p>
+            )}
+          </a>
+        ))}
+      </div>
+      <p className="quiet">Growth is year to date, {growthPeriod ? periodPretty(growthPeriod) : "latest"}; GRP and residents are the bureau's annual figures{grpYear ? ` for ${grpYear}` : ""}; sector shares are computed from that year's published levels.</p>
+    </section>
+  );
+}
+
 function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: string; navigate: (route: Route) => void; toast: (text: string) => void }) {
   const [data, setData] = useState<RegionalResponse | null>(null);
   // Provincial GDP is the page's own series; any other regional series in the
@@ -2224,6 +2284,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
           </div>
         </div>
       )}
+      {status === "ok" && gdp && <ProvinceCards />}
     </main>
   );
 }

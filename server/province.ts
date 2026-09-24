@@ -231,6 +231,46 @@ export async function provinceProfile(code: string): Promise<ProvinceProfile | n
   return { code, region: { value: region.value, text: region.text, en }, sections, structure: structureOf(code) };
 }
 
+/**
+ * One card per province for the regions page: the figures a reader wants
+ * before choosing a profile to open. Growth and industrial output from the
+ * curated provincial series, size from the bureau's annual tables, and the
+ * economy's makeup from the structure the profile computes. Every field is
+ * null where the store has nothing, never a stand-in.
+ */
+export interface ProvinceCard {
+  code: string;
+  en: string;
+  zh: string;
+  gdpGrowth: { period: string; value: number } | null;
+  industrialGrowth: { period: string; value: number } | null;
+  grp: { year: string; value: number } | null;
+  population: { year: string; value: number } | null;
+  sectors: Share[];
+  industries: { year: string; items: Share[] } | null;
+}
+
+export function provinceCards(): ProvinceCard[] {
+  const cards = PROVINCE_PLACES.map((place): ProvinceCard => {
+    const growth = readSeries("provincial_gdp", 8, place.code)?.series[0]?.points.at(-1);
+    const industrial = readSeries("provincial_industry", 24, place.code)?.series.find((line) => line.label === "Industrial output, month (YoY %)")?.points.at(-1);
+    const grp = valueAt(NBS.gdp, place.code);
+    const population = valueAt(NBS.population, place.code);
+    const structure = structureOf(place.code);
+    return {
+      code: place.code, en: place.en, zh: place.zh,
+      gdpGrowth: growth ? { period: growth.date, value: growth.value } : null,
+      industrialGrowth: industrial ? { period: industrial.date, value: industrial.value } : null,
+      grp: grp ? { year: grp.date, value: grp.value } : null,
+      population: population ? { year: population.date, value: population.value } : null,
+      sectors: structure?.sectors ?? [],
+      industries: structure?.industries ? { year: structure.industries.year, items: structure.industries.items.slice(0, 4) } : null,
+    };
+  });
+  // Largest economies first; a province the store has no GRP for goes last, in list order.
+  return cards.sort((a, b) => (b.grp?.value ?? -1) - (a.grp?.value ?? -1));
+}
+
 /** Every key the profile reads, for the test that holds them to the catalog. */
 export function profileKeys(): string[] {
   return [...new Set([...PROVINCE_PROFILE.flatMap((section) => section.entries.map((entry) => entry.key)), ...STRUCTURE.sectors.map((s) => s.key), ...STRUCTURE.industries.map((s) => s.key), NBS.gdp])];

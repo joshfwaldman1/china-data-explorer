@@ -41,7 +41,7 @@ import { fetchCustomsReleases } from "./customs-calendar";
 import { createReadinessProbe } from "./readiness";
 import { methodology } from "./methodology";
 import { healthHeadline, healthReport } from "./health-report";
-import { provinceProfile } from "./province";
+import { provinceProfile, provinceCards } from "./province";
 import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
@@ -240,6 +240,17 @@ function homeWindow(frequency: string): number {
  * well inside how often anything here changes — the ingest runs daily and the
  * audit nightly — and it turns any amount of polling into one computation.
  */
+// The province cards read a few hundred series for one page; they change
+// once a day at most, so a request never pays for them more than once a minute.
+let provinceCardsCache: { at: number; body: unknown } | null = null;
+function cachedProvinceCards(): unknown {
+  const now = Date.now();
+  if (provinceCardsCache && now - provinceCardsCache.at < HEALTH_TTL_MS) return provinceCardsCache.body;
+  const body = provinceCards();
+  provinceCardsCache = { at: now, body };
+  return body;
+}
+
 let healthCache: { at: number; body: unknown } | null = null;
 const HEALTH_TTL_MS = 60_000;
 
@@ -281,6 +292,7 @@ const routes = {
     },
     // One province across every series the site holds for it, read from the
     // store by the province's code; nothing here fetches.
+    "/api/provinces": () => Response.json(cachedProvinceCards()),
     "/api/province/:code": async (req: RouteRequest) => {
       const code = req.params.code ?? "";
       const profile = await provinceProfile(code);
