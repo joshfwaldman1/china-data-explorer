@@ -3216,6 +3216,35 @@ not from scratch. Rounds are small on purpose.
   502s and the bond series they delay. 402 tests; 54 pairs, 0 findings; two
   deploys today for all of it, each watched to success.
 
+- 2026-09-25 (owner-directed: faster search; and "are we missing NBS
+  series?"): a search scored all 79,836 catalog entries for every query —
+  building each one's haystack, testing every term, sorting what matched —
+  and took 180 to 1,200 ms on the serving thread. Most of that work proved
+  that an entry does not match. A candidate index, built once per catalog
+  snapshot in five seconds at boot, now answers "which entries could score
+  above zero" from three postings over the same lowercased haystack the
+  scorer reads: every Chinese character and adjacent pair (a Chinese term
+  matches as a substring, and a substring's pairs are in it), every run of
+  Latin letters and digits (a Latin term matches on a word boundary, with
+  an optional plural), and every three letters of the joined pinyin. A
+  term of mixed script or punctuation ("16—24岁") is netted by its Chinese
+  runs and its interior number runs; a term the postings cannot express
+  falls back to the full scan, which is the old behaviour exactly. The
+  scorer and the sort are untouched, and a test holds the indexed ranking
+  identical to the scanned one over thirty-two query shapes and holds the
+  index to three times faster. Measured locally: "gdp" 185 → 12 ms,
+  "居民消费价格" 250 → 60, "youth unemployment" 2,400 → 200, "猪肉价格"
+  227 → under 1. What remains per query is the full-text tiebreak, 40 to
+  150 ms in SQLite. The three largest JSON routes — search, theme pages,
+  province cards — are gzipped when the client accepts it; a page of
+  results was 80 KB of repeated field names.
+  On missing series: the catalog has every dataset the portal lists but 9
+  and 11. A probe crawl of 9 (港澳台月度数据) on 25 September reached its
+  root and found no indicators, as the crawl's note already says of 11;
+  both are empty on the portal, not missed. Within the datasets the crawl
+  walks the bureau's tree to its leaves, and the Browse page now shows the
+  same headings the portal does, dataset by dataset, which is the check a
+  reader can make.
 - 2026-09-24 (owner-directed: the regions page, "clearer, the way the
   mock-up has it"): the mock-up's regional section put a row of province
   cards under the map — growth, industrial output, size, residents, the

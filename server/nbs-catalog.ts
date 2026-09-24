@@ -806,6 +806,216 @@ function haystackOf(entry: NbsCatalogEntry): string {
   return searchTextOf(entry).haystack;
 }
 
+// ── Candidate index ───────────────────────────────────────────────────────────
+//
+// Scoring used to run over all 79,836 entries for every query: build the
+// haystack, test every term, sort what matched. Most of that work was proving
+// that an entry does *not* match. The index below answers "which entries could
+// possibly score above zero for this query" from postings built once per
+// snapshot, and the scorer then runs over those alone. The scorer is unchanged
+// and the index is a superset of everything it can match — a test holds the
+// two orderings identical over a spread of queries — so the ranking is the
+// same; only the work is smaller.
+//
+// Three postings, all over the same lowercased haystack the scorer reads:
+//   cjk    — every Chinese character and every adjacent pair, since a Chinese
+//            term matches as a substring and any substring's pairs are in it;
+//   words  — every run of Latin letters and digits, since a Latin term matches
+//            on a word boundary (with an optional plural);
+//   pinyin — every three letters of the joined pinyin, since a Latin term of
+//            three letters or more also matches as a substring of it.
+// A term the postings cannot express (punctuation, mixed script) makes the
+// query fall back to the full scan, which is the old behaviour exactly.
+
+interface CandidateIndex {
+  cjk: Map<string, number[]>;
+  words: Map<string, number[]>;
+  pinyin: Map<string, number[]>;
+  byKey: Map<string, number>;
+}
+
+const candidateIndexCache = new WeakMap<CatalogSnapshot, CandidateIndex>();
+let candidateIndexEnabled = true;
+/** For the test that holds the indexed ranking to the scanned one. */
+export function setCandidateIndexEnabled(enabled: boolean): void { candidateIndexEnabled = enabled; }
+
+const CJK_RUN = /[\u3400-\u9fff]+/g;
+const WORD_RUN = /[a-z0-9]+/g;
+const CJK_TERM = /^[\u3400-\u9fff]+$/;
+const WORD_TERM = /^[a-z0-9]+$/;
+
+function post(map: Map<string, number[]>, token: string, index: number): void {
+  const list = map.get(token);
+  if (list === undefined) map.set(token, [index]);
+  else if (list[list.length - 1] !== index) list.push(index);
+}
+
+function candidateIndexOf(snapshot: CatalogSnapshot): CandidateIndex {
+  const cached = candidateIndexCache.get(snapshot);
+  if (cached) return cached;
+  const startedAt = Date.now();
+  const index: CandidateIndex = { cjk: new Map(), words: new Map(), pinyin: new Map(), byKey: new Map() };
+  snapshot.entries.forEach((entry, position) => {
+    index.byKey.set(entry.key, position);
+    const { haystack, pinyinJoined } = searchTextOf(entry);
+    for (const run of haystack.match(CJK_RUN) ?? []) {
+      for (let at = 0; at < run.length; at += 1) {
+        post(index.cjk, run[at]!, position);
+        if (at + 1 < run.length) post(index.cjk, run.slice(at, at + 2), position);
+      }
+    }
+    for (const word of haystack.match(WORD_RUN) ?? []) post(index.words, word, position);
+    for (let at = 0; at + 3 <= pinyinJoined.length; at += 1) post(index.pinyin, pinyinJoined.slice(at, at + 3), position);
+  });
+  candidateIndexCache.set(snapshot, index);
+  console.log(`  Search index: ${index.cjk.size} Chinese tokens, ${index.words.size} words, ${index.pinyin.size} pinyin trigrams in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+  return index;
+}
+
+/** Sorted, deduplicated postings; every list in the index is already sorted by construction. */
+function intersectAll(lists: number[][]): number[] {
+  if (lists.length === 0) return [];
+  let out = lists[0]!;
+  for (const list of lists.slice(1)) {
+    const next: number[] = [];
+    let a = 0, b = 0;
+    while (a < out.length && b < list.length) {
+      if (out[a] === list[b]) { next.push(out[a]!); a += 1; b += 1; }
+      else if (out[a]! < list[b]!) a += 1;
+      else b += 1;
+    }
+    out = next;
+    if (out.length === 0) break;
+  }
+  return out;
+}
+
+function unionAll(lists: number[][]): number[] {
+  if (lists.length === 1) return lists[0]!;
+  const seen = new Set<number>();
+  for (const list of lists) for (const item of list) seen.add(item);
+  return [...seen].sort((a, b) => a - b);
+}
+
+/** Every entry that could match one term, or null when the term is one the postings cannot express. */
+function postingsFor(index: CandidateIndex, term: string): number[] | null {
+  const trimmed = term.trim();
+  if (!trimmed) return [];
+  if (CJK_TERM.test(trimmed)) {
+    if (trimmed.length === 1) return index.cjk.get(trimmed) ?? [];
+    const pairs: number[][] = [];
+    for (let at = 0; at + 2 <= trimmed.length; at += 1) pairs.push(index.cjk.get(trimmed.slice(at, at + 2)) ?? []);
+    return intersectAll(pairs);
+  }
+  if (WORD_TERM.test(trimmed)) {
+    // The scorer's word rule: the term, or its plural, on a boundary; a plural
+    // typed against a singular; and, at three letters or more, a substring of
+    // the joined pinyin.
+    const bases = [trimmed];
+    if (/^[a-z]{4,}s$/.test(trimmed)) bases.push(trimmed.replace(/e?s$/, ""));
+    const lists: number[][] = [];
+    for (const base of bases) for (const form of [base, `${base}s`, `${base}es`]) lists.push(index.words.get(form) ?? []);
+    if (/^[a-z]{3,}$/.test(trimmed)) {
+      const grams: number[][] = [];
+      for (let at = 0; at + 3 <= trimmed.length; at += 1) grams.push(index.pinyin.get(trimmed.slice(at, at + 3)) ?? []);
+      lists.push(intersectAll(grams));
+    }
+    return unionAll(lists);
+  }
+  // A phrase from the alias table ("fixed asset investment"): every word of it must be present.
+  if (/\s/.test(trimmed)) {
+    const parts = trimmed.split(/\s+/).map((part) => postingsFor(index, part));
+    if (parts.some((part) => part === null)) return null;
+    return intersectAll(parts as number[][]);
+  }
+  // Mixed script or punctuation ("16—24岁", "2010=100"): the scorer looks for
+  // the term as a substring. Its Chinese runs are then sub-runs of the text's,
+  // so their pairs are a net over it; a run of letters or digits bounded on
+  // both sides by the term's own punctuation is a whole word in the text too.
+  // A run at either end may be part of a longer one there and is not used.
+  const cjkRuns = trimmed.match(/[\u3400-\u9fff]+/g) ?? [];
+  if (cjkRuns.length > 0) {
+    const lists = cjkRuns.map((run) => postingsFor(index, run) ?? []);
+    for (const match of trimmed.matchAll(/[a-z0-9]+/g)) {
+      const start = match.index ?? 0, end = start + match[0].length;
+      if (start > 0 && end < trimmed.length) lists.push(index.words.get(match[0]) ?? []);
+    }
+    return intersectAll(lists);
+  }
+  // Latin with punctuation ("u.s."): the scorer's boundary rule means every
+  // run is a whole word, and the last may carry a plural.
+  if (/^[a-z0-9][a-z0-9 .'-]*$/.test(trimmed)) {
+    const runs = trimmed.match(/[a-z0-9]+/g) ?? [];
+    if (runs.length === 0) return null;
+    return intersectAll(runs.map((run, at) => at === runs.length - 1
+      ? unionAll([run, `${run}s`, `${run}es`].map((form) => index.words.get(form) ?? []))
+      : (index.words.get(run) ?? [])));
+  }
+  return null;
+}
+
+/** Build the postings at boot, so the first visitor's search does not pay the five seconds. */
+export async function warmSearchIndex(): Promise<void> {
+  candidateIndexOf(await loadSnapshot());
+}
+
+/**
+ * The entries a query could score above zero, as positions in the snapshot,
+ * following each rule of `searchScore` in turn; null when any term falls
+ * outside the postings and the query must be scanned in full.
+ */
+function candidatesFor(snapshot: CatalogSnapshot, query: string, extraTerms: string[], fullTextKeys: Iterable<string>): Set<number> | null {
+  const index = candidateIndexOf(snapshot);
+  const lowerQuery = query.toLocaleLowerCase().replace(/^nbs_/, "");
+  const out = new Set<number>();
+  const add = (list: number[]) => { for (const item of list) out.add(item); };
+  const addTerms = (terms: string[]): boolean => {
+    const lists = terms.map((term) => postingsFor(index, term));
+    if (lists.some((list) => list === null)) return false;
+    add(intersectAll(lists as number[][]));
+    return true;
+  };
+  if (lowerQuery.length >= 8 && /^[0-9a-f]+$/.test(lowerQuery)) {
+    snapshot.entries.forEach((entry, position) => { if (entry.id.startsWith(lowerQuery)) out.add(position); });
+  }
+  // The whole query, or each of its alias phrasings, with every term present.
+  for (const variant of SEARCH_ALIASES[lowerQuery] ?? [lowerQuery]) {
+    if (!addTerms(variant.split(/\s+/).filter(Boolean))) return null;
+  }
+  // Word by word, each word or any of its aliases.
+  const groups = lowerQuery.split(/\s+/).filter((word) => word && !SEARCH_STOP_WORDS.has(word)).map((word) => SEARCH_ALIASES[word] ?? [word]);
+  if (groups.length > 0) {
+    const perGroup: number[][] = [];
+    for (const group of groups) {
+      const lists = group.map((term) => postingsFor(index, term));
+      if (lists.some((list) => list === null)) return null;
+      perGroup.push(unionAll(lists as number[][]));
+    }
+    add(intersectAll(perGroup));
+  }
+  // A Chinese phrase in one- and two-character pieces, each piece or its aliases.
+  if (/^[\u3400-\u9fff]{4,}$/.test(lowerQuery)) {
+    const perPiece: number[][] = [];
+    for (const piece of lowerQuery.match(/[\u3400-\u9fff]{1,2}/g) ?? []) {
+      const lists = [piece, ...(SEARCH_ALIASES[piece] ?? [])].map((form) => postingsFor(index, form));
+      if (lists.some((list) => list === null)) return null;
+      perPiece.push(unionAll(lists as number[][]));
+    }
+    add(intersectAll(perPiece));
+  }
+  // The model's expansion terms score on a prefix of two characters or more, so their first pair is the widest net.
+  for (const term of extraTerms) {
+    const list = postingsFor(index, term.length >= 2 ? term.slice(0, 2) : term);
+    if (list === null) return null;
+    add(list);
+  }
+  for (const key of fullTextKeys) {
+    const position = index.byKey.get(key);
+    if (position !== undefined) out.add(position);
+  }
+  return out;
+}
+
 /**
  * A Latin term hits on a word boundary in the text, or as a substring of the
  * joined pinyin — "shiyelv" sits inside "chengzhendiaochashiyelv" with no
@@ -1009,8 +1219,14 @@ export async function searchNbsCatalog(filters: NbsSearchFilters) {
     (!entry.family || entry.family.head === entry.key);
 
   const rank = (extraTerms: string[]) => {
+    const startedAt = performance.now();
     const fullText = query ? fullTextCandidates([...queryVariants(query), ...extraTerms]) : new Map<string, number>();
-    return snapshot.entries.filter(passes).map((entry) => {
+    // Only the entries that could score are scored; a query the postings cannot express scans all, as before.
+    const candidatesAt = performance.now();
+    const candidates = query && candidateIndexEnabled ? candidatesFor(snapshot, query, extraTerms, fullText.keys()) : null;
+    const considered = candidates ? [...candidates].sort((a, b) => a - b).map((position) => snapshot.entries[position]!) : snapshot.entries;
+    if (process.env.CHINA_SEARCH_TRACE) console.log(`  search "${query}": full text ${(candidatesAt - startedAt).toFixed(0)}ms, ${candidates ? `${candidates.size} candidates` : "full scan"} ${(performance.now() - candidatesAt).toFixed(0)}ms`);
+    return considered.filter(passes).map((entry) => {
       const base = query ? searchScore(entry, query) : 1;
       const extra = extraTerms.reduce((sum, term, index) => sum + termHit(entry.name, term) * 8 / (index + 1), 0);
       // Full text is a tiebreak, never the ranking: two-character Chinese

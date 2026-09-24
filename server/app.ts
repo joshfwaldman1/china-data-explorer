@@ -15,6 +15,19 @@ import { regionCoverage } from "./regions";
 import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
+
+/**
+ * A JSON response gzipped when the client accepts it and the body is worth it.
+ * Bun does not compress on its own, and a page of search results is 80 KB of
+ * repeated field names that packs to a tenth of that; on a phone the transfer
+ * was most of the wait.
+ */
+function jsonFor(req: Request, body: unknown, init: ResponseInit = {}): Response {
+  const text = JSON.stringify(body);
+  const accepts = /\bgzip\b/.test(req.headers.get("accept-encoding") ?? "");
+  if (!accepts || text.length < 4096) return new Response(text, { ...init, headers: { "content-type": "application/json", ...(init.headers ?? {}) } });
+  return new Response(Bun.gzipSync(Buffer.from(text)), { ...init, headers: { "content-type": "application/json", "content-encoding": "gzip", vary: "accept-encoding", ...(init.headers ?? {}) } });
+}
 function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult | null {
   const labels = configuredLabels(key);
   if (!stored || !labels) return stored;
@@ -31,7 +44,7 @@ import {
   searchNbsCatalogWithPlaces,
   transformLabel,
   transformPoints,
-  type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery } from "./nbs-catalog";
+  type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery, warmSearchIndex } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
 import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-plan";
@@ -288,11 +301,11 @@ const routes = {
     "/api/theme/:name": (req: RouteRequest) => {
       const data = themeData(req.params.name ?? "");
       if (!data) return Response.json({ error: "Unknown theme" }, { status: 404 });
-      return Response.json(data);
+      return jsonFor(req, data);
     },
     // One province across every series the site holds for it, read from the
     // store by the province's code; nothing here fetches.
-    "/api/provinces": () => Response.json(cachedProvinceCards()),
+    "/api/provinces": (req: RouteRequest) => jsonFor(req, cachedProvinceCards()),
     "/api/province/:code": async (req: RouteRequest) => {
       const code = req.params.code ?? "";
       const profile = await provinceProfile(code);
@@ -470,7 +483,7 @@ const routes = {
       const titleWords = (title: string) => title.toLocaleLowerCase().replace(/\s*[(（][^()（）]*[)）]\s*$/, "").trim();
       const exactIndex = asked ? nbsResults.findIndex((entry) => titleWords(entry.nameEn ?? "") === asked || titleWords(entry.glossEn ?? "") === asked) : -1;
       const exact = exactIndex >= 0 ? nbsResults.splice(exactIndex, 1) : [];
-      return Response.json({
+      return jsonFor(req, {
         total: featured.length + nbs.total,
         offset: requestedOffset,
         limit: requestedLimit,
@@ -634,6 +647,7 @@ if (process.env.BACKUP_TOKEN) {
 void readiness.warm(async () => {
   const catalog = await nbsCatalogStats();
   if (catalog.seriesCount === 0) throw new Error("NBS catalog contains no usable series");
+  await warmSearchIndex();
 }).then(() => {
   console.log(`  Catalog warm in ${((Date.now() - bootAt) / 1000).toFixed(1)}s`);
 }).catch((error) => {

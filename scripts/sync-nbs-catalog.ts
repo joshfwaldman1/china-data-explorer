@@ -48,6 +48,7 @@ const DATASETS: DatasetDefinition[] = [
   { code: 6, frequency: "Annual", geography: "Province" },
   { code: 7, frequency: "Monthly", geography: "City" },
   { code: 8, frequency: "Annual", geography: "City" },
+  // Code 9 answers its root and no indicators: empty on the portal, checked 25 September 2026.
   { code: 9, frequency: "Monthly", geography: "Hong Kong, Macao & Taiwan" },
   { code: 10, frequency: "Annual", geography: "Hong Kong, Macao & Taiwan" },
   // The bureau's international tables: the three major economies (US, EU,
