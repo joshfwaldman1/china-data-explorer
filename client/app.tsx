@@ -2036,7 +2036,8 @@ const PROVINCES: Province[] = TILES.map((tile) => {
   return { code: tile.code, abbr: place?.abbr ?? "", en: place?.en ?? tile.code, zh: place?.zh ?? "", col: tile.col, row: tile.row };
 });
 
-const RAMP = ["#eef3f8", "#cfe0ee", "#9dc0dc", "#5b93c4", "#2e6da4", "#1c4f7c"];
+// Paper to the brand red: the map reads as one ink getting heavier, not a second hue.
+const RAMP = ["#f4f2ec", "#e5d2cc", "#d1a69c", "#b8776a", "#9a4034", "#6c1f18"];
 
 interface RegionalValue { region: Region; value: number | null; period: string | null; points: SeriesPoint[]; }
 interface RegionalResponse { key: string; title: string; unit: string; frequency: string; agency: string; geography?: string; stored?: number; labels?: string[]; label?: string | null; updatedAt: string | null; periods: string[]; values: RegionalValue[]; }
