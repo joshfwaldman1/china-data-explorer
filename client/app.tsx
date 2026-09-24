@@ -752,7 +752,6 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
-        <div className="chips">Common searches:{["youth unemployment", "CPI", "PMI", "exports", "house prices", "LPR"].map((term) => <a key={term} href={routeHash({ view: "search", q: term, freq: "", cat: "", dataset: "", geo: "" })}>{term}</a>)}</div>
       </section>
 
       <section className="section" aria-labelledby="h-headline">
