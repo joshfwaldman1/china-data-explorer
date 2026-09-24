@@ -288,7 +288,9 @@ export const THEMES: Record<string, Theme> = {
       {
         title: "Headline",
         charts: [
-          { title: "Exports and imports, growth on a year earlier", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 10, note: "Customs' own rates from its monthly totals table. January and February are published together." },
+          { title: "Exports and imports", key: "trade_values", labels: ["Exports", "Imports"], years: 10, note: "Customs' monthly totals, 100 million USD. January and February are published together." },
+          { title: "Exports and imports, growth on a year earlier", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 10, note: "Customs' own rates from its monthly totals table." },
+          { title: "Trade balance", key: "trade_values", labels: ["Balance"], years: 10, note: "100 million USD per month." },
           { title: "Where growth comes from", key: "gdp_contributions", years: 8, note: "Shares of the quarter's GDP growth. The three sum to 100 percent by identity, which the audit holds." },
         ],
       },
