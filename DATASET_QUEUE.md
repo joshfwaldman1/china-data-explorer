@@ -37,16 +37,30 @@ what the site does not carry).
     *Test:* the January–February 2025 fixture stores year-to-date lines and
     no monthly point; August 2026 stores both.
 
-3. **The exchanges' own equity series.** The Equities page holds one
-    index (NASDAQ Golden Dragon, monthly average) and the two policy
-    uncertainty indices; nothing from Shanghai or Shenzhen. The owner asked
-    for an equities page, and a page with one index is not one. Candidates
-    with a publisher's own table: the SSE Composite and CSI 300 monthly
-    closes, turnover and the margin balance from the exchanges' statistics
-    pages; the securities regulator's monthly bulletin. Check each page's
-    terms and whether it serves a table without a browser before choosing.
-    *Test:* a captured fixture parses to known month-end closes; the
-    theme test holds the page's keys.
+3. **The exchanges' own equity series** (owner request, 24 September:
+    "add hong kong stock exchange, shanghai, shenzhen"). The Equities page
+    holds one index and two uncertainty indices; nothing from the
+    exchanges. What the probes on 24 September established, one request at
+    a time with a browser user agent:
+    - *Shanghai.* `query.sse.com.cn/commonQuery.do?sqlId=...` answers JSON
+      with `Referer: https://www.sse.com.cn/`; the market overview pages
+      are drawn from it. The monthly overview blocks in
+      `/xhtml/js/common/table_config.js` are named `monthly_8467`,
+      `monthly_9880`, `monthly_8488`; their `sqlId`s were not read yet
+      (the block layout differs from the grep). An index-close table is
+      what is wanted: SSE Composite month-end close, turnover, market cap.
+    - *Shenzhen.* `www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&
+      CATALOGID=1803_sczm&TABKEY=tab1|tab2` answers JSON (securities by
+      category; regional turnover). The catalog carrying the SZSE
+      Component Index is not identified; the trend page loads it by script.
+    - *Hong Kong.* `HKEX-Monthly-Market-Highlights?sc_lang=en` returns the
+      page but its 23 tables are empty in the HTML; the data comes from a
+      feed the page does not name in plain text. HKEX also publishes the
+      monthly market highlights as a report; find its table or file.
+    Attribute to each exchange; monthly month-end close or monthly average,
+    the exchange's own convention, said in the unit.
+    *Test:* a captured fixture per exchange parses to known month-end
+    figures; the theme test holds the Equities page's keys.
 
 4. **Customs' 2018 layouts.** The by-country table for May to December
     2018 and the commodity tables for parts of 2018, November 2019 and
