@@ -1076,7 +1076,8 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                   const title = chart.title ?? result?.title ?? chart.key;
                   return (
                     <article key={`${chart.key}|${chart.region ?? ""}|${title}`} className="theme-card">
-                      <div className="theme-card-head"><h3>{title}</h3><a href={chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key])}>Open series ›</a></div>
+                      {/* The heading is the link to the series; nothing else on the card says "open". */}
+                      <h3 className="theme-card-title"><a href={chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key])}>{title}</a></h3>
                       {hasPoints && built && result
                         ? <>
                             <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} />
