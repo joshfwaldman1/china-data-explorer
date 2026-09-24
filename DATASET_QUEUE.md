@@ -42,13 +42,13 @@ what the site does not carry).
     holds one index and two uncertainty indices; nothing from the
     exchanges. What the probes on 24 September established, one request at
     a time with a browser user agent:
-    - *Shanghai.* `query.sse.com.cn/commonQuery.do?sqlId=...` answers JSON
-      with `Referer: https://www.sse.com.cn/`; the market overview pages
-      are drawn from it. The monthly overview blocks in
-      `/xhtml/js/common/table_config.js` are named `monthly_8467`,
-      `monthly_9880`, `monthly_8488`; their `sqlId`s were not read yet
-      (the block layout differs from the grep). An index-close table is
-      what is wanted: SSE Composite month-end close, turnover, market cap.
+    - *Shanghai: done 25 September 2026* (`server/sse.ts`). The exchange's
+      quote server, `yunhq.sse.com.cn:32042/v1/sh1/dayk/<code>?period=month`
+      with the site as referer, answers the monthly K-line back to the
+      index's base; the Composite, SSE 50 and STAR 50 are on the site as
+      month-end close and monthly turnover. The same server answers
+      `sz1/dayk/399001` for Shenzhen's index, but that is Shanghai's copy;
+      Shenzhen's own service is wanted first.
     - *Shenzhen.* `www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&
       CATALOGID=1803_sczm&TABKEY=tab1|tab2` answers JSON (securities by
       category; regional turnover). The catalog carrying the SZSE

@@ -16,22 +16,22 @@ export const FONT_SANS = "\"IBM Plex Sans\", -apple-system, BlinkMacSystemFont, 
 
 /** The light theme, mirrored from styles.css. A test guards against drift. */
 export const LIGHT = {
-  ink: "#1f2933",
-  muted: "#5b6b7a",
-  line: "#e2e8ee",
-  lineStrong: "#7f8d9a",
-  amber: "#b5820c",
+  ink: "#171614",
+  muted: "#5d5a52",
+  line: "#dcd8cf",
+  lineStrong: "#85806f",
+  amber: "#8a6a12",
   panel: "#ffffff",
-  navy: "#12395c",
-  red: "#c0392b",
-  chart: ["#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7", "#eda100", "#e87ba4", "#008300", "#e34948"],
+  navy: "#ffffff",   /* the top bar is paper now; the test holds this to the token, the brand line below draws in ink */
+  red: "#a11d17",
+  chart: ["#171614", "#b3261e", "#8b877c", "#c4862a", "#3f5f7a", "#7b5aa6", "#2f7d5b", "#d98c86"],
 };
 
 /** Resolve a chart colour token such as `var(--chart-2)` to its light hex. */
 export function lightColor(token: string): string {
   const match = token.match(/--chart-(\d)/);
-  if (!match) return token.startsWith("#") ? token : LIGHT.chart[0] ?? "#2a78d6";
-  return LIGHT.chart[Number(match[1]) - 1] ?? LIGHT.chart[0] ?? "#2a78d6";
+  if (!match) return token.startsWith("#") ? token : LIGHT.chart[0] ?? "#171614";
+  return LIGHT.chart[Number(match[1]) - 1] ?? LIGHT.chart[0] ?? "#171614";
 }
 
 export interface ShareInput {
@@ -330,7 +330,7 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   }));
 
   // Two footer lines: brand and source on the first, the page URL and retrieval date on the second.
-  const brand: Text = { text: "EconStats China Data", x: margin + 34, y: footerY - 26, font: brandFont, color: LIGHT.navy, align: "left" };
+  const brand: Text = { text: "EconStats China Data", x: margin + 34, y: footerY - 26, font: brandFont, color: LIGHT.ink, align: "left" };
   const dateText: Text = { text: `Retrieved ${input.date}`, x: width - margin, y: footerY, font: footerFont, color: LIGHT.muted, align: "right" };
   const sourceX = brand.x + measure(brand.text, brandFont) + 28;
   const sourceText = wrapText(`Source: ${input.source}`, width - margin - sourceX, footerFont, measure, 1)[0] ?? "";

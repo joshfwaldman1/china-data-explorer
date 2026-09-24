@@ -104,6 +104,17 @@ export const SOURCE_METHODOLOGY: Record<string, SourceMethodology> = {
       "The yuan and dollar series are not a conversion of one another and the dollar one has stopped.",
     ],
   },
+  sse: {
+    title: "The Shanghai exchange's own quote service",
+    publisher: "Shanghai Stock Exchange",
+    reads: "The monthly K-line the exchange's quote server answers for an index code: one row per month with the open, high, low, close, volume and turnover, back to the index's base date.",
+    how: "The exchange's website draws its index charts from the same service, so the site reads what the exchange publishes rather than a vendor's copy. The month-end close and the month's turnover are kept; the row for the month still in progress is dropped, since it is not a month end.",
+    revisions: "An index close is final when the month ends and is not restated; the site re-reads the whole history each time and would record any change as a revision.",
+    caveats: [
+      "The close is the last trading day's, not a monthly average; a month with a holiday at its end closes on the last day the market traded.",
+      "Turnover is the exchange's yuan figure in 100 million yuan, for the index's constituents.",
+    ],
+  },
   safe: {
     title: "The foreign exchange administration's workbooks",
     publisher: "State Administration of Foreign Exchange",

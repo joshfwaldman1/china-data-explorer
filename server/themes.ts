@@ -148,10 +148,19 @@ const PROPERTY: Theme = {
 
 const EQUITIES: Theme = {
   title: "Equities",
-  lede: "What the site holds of the market today is thin, and the page says so: one index of Chinese companies listed in New York, and the two policy-uncertainty indices read from mainland newspapers. The exchanges' own indices, turnover and margin balances are queued.",
+  lede: "",
   sections: [
     {
-      title: "Index",
+      title: "Shanghai",
+      charts: [
+        { title: "SSE Composite, month-end close", key: "sse_composite", labels: ["Close, month end"], years: 15 },
+        { title: "Shanghai turnover, month", key: "sse_composite", labels: ["Turnover, month (100M yuan)"], years: 15, note: "Turnover of the Composite's constituents, 100 million yuan." },
+        { title: "SSE 50, month-end close", key: "sse_50", labels: ["Close, month end"], years: 15 },
+        { title: "STAR 50, month-end close", key: "star_50", labels: ["Close, month end"], years: 6 },
+      ],
+    },
+    {
+      title: "Offshore",
       charts: [
         { title: "NASDAQ Golden Dragon China", key: "golden_dragon", years: 10, note: "Monthly average of the index of US-listed Chinese companies." },
       ],

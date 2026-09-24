@@ -72,7 +72,7 @@ test("themeData returns every section with a stored series read and filtered to 
   const data = themeData("trade");
   expect(data).not.toBeNull();
   expect(data!.sections.map((section) => section.title)).toEqual(THEMES.trade!.sections.map((section) => section.title));
-  const headline = data!.sections[0]!.charts[0]!;
+  const headline = data!.sections[0]!.charts.find((chart) => chart.key === "trade")!;
   expect(headline.result).not.toBeNull();
   expect(headline.result!.title).toBe("Exports and imports, growth on a year earlier");
   expect(headline.result!.series.map((line) => line.label)).toEqual(["Exports (YoY %)", "Imports (YoY %)"]);
