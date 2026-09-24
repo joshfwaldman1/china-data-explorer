@@ -395,8 +395,7 @@ function parseRoute(hash: string): Route {
   if (head === "methodology") return { view: "methodology", key: query.get("key") ?? "" };
   if (head === "health") return { view: "health" };
   if (head === "province") return { view: "province", code: query.get("code") ?? "" };
-  if (head === "theme" && parts[1]) return { view: "theme", name: decodeURIComponent(parts[1]) };
-  if (head === "trade") return { view: "theme", name: "trade" };
+  if (head && THEME_PAGES.some((page) => page.name === head)) return { view: "theme", name: head };
   if (head === "saved") return { view: "saved" };
   if (head === "recent") return { view: "recent" };
   return { view: "home" };
@@ -413,7 +412,7 @@ function routeHash(route: Route): string {
     case "methodology": return `#/methodology${qs([["key", route.key]])}`;
     case "health": return "#/health";
     case "province": return `#/province${qs([["code", route.code]])}`;
-    case "theme": return route.name === "trade" ? "#/trade" : `#/theme/${encodeURIComponent(route.name)}`;
+    case "theme": return `#/${route.name}`;
     case "saved": return "#/saved";
     case "recent": return "#/recent";
   }
@@ -1008,6 +1007,30 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
 }
 
 // ── Theme pages ───────────────────────────────────────────────────────────────
+
+/** The pages, in the order the owner named them. The names are the hashes and the server's theme names. */
+const THEME_PAGES = [
+  { name: "manufacturing", label: "Manufacturing" },
+  { name: "property", label: "Property" },
+  { name: "overcapacity", label: "Overcapacity" },
+  { name: "trade", label: "Trade & flows" },
+  { name: "equities", label: "Equities" },
+  { name: "energy", label: "Energy" },
+  { name: "demographics", label: "Demographics" },
+] as const;
+
+/** One row under the top bar naming every page: the headline, the provinces, and each theme. */
+function PageStrip(props: { route: Route }) {
+  const { route } = props;
+  const at = (name: string) => (route.view === "theme" && route.name === name) ? "page" as const : undefined;
+  return (
+    <nav className="page-strip" aria-label="Pages">
+      <a href="#/" aria-current={route.view === "home" ? "page" : undefined}>Headline</a>
+      <a href="#/regions" aria-current={route.view === "regions" || route.view === "province" ? "page" : undefined}>Provinces</a>
+      {THEME_PAGES.map((page) => <a key={page.name} href={`#/${page.name}`} aria-current={at(page.name)}>{page.label}</a>)}
+    </nav>
+  );
+}
 
 interface ThemeChartData { title?: string; key: string; region?: string; labels?: string[]; years?: number; note?: string; result: SeriesResult | null; place?: Region }
 interface ThemeData { name: string; title: string; lede: string; sections: { title: string; lede?: string; charts: ThemeChartData[] }[] }
@@ -2256,7 +2279,7 @@ function App() {
     setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
-      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "theme" ? (route.name === "trade" ? "Trade" : route.name) : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "theme" ? (THEME_PAGES.find((page) => page.name === route.name)?.label ?? route.name) : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
@@ -2310,13 +2333,13 @@ function App() {
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
           <a href="#/regions" aria-current={current("regions")}>Provinces</a>
-          <a href="#/trade" aria-current={route.view === "theme" && route.name === "trade" ? "page" : undefined}>Trade</a>
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
         </nav>
         <div className="topbar-tools">
           <button className="icon-button" onClick={cycleTheme} aria-label={`Switch theme, now ${theme === "" ? "following your system" : theme === "dark" ? "dark" : "light"}`}><ThemeIcon /></button>
         </div>
       </header>
+      <PageStrip route={route} />
       <div className={route.view === "home" ? "body-grid no-sidebar" : "body-grid"}>
         {route.view !== "home" && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
         {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "", geo: "" })} />}

@@ -3216,6 +3216,22 @@ not from scratch. Rounds are small on purpose.
   502s and the bond series they delay. 402 tests; 54 pairs, 0 findings; two
   deploys today for all of it, each watched to success.
 
+- 2026-09-24 (owner-directed: the pages in the nav): the owner listed what
+  the site's top row should carry — headline, provinces, manufacturing,
+  property, overcapacity and involution, trade and capital flows, equities,
+  energy, demographics. Six more themes in `server/themes.ts`, 128 charts
+  in all, every key, region and line held to the catalog by the theme test;
+  Trade gained a capital-flows section (balance of payments, banks'
+  cross-border flows and FX settlement, FDI, reserves, Treasury holdings,
+  the yuan). A page strip under the top bar names all nine in the owner's
+  order and scrolls sideways on a phone rather than hiding, as the tab nav
+  does. Equities is honest about being thin: the Golden Dragon index and
+  the two mainland policy-uncertainty indices are what the site holds; the
+  exchanges' own indices are queued. Overcapacity is built as four
+  questions — prices at the gate and the border, capacity and investment,
+  volume out the door, demand at home — with the series that answer each;
+  it is a picture, not a verdict, and the lede says so. Every endpoint
+  reads in under six milliseconds.
 - 2026-09-24 (owner-directed: a Trade page, and a Customs bug it showed):
   the owner asked, from the mock-up, for a Trade page on the real site —
   partners, commodities, "manuf trends and stuff", all charts. The first
