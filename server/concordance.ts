@@ -585,6 +585,7 @@ export const NO_PAIR: Record<string, string> = {
   sse_composite: "The exchange is the index's only publisher, and the site holds no second reading of a Shanghai close to hold it against; the Golden Dragon index is a different market and a monthly average.",
   sse_50: "As sse_composite: the exchange's own index, with no second publisher on the site.",
   star_50: "As sse_composite: the exchange's own index, with no second publisher on the site.",
+  sse_turnover: "The exchange's own turnover figure; nothing else on the site records what was traded in Shanghai.",
   caixin_pmi: "A different panel from NBS's survey — smaller, more export-oriented firms — so the two are not readings of the same statistic and a disagreement between them is information, not an error.",
   caixin_services_pmi: "As caixin_pmi: a different panel from the bureau's non-manufacturing survey, and not a second reading of it.",
 

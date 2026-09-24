@@ -41,13 +41,16 @@ test("a changed shape is refused rather than read as zeros", async () => {
   expect(() => parseKline({ data: [] })).toThrow(/kline/);
 });
 
-test("the adapter serves two lines, month-end close and turnover, from one request", async () => {
+test("a close key and a turnover key each serve one line from the same request, never together", async () => {
   const body = await fixture();
   let url = "";
-  const result = await fetchSse("sse_composite", { kind: "sse", group: "Markets", title: "SSE Composite Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index", code: "000001" }, 24, async (u) => { url = u; return body; });
+  const base = { kind: "sse" as const, group: "Markets", title: "SSE Composite Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index", code: "000001" };
+  const close = await fetchSse("sse_composite", { ...base, measure: "close" }, 24, async (u) => { url = u; return body; });
   expect(url).toContain("/v1/sh1/dayk/000001?");
   expect(url).toContain("period=month");
-  expect(result.series.map((line) => line.label)).toEqual([LABELS.close, LABELS.turnover]);
-  expect(result.series[0]!.points.length).toBe(24);
-  expect(result.agency).toBe("Shanghai Stock Exchange");
+  expect(close.series.map((line) => line.label)).toEqual([LABELS.close]);
+  expect(close.series[0]!.points.length).toBe(24);
+  const turnover = await fetchSse("sse_turnover", { ...base, measure: "turnover" }, 24, async () => body);
+  expect(turnover.series.map((line) => line.label)).toEqual([LABELS.turnover]);
+  expect(turnover.series[0]!.points.at(-1)!.value).toBeGreaterThan(10000);
 });

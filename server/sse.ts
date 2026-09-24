@@ -26,6 +26,11 @@ export interface SseIndicator {
   endedNote?: string;
   /** The exchange's index code: 000001 the Composite, 000016 the SSE 50, 000688 the STAR 50. */
   code: string;
+  /**
+   * Which figure of the K-line the key serves. A close and a turnover are
+   * different units and never share a chart, so each is its own key.
+   */
+  measure: "close" | "turnover";
   /** Day of the month by which the month's close is final: the first, since the month must end. */
   releaseDay?: number;
 }
@@ -86,16 +91,16 @@ export function klineUrl(code: string): string {
   return `${QUOTE_HOST}/v1/sh1/dayk/${code}?begin=0&end=-1&period=month`;
 }
 
+export function sseLabels(cfg: Pick<SseIndicator, "measure">): string[] {
+  return [cfg.measure === "turnover" ? LABELS.turnover : LABELS.close];
+}
+
 export async function fetchSse(key: string, cfg: SseIndicator, limit: number, read: SseReader = live): Promise<SeriesResult> {
   const rows = parseKline(await read(klineUrl(cfg.code)));
-  const closes = monthEnds(rows);
-  const turnover = monthTurnover(rows);
+  const points = cfg.measure === "turnover" ? monthTurnover(rows) : monthEnds(rows);
   return {
     key, title: cfg.title, agency: cfg.agency, sourceUrl: SITE,
     frequency: cfg.frequency, unit: cfg.unit,
-    series: [
-      { label: LABELS.close, points: closes.slice(-limit) },
-      { label: LABELS.turnover, points: turnover.slice(-limit) },
-    ],
+    series: [{ label: sseLabels(cfg)[0]!, points: points.slice(-limit) }],
   };
 }

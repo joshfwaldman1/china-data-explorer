@@ -153,10 +153,10 @@ const EQUITIES: Theme = {
     {
       title: "Shanghai",
       charts: [
-        { title: "SSE Composite, month-end close", key: "sse_composite", labels: ["Close, month end"], years: 15 },
-        { title: "Shanghai turnover, month", key: "sse_composite", labels: ["Turnover, month (100M yuan)"], years: 15, note: "Turnover of the Composite's constituents, 100 million yuan." },
-        { title: "SSE 50, month-end close", key: "sse_50", labels: ["Close, month end"], years: 15 },
-        { title: "STAR 50, month-end close", key: "star_50", labels: ["Close, month end"], years: 6 },
+        { title: "SSE Composite, month-end close", key: "sse_composite", years: 15 },
+        { title: "Shanghai turnover, month", key: "sse_turnover", years: 15, note: "Value of every share traded in Shanghai over the month, 100 million yuan; 300,000 is 30 trillion." },
+        { title: "SSE 50, month-end close", key: "sse_50", years: 15 },
+        { title: "STAR 50, month-end close", key: "star_50", years: 6 },
       ],
     },
     {

@@ -20,7 +20,7 @@ import { periodRange } from "./nbs-catalog";
 import { measureOf, type Measure } from "../shared/measure";
 import { fetchSafe, BOP_ITEMS, CROSS_BORDER_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
-import { fetchSse, LABELS as SSE_LABELS, type SseIndicator } from "./sse";
+import { fetchSse, sseLabels, type SseIndicator } from "./sse";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -2248,9 +2248,11 @@ export const CATALOG: Record<string, Indicator> = {
   gdp_per_capita_usd: { kind: "fred", group: "Growth & Output", home: false, title: "GDP per Capita in US Dollars", agency: "World Bank", frequency: "Annual", unit: "Current US dollars", seriesId: "PCAGDPCNA646NWDB", label: "GDP per capita, current US dollars" },
   // The exchange's own indices from its quote service (server/sse.ts):
   // month-end close and the month's turnover, the running month left out.
-  sse_composite: { kind: "sse", group: "Markets", home: false, title: "SSE Composite Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (19 December 1990 = 100)", code: "000001", releaseDay: 1 },
-  sse_50: { kind: "sse", group: "Markets", home: false, title: "SSE 50 Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (31 December 2003 = 1,000)", code: "000016", releaseDay: 1 },
-  star_50: { kind: "sse", group: "Markets", home: false, title: "STAR 50 Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (31 December 2019 = 1,000)", code: "000688", releaseDay: 1 },
+  sse_composite: { kind: "sse", group: "Markets", home: false, title: "SSE Composite Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (19 December 1990 = 100)", code: "000001", measure: "close", releaseDay: 1 },
+  sse_50: { kind: "sse", group: "Markets", home: false, title: "SSE 50 Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (31 December 2003 = 1,000)", code: "000016", measure: "close", releaseDay: 1 },
+  star_50: { kind: "sse", group: "Markets", home: false, title: "STAR 50 Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (31 December 2019 = 1,000)", code: "000688", measure: "close", releaseDay: 1 },
+  // The Composite spans every share listed in Shanghai, so its turnover is the exchange's.
+  sse_turnover: { kind: "sse", group: "Markets", home: false, title: "Shanghai Stock Exchange Turnover", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Hundred million yuan (亿元), month", code: "000001", measure: "turnover", releaseDay: 1 },
   gini: { kind: "fred", group: "Demographics", home: false, title: "Gini Index", agency: "World Bank", frequency: "Annual", unit: "Index, 0 to 100", seriesId: "SIPOVGINICHN", label: "Gini index" },
 };
 
@@ -2861,7 +2863,7 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "mof") return mofLabels(cfg);
   if (cfg.kind === "safe") return cfg.items.map((item) => item.label);
   if (cfg.kind === "mofcom") return mofcomLabels(cfg);
-  if (cfg.kind === "sse") return [SSE_LABELS.close, SSE_LABELS.turnover];
+  if (cfg.kind === "sse") return sseLabels(cfg);
   // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
   return null;
 }
