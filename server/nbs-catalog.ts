@@ -954,9 +954,14 @@ function postingsFor(index: CandidateIndex, term: string): number[] | null {
   return null;
 }
 
-/** Build the postings at boot, so the first visitor's search does not pay the five seconds. */
+/**
+ * Build the postings at boot and run one search through them, so the first
+ * visitor pays neither the five seconds of building nor the cold read of the
+ * full-text table and the stored ranges from the volume.
+ */
 export async function warmSearchIndex(): Promise<void> {
   candidateIndexOf(await loadSnapshot());
+  await searchNbsCatalog({ query: "gdp", limit: 1 });
 }
 
 /**
