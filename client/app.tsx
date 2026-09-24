@@ -1012,11 +1012,11 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
 const THEME_PAGES = [
   { name: "manufacturing", label: "Manufacturing" },
   { name: "property", label: "Property" },
-  { name: "overcapacity", label: "Overcapacity" },
   { name: "trade", label: "Trade & flows" },
   { name: "equities", label: "Equities" },
   { name: "energy", label: "Energy" },
   { name: "demographics", label: "Demographics" },
+  { name: "labour", label: "Labour" },
 ] as const;
 
 /** One row under the top bar naming every page: the headline, the provinces, and each theme. */

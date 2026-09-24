@@ -146,44 +146,6 @@ const PROPERTY: Theme = {
   ],
 };
 
-const OVERCAPACITY: Theme = {
-  title: "Overcapacity",
-  lede: "",
-  sections: [
-    {
-      title: "Output, prices and net exports",
-      charts: [
-        { title: "Manufacturing output", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
-        { title: "Factory-gate prices in the PMI", key: "pmi_manufacturing", labels: ["Output prices", "Input prices"], years: 6, note: "Diffusion indices; below 50 is more firms cutting than raising." },
-        { title: "Net exports", key: "trade_values", labels: ["Balance"], years: 10, note: "Customs' monthly trade balance, 100 million USD." },
-      ],
-    },
-    {
-      title: "Goods",
-      charts: [
-        { title: "Solar cells made (10,000 kW)", key: OUTPUT.solar, years: 10 },
-        { title: "Motor vehicle exports", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 8, note: "USD million per month." },
-        { title: "Ship exports", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: "USD million per month." },
-        { title: "Steel product exports", key: "major_exports", region: "products-of-steel-or-iron", labels: ["Value"], years: 8, note: "USD million per month." },
-        { title: "New energy vehicles made (10,000)", key: OUTPUT.nev, years: 4 },
-        { title: "Automobiles made (10,000)", key: OUTPUT.autos, years: 10 },
-        { title: "Crude steel made, growth", key: "output_crude_steel", labels: [MONTH_GROWTH.steel], years: 10 },
-        { title: "Cement made, growth", key: "output_cement", labels: [MONTH_GROWTH.cement], years: 10 },
-      ],
-    },
-    {
-      title: "Demand at home",
-      charts: [
-        { title: "Retail sales", key: "retail_sales", years: 10 },
-        { title: "Retail sales of cars and appliances", key: "retail_by_category_growth", labels: ["Motor vehicles, month (YoY %)", "Home appliances, month (YoY %)"], years: 8 },
-        { title: "Household spending, year to date", key: "household_spending_growth", labels: ["All residents, year to date (YoY %)"], years: 8 },
-        { title: "Consumer confidence", key: "consumer_confidence", labels: ["Consumer confidence"], years: 10, note: "100 is neutral." },
-        { title: "Where growth comes from", key: "gdp_contributions", years: 8, note: "Shares of the quarter's GDP growth: consumption, investment, net exports." },
-      ],
-    },
-  ],
-};
-
 const EQUITIES: Theme = {
   title: "Equities",
   lede: "What the site holds of the market today is thin, and the page says so: one index of Chinese companies listed in New York, and the two policy-uncertainty indices read from mainland newspapers. The exchanges' own indices, turnover and margin balances are queued.",
@@ -266,14 +228,38 @@ const DEMOGRAPHICS: Theme = {
         { title: "Life expectancy", key: "life_expectancy", years: 40 },
       ],
     },
+  ],
+};
+
+const LABOUR: Theme = {
+  title: "Labour market",
+  lede: "",
+  sections: [
     {
-      title: "Work and income",
+      title: "Unemployment",
       charts: [
-        { title: "Employed persons", key: "employment", labels: ["Total, year end (10,000 persons)"], years: 30 },
-        { title: "Unemployment, surveyed", key: "unemployment", labels: ["Surveyed urban (%)", "Youth 16-24, ex-students (%)"], years: 8, note: "The youth rate was redefined in December 2023 to exclude students; the bureau published no figure from August to November that year." },
+        { title: "Surveyed urban unemployment", key: "unemployment", labels: ["Surveyed urban (%)"], years: 8 },
+        { title: "Youth unemployment, 16 to 24", key: "unemployment", labels: ["Youth 16-24, ex-students (%)"], years: 8, note: "Redefined in December 2023 to exclude students; the bureau published no figure from August to November 2023." },
+        { title: "By age", key: "unemployment", labels: ["Age 25-29, ex-students (%)", "Age 30-59, ex-students (%)"], years: 8 },
+        { title: "31 major cities", key: "unemployment", labels: ["31 major cities (%)"], years: 8 },
+        { title: "Local and non-local hukou", key: "unemployment", labels: ["Local hukou (%)", "Non-local hukou (%)"], years: 8 },
+      ],
+    },
+    {
+      title: "Work",
+      charts: [
+        { title: "Average weekly hours worked", key: "working_hours", years: 8 },
+        { title: "Employed persons", key: "employment", years: 30, note: "Annual, year end, 10,000 persons." },
         { title: "Rural migrant workers away from home", key: "migrant_workers", years: 8, note: "Quarter end, 10,000 persons." },
         { title: "Migrant workers' monthly income", key: "migrant_workers_income", years: 8 },
+        { title: "PMI employment", key: "pmi_manufacturing", labels: ["Employment"], years: 8, note: "Diffusion index; below 50 is more firms shedding than hiring." },
+      ],
+    },
+    {
+      title: "Income",
+      charts: [
         { title: "Household disposable income, growth", key: "household_income_growth", years: 8, note: "Year to date, on a year earlier." },
+        { title: "Household disposable income per person", key: "household_income", years: 8, note: "Year to date, yuan." },
         { title: "Gini index", key: "gini", years: 30, note: "World Bank, 0 to 100." },
       ],
     },
@@ -364,14 +350,14 @@ export const THEMES: Record<string, Theme> = {
   },
   manufacturing: MANUFACTURING,
   property: PROPERTY,
-  overcapacity: OVERCAPACITY,
   equities: EQUITIES,
   energy: ENERGY,
   demographics: DEMOGRAPHICS,
+  labour: LABOUR,
 };
 
 /** The pages in the order the owner named them; Home and Provinces are not themes but sit in the same strip. */
-export const THEME_ORDER = ["manufacturing", "property", "overcapacity", "trade", "equities", "energy", "demographics"] as const;
+export const THEME_ORDER = ["manufacturing", "property", "trade", "equities", "energy", "demographics", "labour"] as const;
 
 export interface ThemeChartData extends ThemeChart {
   result: SeriesResult | null;
