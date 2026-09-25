@@ -237,7 +237,7 @@ const UNIT_EN: Record<string, string> = {
   "上年同期=100": "index, prior-year period = 100", "上年同月=100": "index, prior-year month = 100", "上月=100": "index, prior month = 100",
   "上年=100": "index, prior year = 100", "元": "yuan", "亿": "100 million", "万": "10,000", "百分点": "percentage points", "天": "days", "小时": "hours",
   // The rest of the server's unit dictionary (gloss.ts), so a result line never shows a bare Chinese unit the series page glosses.
-  "亿立方米": "100 million m³", "万立方米": "10,000 m³", "万千瓦": "10,000 kW", "千瓦": "kW", "亿米": "100 million metres", "万米": "10,000 metres",
+  "亿立方米": "100 million m³", "万立方米": "10,000 m³", "万千瓦": "10,000 kW", "万载重吨": "10,000 deadweight tonnes", "千瓦": "kW", "亿米": "100 million metres", "万米": "10,000 metres",
   "万千升": "10,000 kilolitres", "亿吨公里": "100 million tonne-km", "亿人公里": "100 million passenger-km", "万公里": "10,000 km", "台": "units", "户": "households",
   "上年同季=100": "index, prior-year quarter = 100", "2015年=100": "index, 2015 = 100", "2020年=100": "index, 2020 = 100",
   "件": "pieces", "项": "items", "百万美元": "million USD", "所": "institutions", "人年": "person-years", "万人次": "10,000 person-times", "千公顷": "1,000 hectares", "1/10万": "per 100,000", "篇": "papers", "万人年": "10,000 person-years", "种": "kinds", "日": "days", "千人次": "1,000 person-times", "米": "metres", "次": "times", "万个": "10,000 units", "公斤/公顷": "kg per hectare", "亿千瓦小时": "100 million kWh", "千克": "kg", "公里": "km", "万场次": "10,000 performances", "时": "hours", "起": "cases", "千场次": "1,000 performances", "件/套": "pieces or sets", "公斤": "kg", "万张": "10,000 sheets", "部": "units", "万册": "10,000 volumes", "亿吨": "100 million tonnes", "张": "sheets", "元/公斤": "yuan per kg", "批": "batches", "万盒": "10,000 boxes", "亿印张": "100 million printed sheets", "万公顷": "10,000 hectares", "座": "units", "亿册": "100 million volumes", "上年价格=100": "index, prior-year prices = 100", "元/人": "yuan per person", "亿人次": "100 million person-times", "万头": "10,000 head", "元/户": "yuan per household", "人次": "person-times", "处": "sites", "集": "episodes", "万分钟": "10,000 minutes", "公斤/人": "kg per person", "份": "copies", "家": "firms", "人口抽样调查": "population sample survey", "起/万人": "cases per 10,000 people", "公顷": "hectares", "万册、份": "10,000 volumes or copies", "套": "sets", "千美元": "thousand USD", "万份": "10,000 copies", "教师人数=1": "per teacher", "1978年=100": "index, 1978 = 100", "盒、张": "boxes or sheets", "亿条": "100 million messages", "万笔": "10,000 transactions", "架": "aircraft", "万部": "10,000 units", "万套": "10,000 sets", "万只": "10,000 head", "万件、套": "10,000 pieces or sets", "亿人": "100 million persons", "万千米": "10,000 km", "千米": "km",
@@ -513,7 +513,12 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }
   );
 }
 
-function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; lunar: boolean; unit: string; title: string; start?: number; end?: number }) {
+/**
+ * The chart every series and theme panel draws. `height` is the panel's
+ * pixel height (the series page's 460 by default); `compact` is the theme
+ * card: a thinner line, a narrower value axis and tighter margins.
+ */
+function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string }[]; years: number | null; logScale: boolean; lunar: boolean; unit: string; title: string; start?: number; end?: number; height?: number; compact?: boolean }) {
   const shown = visibleTracks(props.tracks, props.years, props.start, props.end);
   const times = shown.flatMap((track) => track.points.map((point) => point.t));
   const min = Math.min(...times), max = Math.max(...times);
@@ -523,10 +528,12 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const annual = shown.length > 0 && shown.every((track) => track.frequency === "Annual");
   const tick = (value: number) => {
     const date = new Date(value);
-    return annual || spanYears > 6 ? String(date.getUTCFullYear()) : date.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+    return annual || spanYears > 2.5 ? String(date.getUTCFullYear()) : date.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
   };
   const tickMonth = annual ? new Date(min).getUTCMonth() : 0;
-  const ticks = annual || spanYears > 6
+  // A window longer than about two years is labelled by year, one tick at each January; a
+  // shorter one by month, since a year label would then sit alone at the left edge.
+  const ticks = annual || spanYears > 2.5
     ? Array.from({ length: new Date(max).getUTCFullYear() - new Date(min).getUTCFullYear() + 1 }, (_, index) => Date.UTC(new Date(min).getUTCFullYear() + index, tickMonth, 1)).filter((value) => value >= min && value <= max)
     : undefined;
   const hasZero = isRate(props.unit) && !props.logScale;
@@ -542,12 +549,12 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
   const description = `${props.title}. ${shown.length} series, ${props.unit}. Arrow keys step through the points; the Table tab lists the values.`;
   return (
-    <div className="chart-wrap" style={{ width: "100%", height: 460 }}>
+    <div className="chart-wrap" style={{ width: "100%", height: props.height ?? 460 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
-        <LineChart margin={{ top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
+        <LineChart margin={props.compact ? { top: 8, right: 12, bottom: 0, left: 0 } : { top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
-          <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={48} tickMargin={10} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line-strong)" tickLine={false} />
-          <YAxis width={64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
+          <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={props.compact ? 40 : 48} tickMargin={8} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line)" tickLine={false} />
+          <YAxis width={props.compact ? 44 : 64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
           {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
           {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
           {lunar.map((band) => <ReferenceArea key={`lny-${band.year}`} x1={Math.max(band.x1, min)} x2={Math.min(band.x2, max)} fill="var(--ink)" fillOpacity={0.035} stroke="none" />)}
@@ -556,7 +563,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
           ))}
           <Tooltip content={<ChartTip unit={props.unit} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
           {shown.map((track) => (
-            <Line key={track.id} data={track.points} dataKey="v" name={track.name} type="linear" stroke={track.color} strokeWidth={2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls={false} />
+            <Line key={track.id} data={track.points} dataKey="v" name={track.name} type="linear" stroke={track.color} strokeWidth={props.compact ? 1.5 : 2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls={false} />
           ))}
         </LineChart>
       </ResponsiveContainer>
@@ -1108,7 +1115,7 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                       <h3 className="theme-card-title"><a href={chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key])}>{title}</a></h3>
                       {hasPoints && built && result
                         ? <>
-                            <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} />
+                            <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} height={250} compact />
                             {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
                           </>
                         : <div className="state small"><b>Nothing stored yet</b></div>}
@@ -2426,6 +2433,7 @@ function App() {
   const toggleSaved = (key: string) => setSaved((current) => { const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current]; writeList("china-favorites", next); return next; });
   const cycleTheme = () => { const next = theme === "" ? "dark" : theme === "dark" ? "light" : ""; setTheme(next); writePref("china-theme", next); setToast(next === "" ? "Theme follows your system" : next === "dark" ? "Dark theme" : "Light theme"); };
   const current = (view: Route["view"]) => route.view === view ? "page" : undefined;
+  const bare = route.view === "home" || route.view === "theme" || route.view === "regions" || route.view === "province";
 
   return (
     <div className="app-shell">
@@ -2444,8 +2452,9 @@ function App() {
         </div>
       </header>
       <PageStrip route={route} />
-      <div className={route.view === "home" ? "body-grid no-sidebar" : "body-grid"}>
-        {route.view !== "home" && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
+      {/* Home, the theme pages and the provinces are read across the width; the catalog sidebar belongs to the series, search and browse views. */}
+      <div className={bare ? "body-grid no-sidebar" : "body-grid"}>
+        {!bare && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
         {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "", geo: "" })} />}
         {route.view === "series" && <SeriesPage route={route} curated={curated} saved={saved} releases={releases} lang={lang} onToggleSaved={toggleSaved} navigate={navigate} toast={setToast} />}
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
