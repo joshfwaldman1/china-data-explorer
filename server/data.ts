@@ -46,6 +46,13 @@ export interface SeriesResult {
   updatedAt?: string;
   /** Which path answered: the store, a live fetch, or a stale copy after a failed refresh. */
   source?: "store" | "live" | "stale";
+  /**
+   * Periods the source publishes no figure for under these labels, though a
+   * table for the period exists (Customs' January-February release gives the
+   * two months together and no February). A value the store holds there was
+   * read from the wrong column; the ingest retracts it as a null revision.
+   */
+  unpublished?: { labels: string[]; periods: string[] };
 }
 
 /**

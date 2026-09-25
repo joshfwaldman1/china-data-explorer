@@ -135,6 +135,16 @@ function unitLine(rows: string[][]): string {
   return rows.find((row) => UNIT_CELL.test(row[0] ?? ""))?.[0] ?? "";
 }
 
+function partnerTableIsCumulativeOnly(rows: string[][]): boolean {
+  const subHeader = rows.find((row) => row.some((cell) => CUMULATIVE_CELL.test(cell)));
+  return subHeader !== undefined && !subHeader.some((cell) => /^\d{1,2}$/.test(cell.trim()));
+}
+
+/** True when the page is a January-February partner table, which carries no single-month figure. */
+export function partnerTableHasNoMonth(html: string): boolean {
+  return partnerTableIsCumulativeOnly(rowsOf(html));
+}
+
 export function parseByCountry(html: string, currency: CustomsCurrency = "USD"): PartnerRow[] {
   const rows = rowsOf(html);
   const unit = unitLine(rows);
@@ -152,8 +162,7 @@ export function parseByCountry(html: string, currency: CustomsCurrency = "USD"):
   // imports as February's exports and a growth rate as its imports, for
   // every partner, four years running. The sub-header names the columns:
   // a month number beside each "1-to-N" in the ordinary layout, none here.
-  const subHeader = rows.find((row) => row.some((cell) => CUMULATIVE_CELL.test(cell)));
-  const cumulativeOnly = subHeader !== undefined && !subHeader.some((cell) => /^\d{1,2}$/.test(cell.trim()));
+  const cumulativeOnly = partnerTableIsCumulativeOnly(rows);
   const out: PartnerRow[] = [];
   for (const row of rows) {
     // "Unit:" is the unit line; "United States" is a partner. A partner has
@@ -207,11 +216,33 @@ export function parseTotals(html: string, currency: CustomsCurrency = "USD"): To
 
 export interface CommodityRow { name: string; quantityUnit: string; quantity: number | null; value: number | null; ytdQuantity: number | null; ytdValue: number | null }
 
+/**
+ * Whether a commodity table's header has a year-to-date column and no month
+ * column. The January-February release of 2021 to 2025 is headed "1-2 Total"
+ * with nothing beside it, where every other month is headed by its number
+ * and then "1-N Total": the two months are published together and there is
+ * no February figure. Read as the ordinary layout, the two-month total
+ * stood as February's, twice March's size, for every commodity.
+ */
+function cumulativeOnlyHeader(rows: string[][]): boolean {
+  const header = rows.find((row) => HEADER_CELL.test(row[0] ?? "") && /Unit/i.test(row[1] ?? ""));
+  if (!header) return false;
+  const hasTotal = header.some((cell) => /^1-?\s*(?:to-?\s*)?\d{1,2}\s*Total/i.test(cell));
+  const hasMonth = header.some((cell) => /^\d{1,2}$/.test(cell.trim()));
+  return hasTotal && !hasMonth;
+}
+
+/** True when the page is a January-February commodity table, which carries no single-month figure. */
+export function commodityTableIsCumulativeOnly(html: string): boolean {
+  return cumulativeOnlyHeader(rowsOf(html));
+}
+
 /** The major exports or imports table: quantity and value, month and year to date. */
 export function parseCommodities(html: string, currency: CustomsCurrency = "USD"): CommodityRow[] {
   const rows = rowsOf(html);
   const unit = unitLine(rows);
   if (!UNIT_LINE[currency].test(unit)) throw new Error(`commodity table: unexpected unit line "${unit}" for ${currency}`);
+  const cumulativeOnly = cumulativeOnlyHeader(rows);
   // "Commodity" in some years, "Import Commodity" or "Export Commodity" in
   // others (December 2020 says "Import Commodity"). A header check that
   // required the bare word refused every month of the other wording as
@@ -231,11 +262,18 @@ export function parseCommodities(html: string, currency: CustomsCurrency = "USD"
   const at = (row: string[], index: number) => row[unitColumnMissing ? index - 1 : index] ?? "";
   const out: CommodityRow[] = [];
   for (const row of data) {
-    out.push({
-      name: (row[0] ?? "").trim(), quantityUnit: unitColumnMissing ? "" : (row[1] ?? "").replace(/^[-—]$/, ""),
-      quantity: cellNumber(at(row, 2)), value: cellNumber(at(row, 3)),
-      ytdQuantity: cellNumber(at(row, 4)), ytdValue: cellNumber(at(row, 5)),
-    });
+    out.push(cumulativeOnly
+      // No single-month figure is published for these two months, so none is derived.
+      ? {
+        name: (row[0] ?? "").trim(), quantityUnit: unitColumnMissing ? "" : (row[1] ?? "").replace(/^[-—]$/, ""),
+        quantity: null, value: null,
+        ytdQuantity: cellNumber(at(row, 2)), ytdValue: cellNumber(at(row, 3)),
+      }
+      : {
+        name: (row[0] ?? "").trim(), quantityUnit: unitColumnMissing ? "" : (row[1] ?? "").replace(/^[-—]$/, ""),
+        quantity: cellNumber(at(row, 2)), value: cellNumber(at(row, 3)),
+        ytdQuantity: cellNumber(at(row, 4)), ytdValue: cellNumber(at(row, 5)),
+      });
   }
   if (out.length < 10) throw new Error(`commodity table: only ${out.length} rows found`);
   return out;
@@ -431,6 +469,10 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
   // change and fails the run, as the parsers are written to.
   const failed: string[] = [];
   const parsedMonths: string[] = [];
+  // Months whose table exists but carries no single-month figure (the
+  // January-February release), so that a value the store holds for them can
+  // be retracted: the parser used to read the two-month total as February's.
+  const unpublishedMonths: string[] = [];
   let parsed = 0;
   for (const month of months) {
     const entry = await findTable(cfg.table, month, { currency: cfg.currency ?? "USD" });
@@ -458,12 +500,14 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
         push("Imports, year to date (YoY %)", month, of("imports")?.yearToDateYearOnYear ?? null);
       }
     } else if (cfg.table === "by-country") {
+      if (partnerTableHasNoMonth(html)) unpublishedMonths.push(month);
       const row = parseByCountry(html, cfg.currency ?? "USD").find((item) => slugOf(item.name) === region.value);
       if (!row) continue;
       push("Exports", month, row.exports);
       push("Imports", month, row.imports);
       push("Balance", month, row.exports !== null && row.imports !== null ? Math.round((row.exports - row.imports) * 10) / 10 : null);
     } else {
+      if (commodityTableIsCumulativeOnly(html)) unpublishedMonths.push(month);
       const row = parseCommodities(html, cfg.currency ?? "USD").find((item) => slugOf(item.name) === region.value);
       if (!row) continue;
       push("Value", month, row.value);
@@ -486,9 +530,12 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     console.warn(`  Customs ${cfg.table}: ${failed.length} older month${failed.length === 1 ? "" : "s"} did not parse (${failedMonths.at(-1)}..${failedMonths[0]}) and ${parsed - failed.length} did; the older layout is a known gap`);
   }
   const series = Object.entries(points).map(([label, list]) => ({ label, points: list.sort((a, b) => a.date.localeCompare(b.date)) }));
+  // The single-month labels: the totals table has no such months, so it names none.
+  const monthLabels = cfg.table === "by-country" ? ["Exports", "Imports", "Balance"] : cfg.table === "totals" ? [] : Object.keys(points).filter((label) => label === "Value" || label.startsWith("Quantity ("));
+  const unpublished = unpublishedMonths.length > 0 && monthLabels.length > 0 ? { labels: monthLabels, periods: unpublishedMonths } : undefined;
   return {
     key, title: cfg.title, agency: cfg.agency, sourceUrl: `${CUSTOMS_BASE}/Statistics/Statistics?ColumnId=${LISTING_COLUMN}`,
-    frequency: cfg.frequency, unit: cfg.unit, series,
+    frequency: cfg.frequency, unit: cfg.unit, series, ...(unpublished ? { unpublished } : {}),
   };
 }
 

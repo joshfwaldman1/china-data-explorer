@@ -70,3 +70,24 @@ test("commodity quantity lines named for a misread number are removed outright; 
   expect(stored?.series[0]?.points.find((point) => point.date === "2025-04")?.value).toBe(215.8);
   expect(removeMisparsedQuantityLines(db())).toBe(0);
 });
+
+test("a period the source publishes no figure for is retracted as a null revision, once, and the trail keeps it", async () => {
+  const { retractUnpublished } = await import("./db.ts");
+  writeSeries({
+    key: "major_exports", title: "Major exports", agency: "General Administration of Customs", unit: "Million USD", frequency: "Monthly", sourceUrl: "http://english.customs.gov.cn/",
+    series: [
+      { label: "Value", points: [{ date: "2025-02", value: 18654.8 }, { date: "2025-03", value: 9288.1 }] },
+      { label: "Quantity (10,000 Sets)", points: [{ date: "2025-02", value: 10922.2 }, { date: "2025-03", value: 5000 }] },
+    ],
+  } as never, "mobile-phones", "2026-09-01T00:00:00.000Z");
+  const unpublished = { labels: ["Value", "Quantity (10,000 Sets)"], periods: ["2025-02", "2024-02"] };
+  // Two labels hold a February 2025 figure; nothing is stored for 2024, so nothing is written for it.
+  expect(retractUnpublished("major_exports", "mobile-phones", unpublished, "2026-09-26T00:00:00.000Z")).toBe(2);
+  const stored = readSeries("major_exports", 12, "mobile-phones");
+  const at = (label: string, date: string) => stored?.series.find((line) => line.label === label)?.points.find((point) => point.date === date)?.value;
+  expect(at("Value", "2025-02")).toBeNull();
+  expect(at("Quantity (10,000 Sets)", "2025-02")).toBeNull();
+  expect(at("Value", "2025-03")).toBe(9288.1);
+  expect(readRevisionHistory("major_exports", "mobile-phones").find((row) => row.label === "Value" && row.period === "2025-02")?.vintages.map((vintage) => vintage.value)).toEqual([18654.8, null]);
+  expect(retractUnpublished("major_exports", "mobile-phones", unpublished, "2026-09-27T00:00:00.000Z")).toBe(0);
+});

@@ -16,7 +16,7 @@
  */
 
 import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions, type SeriesResult } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyTargets, storedLatest, storedValue } from "./db.ts";
+import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyTargets, retractUnpublished, storedLatest, storedValue } from "./db.ts";
 import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, getNbsDimensions, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type FetchWindow, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { comparablePeriod, dueReason } from "./due.ts";
 import type { ReleaseTarget } from "./release-plan.ts";
@@ -50,8 +50,10 @@ async function ingestRegion(key: string, region: { text: string; value: string }
       return "error";
     }
     const summary = writeSeries(result, region.value, finishedAt);
-    logFetch({ key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed });
-    console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} ${String(summary.points).padStart(4)} points, ${summary.changed} new or revised`);
+    // A period the source publishes no figure for, where the store holds one, is retracted as a null revision.
+    const retracted = result.unpublished ? retractUnpublished(key, region.value, result.unpublished, finishedAt) : 0;
+    logFetch({ key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed + retracted });
+    console.log(`  ${label.padEnd(36)} ${region.text.padEnd(8)} ${String(summary.points).padStart(4)} points, ${summary.changed} new or revised${retracted > 0 ? `, ${retracted} retracted` : ""}`);
     return "ok";
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

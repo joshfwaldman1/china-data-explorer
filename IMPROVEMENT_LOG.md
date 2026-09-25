@@ -16,10 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Customs commodity parser (`parseCommodities`) has no cumulative-only
-  handling, unlike `parseByCountry`: February 2021 to 2025 in the commodity
-  and energy-import charts is January and February together, dated
-  February. Either parse it as the partner table does or null those points.
 - NEA electricity consumption: the month line has 2022-02 equal to the
   year-to-date line (January and February together, drawn as one month), and
   2026-05 is missing from both lines (the May release was not ingested).
@@ -64,6 +60,23 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the January-February commodity tables): Customs'
+  January-February release of the major exports and imports tables (2021 to
+  2025) is headed "1-2 Total" with no month column, and the parser read the
+  two-month total as February's: mobile phone exports 18,655 for February
+  2025 against 9,288 in March, coal imports twice March's every year. The
+  partner parser already knew this layout; the commodity parser now reads it
+  the same way, with no single-month figure. Because the store is append-only
+  and the ingest writes only what it reads, a corrected parse alone could not
+  take back the misread Februaries, so the Customs fetch now names the months
+  whose table carries no single-month figure (`unpublished` on the result)
+  and the ingest retracts any stored value there as a null revision, keeping
+  the trail. This is the general form of the one-off partner retraction of
+  24 September; it covers the partner series too. The five theme notes that
+  called those Februaries "one combined figure, dated February" now say the
+  months are blank. Fixture: the January-February 2025 exports table.
+  Verified: typecheck clean, 436 tests; the live retraction lands with the
+  ingest after the deploy.
 - 2026-09-25 (round: Customs April 2025 and June 2025): two of the audit's
   data defects had one cause each on Customs' side. April 2025's major
   exports table was published without its quantity-unit column, so the

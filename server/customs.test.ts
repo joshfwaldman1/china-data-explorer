@@ -6,7 +6,7 @@
 
 import { test, expect } from "bun:test";
 import { resolve } from "node:path";
-import { currencyOfTable, findTable, layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, slugOf, tableOfCurrency } from "./customs.ts";
+import { commodityTableIsCumulativeOnly, currencyOfTable, findTable, layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, partnerTableHasNoMonth, slugOf, tableOfCurrency } from "./customs.ts";
 
 const fixture = (name: string) => Bun.file(resolve(import.meta.dir, "fixtures/customs", name)).text();
 
@@ -192,4 +192,23 @@ test("a month whose USD table is listed as CNY is found through its twin and tol
   const plain = await findTable("by-country", "2026-08", { pages: async (n) => (n === 1 ? parseListing(await fixture("listing-column1-page1.html")) : []) });
   expect(plain?.alternates).toBeUndefined();
   await expect(tableOfCurrency(found!, "CNY", async (entry) => pages[entry.href] ?? "")).resolves.toBe(pages[found!.href]!);
+});
+
+test("the January-February commodity table carries the two months together and no February figure", async () => {
+  // Headed "1-2 Total" with no month column; read as the ordinary layout, the two-month
+  // total stood as February's for every commodity, twice March's size, 2021 to 2025.
+  const html = await fixture("major-exports-2025-02-usd.html");
+  expect(commodityTableIsCumulativeOnly(html)).toBe(true);
+  const vehicles = parseCommodities(html).find((row) => /^Motor vehicles/i.test(row.name));
+  expect(vehicles?.value).toBeNull();
+  expect(vehicles?.quantity).toBeNull();
+  expect(vehicles?.ytdValue).toBe(16143.6);
+  expect(vehicles?.ytdQuantity).toBe(97.1);
+  expect(vehicles?.quantityUnit).toBe("10,000 Autos");
+  // Ordinary months, and the unit-less April 2025, still carry the month.
+  expect(commodityTableIsCumulativeOnly(await fixture("major-exports-2026-08-usd.html"))).toBe(false);
+  expect(commodityTableIsCumulativeOnly(await fixture("major-exports-2025-04-usd.html"))).toBe(false);
+  // The partner table's January-February release is told the same way.
+  expect(partnerTableHasNoMonth(await fixture("by-country-2025-02-usd.html"))).toBe(true);
+  expect(partnerTableHasNoMonth(await fixture("by-country-2026-08-usd.html"))).toBe(false);
 });

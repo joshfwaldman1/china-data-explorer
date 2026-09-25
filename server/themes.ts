@@ -206,7 +206,7 @@ const ENERGY: Theme = {
       charts: [
         { title: "Crude oil imports, value, month", key: "major_imports", region: "crude-petroleum-oils", labels: ["Value"], years: 1, note: "Customs history on this site starts February 2026." },
         { title: "Natural gas imports, value, month", key: "major_imports", region: "natural-gases", labels: ["Value"], years: 1, note: "Customs history on this site starts February 2026." },
-        { title: "Coal imports, value, month", key: "major_imports", region: "coal-and-lignite", labels: ["Value"], years: 8, note: "February 2021 to 2025 is January and February together." },
+        { title: "Coal imports, value, month", key: "major_imports", region: "coal-and-lignite", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
       ],
     },
     {
@@ -309,11 +309,11 @@ export const THEMES: Record<string, Theme> = {
         title: "Major exports, by value",
         lede: "From Customs' commodity table.",
         charts: [
-          { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: "January and February are one combined figure, dated February, through 2025; April 2025 is missing. Hi-tech products overlap other commodity lines." },
-          { title: "Mobile phone exports, value, month", key: "major_exports", region: "mobile-phones", labels: ["Value"], years: 6, note: "January and February are one combined figure, dated February, through 2025." },
-          { title: "Motor vehicle exports, value, month", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 5, note: "January and February are one combined figure, dated February, through 2025." },
+          { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined. Hi-tech products overlap other commodity lines." },
+          { title: "Mobile phone exports, value, month", key: "major_exports", region: "mobile-phones", labels: ["Value"], years: 6, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
+          { title: "Motor vehicle exports, value, month", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 5, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
           { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: "Customs added this line in 2026; January 2026 is not stored." },
-          { title: "Ship exports, value, month", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: "January and February are one combined figure, dated February, through 2025." },
+          { title: "Ship exports, value, month", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
         ],
       },
       {

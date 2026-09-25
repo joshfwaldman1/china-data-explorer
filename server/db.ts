@@ -234,6 +234,38 @@ export function removeMisparsedQuantityLines(database: Database): number {
   return lines.length;
 }
 
+/**
+ * A null revision for each (label, period) the source says it publishes no
+ * figure for, where the store's latest value is not already null. The
+ * observations table is append-only and the ingest writes only what it
+ * reads, so a corrected parse that reads nothing for a period cannot on its
+ * own take back what an earlier parse read from the wrong column; this does,
+ * keeping the trail. Returns how many figures were retracted.
+ */
+export function retractUnpublished(key: string, region: string, unpublished: { labels: string[]; periods: string[] }, fetchedAt: string): number {
+  if (unpublished.labels.length === 0 || unpublished.periods.length === 0) return 0;
+  const database = db();
+  const latest = database.prepare(`
+    SELECT value FROM observations
+    WHERE key = $key AND region = $region AND label = $label AND period = $period
+    ORDER BY fetched_at DESC LIMIT 1
+  `);
+  const retract = database.prepare("INSERT OR IGNORE INTO observations (key, region, label, period, value, fetched_at) VALUES (?, ?, ?, ?, NULL, ?)");
+  let count = 0;
+  database.transaction(() => {
+    for (const label of unpublished.labels) {
+      for (const period of unpublished.periods) {
+        const row = latest.get({ $key: key, $region: region, $label: label, $period: period }) as { value: number | null } | null;
+        if (row === null || row.value === null) continue;
+        retract.run(key, region, label, period, fetchedAt);
+        count += 1;
+      }
+    }
+    if (count > 0) database.query("INSERT INTO store_stats (id, observations) VALUES (1, $count) ON CONFLICT (id) DO UPDATE SET observations = observations + $count").run({ $count: count });
+  })();
+  return count;
+}
+
 export function db(): Database {
   if (handle) return handle;
 
