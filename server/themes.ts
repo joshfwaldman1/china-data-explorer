@@ -187,8 +187,8 @@ const ENERGY: Theme = {
         { title: "Thermal and hydro generation, month", key: "electricity_by_source", labels: ["Thermal, month (亿千瓦时)", "Hydro, month (亿千瓦时)"], years: 8 },
         { title: "Wind, solar and nuclear generation, month", key: "electricity_by_source", labels: ["Wind, month (亿千瓦时)", "Solar, month (亿千瓦时)", "Nuclear, month (亿千瓦时)"], years: 8, note: "Above-threshold industrial generators only (规上工业); most distributed solar, rooftop included, is outside it." },
         { title: "Thermal, wind and solar generation, growth on a year earlier", key: "electricity_by_source_growth", labels: ["Thermal (YoY %)", "Wind (YoY %)", "Solar (YoY %)"], years: 8, note: "The bureau's rates, on a comparable set of enterprises; they run below growth worked out from the levels, most for solar (Aug 2026: 10.3% against 30%)." },
-        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 5, note: "February 2022 is January and February together. The administration gives no December figure; its annual release comes in January." },
-        { title: "Electricity consumption by user, growth on a year earlier", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 5, note: "February 2022 is January and February together. The administration gives no December figure; its annual release comes in January." },
+        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 5, note: "The administration gives no December figure; its annual release comes in January. No release was published for May 2026." },
+        { title: "Electricity consumption by user, growth on a year earlier", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 5, note: "The administration gives no December figure; its annual release comes in January. No release was published for May 2026." },
       ],
     },
     {

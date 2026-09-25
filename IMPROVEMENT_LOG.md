@@ -16,9 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- NEA electricity consumption: the month line has 2022-02 equal to the
-  year-to-date line (January and February together, drawn as one month), and
-  2026-05 is missing from both lines (the May release was not ingested).
 - MOF land sale revenue is a release behind: Jan to Aug 2026 (13,753,
   -28.6%) was published on 18 September and the store ends at July. Check
   the ministry adapter's listing against the new release page.
@@ -60,6 +57,21 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the energy administration's February 2022): the month
+  line held 13,467 for February 2022, the two-month total. The release
+  itself gives February alone (6,235, +16.9%) and then January-February;
+  its sentence reads "2月份，我国经济持续稳定恢复，全社会用电量持续增长，达到
+  6235亿千瓦时", with a clause between the month and the subject, and the
+  parser looked for the month in the two dozen characters before the
+  subject, found none, and kept only the year to date; an earlier parse had
+  stored the total as the month, and nothing since could overwrite it. The
+  marker is now read from the whole sentence (from the previous full stop),
+  the one nearest the subject winning, so "3月15日，…发布…2月份，" names
+  February. The next ingest revises the month to 6,235 in place, trail kept.
+  May 2026 is not a defect: the administration published no May note (April
+  came on 19 May, then January-June on 15 July), so the month is absent at
+  the source; the consumption cards say so. Fixture: the 15 March 2022 page.
+  Verified: typecheck clean, 437 tests.
 - 2026-09-25 (round: the January-February commodity tables): Customs'
   January-February release of the major exports and imports tables (2021 to
   2025) is headed "1-2 Total" with no month column, and the parser read the

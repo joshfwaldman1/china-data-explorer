@@ -88,3 +88,18 @@ test("a release whose month equals its year to date is refused rather than store
   const doctored = (await fixture("release-2026-08.html")).replace("达到10332亿千瓦时", "达到71730亿千瓦时");
   expect(() => parseNeaRelease(doctored, "2026-09-20")).toThrow(/month and the year to date are both/);
 });
+
+test("February 2022's release names the month in a clause before the subject; it gives February alone and the two months together", async () => {
+  // "2月份，我国经济持续稳定恢复，全社会用电量持续增长，达到6235亿千瓦时": the month
+  // marker is not beside the subject. Read with a short lead, the release gave only
+  // its year to date (13,467), and the month line kept 13,467 from an earlier misread.
+  const figures = parseNeaRelease(await fixture("release-2022-02.html"), "2022-03-15");
+  expect(figures?.period).toBe("2022-02");
+  expect(figures?.month?.total).toBe(6235);
+  expect(figures?.month?.totalGrowth).toBe(16.9);
+  expect(figures?.month?.secondary).toBe(3756);
+  expect(figures?.month?.householdsGrowth).toBe(24.8);
+  expect(figures?.yearToDate?.total).toBe(13467);
+  expect(figures?.yearToDate?.totalGrowth).toBe(5.8);
+  expect(figures?.yearToDate?.secondary).toBe(8413);
+});

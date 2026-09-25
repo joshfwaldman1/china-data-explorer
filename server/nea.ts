@@ -114,14 +114,21 @@ export function parseNeaRelease(html: string, publishedAt: string): NeaFigures |
   // Every "全社会用电量 N亿千瓦时" figure, each read with the sentence that introduces it.
   for (const match of text.matchAll(TOTAL)) {
     const at = match.index ?? 0;
-    const lead = text.slice(Math.max(0, at - 24), at);
+    // The sentence the figure sits in, from the previous full stop. The period marker
+    // is a clause of that sentence: "7月份，全社会用电量…" usually, but February 2022
+    // reads "2月份，我国经济持续稳定恢复，全社会用电量持续增长，达到6235亿千瓦时", and a
+    // lead of the two dozen characters before the subject held no month at all, so
+    // the release gave only its year to date and the month line kept an old misread.
+    const lead = text.slice(Math.max(0, at - 80, text.lastIndexOf("。", at) + 1), at);
     const paragraph = text.slice(at, text.indexOf("。", at + 600) > 0 ? Math.min(at + 700, text.length) : text.length);
     const exec = TOTAL.exec.bind(new RegExp(TOTAL.source))(text.slice(at));
     if (!exec) continue;
     const figures = breakdown(paragraph, exec);
-    const single = lead.match(new RegExp(`(?:^|[^\\d${RANGE_DASH.slice(1, -1)}])(\\d{1,2})\\s*月份?\\s*，\\s*$`));
-    const range = lead.match(new RegExp(`(\\d{1,2})\\s*${RANGE_DASH}\\s*(\\d{1,2})\\s*月份?\\s*，\\s*$`));
-    const annual = lead.match(/(\d{4})\s*年\s*，\s*$/);
+    // The marker nearest the subject wins: "3月15日，…发布…2月份，" names February.
+    const singles = [...lead.matchAll(new RegExp(`(?:^|[^\\d${RANGE_DASH.slice(1, -1)}])(\\d{1,2})\\s*月份?\\s*，`, "g"))];
+    const single = singles.at(-1);
+    const range = [...lead.matchAll(new RegExp(`(\\d{1,2})\\s*${RANGE_DASH}\\s*(\\d{1,2})\\s*月份?\\s*，`, "g"))].at(-1);
+    const annual = [...lead.matchAll(/(\d{4})\s*年\s*，/g)].at(-1);
     if (single?.[1] && !range) {
       const month = Number(single[1]);
       result = { ...(result ?? { period: "" }), period: `${yearOf(month)}-${String(month).padStart(2, "0")}`, month: figures };
