@@ -1829,6 +1829,8 @@ export async function getNbsCatalogSeries(options: {
   region?: string;
   limit?: number;
   transform?: NbsTransform;
+  /** Read the store only, never the portal; an unstored series is an error rather than a fetch. */
+  storeOnly?: boolean;
 }): Promise<NbsSeriesResult> {
   const limit = Math.min(historyLimit(options.entry.frequency), Math.max(2, options.limit ?? 120));
   const transform = options.transform ?? defaultNbsTransform(options.entry);
@@ -1841,7 +1843,7 @@ export async function getNbsCatalogSeries(options: {
     : [options.entry];
   const parts: { points: SeriesPoint[]; source: NbsSeriesResult["source"] }[] = [];
   for (const member of memberEntries) {
-    try { parts.push(await pointsFor(member, region)); }
+    try { parts.push(await pointsFor(member, region, options.storeOnly ?? false)); }
     catch (error) { if (memberEntries.length === 1) throw error; }
   }
   if (parts.every((part) => part.points.length === 0)) throw new Error("NBS returned no observations for this series");
@@ -1919,10 +1921,18 @@ export function rawUnitOf(entry: Pick<NbsCatalogEntry, "unit" | "name">): string
   return unit || "Value";
 }
 
-/** Stored points if fresh, otherwise a refresh; a stale copy beats an error page, a missing copy does not. */
-async function pointsFor(entry: NbsCatalogEntry, region: NbsRegionOption): Promise<{ points: SeriesPoint[]; source: NbsSeriesResult["source"] }> {
+/**
+ * Stored points if fresh, otherwise a refresh; a stale copy beats an error page, a missing copy does not.
+ * With `storeOnly`, the stored points whatever their age, and an error when there are none: a page
+ * that draws many series at once (a theme) must never turn into a burst of fetches.
+ */
+async function pointsFor(entry: NbsCatalogEntry, region: NbsRegionOption, storeOnly = false): Promise<{ points: SeriesPoint[]; source: NbsSeriesResult["source"] }> {
   const points = storedPoints(entry, region);
   if (points.length > 0 && isFresh(entry, region, points)) return { points, source: "store" };
+  if (storeOnly) {
+    if (points.length === 0) throw new Error("not stored");
+    return { points, source: "stale" };
+  }
   try {
     const refreshed = await refreshNbsCatalogSeries(entry, region.value);
     return { points: refreshed.points, source: "live" };

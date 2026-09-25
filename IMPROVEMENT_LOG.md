@@ -16,12 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Theme cards read the raw store (`readSeries`) while the series page fills
-  the combined February from the year-to-date sibling (`februaryFrom`), so a
-  theme card and the series page it links to draw different points on
-  monthly NBS output tables. Serve theme charts for `nbs_` keys through
-  `getNbsCatalogSeries`, then reword the "no January or February point"
-  notes on the Manufacturing, Trade and Energy pages.
 - Home rows dated "Sep 2026" for month-end series while the month is open
   (FDR007, 10-year yield, USD/CNY parity, CFETS index, SHIBOR): the value is a
   month-to-date reading and the change compares it with August's close. Say
@@ -54,6 +48,20 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: theme cards draw what the series page draws): a theme
+  card for a bureau catalog series read the raw store, while the series
+  page it links to goes through the catalog reader, which stitches a sliced
+  table, drops placeholder zeros and fills the combined February from the
+  year-to-date sibling. So the output tables (vehicles, solar cells, robots,
+  ships) had no February on the theme page and a combined one on the series
+  page. `themeData` is async now and reads `nbs_` keys through
+  `getNbsCatalogSeries` with a new `storeOnly` option, which serves stored
+  points whatever their age and treats an unstored series as an error
+  rather than a fetch, so a page of twenty charts can never become a burst
+  of portal requests. The three level-output ledes now say the February
+  point is January and February combined. Verified: typecheck clean, 438
+  tests; the local store holds none of those series, so the fill is checked
+  on the live site after the deploy.
 - 2026-09-25 (round: the finance ministry's January-August release): the
   fiscal series ended at July a week after the January-August release was
   out (18 September). The release's title writes its range with an em dash,

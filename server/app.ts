@@ -298,8 +298,8 @@ const routes = {
     "/api/health-report": () => Response.json(cachedHealthReport()),
     // A theme page: one story's charts, each read from the store by key,
     // region and line. Nothing here fetches.
-    "/api/theme/:name": (req: RouteRequest) => {
-      const data = themeData(req.params.name ?? "");
+    "/api/theme/:name": async (req: RouteRequest) => {
+      const data = await themeData(req.params.name ?? "");
       if (!data) return Response.json({ error: "Unknown theme" }, { status: 404 });
       return jsonFor(req, data);
     },

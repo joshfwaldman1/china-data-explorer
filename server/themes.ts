@@ -17,6 +17,7 @@
 
 import { CATALOG, configuredLabels, seriesRegion, seriesRegions, type NbsRegion, type SeriesResult } from "./data";
 import { readSeries } from "./db";
+import { getNbsCatalogEntry, getNbsCatalogSeries } from "./nbs-catalog";
 
 export interface ThemeChart {
   /** The panel's heading; the series title when omitted. */
@@ -93,7 +94,7 @@ const MANUFACTURING: Theme = {
     },
     {
       title: "Output by product, levels",
-      lede: "Monthly output from the bureau's table. There is no January or February point: the bureau publishes the two months only as a combined total.",
+      lede: "Monthly output from the bureau's table. The February point is January and February combined; there is no January point.",
       charts: [
         { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
         { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },
@@ -217,7 +218,7 @@ const ENERGY: Theme = {
     },
     {
       title: "Solar cell and new energy vehicle output",
-      lede: "There is no January or February point: the bureau publishes the two months only as a combined total.",
+      lede: "The February point is January and February combined; there is no January point.",
       charts: [
         { title: "Solar cell output, month", key: OUTPUT.solar, years: 10 },
         { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
@@ -334,7 +335,7 @@ export const THEMES: Record<string, Theme> = {
       },
       {
         title: "Output by product",
-        lede: "Monthly output from the bureau's table. There is no January or February point: the bureau publishes the two months only as a combined total.",
+        lede: "Monthly output from the bureau's table. The February point is January and February combined; there is no January point.",
         charts: [
           { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
           { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },
@@ -387,29 +388,48 @@ function limitFor(key: string, years: number): number {
   return perYear * (years + 1);
 }
 
+/**
+ * A chart's series as the series page would serve it, from the store only.
+ *
+ * A bureau catalog series goes through the catalog reader, which stitches a
+ * sliced table, drops the placeholder zeros and fills the combined February
+ * from the year-to-date sibling (`februaryFrom`), all from stored points. Read
+ * raw, a theme card drew a different line from the page it links to: the
+ * output tables had no February at all here and the combined one there.
+ */
+async function chartSeries(chart: ThemeChart, region: string | undefined): Promise<SeriesResult | null> {
+  if (chart.key.startsWith("nbs_")) {
+    const entry = await getNbsCatalogEntry(chart.key);
+    if (!entry) return null;
+    try { return await getNbsCatalogSeries({ entry, limit: limitFor(chart.key, chart.years ?? 10), storeOnly: true }); }
+    catch { return null; }
+  }
+  return readSeries(chart.key, limitFor(chart.key, chart.years ?? 10), region);
+}
+
 /** The theme's charts, each with its series read from the store. Null for a theme that does not exist. */
-export function themeData(name: string): ThemeData | null {
+export async function themeData(name: string): Promise<ThemeData | null> {
   const theme = THEMES[name];
   if (!theme) return null;
   return {
     name, title: theme.title, lede: theme.lede,
-    sections: theme.sections.map((section) => ({
+    sections: await Promise.all(theme.sections.map(async (section) => ({
       title: section.title, ...(section.lede ? { lede: section.lede } : {}),
-      charts: section.charts.map((chart) => {
+      charts: await Promise.all(section.charts.map(async (chart) => {
         // The region resolves as the series route resolves it: the one named, else the
         // series' default, else its first; a series without regions reads as stored.
         const regions = seriesRegions(chart.key);
         const requested = chart.region ?? seriesRegion(chart.key);
         const place = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
-        const stored = readSeries(chart.key, limitFor(chart.key, chart.years ?? 10), place?.value);
+        const stored = await chartSeries(chart, place?.value);
         const configured = configuredLabels(chart.key);
         const wanted = chart.labels ?? configured;
         const result = stored
           ? { ...stored, title: chart.title ?? stored.title, series: wanted ? stored.series.filter((line) => wanted.includes(line.label)) : stored.series }
           : null;
         return { ...chart, result, ...(place ? { place } : {}) };
-      }),
-    })),
+      })),
+    }))),
   };
 }
 

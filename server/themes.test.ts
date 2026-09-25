@@ -59,7 +59,7 @@ test("a theme's titles are its own and its charts are few enough to read", () =>
   }
 });
 
-test("themeData returns every section with a stored series read and filtered to the chart's lines", () => {
+test("themeData returns every section with a stored series read and filtered to the chart's lines", async () => {
   const trade = CATALOG["trade"]!;
   writeSeries({
     key: "trade", title: trade.title, agency: trade.agency, unit: trade.unit, frequency: trade.frequency, sourceUrl: "http://www.customs.gov.cn/", fetchedAt: new Date().toISOString(),
@@ -69,7 +69,7 @@ test("themeData returns every section with a stored series read and filtered to 
       { label: "Trade balance (USD bn)", points: [{ date: "2025-06", value: 114.8 }, { date: "2025-07", value: 98.2 }] },
     ],
   } as never, seriesRegions("trade")[0]!.value, new Date().toISOString());
-  const data = themeData("trade");
+  const data = await themeData("trade");
   expect(data).not.toBeNull();
   expect(data!.sections.map((section) => section.title)).toEqual(THEMES.trade!.sections.map((section) => section.title));
   const headline = data!.sections[0]!.charts.find((chart) => chart.key === "trade")!;
@@ -81,6 +81,6 @@ test("themeData returns every section with a stored series read and filtered to 
   expect(unstored?.result).toBeNull();
 });
 
-test("an unknown theme is null, so the route can answer 404", () => {
-  expect(themeData("weather")).toBeNull();
+test("an unknown theme is null, so the route can answer 404", async () => {
+  expect(await themeData("weather")).toBeNull();
 });
