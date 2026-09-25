@@ -100,7 +100,7 @@ test("a profile names its province in both languages and refuses a code that is 
   const profile = await provinceProfile("440000000000");
   expect(profile?.region.text).toBe("广东省");
   expect(profile?.region.en).toBe("Guangdong");
-  expect(profile?.sections.map((section) => section.title)).toEqual(["Growth", "Size", "Labour and households", "Trade"]);
+  expect(profile?.sections.map((section) => section.title)).toEqual(["Growth", "Size", "Labour and households", "Exports"]);
   expect(await provinceProfile("000000000000")).toBeNull();
   expect(await provinceProfile("not-a-code")).toBeNull();
 });

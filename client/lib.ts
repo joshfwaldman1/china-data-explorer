@@ -171,14 +171,15 @@ const MONTH_NAMES = Array.from({ length: 12 }, (_, index) => new Date(Date.UTC(2
  * dated July, "Q1 to Q2 2026" for a quarterly one, the year for an annual.
  * A reading dated "July 2026" on a year-to-date series is not July's.
  */
-export function periodSpan(date: string, frequency: string): string {
+export function periodSpan(date: string, frequency: string, style: "long" | "short" = "long"): string {
   const quarter = date.match(/^(\d{4})-Q([1-4])$/);
   if (quarter) return quarter[2] === "1" ? `Q1 ${quarter[1]}` : `Q1 to Q${quarter[2]} ${quarter[1]}`;
   const month = date.match(/^(\d{4})-(\d{2})/);
   if (!month || frequency === "Annual") return date.slice(0, 4);
   const number = Number(month[2]);
   if (frequency === "Quarterly") { const q = Math.ceil(number / 3); return q === 1 ? `Q1 ${month[1]}` : `Q1 to Q${q} ${month[1]}`; }
-  return number === 1 ? `${MONTH_NAMES[0]} ${month[1]}` : `${MONTH_NAMES[0]} to ${MONTH_NAMES[number - 1]} ${month[1]}`;
+  const name = (index: number) => style === "short" ? MONTH_NAMES[index]!.slice(0, 3) : MONTH_NAMES[index]!;
+  return number === 1 ? `${name(0)} ${month[1]}` : `${name(0)} to ${name(number - 1)} ${month[1]}`;
 }
 
 /** A line's name without the measure the bureau appends to it: "Industrial profits, year to date (YoY %)" reads "Industrial profits". */
@@ -219,7 +220,8 @@ export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint
   const difference = latest.value - previous.value;
   // The series says how its change reads: percentage points, points, or its own units.
   const change = measure(unit).change;
-  const points = change === "pt" ? " pt" : change === "pp" ? " pp" : "";
+  // A per-thousand rate moves in per-thousand points, which "pt" does not say.
+  const points = change === "pt" ? (measure(unit).suffix === "‰" ? " per 1,000" : " pt") : change === "pp" ? " pp" : "";
   if (Math.abs(difference) < 0.000001) {
     if (style === "long") return `Unchanged from ${before}`;
     // The short form sits beside "+0.3 pp" on the Home list, so an unchanged rate says "0.0 pp" too.
@@ -321,8 +323,10 @@ export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesP
   if (options.absolute || yearAgo.value === 0 || Math.sign(latest.value) !== Math.sign(yearAgo.value)) {
     const difference = latest.value - yearAgo.value;
     const text = Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), options.unit ?? "");
-    if (/^0(\.0+)?$/.test(text)) return "0 y/y";
-    return `${difference > 0 ? "+" : "-"}${text} y/y`;
+    // A change in a level carries the level's unit; "+700" alone is attributable to nothing.
+    const suffix = options.unit ? measure(options.unit).suffix : "";
+    if (/^0(\.0+)?$/.test(text)) return `0${suffix ? ` ${suffix}` : ""} y/y`;
+    return `${difference > 0 ? "+" : "-"}${text}${suffix ? ` ${suffix}` : ""} y/y`;
   }
   const change = ((latest.value - yearAgo.value) / Math.abs(yearAgo.value)) * 100;
   const text = fmt(Math.abs(change), "%");

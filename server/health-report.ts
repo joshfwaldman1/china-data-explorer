@@ -141,16 +141,27 @@ function failingSources(rows: { key: string; failures: number; since: string; la
  * values. That is a fact about the bureau's index, not a fault to chase, and
  * there are twelve thousand of them. Listed one per line beside the curated
  * sources they buried the real news completely: the first version of this
- * page opened with "12187 sources failing to parse", which is both true and
+ * page opened with "12187 sources not reading", which is both true and
  * useless. Here they are a volume and a set of reasons.
  */
+/** A failure's reason in the reader's words, never the runtime's ("pass verbose: true to fetch()"). */
+export function crawlReason(message: string): string {
+  const text = (message || "").replace(/nbs_[0-9a-f]{8,}/g, "a series").trim();
+  if (!text) return "no reason recorded";
+  if (/socket connection was closed|ECONNRESET|socket hang up/i.test(text)) return "the connection dropped mid-request";
+  if (/timed out|timeout/i.test(text)) return "the request timed out";
+  if (/grid with no values/i.test(text)) return "the bureau's index lists them with no values behind them";
+  if (/HTTP (\d{3})/.test(text)) return `the portal answered HTTP ${text.match(/HTTP (\d{3})/)![1]}`;
+  return text.replace(/\s*For more information.*$/i, "").replace(/\.$/, "");
+}
+
 function crawlFailures(rows: { key: string; failures: number; message: string }[]): CrawlFailures {
   const byReason = new Map<string, number>();
   let attempts = 0;
   for (const row of rows) {
     attempts += row.failures;
     // The message carries the series id in some phrasings; the reason is the shape of it.
-    const reason = (row.message || "no reason recorded").replace(/nbs_[0-9a-f]{8,}/g, "a series").trim();
+    const reason = crawlReason(row.message);
     byReason.set(reason, (byReason.get(reason) ?? 0) + 1);
   }
   return {
@@ -240,7 +251,7 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
 export function healthHeadline(report: HealthReport): string {
   const parts: string[] = [];
   if (report.checks.findings.length > 0) parts.push(`${report.checks.findings.length} cross-check${report.checks.findings.length === 1 ? "" : "s"} disagreeing`);
-  if (report.sources.failing.length > 0) parts.push(`${report.sources.failing.length} source${report.sources.failing.length === 1 ? "" : "s"} failing to parse`);
+  if (report.sources.failing.length > 0) parts.push(`${report.sources.failing.length} source${report.sources.failing.length === 1 ? "" : "s"} not reading`);
   if (report.behind.publisher.length > 0) parts.push(`${report.behind.publisher.length} series behind`);
   if (parts.length === 0) return `All ${report.checks.total} cross-checks agree, every source read cleanly, nothing overdue.`;
   return `${parts.join("; ")}.`;

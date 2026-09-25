@@ -61,9 +61,9 @@ export const PROVINCE_PROFILE: ProfileSection[] = [
   {
     title: "Growth",
     entries: [
-      { key: "provincial_gdp", label: "Real GDP growth" },
+      { key: "provincial_gdp", label: "Real GDP growth, year to date" },
       { key: "provincial_industry", line: "Industrial output, month (YoY %)", label: "Industrial output growth" },
-      { key: "provincial_cpi", label: "Consumer prices" },
+      { key: "provincial_cpi", label: "Consumer prices, change from a year earlier" },
     ],
   },
   {
@@ -86,8 +86,8 @@ export const PROVINCE_PROFILE: ProfileSection[] = [
     ],
   },
   {
-    title: "Trade",
-    entries: [{ key: NBS.exports, label: "Exports of operating units" }],
+    title: "Exports",
+    entries: [{ key: NBS.exports, label: "Exports, by location of the exporting unit" }],
   },
 ];
 

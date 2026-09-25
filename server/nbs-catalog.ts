@@ -293,7 +293,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 25; // 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 27; // 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -429,8 +429,12 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
   // The English name of the table only. A Chinese table name inside an English
   // title reads as a mistake, and such a table is usually the title over again,
   // so a table with no gloss is better left off.
-  const tableOf = (entry: NbsCatalogEntry) => entry.categoriesEn?.at(-1) ?? "";
+  // The year-range a sliced table carries in its name is a vintage marker, not part of the table's name.
+  const tableOf = (entry: NbsCatalogEntry) => (entry.categoriesEn?.at(-1) ?? "").replace(SLICE_SUFFIX, "").trim();
   for (const entry of entries) {
+    // Year-range slices of one series are one series: their tables, named
+    // by vintage, must not count as different tables carrying one title.
+    if (entry.family && entry.family.head !== entry.key) continue;
     const key = `${entry.nameEn || entry.name}|${entry.frequency}`;
     const tables = seen.get(key) ?? new Set<string>();
     tables.add(tableOf(entry));
@@ -1055,9 +1059,15 @@ function frequencyRank(entry: NbsCatalogEntry): number {
 }
 
 function band(score: number): number { return Math.round(score / 5) * 5; }
-/** Tie-break length: the English title when there is one, since units inflate the Chinese one ("(万吨)" vs "(%)"). */
+/**
+ * Tie-break length: the English title when there is one, since units inflate
+ * the Chinese one ("(万吨)" vs "(%)"). A table prefix ("National consumer
+ * price indices by category: ...") is context, not title, and is not counted:
+ * the shorter title is the more general series, and a series does not become
+ * less general by needing its table named.
+ */
 function titleLength(entry: NbsCatalogEntry): number {
-  return (entry.nameEn ?? entry.name).length;
+  return (entry.nameEn ?? entry.name).replace(/^[^:：]{4,}[:：]\s+/, "").length;
 }
 
 /** 1 for an index on a previous-month base, which ranks after the year-earlier base a researcher usually means by "cpi" or "ppi food". */

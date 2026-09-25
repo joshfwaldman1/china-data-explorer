@@ -164,7 +164,7 @@ test("a level's change is read against a year earlier, as a percentage", async (
 
 test("a per-thousand rate is a rate: two decimals, points for its change", () => {
   expect(fmt(6.77, "Per thousand (‰)")).toBe("6.77");
-  expect(deltaText({ date: "2025", value: 6.39 }, { date: "2024", value: 6.77 }, "Per thousand (‰)", "short")).toBe("-0.38 pt");
+  expect(deltaText({ date: "2025", value: 6.39 }, { date: "2024", value: 6.77 }, "Per thousand (‰)", "short")).toBe("-0.38 per 1,000");
 });
 
 test("a cumulative reading names the months it covers, not the month it is dated", () => {

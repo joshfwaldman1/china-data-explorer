@@ -12,7 +12,7 @@ test("a per-thousand rate is a rate with its own mark and its change in points",
   const birth = measureOf("Per thousand (‰)");
   expect(birth).toEqual({ kind: "rate", suffix: "‰", decimals: 2, change: "pt", cumulative: false });
   expect(fmt(6.77, birth)).toBe("6.77");
-  expect(deltaText({ date: "2025", value: 6.39 }, { date: "2024", value: 6.77 }, birth, "short")).toBe("-0.38 pt");
+  expect(deltaText({ date: "2025", value: 6.39 }, { date: "2024", value: 6.77 }, birth, "short")).toBe("-0.38 per 1,000");
 });
 
 test("a percentage is a rate in percentage points, and a market rate keeps two decimals", () => {

@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, periodSpan, bareLabel, withoutSharedSuffix  } from "./lib";
 import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -606,7 +606,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
           <div className="group-label">Datasets</div>
           {props.stats?.datasets.map((dataset) => (
             <a key={dataset.code} className="nav-row" href={routeHash({ view: "search", q: "", freq: "", cat: "", dataset: String(dataset.code), geo: "" })} aria-current={activeDataset === String(dataset.code) ? "page" : undefined} aria-label={`${dataset.geography} ${dataset.frequency.toLowerCase()} dataset, ${dataset.count.toLocaleString("en-US")} series`}>
-              <span className="label"><span className="nav-title">{dataset.geography} {dataset.frequency.toLowerCase()}</span><small>{dataset.count.toLocaleString("en-US")} series</small></span>
+              <span className="label"><span className="nav-title">{DATASET_EN[dataset.code] ?? `${dataset.geography} ${dataset.frequency.toLowerCase()}`}</span><small>{dataset.count.toLocaleString("en-US")} series</small></span>
             </a>
           ))}
           <div className="group-label">Categories</div>
@@ -758,14 +758,14 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {domesticEntries.length} indicators from {publisherList(domesticEntries)}, and {props.curated.filter((entry) => entry.source === "fred").length} international series on China via FRED.</p>
+        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {domesticEntries.length} indicators from {publisherList(domesticEntries)}, and {props.curated.filter((entry) => entry.source === "fred").length} international series on China from the World Bank, BIS, OECD, IMF and US agencies, via FRED.</p>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
           <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
         </form>
       </section>
 
       <section className="section" aria-labelledby="h-headline">
-        <div className="section-head"><h2 id="h-headline">Headline Indicators</h2><span>Latest value; change in points from the period before for a rate, from a year earlier for a level</span></div>
+        <div className="section-head"><h2 id="h-headline">Headline Indicators</h2></div>
         <div className="hero-tiles">
           {HERO_KEYS.map((key) => props.curated.find((entry) => entry.key === key)).filter((entry): entry is CuratedEntry => entry !== undefined).map((entry) => {
             const result = headline.get(entry.key);
@@ -778,7 +778,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{measure.suffix}</span></span>
                 {first && <Sparkline points={first.points} years />}
-                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
+                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : observationLabel(latest.date, entry.frequency)) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
             );
           })}
@@ -814,7 +814,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, measure) : "—"}<i>{latest ? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
-                    <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? observationLabel(latest.date, entry.frequency) : entry.frequency}</span>
+                    <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : observationLabel(latest.date, entry.frequency)) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} years />}</span>
                   </a>
                 );
@@ -956,7 +956,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
                   <span className="title">{entry.region && entry.region.value !== "000000000000" ? (zhFirst ? <Zh>{regionalTitle(entry.name, entry.region.en ?? entry.region.text)}</Zh> : regionalTitle(entry.nameEn ?? entry.name, regionLabel(entry.region))) : zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
                   {entry.nameEn && !curated && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>} <span className="tag">{entry.nameEnSource === "nbs-official" ? "NBS English" : "auto-translated"}</span></span>}
                   {!curated && <span className="path">{categoryPath(entry)}</span>}
-                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : "NBS"}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : !curated ? <>, <span className="ended">not fetched yet</span></> : null}</span>
+                  <span className="meta">{entry.frequency}, {curated ? entry.dataset : (DATASET_EN[entry.datasetCode] ?? "NBS")}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : !curated ? <>, <span className="ended">not fetched yet</span></> : null}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
                   && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>}
@@ -1164,7 +1164,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
       {status === "ok" && data && (
         <>
           <h1>{name} <Zh className="gloss">{data.region.text}</Zh></h1>
-          <p className="lede">Every series the site holds for {name}, from the bureau's provincial tables and the curated provincial headlines. Annual figures lag the monthly ones by up to a year.</p>
+          <p className="lede">{name}'s headline series: growth, size, structure, labour, households and exports. Annual figures lag the monthly ones by up to a year.</p>
           <div className="indicator-list">
             {data.sections.map((section) => (
               <section key={section.title} aria-label={section.title}>
@@ -1202,12 +1202,12 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
                   {(data.structure.industries?.items ?? []).map((item) => (
                     <a key={item.key} className="share-row" href={seriesHash([item.key], { region: data.region.value })}>
                       <span className="share-label">{item.label}</span>
-                      <span className="share-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, item.share * 2)}%` }} /></span>
+                      <span className="share-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, item.share)}%` }} /></span>
                       <span className="share-value">{item.share.toFixed(1)}%</span>
                     </a>
                   ))}
                 </div>
-                <p className="quiet profile-note">Shares are computed from the published levels for the same year, so they refer to the year beside them; the three sectors divide gross regional product between them by identity, which the nightly audit holds. The named industries are the ones the bureau breaks out and do not sum to the whole.</p>
+                <p className="quiet profile-note">Shares of that year's gross regional product; the named industries do not sum to the whole.</p>
               </section>
             )}
           </div>
@@ -1259,7 +1259,7 @@ function HealthPage() {
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Data health</span></div>
       <h1>Data Health</h1>
-      <p className="lede">Everything the site knows to be wrong with its own data: readings that disagree, sources it cannot parse, and series that have not advanced. Read from the store, so opening this costs the publishers nothing.</p>
+      <p className="lede">What the site knows to be wrong with its own data.</p>
       {status === "loading" && <div className="state"><span className="loader" aria-hidden="true" />Checking…</div>}
       {status === "error" && <div className="state"><b>The health report is unavailable</b><p>The server did not answer.</p></div>}
       {status === "ok" && data && (
@@ -1282,8 +1282,8 @@ function HealthPage() {
           </section>
 
           <section>
-            <h2>Sources that will not parse</h2>
-            <p>A publisher's page is reachable and the site cannot read it. Nothing shown on the site is wrong; something is missing. Counted since {day(data.sources.consideredSince)}.</p>
+            <h2>Sources the site could not read</h2>
+            <p>Either the publisher's page did not answer, or it answered in a shape the site cannot parse. Nothing shown on the site is wrong; something is missing. Counted since {day(data.sources.consideredSince)}.</p>
             {data.sources.failing.length === 0
               ? <p className="quiet">Every source read cleanly.</p>
               : <ul className="health-list">{data.sources.failing.map((source) => (
@@ -1330,9 +1330,9 @@ function HealthPage() {
             {data.behind.publisher.length === 0
               ? <p className="quiet">Every series is as current as its publisher's cadence implies.</p>
               : <>
-                  <p>The newest figure is older than the publishing cadence implies. Either the publisher has not released, or the site has not managed to read what it released.</p>
+                  <p>The newest figure is older than the publishing cadence implies. Where the same source is listed above as unread, that is the reason.</p>
                   <ul className="health-list">{data.behind.publisher.map((row) => (
-                    <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, newest {row.lastPeriod ?? "nothing stored"}, expected {row.expected}</span></li>
+                    <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, newest {row.lastPeriod ? periodPretty(row.lastPeriod) : "nothing stored"}, due {periodPretty(row.expected)}</span></li>
                   ))}</ul>
                 </>}
             {data.behind.blocked.length > 0 && (
@@ -1340,7 +1340,7 @@ function HealthPage() {
                 <h3>Not refreshable on this deployment</h3>
                 <p className="quiet">The publisher is still publishing. These reach the site through a service this deployment does not run, so the gap is ours, not theirs.</p>
                 <ul className="health-list">{data.behind.blocked.map((row) => (
-                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, newest {row.lastPeriod ?? "nothing stored"}, needs {row.blocked}</span></li>
+                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, newest {row.lastPeriod ? periodPretty(row.lastPeriod) : "nothing stored"}, needs {row.blocked}</span></li>
                 ))}</ul>
               </>
             )}
@@ -1349,7 +1349,7 @@ function HealthPage() {
                 <h3>Discontinued by the publisher</h3>
                 <p className="quiet">Kept and labelled rather than deleted, so a reader can still see what was published while it existed.</p>
                 <ul className="health-list">{data.behind.ended.map((row) => (
-                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, ended {row.ended}</span></li>
+                  <li key={row.key}><b><a href={seriesHash([row.key])}>{row.title}</a></b> <span className="quiet">{row.agency}, ended {row.ended ? periodPretty(row.ended) : "—"}</span></li>
                 ))}</ul>
               </>
             )}
@@ -1405,7 +1405,7 @@ function MethodologyPage(props: { route: Extract<Route, { view: "methodology" }>
   }, []);
   const named = props.route.key ? keys.find((item) => item.key === props.route.key) : undefined;
   const checkLine = (item: KeyMethod) =>
-    item.check.kind === "pair" ? `Cross-checked by: ${(item.check.names ?? []).join("; ")}.`
+    item.check.kind === "pair" ? `Cross-checked nightly against: ${(item.check.names ?? []).join("; ")}.`
     : item.check.kind === "foreign" ? "Not a Chinese official statistic; carried for comparison and not cross-checked here."
     : `No independent reading: ${item.check.reason}`;
   return (
@@ -1786,9 +1786,9 @@ function SeriesPage(props: {
   const headingLine = primary.series.length === 1 ? primary.series[0]?.label : undefined;
   const zhTitle = placed && zhFirst ? regionalTitle(primary.title, placed, headingLine) : primary.title;
   const enTitle = placed && meta?.nameEn ? regionalTitle(meta.nameEn, placed, headingLine) : meta?.nameEn;
-  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : "NBS's own data portal";
+  const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : meta ? "NBS's own data portal" : `${primary.agency}'s own release pages`;
   const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
-  const citation = `${primary.agency}, "${primary.title}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key])}`;
+  const citation = `${primary.agency}, "${primary.title}${placed ? `: ${placed}` : ""}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key], placed && primary.region ? { region: primary.region.value } : {})}`;
   const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
   const tableRows = (() => {
     const rows = new Map<string, { period: string; t: number; cells: (number | null)[] }>();
@@ -1980,7 +1980,7 @@ function SeriesPage(props: {
       <section className="details">
         <div className="card about">
           <h2>Notes</h2>
-          {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">The source publishes no definition or methodology note for this series.</p> : null}
+          {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">No note written for this series yet.</p> : null}
           {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
           {meta?.growthSibling && <p>NBS publishes a growth rate for this table, <a href={seriesHash([meta.growthSibling.key], { region: primary.region?.value })}><Zh>{meta.growthSibling.name}</Zh></a>, computed on a scope held comparable with the year before. These levels are on the current scope, so a year-over-year change worked out from them will differ from the published rate.</p>}
           {readingNotesZh && <p><Zh className="gloss block">{readingNotesZh}</Zh></p>}
@@ -2010,7 +2010,7 @@ function SeriesPage(props: {
       <section className="card revisions">
         <div className="revisions-head"><h2>Revisions</h2><span>{revised === null ? "Loading…" : revised.length === 0 ? "None recorded" : `${revised.length} restated ${revised.length === 1 ? "value" : "values"}`}</span></div>
         {revised !== null && revised.length === 0 && <p>No stored value for this series has been revised by the source. Revised values are kept alongside the original.</p>}
-        {revised !== null && revised.length > 0 && <div className="table-scroll"><table><caption className="visually-hidden">Revisions to {displayTitle(primary, results)}: each restated period with its current value and the values published before.</caption><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{row.period}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "—" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>}
+        {revised !== null && revised.length > 0 && <div className="table-scroll"><table><caption className="visually-hidden">Revisions to {displayTitle(primary, results)}: each restated period with its current value and the values published before.</caption><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{periodPretty(row.period)}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "Withdrawn" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>}
       </section>
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 
@@ -2124,10 +2124,10 @@ function ProvinceCards() {
           <a key={card.code} className="province-card" href={routeHash({ view: "province", code: card.code })}>
             <h3>{card.en} <Zh className="gloss">{card.zh}</Zh></h3>
             <dl>
-              <div><dt>Real GDP growth{card.gdpGrowth && card.gdpGrowth.period !== growthPeriod ? `, ${periodPretty(card.gdpGrowth.period)}` : ""}</dt><dd>{pct(card.gdpGrowth)}</dd></div>
-              <div><dt>Industrial output growth</dt><dd>{pct(card.industrialGrowth)}</dd></div>
-              <div><dt>GRP{card.grp && card.grp.year !== grpYear ? `, ${card.grp.year}` : ""}</dt><dd>{card.grp ? <>{yuan(card.grp)}<small> 100M yuan</small></> : "–"}</dd></div>
-              <div><dt>Residents</dt><dd>{millions(card.population)}</dd></div>
+              <div><dt>Real GDP growth{card.gdpGrowth ? `, ${periodSpan(card.gdpGrowth.period, "Quarterly")}` : ""}</dt><dd>{pct(card.gdpGrowth)}</dd></div>
+              <div><dt>Industrial output growth{card.industrialGrowth ? `, ${periodPretty(card.industrialGrowth.period)}` : ""}</dt><dd>{pct(card.industrialGrowth)}</dd></div>
+              <div><dt>GRP{card.grp ? `, ${card.grp.year}` : ""}</dt><dd>{card.grp ? <>{yuan(card.grp)}<small> 100M yuan</small></> : "—"}</dd></div>
+              <div><dt>Residents{card.population ? `, end ${card.population.year}` : ""}</dt><dd>{millions(card.population)}</dd></div>
             </dl>
             {card.sectors.length > 0 && (
               <div className="province-shares" aria-label="Sector shares of GRP">
@@ -2142,7 +2142,7 @@ function ProvinceCards() {
           </a>
         ))}
       </div>
-      <p className="quiet">Growth is year to date, {growthPeriod ? periodPretty(growthPeriod) : "latest"}; GRP and residents are the bureau's annual figures{grpYear ? ` for ${grpYear}` : ""}; sector shares are computed from that year's published levels.</p>
+      <p className="quiet">Real GDP growth is year to date on a year earlier; industrial output growth is the month on a year earlier; sector shares are computed from the year's published levels.</p>
     </section>
   );
 }
@@ -2289,7 +2289,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
               </section>
             )}
             <section className="card">
-              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, {data.label ? `${data.label.toLowerCase()}, ` : ""}highest to lowest</span></div>
+              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, {data.label ? `${data.label}, ` : ""}highest to lowest</span></div>
               <div className="ranked" role="group" aria-label="Places ranked highest to lowest; select one to see its series">
                 {ranked.map((item) => {
                   const step = stepFor(item.value ?? 0, breaks);
@@ -2375,7 +2375,7 @@ function App() {
     setDraft(route.view === "search" ? route.q : "");
     // The series page sets its own title once the series has loaded (a child effect would lose to this one).
     if (route.view !== "series") {
-      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "theme" ? (THEME_PAGES.find((page) => page.name === route.name)?.label ?? route.name) : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? "How These Figures Are Made" : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
+      const viewTitle = route.view === "home" ? "" : route.view === "search" ? (route.q ? `Search: ${route.q}` : "Search") : route.view === "browse" ? "Browse" : route.view === "releases" ? "NBS Release Calendar" : route.view === "theme" ? (THEME_PAGES.find((page) => page.name === route.name)?.label ?? route.name) : route.view === "province" ? "Province" : route.view === "health" ? "Data Health" : route.view === "methodology" ? (route.key ? "How This Figure Is Made" : "How These Figures Are Made") : route.view === "regions" ? "Real GDP Growth by Province" : route.view === "saved" ? "Saved Series" : "Recently Viewed";
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
@@ -2451,7 +2451,7 @@ function App() {
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
-      <footer>Official statistics from NBS, {publisherList(curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics")))}, and international agencies via FRED. Independent project, not affiliated with any statistical agency.</footer>
+      <footer>Data from NBS, {publisherList(curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics")))}, and the World Bank, BIS, OECD, IMF and US agencies via FRED. Independent project, not affiliated with any statistical agency.</footer>
       {/* The status region is always present so assistive tech announces the text when it changes; a live region inserted with its text already in it is often missed. */}
       <div role="status" aria-live="polite">{toast && <div className="toast">{toast}</div>}</div>
     </div>

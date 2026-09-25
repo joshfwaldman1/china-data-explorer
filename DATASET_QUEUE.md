@@ -24,7 +24,23 @@ what the site does not carry).
     *Test:* the April 2025 fixture parses to the same lines as March and May,
     and the store holds no "Quantity (<number>)" label.
 
-2. **The partner series' January–February totals as year-to-date lines.**
+2. **What the copy audit left** (26 September 2026). Axis scales in
+    natural units: a "300K" axis over 100M yuan should read "30 trillion
+    yuan", "1.4M" over million USD "1.4 trillion", "145K" over 10,000
+    persons "1.45 billion" — a display scale per unit family, applied to
+    ticks and tooltips, not to the stored values. An NBS index whose
+    Chinese title ends "=100" but whose stored unit is "%" is labelled
+    "Percent"; force the index unit from the title. A generated gloss
+    that still carries a pinyin run ("Zongheshengyu rate") should fall
+    back to the Chinese title. A provincial series in search results is
+    labelled with the default province ("...: Beijing") when the query
+    named none; say "by province" instead. Ranking: "youth unemployment"
+    should put the 16–24 rate first, "population" the year-end total
+    above the sample survey. Hero tiles, theme ledes, sidebar order and
+    nav labels await the owner's call.
+    *Test:* each rule as a unit test on the display or ranking function.
+
+3. **The partner series' January–February totals as year-to-date lines.**
     Customs publishes the two months together, and through 2025 the
     by-country table carried only the cumulative figure; since 24 September
     2026 the parser reads it as year to date and stores no month for it, so
@@ -37,7 +53,7 @@ what the site does not carry).
     *Test:* the January–February 2025 fixture stores year-to-date lines and
     no monthly point; August 2026 stores both.
 
-3. **The exchanges' own equity series** (owner request, 24 September:
+4. **The exchanges' own equity series** (owner request, 24 September:
     "add hong kong stock exchange, shanghai, shenzhen"). The Equities page
     holds one index and two uncertainty indices; nothing from the
     exchanges. What the probes on 24 September established, one request at
@@ -62,7 +78,7 @@ what the site does not carry).
     *Test:* a captured fixture per exchange parses to known month-end
     figures; the theme test holds the Equities page's keys.
 
-4. **Customs' 2018 layouts.** The by-country table for May to December
+5. **Customs' 2018 layouts.** The by-country table for May to December
     2018 and the commodity tables for parts of 2018, November 2019 and
     February 2020 have neither "Unit:" nor "Value Unit:" above them and fail
     with an empty unit line. Since 22 September 2026 that is a logged gap
@@ -75,7 +91,7 @@ what the site does not carry).
     *Test:* the 2018 fixtures parse to known figures, and the empty-unit
     months no longer appear in the fetch log's warnings.
 
-5. **The default commodity for major imports and exports is a line that
+6. **The default commodity for major imports and exports is a line that
     began in 2026.** `/api/series/major_imports` with no region answers for
     "Agriculture products", which Customs added to its table in February
     2026, so the headline series shows seven months while hi-tech products
@@ -86,7 +102,7 @@ what the site does not carry).
     *Test:* the default region of each Customs commodity key has at least
     five years stored.
 
-6. **Move the headline rates off the mirror and onto the bureau's own
+7. **Move the headline rates off the mirror and onto the bureau's own
     tables.** Five of the site's most prominent series — CPI, PPI,
     industrial production, retail sales and the headline PMI — are read
     from Eastmoney's copy of the bureau's release rather than from the
@@ -109,20 +125,20 @@ what the site does not carry).
     mirror copies stay in the catalog as audit references, labelled as such,
     so the comparison is not lost.
 
-7. **Transport turnover by mode.** Freight and passenger turnover for road,
+8. **Transport turnover by mode.** Freight and passenger turnover for road,
     rail, water and air, monthly, as levels and growth (dataset 1, e.g.
     `f24996f5360c47409882a5ccf0a36614` for road freight). Port throughput is
     already carried; the rest of the freight picture is not.
     *Test:* the modes' freight turnover sums to the published total for
     August 2026 within rounding.
 
-8. **Average wages by sector.** The annual average wage of employed persons
+9. **Average wages by sector.** The annual average wage of employed persons
     in urban non-private and private units, by industry (dataset 3). The
     site carries household income but nothing about pay.
     *Test:* the latest year parses for every industry the bureau lists, and
     the non-private and private figures differ for every one of them.
 
-9. **Agriculture: grain and meat output.** Annual grain output with its
+10. **Agriculture: grain and meat output.** Annual grain output with its
     summer and autumn components, and pork output (dataset 3). Food prices
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.

@@ -256,7 +256,7 @@ export function methodologyFor(key: string, entry?: CatalogEntry): KeyMethodolog
 export const SITE_METHODOLOGY = {
   storage: "The store is append-only. A fetch never overwrites a figure: it adds a reading with the time it was fetched, so every value the site has ever served for a period stays readable and a revision is visible as a revision.",
   audit: "Every curated headline is compared with an independent reading of the same statistic — another table, another publisher, or the publisher's own year-to-date companion — and the comparison runs on the live store rather than on a fixture. A series with no independent reading carries a written reason instead.",
-  attribution: "A figure is attributed to the agency that compiled it, never to a mirror that carried it, and the path it took is named in the section above.",
+  attribution: "A figure is attributed to the agency that compiled it, never to a mirror that carried it, and the path it took is named in the sections below.",
   derivation: "Nothing here is derived from another figure unless the page says so. A missing month stays missing; a cumulative figure stays cumulative and says so in its label.",
 } as const;
 

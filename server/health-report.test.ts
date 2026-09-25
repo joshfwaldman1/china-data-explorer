@@ -48,7 +48,7 @@ test("the headline names each kind of wrong, and only the kinds present", () => 
     sources: { ...base.sources, failing: [{ key: "k", title: "t", agency: "a", failures: 1, since: "", latest: "", message: "" }] },
     behind: { publisher: [{ key: "b", title: "t", agency: "a", frequency: "Monthly", lastPeriod: "2026-01", expected: "2026-08" }], blocked: [], ended: [] },
   });
-  expect(withBoth).toBe("2 cross-checks disagreeing; 1 source failing to parse; 1 series behind.");
+  expect(withBoth).toBe("2 cross-checks disagreeing; 1 source not reading; 1 series behind.");
   // A blocked or discontinued series is not "behind": neither is a fault to chase.
   const blockedOnly = healthHeadline({ ...base, checks: { ...base.checks, findings: [] }, sources: { ...base.sources, failing: [] }, behind: { publisher: [], blocked: [{ key: "c", title: "t", agency: "a", frequency: "Monthly", lastPeriod: "2025-09", expected: "2026-08", blocked: "AkShare" }], ended: [] } });
   expect(blockedOnly).toContain("All 1 cross-check");
@@ -179,7 +179,7 @@ test("the catalog crawl's failures are counted, not listed beside the curated on
   expect(report.sources.failing.some((source) => source.key.startsWith("nbs_"))).toBe(false);
   expect(report.sources.crawl.series).toBeGreaterThanOrEqual(40);
   expect(report.sources.crawl.attempts).toBeGreaterThanOrEqual(report.sources.crawl.series);
-  expect(report.sources.crawl.reasons[0]?.reason).toBe("source returned a grid with no values");
+  expect(report.sources.crawl.reasons[0]?.reason).toBe("the bureau's index lists them with no values behind them");
   // The headline counts the sources a person can act on, not the crawl's tail.
   expect(healthHeadline(report)).not.toContain(`${report.sources.crawl.series}`);
 });

@@ -54,10 +54,10 @@ const MANUFACTURING: Theme = {
   lede: "The bureau's monthly reading of the factory sector: output, the purchasing managers' survey, capacity in use, profits and investment; then the sectors and the products, as growth rates and as counts of what was made.",
   sections: [
     {
-      title: "Headline",
+      title: "Output, orders and capacity",
       charts: [
         { title: "Industrial production", key: "industrial_production", years: 10, note: "Value added of industrial enterprises above the size threshold, growth on a year earlier." },
-        { title: "Manufacturing output", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
+        { title: "Manufacturing value added, growth on a year earlier", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
         { title: "Manufacturing PMI and orders", key: "pmi_manufacturing", labels: ["Manufacturing PMI", "New orders", "New export orders"], years: 6, note: "Diffusion indices; 50 is no change on the month." },
         { title: "Manufacturing capacity utilisation", key: "capacity_utilisation", labels: ["Manufacturing, quarter (%)"], years: 8 },
       ],
@@ -65,8 +65,8 @@ const MANUFACTURING: Theme = {
     {
       title: "Profits, prices and investment",
       charts: [
-        { title: "Manufacturing profits, year to date", key: "industrial_profits", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
-        { title: "Manufacturing investment, year to date", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
+        { title: "Manufacturing profits, year-to-date growth", key: "industrial_profits", labels: ["Manufacturing, year to date (YoY %)"], years: 8, note: "The 2021 spike is measured against the shutdown months of 2020." },
+        { title: "Manufacturing investment, year-to-date growth", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
         { title: "Producer prices", key: "ppi_detail", labels: ["Producer goods (YoY %)", "Consumer goods (YoY %)"], years: 10 },
         { title: "Factory-gate and input prices, PMI", key: "pmi_manufacturing", labels: ["Input prices", "Output prices"], years: 6, note: "Diffusion indices; above 50 is more firms reporting a rise than a fall." },
       ],
@@ -113,9 +113,8 @@ const PROPERTY: Theme = {
       title: "Activity",
       lede: "Year to date, growth on a year earlier.",
       charts: [
-        { title: "Real estate investment", key: "property_investment", years: 10 },
-        { title: "Floor space sold", key: "property_sales", years: 10 },
-        { title: "Sales value", key: "property_sales_value", years: 10, note: "Year to date, 100 million yuan." },
+        { title: "Real estate investment, year-to-date growth", key: "property_investment", years: 10 },
+        { title: "Floor space sold, year-to-date growth", key: "property_sales", years: 10 },
         { title: "Starts and completions", key: "property_construction", labels: ["Floor space started, year to date (YoY %)", "Floor space completed, year to date (YoY %)"], years: 10 },
       ],
     },
@@ -123,15 +122,16 @@ const PROPERTY: Theme = {
       title: "Prices",
       charts: [
         { title: "Home prices, 70-city average", key: "house_prices", years: 10, note: "The simple average of the bureau's seventy city indices, new and existing homes, on a year earlier." },
-        { title: "Real residential prices", key: "house_prices_real_bis", years: 20, note: "The BIS's deflated index, 2010 = 100." },
-        { title: "Real estate climate index", key: "real_estate", years: 10, note: "100 is neutral." },
+        { title: "Real residential prices", key: "house_prices_real_bis", years: 20, note: "Inflation-adjusted." },
+        { title: "Real estate climate index", key: "real_estate", years: 10 },
       ],
     },
     {
       title: "Money",
       charts: [
-        { title: "Developers' funds raised", key: "property_funds", years: 10 },
-        { title: "Land sale revenue", key: "land_sale_revenue", years: 10, note: "Year to date, 100 million yuan. The government-fund budget's largest line, and the one local governments lean on." },
+        { title: "New home sales value, year to date", key: "property_sales_value", years: 10, note: "The running total restarts each January; the drop from December is the reset, not a fall." },
+        { title: "Developers' funds raised, year-to-date growth", key: "property_funds", years: 10 },
+        { title: "Land sale revenue, year to date", key: "land_sale_revenue", years: 10, note: "The running total restarts each January; the drop from December is the reset, not a fall. The government-fund budget's largest line, and the one local governments lean on." },
         { title: "Land sale revenue, growth", key: "fiscal_growth", labels: ["Land sale revenue, year to date (YoY %)"], years: 10 },
       ],
     },
@@ -162,7 +162,7 @@ const EQUITIES: Theme = {
     {
       title: "Offshore",
       charts: [
-        { title: "NASDAQ Golden Dragon China", key: "golden_dragon", years: 10, note: "Monthly average of the index of US-listed Chinese companies." },
+        { title: "NASDAQ Golden Dragon China, monthly average", key: "golden_dragon", years: 10, note: "US-listed Chinese companies." },
       ],
     },
     {
@@ -184,10 +184,10 @@ const ENERGY: Theme = {
       title: "Electricity",
       charts: [
         { title: "Electricity generation, growth", key: "electricity_output", years: 10 },
-        { title: "Thermal and hydro generation", key: "electricity_by_source", labels: ["Thermal, month (亿千瓦时)", "Hydro, month (亿千瓦时)"], years: 8, note: "100 million kWh in the month." },
-        { title: "Wind, solar and nuclear generation", key: "electricity_by_source", labels: ["Wind, month (亿千瓦时)", "Solar, month (亿千瓦时)", "Nuclear, month (亿千瓦时)"], years: 8, note: "100 million kWh in the month. Rooftop solar is not in the bureau's generation table." },
+        { title: "Thermal and hydro generation, month", key: "electricity_by_source", labels: ["Thermal, month (亿千瓦时)", "Hydro, month (亿千瓦时)"], years: 8 },
+        { title: "Wind, solar and nuclear generation", key: "electricity_by_source", labels: ["Wind, month (亿千瓦时)", "Solar, month (亿千瓦时)", "Nuclear, month (亿千瓦时)"], years: 8, note: "Rooftop solar is not in the bureau's generation table." },
         { title: "Generation growth by source", key: "electricity_by_source_growth", labels: ["Thermal (YoY %)", "Wind (YoY %)", "Solar (YoY %)"], years: 8 },
-        { title: "Electricity consumption", key: "electricity_demand", labels: ["All users, month"], years: 8, note: "100 million kWh in the month, from the energy administration." },
+        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 8 },
         { title: "Consumption growth by user", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 8 },
       ],
     },
@@ -196,22 +196,22 @@ const ENERGY: Theme = {
       charts: [
         { title: "Raw coal output", key: "fuel_output", labels: ["Raw coal, month (10,000 tonnes)"], years: 10 },
         { title: "Crude oil output", key: "fuel_output", labels: ["Crude oil, month (10,000 tonnes)"], years: 10 },
-        { title: "Natural gas output", key: "natural_gas_output", labels: ["Natural gas, month (亿立方米)"], years: 10, note: "100 million cubic metres in the month." },
+        { title: "Natural gas output, month", key: "natural_gas_output", labels: ["Natural gas, month (亿立方米)"], years: 10 },
         { title: "Fuel output, growth", key: "fuel_output_growth", years: 10 },
       ],
     },
     {
       title: "Fuel bought abroad",
-      lede: "USD million per month, from Customs' commodity table.",
+      lede: "USD million per month, from Customs' commodity table; the price index is the commerce ministry's.",
       charts: [
         { title: "Crude oil imports", key: "major_imports", region: "crude-petroleum-oils", labels: ["Value"], years: 8 },
         { title: "Natural gas imports", key: "major_imports", region: "natural-gases", labels: ["Value"], years: 8 },
         { title: "Coal imports", key: "major_imports", region: "coal-and-lignite", labels: ["Value"], years: 8 },
-        { title: "Energy commodity prices", key: "commodity_prices", labels: ["Energy"], years: 10, note: "The commerce ministry's index." },
+        { title: "Energy commodity price index", key: "commodity_prices", labels: ["Energy"], years: 10 },
       ],
     },
     {
-      title: "The equipment",
+      title: "Solar cells and electric vehicles made",
       charts: [
         { title: "Solar cells made (10,000 kW)", key: OUTPUT.solar, years: 10 },
         { title: "New energy vehicles made (10,000)", key: OUTPUT.nev, years: 4 },
@@ -230,10 +230,10 @@ const DEMOGRAPHICS: Theme = {
       charts: [
         { title: "Population", key: "population_nbs", labels: ["Total, year end (10,000 persons)"], years: 30 },
         { title: "Urban and rural", key: "population_nbs", labels: ["Urban (10,000 persons)", "Rural (10,000 persons)"], years: 30 },
-        { title: "Births, deaths and natural growth", key: "population_rates", years: 30, note: "Per thousand. Natural growth is births less deaths; migration is not in it." },
+        { title: "Births, deaths and natural growth", key: "population_rates", years: 30, note: "Natural growth is births less deaths; migration is not in it." },
         { title: "By age", key: "population_age", years: 30 },
         { title: "Share aged 65 and over", key: "population_65", years: 40 },
-        { title: "Fertility rate", key: "fertility", years: 40, note: "Births per woman, World Bank." },
+        { title: "Fertility rate", key: "fertility", years: 40 },
         { title: "Life expectancy", key: "life_expectancy", years: 40 },
       ],
     },
@@ -258,7 +258,7 @@ const LABOUR: Theme = {
       title: "Work",
       charts: [
         { title: "Average weekly hours worked", key: "working_hours", years: 8 },
-        { title: "Employed persons", key: "employment", years: 30, note: "Annual, year end, 10,000 persons." },
+        { title: "Employed persons, year end", key: "employment", years: 30 },
         { title: "Rural migrant workers away from home", key: "migrant_workers", years: 8, note: "Quarter end, 10,000 persons." },
         { title: "Migrant workers' monthly income", key: "migrant_workers_income", years: 8 },
         { title: "PMI employment", key: "pmi_manufacturing", labels: ["Employment"], years: 8, note: "Diffusion index; below 50 is more firms shedding than hiring." },
@@ -267,9 +267,9 @@ const LABOUR: Theme = {
     {
       title: "Income",
       charts: [
-        { title: "Household disposable income, growth", key: "household_income_growth", years: 8, note: "Year to date, on a year earlier." },
-        { title: "Household disposable income per person", key: "household_income", years: 8, note: "Year to date, yuan." },
-        { title: "Gini index", key: "gini", years: 30, note: "World Bank, 0 to 100." },
+        { title: "Household disposable income, year-to-date growth", key: "household_income_growth", years: 8 },
+        { title: "Household disposable income per person, year to date", key: "household_income", years: 8, note: "The running total restarts each January; the drop from Q4 to Q1 is the reset, not a fall." },
+        { title: "Gini index", key: "gini", years: 30 },
       ],
     },
   ],
@@ -281,12 +281,12 @@ export const THEMES: Record<string, Theme> = {
     lede: "Exports and imports by partner and by commodity, from Customs' own tables; the manufacturing behind them, from the bureau's; where the quarter's growth came from; and the money that crosses the border, from the exchange regulator, the central bank and the US Treasury. Every chart reads the store and opens on the series it draws.",
     sections: [
       {
-        title: "Headline",
+        title: "Totals and where growth comes from",
         charts: [
-          { title: "Exports and imports", key: "trade_values", labels: ["Exports", "Imports"], years: 10, note: "Customs' monthly totals, 100 million USD. January and February are published together." },
+          { title: "Exports and imports, month", key: "trade_values", labels: ["Exports", "Imports"], years: 10, note: "January and February are published together." },
           { title: "Exports and imports, growth on a year earlier", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 10, note: "Customs' own rates from its monthly totals table." },
-          { title: "Trade balance", key: "trade_values", labels: ["Balance"], years: 10, note: "100 million USD per month." },
-          { title: "Where growth comes from", key: "gdp_contributions", years: 8, note: "Shares of the quarter's GDP growth. The three sum to 100 percent by identity, which the audit holds." },
+          { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 10 },
+          { title: "Contributions to quarterly GDP growth, by expenditure", key: "gdp_contributions", years: 8, note: "Shares of the quarter's growth; the three sum to 100." },
         ],
       },
       {
@@ -317,15 +317,15 @@ export const THEMES: Record<string, Theme> = {
         lede: "Growth on a year earlier unless the line says otherwise.",
         charts: [
           { title: "Industrial production", key: "industrial_production", years: 10 },
-          { title: "Manufacturing output", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
-          { title: "New energy vehicles and automobiles, output", key: "output_nev", labels: ["New energy vehicles, month (YoY %)"], years: 4 },
+          { title: "Manufacturing value added, growth on a year earlier", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
+          { title: "New energy vehicle output, growth on a year earlier", key: "output_nev", labels: ["New energy vehicles, month (YoY %)"], years: 4 },
           { title: "Automobile output", key: "output_autos", labels: ["Automobiles, month (YoY %)"], years: 10 },
           { title: "Integrated circuit output", key: "output_ics", labels: ["Integrated circuits, month (YoY %)"], years: 10 },
           { title: "Crude steel output", key: "output_crude_steel", labels: ["Crude steel, month (YoY %)"], years: 10 },
           { title: "Producer prices", key: "ppi_detail", labels: ["Producer goods (YoY %)", "Consumer goods (YoY %)"], years: 10, note: "Producer goods rising while consumer goods fall is the pattern of a sector selling volume, not price." },
           { title: "Manufacturing capacity utilisation", key: "capacity_utilisation", labels: ["Manufacturing, quarter (%)"], years: 6 },
-          { title: "Manufacturing profits, year to date", key: "industrial_profits", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
-          { title: "Manufacturing investment, year to date", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
+          { title: "Manufacturing profits, year-to-date growth", key: "industrial_profits", labels: ["Manufacturing, year to date (YoY %)"], years: 8, note: "The 2021 spike is measured against the shutdown months of 2020." },
+          { title: "Manufacturing investment, year-to-date growth", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
         ],
       },
       {
@@ -347,7 +347,7 @@ export const THEMES: Record<string, Theme> = {
           { title: "Financial account, by kind", key: "balance_of_payments", labels: ["Direct investment", "Portfolio investment", "Other investment"], years: 10 },
           { title: "Banks' cross-border receipts and payments, net", key: "cross_border_flows_usd", labels: ["Net receipts", "Net, capital and financial account"], years: 8, note: "Settlement data: what crossed banks' books in the month, before the balance of payments is compiled." },
           { title: "Banks' FX settlement, net", key: "bank_fx_settlement_usd", labels: ["Net settlement"], years: 8, note: "Net sales of foreign currency to banks by their customers. Negative is customers buying dollars." },
-          { title: "Foreign direct investment, actual use", key: "fdi_actual_use", labels: ["Actual use of foreign investment, year to date"], years: 8, note: "Year to date, yuan. The commerce ministry stopped its dollar series in 2023." },
+          { title: "Foreign direct investment, actual use, year to date", key: "fdi_actual_use", labels: ["Actual use of foreign investment, year to date"], years: 8, note: "The running total restarts each January. The commerce ministry stopped its dollar series in 2023." },
           { title: "Foreign direct investment, growth", key: "fdi_growth", labels: ["Actual use of foreign investment, year to date (YoY %)"], years: 8 },
           { title: "Foreign exchange reserves", key: "forex_reserves", years: 15 },
           { title: "Holdings of US Treasuries", key: "us_treasury_holdings", years: 15, note: "The Treasury's own survey of foreign holders; custodial holdings in Belgium and elsewhere are not counted as China's." },

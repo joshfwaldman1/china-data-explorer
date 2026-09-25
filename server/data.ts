@@ -779,7 +779,7 @@ export const CATALOG: Record<string, Indicator> = {
   },
   industrial_profits: {
     kind: "nbs", group: "Growth & Output",
-    title: "Industrial Profits Growth, Year to Date", agency: "National Bureau of Statistics",
+    title: "Industrial Profits Growth (Large Firms), Year to Date", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
     // 工业企业利润总额 of industrial enterprises above designated size, cumulative for the year, from the by-industry table from 2018; published around the 27th, a week after the monthly bundle.
     cid: "643feccdedb64e38a64c65a00c390646",
@@ -1266,7 +1266,7 @@ export const CATALOG: Record<string, Indicator> = {
   },
   trade_mirror: {
     kind: "eastmoney", group: "Trade & External", home: false,
-    title: "Merchandise Trade (Exports / Imports), mirror copy", agency: "General Administration of Customs",
+    title: "Merchandise Trade Growth, Eastmoney mirror for cross-checking", agency: "General Administration of Customs",
     frequency: "Monthly", unit: "Percent change from year ago",
     reportName: "RPT_ECONOMY_CUSTOMS",
     fields: [
@@ -2252,7 +2252,7 @@ export const CATALOG: Record<string, Indicator> = {
   sse_50: { kind: "sse", group: "Markets", home: false, title: "SSE 50 Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (31 December 2003 = 1,000)", code: "000016", measure: "close", releaseDay: 1 },
   star_50: { kind: "sse", group: "Markets", home: false, title: "STAR 50 Index", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Index, month-end close (31 December 2019 = 1,000)", code: "000688", measure: "close", releaseDay: 1 },
   // The Composite spans every share listed in Shanghai, so its turnover is the exchange's.
-  sse_turnover: { kind: "sse", group: "Markets", home: false, title: "Shanghai Stock Exchange Turnover", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Hundred million yuan (亿元), month", code: "000001", measure: "turnover", releaseDay: 1 },
+  sse_turnover: { kind: "sse", group: "Markets", home: false, title: "Shanghai Stock Exchange Turnover, Monthly Total", agency: "Shanghai Stock Exchange", frequency: "Monthly", unit: "Hundred million yuan (亿元)", code: "000001", measure: "turnover", releaseDay: 1 },
   gini: { kind: "fred", group: "Demographics", home: false, title: "Gini Index", agency: "World Bank", frequency: "Annual", unit: "Index, 0 to 100", seriesId: "SIPOVGINICHN", label: "Gini index" },
 };
 

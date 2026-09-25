@@ -3216,6 +3216,49 @@ not from scratch. Rounds are small on purpose.
   502s and the bond series they delay. 402 tests; 54 pairs, 0 findings; two
   deploys today for all of it, each watched to success.
 
+- 2026-09-26 (owner-directed: a site-wide copy audit): the owner printed
+  the industrial profits page and asked whether the titles said what the
+  charts showed, then asked for that kind of audit of the whole site. Six
+  auditors read one surface each — Home, the series page, the seven theme
+  pages, Provinces, Browse and search, and Health, Methodology and
+  Releases — against the site's own rules: measure, geography and period
+  in plain words; a unit said once; no middle dots; the publisher named,
+  never a mirror; "year to date" where a figure is cumulative. Seventy
+  findings, most of one family: figures that did not say what period or
+  measure they were. Applied in this round: a cumulative figure on Home
+  and the series page names the months it covers ("Jan to Jul 2026"), and
+  its change is from the shorter span before it; a change in a level
+  carries the level's unit ("+700 100M USD y/y"); a per-thousand rate
+  changes in "per 1,000"; theme cards that showed growth but were titled
+  as levels say growth, four year-to-date level charts say that the line
+  restarts each January (the sawtooth is the reset, not a fall), a levels
+  card sits in the money section rather than under a growth lede, notes
+  no longer repeat the unit or the agency the card already prints, and
+  the two "Headline" sections have names; the series page no longer says
+  "Retrieved via NBS's own data portal" on Customs and Shanghai Exchange
+  series (a ground rule inverted by a default string), cites the region it
+  shows, calls a withdrawn value "Withdrawn" in the Revisions table
+  rather than a restated one, and says "No note written for this series
+  yet" instead of asserting the publisher has none; the province cards
+  carry the period on every field, the profile's industry bars are at the
+  sectors' scale, its GDP row says year to date, its trade section is
+  named for the exports it holds, and its note is one clause; the health
+  page says "sources the site could not read" (a 502 is not a parse
+  fault), writes crawl failures in the reader's words rather than the
+  runtime's, and formats its periods; the release calendar links the
+  investment, profits, property, household and services releases to the
+  series the site holds; the footer and the Home lede name the agencies
+  behind the FRED series; a search result's dataset slot names the
+  dataset, and a table prefix drops the vintage marker; the official
+  English titles lose fullwidth brackets and run-on commas.
+  Left to the owner as judgment calls: renaming the hero tiles
+  ("Real GDP growth, China"), cutting the five theme-page ledes, an
+  English-first sidebar, and aligning nav labels with section headings.
+  Queued from the audit: axis scales in natural units (trillion yuan,
+  billion USD, million people), an index labelled "Percent" where the
+  stored unit is %, pinyin survivors in generated titles, provincial
+  results labelled with the default province, and the ranking misses on
+  "youth unemployment" and "population".
 - 2026-09-25 (owner-directed: faster search; and "are we missing NBS
   series?"): a search scored all 79,836 catalog entries for every query —
   building each one's haystack, testing every term, sorting what matched —
