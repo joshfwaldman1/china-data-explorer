@@ -1032,6 +1032,10 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
 
 // ── Theme pages ───────────────────────────────────────────────────────────────
 
+/** The portal's page for each of the bureau's datasets, as its own navigation addresses them; a dataset with no page of its own opens the portal home. */
+const NBS_PORTAL_PAGES: Record<number, string> = { 1: "monthData", 2: "quarterData", 3: "yearData", 4: "fsMonthData", 5: "fsQuarterData", 6: "fsYearData", 10: "gatYearData" };
+const NBS_PORTAL_PAGE_NAMES: Record<string, string> = { monthData: "monthly tables", quarterData: "quarterly tables", yearData: "annual tables", fsMonthData: "provincial monthly tables", fsQuarterData: "provincial quarterly tables", fsYearData: "provincial annual tables", gatYearData: "Hong Kong, Macao and Taiwan tables" };
+
 /** The pages, in the order the owner named them. The names are the hashes and the server's theme names. */
 const THEME_PAGES = [
   { name: "manufacturing", label: "Manufacturing" },
@@ -1787,7 +1791,12 @@ function SeriesPage(props: {
   const zhTitle = placed && zhFirst ? regionalTitle(primary.title, placed, headingLine) : primary.title;
   const enTitle = placed && meta?.nameEn ? regionalTitle(meta.nameEn, placed, headingLine) : meta?.nameEn;
   const via = primary.sourceUrl.includes("eastmoney") ? "Eastmoney datacenter, which mirrors the official release" : primary.sourceUrl.includes("akshare") ? "AkShare, an open-source data library" : primary.sourceUrl.includes("fred.stlouisfed") ? "FRED, the Federal Reserve Bank of St. Louis database" : meta ? "NBS's own data portal" : `${primary.agency}'s own release pages`;
-  const sourceLink = meta ? "https://data.stats.gov.cn/dg/website/page.html" : primary.sourceUrl;
+  // The bureau's portal keeps the selected table in page state, not in the URL, and its
+  // old table addresses are blocked, so the closest link that works is the dataset's page;
+  // the Category row beside it is the path to walk from there.
+  const portalPage = meta ? (NBS_PORTAL_PAGES[Number(meta.datasetCode)] ?? "home") : "home";
+  const sourceLink = meta ? `https://data.stats.gov.cn/dg/website/page.html#/pc/national/${portalPage}` : primary.sourceUrl;
+  const sourceLinkLabel = meta ? (portalPage === "home" ? "Open data.stats.gov.cn" : `Open the ${NBS_PORTAL_PAGE_NAMES[portalPage] ?? "portal"} on data.stats.gov.cn`) : "Open the source";
   const citation = `${primary.agency}, "${primary.title}${placed ? `: ${placed}` : ""}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key], placed && primary.region ? { region: primary.region.value } : {})}`;
   const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
   const tableRows = (() => {
@@ -1990,7 +1999,7 @@ function SeriesPage(props: {
           <dl>
             <dt>Source</dt><dd>{primary.agency}{curated && <>. <a href={routeHash({ view: "methodology", key: primary.key })}>How this figure is made ›</a></>}</dd>
             {arrival && <><dt>How it arrived</dt><dd>{arrival.sentence}{arrival.release?.url && <> <a href={arrival.release.url} target="_blank" rel="noreferrer">Open the release</a></>}</dd></>}
-            <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{meta ? "Open on data.stats.gov.cn" : "Open the source"}</a></dd>
+            <dt>Retrieved via</dt><dd>{via}. <a href={sourceLink} target="_blank" rel="noreferrer">{sourceLinkLabel}</a></dd>
             {meta && <><dt>Dataset</dt><dd>{meta.datasetEn ? <>{meta.datasetEn} <Zh className="gloss">{meta.dataset}</Zh></> : <Zh>{meta.dataset}</Zh>}</dd></>}
             <dt>Category</dt><dd>{meta ? categoryPath(meta) : curated?.group ?? "—"}</dd>
             <dt>Region</dt><dd>{primary.region ? <>{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</> : "China, national"}</dd>
@@ -2424,7 +2433,7 @@ function App() {
       <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); if (main) { main.focus(); main.scrollIntoView(); } }}>Skip to content</a>
       <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
         <a className="brand" href="#/"><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "", geo: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 66302).toLocaleString("en-US")} series in English or Chinese`} /><kbd aria-hidden="true">/</kbd></div>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "", geo: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 66302).toLocaleString("en-US")} series in English or Chinese`} /></div>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
