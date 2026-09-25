@@ -2437,7 +2437,6 @@ function App() {
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
-          <a href="#/regions" aria-current={current("regions")}>Provinces</a>
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
         </nav>
         <div className="topbar-tools">
