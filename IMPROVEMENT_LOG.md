@@ -16,12 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Customs commodity table, April 2025 row misparsed: motor vehicle exports
-  215.8 (about 10,000 a month either side), mobile phones 22,365 (9,288 in
-  March, 6,862 in May), hi-tech missing. Retract 2025-04 for `major_exports`
-  and re-read the release. Every partner series is also missing 2025-06;
-  re-crawl it. January 2026 totals are not stored (February 2026 is a single
-  month, so January is derivable only from the combined release).
 - Customs commodity parser (`parseCommodities`) has no cumulative-only
   handling, unlike `parseByCountry`: February 2021 to 2025 in the commodity
   and energy-import charts is January and February together, dated
@@ -70,6 +64,27 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: Customs April 2025 and June 2025): two of the audit's
+  data defects had one cause each on Customs' side. April 2025's major
+  exports table was published without its quantity-unit column, so the
+  parser read the quantity as the unit and every figure one cell to the
+  left: motor vehicle exports 215.8 (the year-to-date quantity) between
+  months near 10,000, and a line named "Quantity (62.0)". The parser now
+  notices when most rows carry a number where the unit belongs and reads the
+  row without that column; the quantity then has no unit and is not
+  labelled with one. June 2025's by-country tables are both listed "(in
+  CNY)"; the USD one was never found, so every partner lost the month. When
+  a listing carries two or more links to one table and month all labelled
+  the other currency, `findTable` hands them back as alternates and
+  `tableOfCurrency` reads each until the page's own unit line names the
+  currency asked for. At boot the store drops the commodity quantity lines
+  named for a misread number (they are the parser's, not a published
+  figure); the value line's April is revised in place by the next ingest,
+  keeping the trail. January 2026 needs no fix: Customs' English site lists
+  no January table, and February 2026 is a single month. Fixtures: the April
+  2025 exports table, both June 2025 by-country pages and the listing page
+  that names them. Verified: typecheck clean, 434 tests; live check after
+  the deploy's first ingest.
 - 2026-09-25 (theme audit and restyle): eight Opus subagents audited every
   chart on the Headline, Provinces and seven theme pages against the served
   data and the publishers' releases. Every latest value checked matched the

@@ -49,7 +49,16 @@ export function monthOfTitle(title: string): string | null {
 }
 
 export type CustomsCurrency = "USD" | "CNY";
-export interface ListingEntry { title: string; href: string; month: string | null; table: CustomsTable | null; usd: boolean; currency: CustomsCurrency }
+export interface ListingEntry {
+  title: string; href: string; month: string | null; table: CustomsTable | null; usd: boolean; currency: CustomsCurrency;
+  /**
+   * The other links to the same table and month when the listing labels them
+   * all with one currency (June 2025's by-country tables both say "in CNY";
+   * one of them is the USD table). The currency on the entry is then the one
+   * asked for, and the page itself says which link is right (`tableOfCurrency`).
+   */
+  alternates?: ListingEntry[];
+}
 
 /** The table links on one listing page. The site writes some hrefs unquoted. */
 export function parseListing(html: string): ListingEntry[] {
@@ -209,13 +218,23 @@ export function parseCommodities(html: string, currency: CustomsCurrency = "USD"
   // "header not recognised" — 348 log lines in one twenty-minute ingest.
   const header = rows.find((row) => HEADER_CELL.test(row[0] ?? "") && /Unit/i.test(row[1] ?? ""));
   if (!header) throw new Error("commodity table: header not recognised");
+  const isData = (row: string[]) => row.length >= 6 && !!row[0] && !UNIT_CELL.test(row[0]) && !HEADER_CELL.test(row[0]) && !/^(Note|Quantity)/i.test(row[0]) && !row[0].startsWith("(");
+  const data = rows.filter(isData);
+  // April 2025's exports table keeps the "Quantity Unit" header but drops the
+  // column from every row, so the month's quantity sat where the unit belongs
+  // and each figure read one cell to the left: motor vehicle exports of 215.8
+  // (the year-to-date quantity) between months near 10,000. A unit cell is
+  // text ("10,000 Tons") or a dash, never a number; when most rows carry a
+  // number there, the column is absent and the row is read without it. The
+  // unit is then unknown and the quantity is not labelled with one.
+  const unitColumnMissing = data.filter((row) => cellNumber(row[1] ?? "") !== null).length > data.length / 2;
+  const at = (row: string[], index: number) => row[unitColumnMissing ? index - 1 : index] ?? "";
   const out: CommodityRow[] = [];
-  for (const row of rows) {
-    if (row.length < 6 || !row[0] || UNIT_CELL.test(row[0]) || HEADER_CELL.test(row[0]) || /^(Note|Quantity)/i.test(row[0]) || row[0].startsWith("(")) continue;
+  for (const row of data) {
     out.push({
-      name: row[0].trim(), quantityUnit: (row[1] ?? "").replace(/^[-—]$/, ""),
-      quantity: cellNumber(row[2] ?? ""), value: cellNumber(row[3] ?? ""),
-      ytdQuantity: cellNumber(row[4] ?? ""), ytdValue: cellNumber(row[5] ?? ""),
+      name: (row[0] ?? "").trim(), quantityUnit: unitColumnMissing ? "" : (row[1] ?? "").replace(/^[-—]$/, ""),
+      quantity: cellNumber(at(row, 2)), value: cellNumber(at(row, 3)),
+      ytdQuantity: cellNumber(at(row, 4)), ytdValue: cellNumber(at(row, 5)),
     });
   }
   if (out.length < 10) throw new Error(`commodity table: only ${out.length} rows found`);
@@ -270,6 +289,12 @@ export async function findTable(table: CustomsTable, month: string, options: { m
     previous = signature;
     const found = entries.find((entry) => entry.table === table && entry.currency === currency && entry.month === month);
     if (found) return found;
+    // The month is listed, but every link to this table carries the other
+    // currency's label. Customs publishes each table in both, so with two or
+    // more such links one is the mislabelled table wanted here; hand them all
+    // back and let the unit line on the page decide.
+    const twins = entries.filter((entry) => entry.table === table && entry.month === month);
+    if (twins.length >= 2 && twins[0]) return { ...twins[0], currency, usd: currency === "USD", alternates: twins.slice(1) };
     if (entries.some((entry) => entry.month && entry.month < month)) sawOlder = true;
     if (sawOlder && entries.every((entry) => !entry.month || entry.month < month)) return null;
   }
@@ -283,6 +308,25 @@ async function tableHtml(entry: ListingEntry): Promise<string> {
   tableCache.set(entry.href, { at: Date.now(), html });
   await Bun.sleep(PAUSE_MS);
   return html;
+}
+
+/** The currency a table's own unit line names: "Unit: USD1 Million", "Unit: CNY 100 Million". */
+export function currencyOfTable(html: string): CustomsCurrency | null {
+  const match = html.match(/Unit\s*[:：]\s*(USD|CNY)/i);
+  return match?.[1] ? (match[1].toUpperCase() === "USD" ? "USD" : "CNY") : null;
+}
+
+/**
+ * The page for the entry, or for whichever of its alternates is the table in
+ * the currency asked for. An entry without alternates is trusted as listed.
+ */
+export async function tableOfCurrency(entry: ListingEntry, currency: CustomsCurrency, read: (entry: ListingEntry) => Promise<string> = tableHtml): Promise<string> {
+  if (!entry.alternates || entry.alternates.length === 0) return read(entry);
+  for (const candidate of [entry, ...entry.alternates]) {
+    const html = await read(candidate);
+    if (currencyOfTable(html) === currency) return html;
+  }
+  throw new Error(`no ${currency} table among ${entry.alternates.length + 1} links for ${entry.month ?? "?"}: ${entry.title}`);
 }
 
 /** The months to ask for: the last `limit`, newest first, ending with last month. */
@@ -394,7 +438,7 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     // not publish that year); a single gap is skipped.
     if (!entry) { missing += 1; if (missing >= 3) break; continue; }
     missing = 0;
-    const html = await tableHtml(entry);
+    const html = await tableOfCurrency(entry, cfg.currency ?? "USD");
     try {
     parsed += 1;
     parsedMonths.push(month);

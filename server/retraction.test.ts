@@ -51,3 +51,22 @@ test("the retraction keeps the trail and runs once", () => {
   expect(retractMisreadFebruaries(db())).toBe(0);
   expect(MISREAD_FEBRUARIES.periods).not.toContain("2026-02");
 });
+
+test("commodity quantity lines named for a misread number are removed outright; real lines stand", async () => {
+  const { removeMisparsedQuantityLines } = await import("./db.ts");
+  writeSeries({
+    key: "major_exports", title: "Major exports", agency: "General Administration of Customs", unit: "Million USD", frequency: "Monthly", sourceUrl: "http://english.customs.gov.cn/",
+    series: [
+      { label: "Value", points: [{ date: "2025-03", value: 9590.9 }, { date: "2025-04", value: 215.8 }, { date: "2025-05", value: 11990.6 }] },
+      { label: "Quantity (10,000 Autos)", points: [{ date: "2025-03", value: 56.8 }, { date: "2025-05", value: 69.5 }] },
+      // April 2025's table had no unit column; the parser named the line for the number it found in the unit cell.
+      { label: "Quantity (62.0)", points: [{ date: "2025-04", value: 11164.1 }] },
+    ],
+  } as never, "motor-vehicles-including-chassis-fitted-with-engines", "2026-09-01T00:00:00.000Z");
+  expect(removeMisparsedQuantityLines(db())).toBe(1);
+  const stored = readSeries("major_exports", 12, "motor-vehicles-including-chassis-fitted-with-engines");
+  expect(stored?.series.map((line) => line.label)).toEqual(["Value", "Quantity (10,000 Autos)"]);
+  // The value line's misread April is a real period; it stays for the next ingest to revise in place.
+  expect(stored?.series[0]?.points.find((point) => point.date === "2025-04")?.value).toBe(215.8);
+  expect(removeMisparsedQuantityLines(db())).toBe(0);
+});

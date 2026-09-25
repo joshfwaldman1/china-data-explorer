@@ -6,7 +6,7 @@
 
 import { test, expect } from "bun:test";
 import { resolve } from "node:path";
-import { layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, slugOf } from "./customs.ts";
+import { currencyOfTable, findTable, layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, slugOf, tableOfCurrency } from "./customs.ts";
 
 const fixture = (name: string) => Bun.file(resolve(import.meta.dir, "fixtures/customs", name)).text();
 
@@ -149,4 +149,47 @@ test("a layout change is when the newest months fail; an old layout is a gap, no
   const fiftyFour = Array.from({ length: 54 }, (_, index) => `20${String(26 - Math.floor(index / 12)).padStart(2, "0")}-${String(12 - (index % 12)).padStart(2, "0")}`);
   const oldTwentyOne = fiftyFour.slice(-21);
   expect(layoutBroken(oldTwentyOne, fiftyFour)).toBe(false);
+});
+
+test("April 2025's exports table, published without its quantity-unit column, reads each figure from the right cell", async () => {
+  // Every other month has a unit cell ("10,000 Autos") between the name and the quantity;
+  // this table dropped it, and read the old way motor vehicle exports were 215.8 between
+  // months near 10,000 (the year-to-date quantity in the value column).
+  const rows = parseCommodities(await fixture("major-exports-2025-04-usd.html"));
+  const vehicles = rows.find((row) => /^Motor vehicles/i.test(row.name));
+  expect(vehicles?.value).toBe(11164.1);
+  expect(vehicles?.quantity).toBe(62);
+  expect(vehicles?.ytdValue).toBe(36897.6);
+  // The unit is not on the page, so the quantity carries none rather than a number.
+  expect(vehicles?.quantityUnit).toBe("");
+  const phones = rows.find((row) => /^Mobile phones/i.test(row.name));
+  expect(phones?.value).toBe(7579.7);
+  const hiTech = rows.find((row) => /^Hi-tech/i.test(row.name));
+  expect(hiTech?.value).toBe(74736.3);
+  expect(hiTech?.quantity).toBeNull();
+  // A month with the column still reads as before.
+  const august = parseCommodities(await fixture("major-exports-2026-08-usd.html")).find((row) => /^Motor vehicles/i.test(row.name));
+  expect(august?.quantityUnit).toBe("10,000 Autos");
+});
+
+test("a month whose USD table is listed as CNY is found through its twin and told apart by its unit line", async () => {
+  // June 2025's listing carries two by-country links, both titled "(in CNY)"; one is the USD table.
+  const page = parseListing(await fixture("listing-column1-page17.html"));
+  expect(page.filter((entry) => entry.table === "by-country" && entry.month === "2025-06").map((entry) => entry.currency)).toEqual(["CNY", "CNY"]);
+  const found = await findTable("by-country", "2025-06", { pages: async (n) => (n === 1 ? page : []) });
+  expect(found?.currency).toBe("USD");
+  expect(found?.alternates).toHaveLength(1);
+  const pages: Record<string, string> = {
+    [found!.href]: await fixture("by-country-2025-06-cny.html"),
+    [found!.alternates![0]!.href]: await fixture("by-country-2025-06-usd-labelled-cny.html"),
+  };
+  expect(currencyOfTable(pages[found!.href]!)).toBe("CNY");
+  const html = await tableOfCurrency(found!, "USD", async (entry) => pages[entry.href] ?? "");
+  expect(currencyOfTable(html)).toBe("USD");
+  const us = parseByCountry(html).find((row) => slugOf(row.name) === "united-states");
+  expect(us?.exports).toBeGreaterThan(30000);
+  // A month listed correctly is read as listed, with no second fetch.
+  const plain = await findTable("by-country", "2026-08", { pages: async (n) => (n === 1 ? parseListing(await fixture("listing-column1-page1.html")) : []) });
+  expect(plain?.alternates).toBeUndefined();
+  await expect(tableOfCurrency(found!, "CNY", async (entry) => pages[entry.href] ?? "")).resolves.toBe(pages[found!.href]!);
 });

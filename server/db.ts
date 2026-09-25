@@ -206,6 +206,34 @@ export function retractMisreadFebruaries(database: Database, now = new Date()): 
   return latest.length;
 }
 
+/**
+ * April 2025's major exports table was published without its quantity-unit
+ * column (customs.ts, parseCommodities), and the parser, reading the unit
+ * from the quantity cell, stored each commodity's quantity as a line named
+ * for the number it found there: "Quantity (62.0)" for motor vehicles. Those
+ * lines are not a figure Customs published under any name; they are the
+ * parser's, so they are removed rather than retracted, trail and all. The
+ * value line's misread April is a real period read wrongly, and the next
+ * ingest revises it in place, keeping the trail.
+ */
+export function removeMisparsedQuantityLines(database: Database): number {
+  const lines = database.query<{ key: string; region: string; label: string }, []>(`
+    SELECT DISTINCT key, region, label FROM series
+    WHERE key IN ('major_exports', 'major_exports_cny', 'major_imports', 'major_imports_cny') AND label LIKE 'Quantity (%'
+  `).all().filter((row) => /^Quantity \([\d.,-]+\)$/.test(row.label));
+  if (lines.length === 0) return 0;
+  const dropObservations = database.prepare("DELETE FROM observations WHERE key = ? AND region = ? AND label = ?");
+  const dropSeries = database.prepare("DELETE FROM series WHERE key = ? AND region = ? AND label = ?");
+  let removed = 0;
+  database.transaction(() => {
+    for (const row of lines) { removed += dropObservations.run(row.key, row.region, row.label).changes; dropSeries.run(row.key, row.region, row.label); }
+    // The running observation count is kept by hand (no rowid to count from); it comes down with the rows.
+    database.query("UPDATE store_stats SET observations = MAX(0, observations - $removed) WHERE id = 1").run({ $removed: removed });
+  })();
+  console.log(`  Store: removed ${lines.length} commodity quantity lines named for a misread number (${removed} observations)`);
+  return lines.length;
+}
+
 export function db(): Database {
   if (handle) return handle;
 
@@ -288,6 +316,7 @@ export function db(): Database {
   backfillSeriesRanges(database);
   migrateFullHistoryChecks(database);
   retractMisreadFebruaries(database);
+  removeMisparsedQuantityLines(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
   // visible as a run that failed, not as a chart that quietly goes stale.
