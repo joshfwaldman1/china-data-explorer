@@ -159,23 +159,78 @@ export function observationLabel(date: string, frequency: string): string {
   return periodPretty(date);
 }
 
-export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: UnitLike, style: "long" | "short" = "long", frequency = "Monthly"): string {
+/** A series that accumulates from the start of the year: its unit, label or title says so. */
+export function isCumulative(...texts: (string | undefined)[]): boolean {
+  return texts.some((text) => !!text && /cumulative|year to date|year-to-date|\bytd\b|累计/i.test(text));
+}
+
+const MONTH_NAMES = Array.from({ length: 12 }, (_, index) => new Date(Date.UTC(2000, index, 1)).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" }));
+
+/**
+ * The months a cumulative reading covers: "January to July 2026" for one
+ * dated July, "Q1 to Q2 2026" for a quarterly one, the year for an annual.
+ * A reading dated "July 2026" on a year-to-date series is not July's.
+ */
+export function periodSpan(date: string, frequency: string): string {
+  const quarter = date.match(/^(\d{4})-Q([1-4])$/);
+  if (quarter) return quarter[2] === "1" ? `Q1 ${quarter[1]}` : `Q1 to Q${quarter[2]} ${quarter[1]}`;
+  const month = date.match(/^(\d{4})-(\d{2})/);
+  if (!month || frequency === "Annual") return date.slice(0, 4);
+  const number = Number(month[2]);
+  if (frequency === "Quarterly") { const q = Math.ceil(number / 3); return q === 1 ? `Q1 ${month[1]}` : `Q1 to Q${q} ${month[1]}`; }
+  return number === 1 ? `${MONTH_NAMES[0]} ${month[1]}` : `${MONTH_NAMES[0]} to ${MONTH_NAMES[number - 1]} ${month[1]}`;
+}
+
+/** A line's name without the measure the bureau appends to it: "Industrial profits, year to date (YoY %)" reads "Industrial profits". */
+export function bareLabel(label: string): string {
+  return label.replace(/\s*[(（][^()（）]*[)）]\s*$/, "").replace(/,\s*(?:year to date|cumulative(?: year to date)?|month|quarter|quarter end|year end)\s*$/i, "").trim();
+}
+
+/**
+ * The measure every line of a chart shares, so it is written once under the
+ * chart and not four times in the legend: ", year to date (YoY %)" on every
+ * line of the profits chart. The suffix must begin at a comma or a bracket
+ * and leave every name something in front of it; otherwise it is nothing.
+ */
+export function sharedLabelSuffix(names: string[]): string {
+  if (names.length < 2) return "";
+  let suffix = names[0] ?? "";
+  for (const name of names.slice(1)) {
+    let count = 0;
+    while (count < suffix.length && count < name.length && suffix[suffix.length - 1 - count] === name[name.length - 1 - count]) count += 1;
+    suffix = suffix.slice(suffix.length - count);
+  }
+  const at = suffix.search(/,\s|\s\(/);
+  if (at < 0) return "";
+  suffix = suffix.slice(at);
+  return names.every((name) => name.length - suffix.length >= 2) ? suffix : "";
+}
+
+/** The tracks with the shared measure taken off their names, for a legend that names the lines and nothing else. */
+export function withoutSharedSuffix(tracks: Track[]): Track[] {
+  const suffix = sharedLabelSuffix(tracks.map((track) => track.name));
+  return suffix ? tracks.map((track) => ({ ...track, name: track.name.slice(0, -suffix.length) })) : tracks;
+}
+
+export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint | undefined, unit: UnitLike, style: "long" | "short" = "long", frequency = "Monthly", cumulative = false): string {
   if (!latest || !previous) return "";
+  // A cumulative reading is compared with the shorter span before it, not with a month.
+  const before = cumulative ? periodSpan(previous.date, frequency) : observationLabel(previous.date, frequency);
   const difference = latest.value - previous.value;
   // The series says how its change reads: percentage points, points, or its own units.
   const change = measure(unit).change;
   const points = change === "pt" ? " pt" : change === "pp" ? " pp" : "";
   if (Math.abs(difference) < 0.000001) {
-    if (style === "long") return `Unchanged from ${observationLabel(previous.date, frequency)}`;
+    if (style === "long") return `Unchanged from ${before}`;
     // The short form sits beside "+0.3 pp" on the Home list, so an unchanged rate says "0.0 pp" too.
     return `${!isRate(unit) && Math.abs(latest.value) >= 1000 ? "0" : "0.0"}${points}`;
   }
   // Levels in the thousands change by whole units; anything finer is noise at that scale.
   const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);
   // A difference that rounds away is "0.0 pp", not "-0.0 pp".
-  if (/^0(\.0+)?$/.test(magnitude)) return style === "short" ? `${magnitude}${points}` : `Unchanged from ${observationLabel(previous.date, frequency)}`;
+  if (/^0(\.0+)?$/.test(magnitude)) return style === "short" ? `${magnitude}${points}` : `Unchanged from ${before}`;
   if (style === "short") return `${difference > 0 ? "+" : "-"}${magnitude}${points}`;
-  return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${observationLabel(previous.date, frequency)}`;
+  return `${difference > 0 ? "Up" : "Down"} ${magnitude}${points} from ${before}`;
 }
 
 /**

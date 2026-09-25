@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
 import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -1095,7 +1095,7 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
               <div className="theme-grid">
                 {section.charts.map((chart) => {
                   const result = chart.result;
-                  const built = result ? buildTracks([result], new Map()) : null;
+                  const built = result ? (() => { const made = buildTracks([result], new Map()); return { ...made, tracks: withoutSharedSuffix(made.tracks) }; })() : null;
                   const hasPoints = built ? built.tracks.some((track) => track.points.length > 1) : false;
                   const title = chart.title ?? result?.title ?? chart.key;
                   return (
@@ -1803,7 +1803,14 @@ function SeriesPage(props: {
     return [...rows.values()].sort((a, b) => b.t - a.t);
   })();
   const shownRows = tableRows.slice(0, 500);
-  const delta = deltaText(latest, previous, primary.unit, "long", primary.frequency);
+  // What the figure is, said once: the line, the months it covers, what it is measured against.
+  // The unit sits on the meta line above it and is not repeated here.
+  const cumulative = isCumulative(primary.unit, headline?.label, primary.title);
+  const delta = deltaText(latest, previous, primary.unit, "long", primary.frequency, cumulative);
+  const statPeriod = latest ? (cumulative ? periodSpan(latest.date, primary.frequency) : observationLabel(latest.date, primary.frequency)) : "";
+  const yearOnYear = /from year ago|year on year|yoy|同比/i.test(`${unitLabel(primary.unit)} ${headline?.label ?? ""}`);
+  const statAgainst = latest && yearOnYear ? (cumulative ? `, on the same months of ${Number(latest.date.slice(0, 4)) - 1}` : ` on ${observationLabel(yearEarlier(latest.date), primary.frequency)}`) : "";
+  const statLine = primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${bareLabel(headline.label)}, ` : "";
   const downloadItems = [
     {
       label: "Download CSV",
@@ -1815,6 +1822,8 @@ function SeriesPage(props: {
     },
   ];
   const lunar = props.route.lny === "1";
+  // The legend names the lines; the measure they share is written once in the caption under the chart.
+  const shownTracks = withoutSharedSuffix(tracks);
   // A shared image of a discontinued series says so; the page's amber notice does not travel with the picture.
   const endedNotes = results.flatMap((result) => {
     const entry = props.curated.find((item) => item.key === result.key);
@@ -1902,7 +1911,7 @@ function SeriesPage(props: {
       {latest && (
         <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
           <span className="stat-value">{fmt(latest.value, primary.unit)}</span><span className="visually-hidden">, </span>
-          <span className="stat-text">{unitLabel(primary.unit)}, {primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${headline.label}, ` : ""}{observationLabel(latest.date, primary.frequency)}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
+          <span className="stat-text">{statLine}{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{statPeriod}{statAgainst}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
       )}
 
@@ -1952,8 +1961,8 @@ function SeriesPage(props: {
           {tab === "chart" && (
             <>
               <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => setCustomDates((value) => !value)}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" autoFocus={customDates && !windowed} /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
-              <div><SeriesChart tracks={tracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
-              {tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
+              <div><SeriesChart tracks={shownTracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
+              {shownTracks.length > 1 && <div className="chart-legend" aria-label="Legend">{shownTracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
               {!built.notes.length && firstSeries && <p className="chart-caption">{unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}

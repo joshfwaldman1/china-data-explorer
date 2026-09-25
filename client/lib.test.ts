@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { canonicalPeriod, convertTrack, csvOf, deltaText, coarsestFrequency, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
+import { bareLabel, canonicalPeriod, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -165,4 +165,37 @@ test("a level's change is read against a year earlier, as a percentage", async (
 test("a per-thousand rate is a rate: two decimals, points for its change", () => {
   expect(fmt(6.77, "Per thousand (‰)")).toBe("6.77");
   expect(deltaText({ date: "2025", value: 6.39 }, { date: "2024", value: 6.77 }, "Per thousand (‰)", "short")).toBe("-0.38 pt");
+});
+
+test("a cumulative reading names the months it covers, not the month it is dated", () => {
+  expect(periodSpan("2026-07", "Monthly")).toBe("January to July 2026");
+  expect(periodSpan("2026-01", "Monthly")).toBe("January 2026");
+  expect(periodSpan("2026-Q2", "Quarterly")).toBe("Q1 to Q2 2026");
+  expect(periodSpan("2026-06", "Quarterly")).toBe("Q1 to Q2 2026");
+  expect(periodSpan("2025", "Annual")).toBe("2025");
+  expect(isCumulative("Percent change from year ago, cumulative year to date")).toBe(true);
+  expect(isCumulative("Percent change from year ago", "Industrial profits, year to date (YoY %)")).toBe(true);
+  expect(isCumulative("Percent change from year ago", "CPI (YoY %)", "Consumer Price Index")).toBe(false);
+  expect(yearEarlier("2026-07")).toBe("2025-07");
+  expect(yearEarlier("2026-Q2")).toBe("2025-Q2");
+});
+
+test("the change on a cumulative series is from the shorter span before it", () => {
+  const latest = { date: "2026-07", value: 17.6 }, previous = { date: "2026-06", value: 18.7 };
+  expect(deltaText(latest, previous, "Percent change from year ago, cumulative year to date", "long", "Monthly", true)).toBe("Down 1.1 pp from January to June 2026");
+  expect(deltaText(latest, previous, "Percent change from year ago", "long", "Monthly")).toBe("Down 1.1 pp from Jun 2026");
+});
+
+test("a legend names the lines and the measure they share is taken off each", () => {
+  const names = ["Industrial profits, year to date (YoY %)", "Manufacturing, year to date (YoY %)", "Mining, year to date (YoY %)", "Utilities, year to date (YoY %)"];
+  expect(sharedLabelSuffix(names)).toBe(", year to date (YoY %)");
+  expect(withoutSharedSuffix(names.map((name) => ({ ...monthly([1]), id: name, name }))).map((track) => track.name)).toEqual(["Industrial profits", "Manufacturing", "Mining", "Utilities"]);
+  // Two lines that share only letters, or one line, keep their names.
+  expect(sharedLabelSuffix(["Exports", "Imports"])).toBe("");
+  expect(sharedLabelSuffix(["Exports (YoY %)"])).toBe("");
+  // A suffix that would swallow a whole name is not shared.
+  expect(sharedLabelSuffix(["Total, year to date", ", year to date"])).toBe("");
+  expect(bareLabel("Industrial profits, year to date (YoY %)")).toBe("Industrial profits");
+  expect(bareLabel("New energy vehicles, month (YoY %)")).toBe("New energy vehicles");
+  expect(bareLabel("Surveyed urban (%)")).toBe("Surveyed urban");
 });
