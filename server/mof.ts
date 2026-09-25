@@ -94,7 +94,9 @@ export function periodOfTitle(title: string): string | null {
   // "2026年8月地方政府债券发行和债务余额情况" -> 2026-08.
   const bondMonth = title.match(/(\d{4})年\s*(\d{1,2})\s*月地方政府债券/);
   if (bondMonth?.[2]) return `${bondMonth[1]}-${bondMonth[2].padStart(2, "0")}`;
-  const range = title.match(/年\s*1\s*[-－~～至]\s*(\d{1,2})\s*月/);
+  // The dash varies by release: "1-7月" in August 2026, "1—8月" (an em dash) in
+  // September; a set without the em dash skipped the newest release outright.
+  const range = title.match(/年\s*1\s*[-－~～至–—]\s*(\d{1,2})\s*月/);
   if (range?.[1]) return `${year}-${range[1].padStart(2, "0")}`;
   if (/上半年/.test(title)) return `${year}-06`;
   if (/前三季度/.test(title)) return `${year}-09`;

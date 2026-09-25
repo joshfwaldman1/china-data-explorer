@@ -13,6 +13,9 @@ const fixture = (name: string) => Bun.file(resolve(import.meta.dir, `fixtures/mo
 
 test("a release title names its period, cumulative for the year", () => {
   expect(periodOfTitle("2026年1-7月财政收支情况")).toBe("2026-07");
+  // September 2026's release writes its range with an em dash; the listing skipped it for a week.
+  expect(periodOfTitle("2026年1—8月财政收支情况")).toBe("2026-08");
+  expect(periodOfTitle("2026年1–8月财政收支情况")).toBe("2026-08");
   expect(periodOfTitle("2026年上半年财政收支情况")).toBe("2026-06");
   expect(periodOfTitle("2026年一季度财政收支情况")).toBe("2026-03");
   expect(periodOfTitle("2025年前三季度财政收支情况")).toBe("2025-09");
@@ -77,4 +80,15 @@ test("the adapter walks the listing and builds level and growth lines by period"
   const growth = await fetchMof("fiscal_growth", { ...base, measure: "growth", items: ["landSales"] }, 8, read);
   expect(growth.series[0]?.label).toBe("Land sale revenue, year to date (YoY %)");
   expect(growth.series[0]?.points.at(-1)).toEqual({ date: "2026-07", value: -30.8 });
+});
+
+test("the September 2026 listing names the January-August release first, and the release gives August's year to date", async () => {
+  const releases = parseListing(await Bun.file(resolve(import.meta.dir, "fixtures/mof/listing-index-2026-09.htm")).text());
+  expect(releases[0]).toEqual({ title: "2026年1—8月财政收支情况", url: "http://gks.mof.gov.cn/tongjishuju/202609/t20260918_3997709.htm", publishedAt: "2026-09-18", period: "2026-08" });
+  expect(releases.map((release) => release.period)).toEqual(["2026-08", "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2025-12"]);
+  const figures = parseFiscalRelease(await Bun.file(resolve(import.meta.dir, "fixtures/mof/release-2026-08.html")).text());
+  expect(figures?.level.landSales).toBe(13753);
+  expect(figures?.growth.landSales).toBe(-28.6);
+  expect(figures?.level.revenue).toBe(156633);
+  expect(figures?.growth.revenue).toBe(5.7);
 });

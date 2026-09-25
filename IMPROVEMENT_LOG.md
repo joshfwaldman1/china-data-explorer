@@ -16,9 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- MOF land sale revenue is a release behind: Jan to Aug 2026 (13,753,
-  -28.6%) was published on 18 September and the store ends at July. Check
-  the ministry adapter's listing against the new release page.
 - Theme cards read the raw store (`readSeries`) while the series page fills
   the combined February from the year-to-date sibling (`februaryFrom`), so a
   theme card and the series page it links to draw different points on
@@ -57,6 +54,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the finance ministry's January-August release): the
+  fiscal series ended at July a week after the January-August release was
+  out (18 September). The release's title writes its range with an em dash,
+  "2026年1—8月财政收支情况", where every earlier one used a hyphen, and the
+  title parser's dash set had no em dash, so the listing skipped the newest
+  release and the series stood still. The set now takes the em and en
+  dashes too. The release parses to the ministry's figures: land sales
+  13,753 (-28.6%), revenue 156,633 (+5.7%). Fixtures: the September listing
+  page and the release. Verified: typecheck clean, 438 tests; the live
+  series fills with the deploy's ingest.
 - 2026-09-25 (round: the energy administration's February 2022): the month
   line held 13,467 for February 2022, the two-month total. The release
   itself gives February alone (6,235, +16.9%) and then January-February;
