@@ -74,7 +74,7 @@ test("themeData returns every section with a stored series read and filtered to 
   expect(data!.sections.map((section) => section.title)).toEqual(THEMES.trade!.sections.map((section) => section.title));
   const headline = data!.sections[0]!.charts.find((chart) => chart.key === "trade")!;
   expect(headline.result).not.toBeNull();
-  expect(headline.result!.title).toBe("Exports and imports, growth on a year earlier");
+  expect(headline.result!.title).toBe("Exports and imports, growth on a year earlier, month");
   expect(headline.result!.series.map((line) => line.label)).toEqual(["Exports (YoY %)", "Imports (YoY %)"]);
   // A chart whose series is not stored yet is handed to the page as null, never as an empty result that would draw a blank axis.
   const unstored = data!.sections.flatMap((section) => section.charts).find((chart) => chart.key === "gdp_contributions");

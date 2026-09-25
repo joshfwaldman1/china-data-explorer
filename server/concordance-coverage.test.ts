@@ -25,7 +25,7 @@ const pairSides = (pair: (typeof CONCORDANCE_PAIRS)[number]) =>
 // were once on this list and should not have been: both are domestic
 // publishers, and listing them here quietly excused three series from needing
 // either a pair or a written reason.
-const FOREIGN = /^(Federal Reserve|Bank for International|International Monetary|OECD|Baker|US |Nasdaq|World Bank)/;
+const FOREIGN = /^(Federal Reserve|Bank for International|International Monetary|OECD|Baker|Davis|US |Nasdaq|World Bank)/;
 
 test("every domestic-publisher series is paired or explains why not", () => {
   const paired = new Set<string>();

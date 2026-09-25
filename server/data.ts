@@ -1066,12 +1066,14 @@ export const CATALOG: Record<string, Indicator> = {
   household_income_growth: {
     kind: "nbs", group: "Consumption",
     title: "Household Disposable Income Growth, Year to Date", agency: "National Bureau of Statistics",
-    frequency: "Quarterly", unit: "Percent change from year ago, nominal, cumulative year to date",
+    frequency: "Quarterly", unit: "Percent change from year ago, real, cumulative year to date",
     // NBS's quarterly household survey: per-capita disposable income, year to
-    // date, nominal growth on a year earlier, for all residents and for the
-    // urban and rural tables published beside it. Q4 is the full year. No
-    // pair: the survey is the only source; the annual figure is its
-    // fourth-quarter reading.
+    // date, growth on a year earlier, for all residents and for the urban and
+    // rural tables published beside it. The bureau's own annotation on these
+    // indicators says the per-capita growth rate is real (扣除价格因素的实际增速),
+    // and the served figures match its published real rates (H1 2026: 4.2, against
+    // 5.2 nominal). Q4 is the full year. No pair: the survey is the only source;
+    // the annual figure is its fourth-quarter reading.
     cid: "ec2d57ed282f456e8d025aff035b4fad",
     rootId: "a94b8b7365a94874968cabbe392cf679",
     ids: [
@@ -1095,7 +1097,8 @@ export const CATALOG: Record<string, Indicator> = {
   household_spending_growth: {
     kind: "nbs", group: "Consumption",
     title: "Household Consumption Spending Growth, Year to Date", agency: "National Bureau of Statistics",
-    frequency: "Quarterly", unit: "Percent change from year ago, nominal, cumulative year to date",
+    // Real, as the income series: the bureau's annotation says the per-capita spending growth rate is price-deflated.
+    frequency: "Quarterly", unit: "Percent change from year ago, real, cumulative year to date",
     cid: "71e8c15775d242b8b212edb4cab6e808",
     rootId: "a94b8b7365a94874968cabbe392cf679",
     ids: [
@@ -1719,7 +1722,7 @@ export const CATALOG: Record<string, Indicator> = {
   },
   property_sales: {
     kind: "nbs", group: "Property",
-    title: "New Home Floor Space Sold Growth, Year to Date", agency: "National Bureau of Statistics",
+    title: "New Building Floor Space Sold Growth, Year to Date", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Percent change from year ago, cumulative year to date",
     // 新建商品房销售面积: floor space sold, cumulative for the year. Sales value is its own table, served as property_sales_value.
     cid: "0ae633cdb85f4a8397650831b2b27e50",
@@ -1730,7 +1733,7 @@ export const CATALOG: Record<string, Indicator> = {
   },
   property_sales_area: {
     kind: "nbs", group: "Property", home: false,
-    title: "New Home Floor Space Sold, Year to Date", agency: "National Bureau of Statistics",
+    title: "New Building Floor Space Sold, Year to Date", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Ten thousand square metres (万平方米), cumulative year to date",
     // The level behind property_sales.
     cid: "0ae633cdb85f4a8397650831b2b27e50",
@@ -2230,8 +2233,8 @@ export const CATALOG: Record<string, Indicator> = {
   credit_corporate_bis: { kind: "fred", group: "Money & Credit", home: false, title: "Non-Financial Corporate Credit", agency: "Bank for International Settlements", frequency: "Quarterly", unit: "Percent of GDP", seriesId: "QCNNAM770A", label: "Non-financial corporate credit (% of GDP)" },
   gov_debt_imf: { kind: "fred", group: "Public Finance", home: false, title: "General Government Gross Debt", agency: "International Monetary Fund", frequency: "Annual", unit: "Percent of GDP", seriesId: "GGGDTACNA188N", label: "General government gross debt (% of GDP)" },
   house_prices_real_bis: { kind: "fred", group: "Property", home: false, title: "Real Residential Property Prices", agency: "Bank for International Settlements", frequency: "Quarterly", unit: "Index, 2010 = 100", seriesId: "QCNR628BIS", label: "Real residential property price index" },
-  epu: { kind: "fred", group: "Sentiment", home: false, title: "Economic Policy Uncertainty Index", agency: "Baker, Bloom and Davis", frequency: "Monthly", unit: "Index", seriesId: "CHNMAINLANDEPU", label: "Economic policy uncertainty, mainland papers" },
-  tpu: { kind: "fred", group: "Sentiment", home: false, title: "Trade Policy Uncertainty Index", agency: "Baker, Bloom and Davis", frequency: "Monthly", unit: "Index", seriesId: "CHNMAINLANDTPU", label: "Trade policy uncertainty, mainland papers" },
+  epu: { kind: "fred", group: "Sentiment", home: false, title: "Economic Policy Uncertainty Index", agency: "Davis, Liu and Sheng", frequency: "Monthly", unit: "Index", seriesId: "CHNMAINLANDEPU", label: "Economic policy uncertainty, mainland papers" },
+  tpu: { kind: "fred", group: "Sentiment", home: false, title: "Trade Policy Uncertainty Index", agency: "Davis, Liu and Sheng", frequency: "Monthly", unit: "Index", seriesId: "CHNMAINLANDTPU", label: "Trade policy uncertainty, mainland papers" },
   oecd_cli: { kind: "fred", group: "Sentiment", home: false, title: "OECD Composite Leading Indicator", agency: "OECD", frequency: "Monthly", unit: "Index, long-term average = 100", seriesId: "CHNLOLITOAASTSAM", label: "Composite leading indicator, amplitude adjusted" },
   consumer_confidence_oecd: { kind: "fred", group: "Sentiment", home: false, title: "Consumer Confidence (OECD)", agency: "OECD", frequency: "Monthly", unit: "Index, long-term average = 100", seriesId: "CSCICP02CNM460S", label: "Consumer confidence, OECD standardised" },
   shibor_3m: { kind: "fred", group: "Interest Rates", home: false, title: "3-Month Interbank Rate", agency: "OECD, from the People's Bank of China", frequency: "Monthly", unit: "Percent per annum", seriesId: "IR3TIB01CNM156N", label: "3-month interbank rate" },
@@ -2357,8 +2360,8 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
   ] },
   { group: "Property", rows: [
     { key: "property_investment", title: "Real Estate Investment Growth, Year to Date" },
-    { key: "property_sales", title: "New Home Floor Space Sold, Year to Date" },
-    { key: "property_construction", title: "Housing Starts, Year to Date" },
+    { key: "property_sales", title: "New Building Floor Space Sold, Year to Date" },
+    { key: "property_construction", title: "Floor Space Started, All Buildings, Year to Date" },
     { key: "house_prices", title: "New Home Prices, 70-City Average" },
   ] },
   { group: "Money & Credit", rows: [
@@ -2618,10 +2621,15 @@ async function fetchFred(key: string, cfg: FredIndicator, limit: number): Promis
     points.push({ date: fredPeriod(date, cfg.frequency), value: Math.round(value * 10000) / 10000 });
   }
   points.sort((a, b) => a.date.localeCompare(b.date));
+  // FRED averages the running month from the trading days so far and dates it as the month,
+  // so a "monthly average" would end on a partial month drawn as a full one. The period
+  // that is still open is left out; it arrives once the month has closed.
+  const runningPeriod = fredPeriod(new Date().toISOString().slice(0, 10), cfg.frequency);
+  const closed = cfg.aggregate === "avg" ? points.filter((point) => point.date < runningPeriod) : points;
   return {
     key, title: cfg.title, agency: cfg.agency,
     sourceUrl: `https://fred.stlouisfed.org/series/${cfg.seriesId}`,
-    frequency: cfg.frequency, unit: cfg.unit, series: [{ label: cfg.label, points: points.slice(-Math.max(limit, 2)) }],
+    frequency: cfg.frequency, unit: cfg.unit, series: [{ label: cfg.label, points: closed.slice(-Math.max(limit, 2)) }],
   };
 }
 

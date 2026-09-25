@@ -198,7 +198,7 @@ export interface KeyMethodology {
 }
 
 /** The agencies whose figures are not Chinese official statistics; they are compared, not audited. */
-const FOREIGN = /^(Federal Reserve|Bank for International|International Monetary|OECD|Baker|US |Nasdaq|World Bank)/;
+const FOREIGN = /^(Federal Reserve|Bank for International|International Monetary|OECD|Baker|Davis|US |Nasdaq|World Bank)/;
 
 function sideKeys(pair: (typeof CONCORDANCE_PAIRS)[number]): SeriesRef[] {
   if (pair.kind === "value") return [pair.left, pair.right];

@@ -16,6 +16,46 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
+- Customs commodity table, April 2025 row misparsed: motor vehicle exports
+  215.8 (about 10,000 a month either side), mobile phones 22,365 (9,288 in
+  March, 6,862 in May), hi-tech missing. Retract 2025-04 for `major_exports`
+  and re-read the release. Every partner series is also missing 2025-06;
+  re-crawl it. January 2026 totals are not stored (February 2026 is a single
+  month, so January is derivable only from the combined release).
+- Customs commodity parser (`parseCommodities`) has no cumulative-only
+  handling, unlike `parseByCountry`: February 2021 to 2025 in the commodity
+  and energy-import charts is January and February together, dated
+  February. Either parse it as the partner table does or null those points.
+- NEA electricity consumption: the month line has 2022-02 equal to the
+  year-to-date line (January and February together, drawn as one month), and
+  2026-05 is missing from both lines (the May release was not ingested).
+- MOF land sale revenue is a release behind: Jan to Aug 2026 (13,753,
+  -28.6%) was published on 18 September and the store ends at July. Check
+  the ministry adapter's listing against the new release page.
+- Theme cards read the raw store (`readSeries`) while the series page fills
+  the combined February from the year-to-date sibling (`februaryFrom`), so a
+  theme card and the series page it links to draw different points on
+  monthly NBS output tables. Serve theme charts for `nbs_` keys through
+  `getNbsCatalogSeries`, then reword the "no January or February point"
+  notes on the Manufacturing, Trade and Energy pages.
+- Home rows dated "Sep 2026" for month-end series while the month is open
+  (FDR007, 10-year yield, USD/CNY parity, CFETS index, SHIBOR): the value is a
+  month-to-date reading and the change compares it with August's close. Say
+  "Sep 2026 to date" or date the reading.
+- Home rows and hero tiles whose title names a level for a growth figure
+  ("Gross Domestic Product" 4.3%, "Consumer Price Index" 0.8%, "Producer
+  Price Index" 3.8%), and monthly rows that do not say "month on a year
+  earlier". Owner's call on the naming pattern; the audit's proposals are in
+  the 2026-09-25 log entry.
+- Provinces page labels a first-half figure as "Q2 2026" (tile map subhead,
+  ranking subhead, period dropdown, selected-province panel, profile rows);
+  use `periodSpan` ("Q1 to Q2 2026"). The selected panel also says "year to
+  date" twice, the province exports field prints "843,388,066 k USD", and
+  "GRP" and "Residents" are unexplained.
+- FX reserves are credited to the PBOC; SAFE publishes them.
+- Demographics: the 65-and-over share is a UN estimate that runs about a
+  point below the bureau's own counts on the same page (14.9% against 15.9%
+  for 2025). Derive the share from `population_age` over `population_nbs`.
 - Long-term backup retention and recovery drills. The verified nightly workflow
   now targets 90-day GitHub artifacts, with matching service/repository credentials.
   Add independent object storage and measure recovery time; revision history
@@ -30,6 +70,42 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (theme audit and restyle): eight Opus subagents audited every
+  chart on the Headline, Provinces and seven theme pages against the served
+  data and the publishers' releases. Every latest value checked matched the
+  official figure (NBS August release, Customs, MOF, NEA, SSE, the 2025
+  communiqué). The descriptions were another matter: of 137 theme cards, 82
+  were off. The commonest defects were a period form missing from the title,
+  a window years longer than the data (local government bonds from 2024-12
+  under an 8-year window), notes that described a February point the chart
+  does not draw, and quirks nothing on the card disclosed (census steps in
+  the age-group chart, UN estimates beside bureau counts, the youth-rate gap
+  months given as August to November when the data stops after June). Three
+  were wrong in the data's description: the household income and spending
+  growth series are the bureau's real (price-deflated) rates, which its own
+  annotation states, but the unit said nominal (H1 2026 shows 4.2, nominal
+  was 5.2); the two policy-uncertainty indices were credited to Baker, Bloom
+  and Davis, whose China index reads the South China Morning Post, when
+  FRED's notes name Davis, Liu and Sheng and two mainland papers; the Golden
+  Dragon "monthly average" ended on a month-to-date average of the running
+  month, drawn as a full month's fall. Applied: every title, note, lede and
+  window the audits proposed across the seven themes (52 edits in
+  `server/themes.ts`), the two unit strings, the two agencies, the running
+  month dropped from FRED average series, the Home rows "New Home Floor
+  Space Sold" and "Housing Starts" renamed for the all-building series they
+  draw (residential is -13.0 and -25.4 against the -12.1 and -24.8 shown),
+  and `万载重吨` glossed. The data defects the audits found (Customs April
+  2025, missing partner months, NEA February 2022, MOF a release behind,
+  theme cards without the February fill, month-to-date Home rows, Provinces
+  period labels) are queued above with the evidence. Restyle in the same
+  push: theme cards drew the series page's 460-pixel chart, so a page was a
+  column of tall panels; they now draw a 250-pixel compact chart (1.5-pixel
+  line, 44-pixel value axis, year ticks from a two-and-a-half-year window),
+  the page strip is sentence case at 13px rather than tracked capitals, the
+  catalog sidebar is off the theme and province pages, Home's hero sits on
+  the left edge with the tiles a size up, and headings and ledes are a step
+  larger. Verified: typecheck clean, 431 tests, local screenshots at 1440
+  and 390 wide and in dark mode; the live check follows the deploy.
 - 2026-09-09 round 1: search ranked discontinued series ("Crude steel
   sales, year to date", ended 2019) above current ones because the ranker
   had no idea which series still publish. With the full catalog stored, each
