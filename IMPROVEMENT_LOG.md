@@ -35,6 +35,22 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the chart's keyboard state and its focus ring): the
+  owner sent two screenshots of a series chart after a click: a blue
+  rounded ring around the active dots, and on a four-line compare the dots
+  lit at four different dates under one tooltip. Two causes. Recharts 3
+  makes the chart surface focusable for keyboard stepping, and Chrome drew
+  its default "auto" ring on it after a click; the surface now shows no
+  ring on a click and the site's own ring on keyboard focus. The chart
+  gave each line its own data array, and the keyboard state steps by
+  index, so on a compare whose lines begin in different months it lit the
+  i-th point of each: four dates, one label. The chart now builds one row
+  per date with every line as a column of it, the standard shape, so hover
+  and keyboard stepping both land every line on the same date; a line
+  without a value at a row is joined across it, as its own array drew it
+  before. Verified: typecheck clean, 441 tests; on a local render, a click
+  shows no ring, three ArrowRight presses step Feb, Mar, Apr 2018 with both
+  lines' dots at one x each time and the ring shown only then.
 - 2026-09-25 (round: the copy reads as sentences): the owner sent the
   Property page lede, "...land revenue and bonds, from the finance
   ministry.", and called the comma-tacked tail "terrible claude-speak". The

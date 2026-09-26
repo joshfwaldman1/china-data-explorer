@@ -499,12 +499,13 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
 function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }) {
   if (!props.active || !props.payload || props.payload.length === 0) return null;
   const first = props.payload[0];
+  // Every item is a column of the one row under the cursor, so the period is the row's.
   const period = str(obj(first, "payload"), "p");
   return (
     <div className="chart-tip" role="presentation">
       <b>{periodPretty(period)}</b>
       {props.payload.map((item, index) => {
-        const value = num(obj(item, "payload"), "v");
+        const value = num(item, "value");
         const color = str(item, "color") || str(item, "stroke");
         const name = str(item, "name");
         return <div key={index}><i style={{ color }} /><span className="n">{name}</span><span className="v">{value === null ? "—" : fmt(value, props.unit)}</span></div>;
@@ -548,10 +549,18 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
     : [];
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
   const description = `${props.title}. ${shown.length} series, ${props.unit}. Arrow keys step through the points; the Table tab lists the values.`;
+  // One row per date, every line a column of it. With a data array per line, the
+  // chart's keyboard state stepped by index, so on a compare whose lines begin in
+  // different months it lit the i-th point of each line: four dots at four dates
+  // and one tooltip naming one of them. A line without a value at a row is joined
+  // across it, as its own array drew it before.
+  const rows = [...new Map(shown.flatMap((track) => track.points.map((point) => [point.t, { t: point.t, p: point.p }] as const))).values()].sort((a, b) => a.t - b.t);
+  const byTime = new Map(rows.map((row) => [row.t, row as Record<string, number | string>]));
+  for (const track of shown) for (const point of track.points) { const row = byTime.get(point.t); if (row) row[track.id] = point.v; }
   return (
     <div className="chart-wrap" style={{ width: "100%", height: props.height ?? 460 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
-        <LineChart margin={props.compact ? { top: 8, right: 12, bottom: 0, left: 0 } : { top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
+        <LineChart data={rows} margin={props.compact ? { top: 8, right: 12, bottom: 0, left: 0 } : { top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
           <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={props.compact ? 40 : 48} tickMargin={8} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line)" tickLine={false} />
           <YAxis width={props.compact ? 44 : 64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
@@ -563,7 +572,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
           ))}
           <Tooltip content={<ChartTip unit={props.unit} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
           {shown.map((track) => (
-            <Line key={track.id} data={track.points} dataKey="v" name={track.name} type="linear" stroke={track.color} strokeWidth={props.compact ? 1.5 : 2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls={false} />
+            <Line key={track.id} dataKey={track.id} name={track.name} type="linear" stroke={track.color} strokeWidth={props.compact ? 1.5 : 2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls />
           ))}
         </LineChart>
       </ResponsiveContainer>
