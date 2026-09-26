@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { bareLabel, canonicalPeriod, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
+import { bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -198,4 +198,17 @@ test("a legend names the lines and the measure they share is taken off each", ()
   expect(bareLabel("Industrial profits, year to date (YoY %)")).toBe("Industrial profits");
   expect(bareLabel("New energy vehicles, month (YoY %)")).toBe("New energy vehicles");
   expect(bareLabel("Surveyed urban (%)")).toBe("Surveyed urban");
+});
+
+test("a month-end reading for the running month says so; a rate fixed once a month does not", () => {
+  const now = new Date("2026-09-25T12:00:00.000Z");
+  expect(isOpenMonth("2026-09", "Percent, month-end close", now)).toBe(true);
+  expect(isOpenMonth("2026-09", "Yuan per unit of foreign currency, last fixing of the month", now)).toBe(true);
+  expect(isOpenMonth("2026-09", "Index, 31 December 2014 = 100, last weekly reading of the month", now)).toBe(true);
+  // August closed; the reading stands as the month's.
+  expect(isOpenMonth("2026-08", "Percent, month-end close", now)).toBe(false);
+  // The LPR is fixed on the 20th and final when it appears.
+  expect(isOpenMonth("2026-09", "Percent per annum", now)).toBe(false);
+  // A monthly release for the running month (none exists, but the rule must not fire on it).
+  expect(isOpenMonth("2026-09", "Percent change from year ago", now)).toBe(false);
 });

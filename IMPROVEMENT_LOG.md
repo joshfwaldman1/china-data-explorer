@@ -16,10 +16,6 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
-- Home rows dated "Sep 2026" for month-end series while the month is open
-  (FDR007, 10-year yield, USD/CNY parity, CFETS index, SHIBOR): the value is a
-  month-to-date reading and the change compares it with August's close. Say
-  "Sep 2026 to date" or date the reading.
 - Home rows and hero tiles whose title names a level for a growth figure
   ("Gross Domestic Product" 4.3%, "Consumer Price Index" 0.8%, "Producer
   Price Index" 3.8%), and monthly rows that do not say "month on a year
@@ -45,6 +41,18 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: a month-end reading for the running month says so):
+  the daily fixings and closes aggregated to their month (the 10-year yield,
+  the parity rate, SHIBOR, the exchange indices, the Shanghai indices) carry
+  a point for the running month from its first trading day, and Home dated
+  it "Sep 2026" under a unit that says "month-end close", with the change
+  measured against August's close. A new rule, `isOpenMonth`, reads the
+  unit ("month-end close", "last fixing of the month", "last weekly reading
+  of the month") and the date, and the Home rows, hero tiles and the series
+  page's stat line say "Sep 2026 to date" until the month closes. The LPR,
+  fixed once a month with no such unit, is unchanged. Verified: typecheck
+  clean, 439 tests (one new, holding the rule to those units and to the
+  running month only).
 - 2026-09-25 (round: the Provinces page names the months a figure covers):
   provincial GDP growth is year to date, and the page dated its first-half
   figure "Q2 2026" in the tile-map and ranking subheads, the period menu,

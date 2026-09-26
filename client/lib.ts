@@ -159,6 +159,21 @@ export function observationLabel(date: string, frequency: string): string {
   return periodPretty(date);
 }
 
+/**
+ * Whether a month-end reading is being shown for a month that has not ended.
+ *
+ * A daily fixing or close aggregated to its month (the 10-year yield, the
+ * parity rate, SHIBOR, the exchange indices) carries a point for the running
+ * month from its first trading day: a month-to-date reading under a unit that
+ * says "month-end close". It reads "Sep 2026 to date" until the month closes.
+ * A rate fixed once a month (the LPR) has no such unit and is final when it
+ * appears.
+ */
+export function isOpenMonth(date: string, unit: string, now = new Date()): boolean {
+  if (!/month-end|month end|last fixing of the month|last weekly reading of the month|last trading day/i.test(unit)) return false;
+  return date.slice(0, 7) === `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 /** A series that accumulates from the start of the year: its unit, label or title says so. */
 export function isCumulative(...texts: (string | undefined)[]): boolean {
   return texts.some((text) => !!text && /cumulative|year to date|year-to-date|\bytd\b|累计/i.test(text));

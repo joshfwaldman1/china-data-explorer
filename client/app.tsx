@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, periodSpan, bareLabel, withoutSharedSuffix  } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
 import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -785,7 +785,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 <span className="label">{entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{measure.suffix}</span></span>
                 {first && <Sparkline points={first.points} years />}
-                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : observationLabel(latest.date, entry.frequency)) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
+                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
             );
           })}
@@ -821,7 +821,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)}</small></span>
                     <span className="value">{latest ? fmt(latest.value, measure) : "—"}<i>{latest ? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
-                    <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : observationLabel(latest.date, entry.frequency)) : entry.frequency}</span>
+                    <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} years />}</span>
                   </a>
                 );
@@ -1823,7 +1823,7 @@ function SeriesPage(props: {
   // The unit sits on the meta line above it and is not repeated here.
   const cumulative = isCumulative(primary.unit, headline?.label, primary.title);
   const delta = deltaText(latest, previous, primary.unit, "long", primary.frequency, cumulative);
-  const statPeriod = latest ? (cumulative ? periodSpan(latest.date, primary.frequency) : observationLabel(latest.date, primary.frequency)) : "";
+  const statPeriod = latest ? (cumulative ? periodSpan(latest.date, primary.frequency) : `${observationLabel(latest.date, primary.frequency)}${isOpenMonth(latest.date, primary.unit) ? " to date" : ""}`) : "";
   const yearOnYear = /from year ago|year on year|yoy|同比/i.test(`${unitLabel(primary.unit)} ${headline?.label ?? ""}`);
   const statAgainst = latest && yearOnYear ? (cumulative ? `, on the same months of ${Number(latest.date.slice(0, 4)) - 1}` : ` on ${observationLabel(yearEarlier(latest.date), primary.frequency)}`) : "";
   const statLine = primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${bareLabel(headline.label)}, ` : "";
