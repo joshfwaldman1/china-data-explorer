@@ -265,9 +265,9 @@ const ABOUT: Record<string, string> = {
   lgb_issuance: "Local government bonds issued in the month, from the Ministry of Finance's Debt Management Department release, in total and split two ways: general against special bonds, and new against refinancing bonds. Published about six weeks after the month.",
   lgb_debt: "Local government debt outstanding at the month's end from the same release: total, general and special. Bonds are nearly all of it; the remainder is legacy non-bond debt.",
   lgb_rate: "The average issuance rate of local government bonds sold in the month, from the same release.",
-  household_income_growth: "Per-capita disposable income from NBS's quarterly household survey, year to date, nominal growth on a year earlier, for all residents and for the urban and rural tables published beside it. The fourth quarter is the full year.",
+  household_income_growth: "Per-capita disposable income from NBS's quarterly household survey, year to date, real growth on a year earlier (the bureau deducts price changes), for all residents and for the urban and rural tables published beside it. The fourth quarter is the full year.",
   household_income: "Per-capita disposable income in yuan, year to date, from the quarterly household survey; the fourth quarter is the full year.",
-  household_spending_growth: "Per-capita consumption spending from the quarterly household survey, year to date, nominal growth on a year earlier, all residents and urban and rural.",
+  household_spending_growth: "Per-capita consumption spending from the quarterly household survey, year to date, real growth on a year earlier (the bureau deducts price changes), all residents and urban and rural.",
   household_spending: "Per-capita consumption spending in yuan, year to date, from the quarterly household survey.",
   services_production: "NBS's index of services production, the services counterpart of industrial production: growth on a year earlier for the month and for the year to date. January and February are published together, so the month line's February value covers both months.",
   working_hours: "Average hours worked per week by enterprise employees, from NBS's monthly labour force survey: the one measure of labour intensity the bureau publishes monthly.",
@@ -1188,7 +1188,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
                       <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? `, ended ${row.ended}` : ""}</small></span>
                       <span className="value">{latest ? fmt(latest.value, row.measure) : "—"}<i>{latest ? row.measure.suffix : ""}</i></span>
                       <span className="change">{levelChange || deltaText(latest, previous, row.measure, "short")}</span>
-                      <span className={`period${row.ended ? " behind" : ""}`}>{row.ended ? `Ended ${row.ended}` : latest ? observationLabel(latest.date, row.frequency) : row.frequency}</span>
+                      <span className={`period${row.ended ? " behind" : ""}`}>{row.ended ? `Ended ${row.ended}` : latest ? (isCumulative(row.unit, row.label) ? periodSpan(latest.date, row.frequency) : observationLabel(latest.date, row.frequency)) : row.frequency}</span>
                       <span className="spark">{row.points.length > 1 && <Sparkline points={row.points} years />}</span>
                     </a>
                   );
@@ -2192,11 +2192,14 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   // rather than drawing an empty map under that quarter's heading.
   useEffect(() => {
     if (status !== "ok" || !period || !data || data.values.some((item) => item.value !== null)) return;
-    props.toast(`Nothing published for ${periodPretty(period)}; showing the latest period`);
+    props.toast(`Nothing published for ${periodText(period)}; showing the latest period`);
     props.navigate({ view: "regions", period: "", key: props.route.key });
   }, [status, data, period]);
 
   const unit = data?.unit ?? "%";
+  // A cumulative series (provincial GDP is year to date) names the months its figure covers, "Q1 to Q2 2026", not the quarter it is dated.
+  const cumulative = isCumulative(unit, data?.label ?? undefined, data?.title);
+  const periodText = (value: string) => cumulative ? periodSpan(value, data?.frequency ?? "Quarterly") : periodPretty(value);
   // Trade by partner and by commodity rank rather than map, and their copy names
   // the publisher; the "Total" row of the partner table is the whole month, shown apart.
   const trade = data?.geography === "Partner" || data?.geography === "Commodity";
@@ -2227,18 +2230,18 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
           <h1>{gdp ? "Real GDP Growth by Province" : `${data?.title ?? "Series"} by ${what.charAt(0).toUpperCase()}${what.slice(1)}`}</h1>
           <p className="lede">{gdp
             ? "Year-to-date real GDP, % change from the same period a year earlier: Q2 is first-half growth, Q4 is full-year growth. Source: provincial statistical bureaus, via NBS."
-            : `${data?.label ? `${data.label}, ` : ""}${unitLabel(unit)}, ${(data?.frequency ?? "").toLowerCase()}. Source: ${data?.agency ?? "National Bureau of Statistics"}.${total && shownPeriod ? ` All partners, ${periodPretty(shownPeriod)}: ${fmt(total.value ?? 0, unit)} ${unitLabel(unit)}.` : ""}`}</p>
+            : `${data?.label ? `${data.label}, ` : ""}${unitLabel(unit)}, ${(data?.frequency ?? "").toLowerCase()}. Source: ${data?.agency ?? "National Bureau of Statistics"}.${total && shownPeriod ? ` All partners, ${periodText(shownPeriod)}: ${fmt(total.value ?? 0, unit)} ${unitLabel(unit)}.` : ""}`}</p>
         </div>
         <div className="actions">
           {(data?.labels?.length ?? 0) > 1 && <label className="button" style={{ gap: 8 }}>Rank by<select aria-label="Line to rank by" value={data?.label ?? ""} onChange={(event) => setLabel(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.labels ?? []).map((name) => <option key={name} value={name}>{name}</option>)}</select></label>}
-          <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodPretty(item)}</option>)}</select></label>
+          <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodText(item)}</option>)}</select></label>
           {/* Any series published by province can be mapped, not only GDP. */}
           <AddSeries keys={[]} lang={props.lang} navigate={props.navigate} label="Map another series" geography={data?.geography === "City" ? "City" : "Province"}
             onPick={(entry) => props.navigate({ view: "regions", period: "", key: entry.key })} />
           {rows.length > 0 && <button className="button" onClick={() => downloadBlob(
             `econstats-china-${key}-${shownPeriod || "latest"}.csv`,
             new Blob([regionalCsv(
-              { title: data?.label ? `${data.title}: ${data.label}` : (data?.title ?? key), unit: unitLabel(unit), period: shownPeriod ? periodPretty(shownPeriod) : "", agency: data?.agency ?? "National Bureau of Statistics" },
+              { title: data?.label ? `${data.title}: ${data.label}` : (data?.title ?? key), unit: unitLabel(unit), period: shownPeriod ? periodText(shownPeriod) : "", agency: data?.agency ?? "National Bureau of Statistics" },
               [...(total ? [total] : []), ...ranked].map((item) => ({ en: regionLabel(item.region), zh: item.region.text, code: item.region.value, value: item.value })),
             )], { type: "text/csv;charset=utf-8" }),
           )}>Download CSV</button>}
@@ -2258,7 +2261,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
         <div className={hasMap ? "regional-grid" : "regional-grid one-column"}>
           {hasMap && (
             <section className="card" aria-label="Map of provinces">
-              <div className="card-head"><h2>Tile map</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, approximate geography</span></div>
+              <div className="card-head"><h2>Tile map</h2><span>{shownPeriod ? periodText(shownPeriod) : ""}, approximate geography</span></div>
               <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
                 {mapped.map((item) => {
                   const province = item.province;
@@ -2284,7 +2287,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
             {current && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
                 <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{regionLabel(current.region)} <Zh className="gloss">{current.region.text}</Zh></h2></div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, unit)}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>{unitLabel(unit)}, {shownPeriod ? periodPretty(shownPeriod) : ""}{gdp ? ", year to date" : ""}</span></div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, unit)}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>{unitLabel(unit)}, {shownPeriod ? periodText(shownPeriod) : ""}</span></div>
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
                   {current.province && <a className="button" href={routeHash({ view: "province", code: current.region.value })}>Province profile</a>}
@@ -2305,7 +2308,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
               </section>
             )}
             <section className="card">
-              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodPretty(shownPeriod) : ""}, {data.label ? `${data.label}, ` : ""}highest to lowest</span></div>
+              <div className="card-head"><h2>Ranking</h2><span>{shownPeriod ? periodText(shownPeriod) : ""}, {(data.labels?.length ?? 0) > 1 && data.label ? `${bareLabel(data.label)}, ` : ""}highest to lowest</span></div>
               <div className="ranked" role="group" aria-label="Places ranked highest to lowest; select one to see its series">
                 {ranked.map((item) => {
                   const step = stepFor(item.value ?? 0, breaks);

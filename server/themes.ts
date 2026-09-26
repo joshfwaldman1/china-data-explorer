@@ -94,7 +94,7 @@ const MANUFACTURING: Theme = {
     },
     {
       title: "Output by product, levels",
-      lede: "Monthly output from the bureau's table. The February point is January and February combined; there is no January point.",
+      lede: "Monthly output from the bureau's table. January is never published on its own; a February point, where the table has one, is January and February combined.",
       charts: [
         { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
         { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },
@@ -218,7 +218,7 @@ const ENERGY: Theme = {
     },
     {
       title: "Solar cell and new energy vehicle output",
-      lede: "The February point is January and February combined; there is no January point.",
+      lede: "January is never published on its own; a February point, where the table has one, is January and February combined.",
       charts: [
         { title: "Solar cell output, month", key: OUTPUT.solar, years: 10 },
         { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
@@ -335,7 +335,7 @@ export const THEMES: Record<string, Theme> = {
       },
       {
         title: "Output by product",
-        lede: "Monthly output from the bureau's table. The February point is January and February combined; there is no January point.",
+        lede: "Monthly output from the bureau's table. January is never published on its own; a February point, where the table has one, is January and February combined.",
         charts: [
           { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
           { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },

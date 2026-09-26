@@ -25,12 +25,9 @@ not from scratch. Rounds are small on purpose.
   Price Index" 3.8%), and monthly rows that do not say "month on a year
   earlier". Owner's call on the naming pattern; the audit's proposals are in
   the 2026-09-25 log entry.
-- Provinces page labels a first-half figure as "Q2 2026" (tile map subhead,
-  ranking subhead, period dropdown, selected-province panel, profile rows);
-  use `periodSpan` ("Q1 to Q2 2026"). The selected panel also says "year to
-  date" twice, the province exports field prints "843,388,066 k USD", and
-  "GRP" and "Residents" are unexplained.
-- FX reserves are credited to the PBOC; SAFE publishes them.
+- Provinces: the province exports field prints "843,388,066 k USD" (say
+  "843.4 billion USD"), and the card fields "GRP" and "Residents" are
+  unexplained ("Gross regional product", "Resident population").
 - Demographics: the 65-and-over share is a UN estimate that runs about a
   point below the bureau's own counts on the same page (14.9% against 15.9%
   for 2025). Derive the share from `population_age` over `population_nbs`.
@@ -48,6 +45,24 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the Provinces page names the months a figure covers):
+  provincial GDP growth is year to date, and the page dated its first-half
+  figure "Q2 2026" in the tile-map and ranking subheads, the period menu,
+  the selected-province panel and the province profile rows, while the
+  Home rows for the same series said "Q1 to Q2 2026". The page now uses the
+  same `periodSpan` rule as Home for a cumulative series: "Q1 to Q2 2026",
+  "Q1 to Q4 2025". The selected panel no longer adds "year to date" after
+  a period that already says so, and the ranking subhead names the line
+  only when the series has more than one. Also in this round: the client's
+  methodology text for household income and spending growth said nominal
+  where the unit now says real; the three level-output ledes say a
+  February point, where the table has one, is January and February
+  combined (the fill needs the year-to-date sibling stored, which vehicles
+  and robots have and autos, solar cells and ships do not yet). Checked and
+  not a defect: FX reserves are credited to the People's Bank because the
+  site reads the bank's own 官方储备资产 table (`official_reserves`), which
+  the bank publishes alongside SAFE. Verified: typecheck clean, 438 tests,
+  the Provinces labels on a local render.
 - 2026-09-25 (round: theme cards draw what the series page draws): a theme
   card for a bureau catalog series read the raw store, while the series
   page it links to goes through the catalog reader, which stitches a sliced
