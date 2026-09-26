@@ -58,14 +58,14 @@ const MONTH_GROWTH = { nev: "New energy vehicles, month (YoY %)", autos: "Automo
 
 const MANUFACTURING: Theme = {
   title: "Manufacturing",
-  lede: "The factory sector from the statistics bureau: output, the purchasing managers' survey, capacity use each quarter, profits, investment and prices, with industry's electricity use from the energy administration; then sectors and products, as growth rates and as monthly output.",
+  lede: "The factory sector as the National Bureau of Statistics reports it each month: output, the purchasing managers' survey, profits, investment and prices, with capacity use each quarter. Industry's electricity use comes from the National Energy Administration. Then the sectors and the products, as growth rates and as monthly output.",
   sections: [
     {
       title: "Output, orders and capacity",
       charts: [
-        { title: "Industrial production, growth on a year earlier", key: "industrial_production", years: 10, note: "Value added of industrial firms with annual revenue over 20 million yuan. The February point is January and February combined; there is no January point. The 2021 high is measured against the shutdown of early 2020." },
+        { title: "Industrial production, growth on a year earlier", key: "industrial_production", years: 10, note: "Value added of industrial firms with annual revenue over 20 million yuan. The February point is January and February combined. There is no January point. The 2021 high is measured against the shutdown of early 2020." },
         { title: "Manufacturing value added, growth on a year earlier", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6, note: "There is no January or February point: the bureau publishes the two months only as a combined year-to-date figure. The March 2021 high is measured against the shutdown of early 2020." },
-        { title: "Manufacturing PMI, with new orders and new export orders, month", key: "pmi_manufacturing", labels: ["Manufacturing PMI", "New orders", "New export orders"], years: 6, note: "Diffusion indices; 50 is no change on the month." },
+        { title: "Manufacturing PMI, with new orders and new export orders, month", key: "pmi_manufacturing", labels: ["Manufacturing PMI", "New orders", "New export orders"], years: 6, note: "Diffusion indices. 50 is no change on the month." },
         { title: "Manufacturing capacity utilisation, quarter", key: "capacity_utilisation", labels: ["Manufacturing, quarter (%)"], years: 6 },
         { title: "Electricity consumption, secondary industry, month on a year earlier", key: "electricity_demand_growth", labels: ["Secondary industry, month (YoY %)"], years: 5, note: "Secondary industry includes construction. The energy administration's month figures are missing for several months, and January and February usually come only as a combined year-to-date figure." },
       ],
@@ -76,7 +76,7 @@ const MANUFACTURING: Theme = {
         { title: "Manufacturing profits, year-to-date growth", key: "industrial_profits", labels: ["Manufacturing, year to date (YoY %)"], years: 8, note: "The 2021 spike is measured against the shutdown months of 2020." },
         { title: "Manufacturing investment, year-to-date growth", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8, note: "Each year's first point covers January and February. The 2021 high is measured against the shutdown months of 2020." },
         { title: "Producer prices, producer goods and consumer goods, growth on a year earlier", key: "ppi_detail", labels: ["Producer goods (YoY %)", "Consumer goods (YoY %)"], years: 10 },
-        { title: "Manufacturing PMI: output prices and input prices", key: "pmi_manufacturing", labels: ["Input prices", "Output prices"], years: 6, note: "Diffusion indices; above 50 is more firms reporting a rise than a fall." },
+        { title: "Manufacturing PMI: output prices and input prices", key: "pmi_manufacturing", labels: ["Input prices", "Output prices"], years: 6, note: "Diffusion indices. Above 50 is more firms reporting a rise than a fall." },
       ],
     },
     {
@@ -100,7 +100,7 @@ const MANUFACTURING: Theme = {
     },
     {
       title: "Output by product, levels",
-      lede: "Monthly output from the bureau's table. January is never published on its own; a February point, where the table has one, is January and February combined.",
+      lede: "Monthly output from the bureau's table. January is never published on its own. A February point, where the table has one, is January and February combined.",
       charts: [
         { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
         { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },
@@ -114,11 +114,11 @@ const MANUFACTURING: Theme = {
 
 const PROPERTY: Theme = {
   title: "Property and local government finance",
-  lede: "Developers' investment, sales, construction and funding from the bureau's monthly table; home prices across seventy cities; and local governments' land revenue and bonds, from the finance ministry.",
+  lede: "The National Bureau of Statistics' monthly table on what developers invest, sell, build and borrow. Home prices in seventy cities. Land sale revenue and local government bonds from the Ministry of Finance.",
   sections: [
     {
       title: "Activity",
-      lede: "Year to date, growth on a year earlier. January and February are published together; there is no January point.",
+      lede: "Year to date, growth on a year earlier. January and February are published together. There is no January point.",
       charts: [
         { title: "Real estate investment, total and residential, year-to-date growth", key: "property_investment", years: 10 },
         { title: "New building floor space sold, year-to-date growth", key: "property_sales", years: 10 },
@@ -130,16 +130,16 @@ const PROPERTY: Theme = {
       charts: [
         { title: "Home prices, 70-city average, change on a year earlier", key: "house_prices", years: 10, note: "The simple average of the bureau's seventy city indices, new and existing homes, on a year earlier." },
         { title: "Real residential property prices, quarter", key: "house_prices_real_bis", years: 20, note: "Bank for International Settlements series, deflated by consumer prices." },
-        { title: "Real estate climate index, month", key: "real_estate", years: 10, note: "Last value December 2025; not refreshed since." },
+        { title: "Real estate climate index, month", key: "real_estate", years: 10, note: "Last value December 2025. Not refreshed since." },
       ],
     },
     {
       title: "Money",
       charts: [
-        { title: "New building sales value, year to date", key: "property_sales_value", years: 10, note: "The running total restarts each January; the drop from December is the reset, not a fall." },
+        { title: "New building sales value, year to date", key: "property_sales_value", years: 10, note: "The running total restarts each January. The drop from December is the reset, not a fall." },
         { title: "Developers' funds raised, total and domestic loans, year-to-date growth", key: "property_funds", years: 10 },
-        { title: "Land sale revenue, year to date", key: "land_sale_revenue", years: 2, note: "The running total restarts each January; the drop from December is the reset, not a fall. The government-fund budget's largest line, and the one local governments lean on." },
-        { title: "Land sale revenue, year-to-date growth", key: "fiscal_growth", labels: ["Land sale revenue, year to date (YoY %)"], years: 2, note: "Monthly from 2025; the earlier history is a few points a year." },
+        { title: "Land sale revenue, year to date", key: "land_sale_revenue", years: 2, note: "The running total restarts each January. The drop from December is the reset, not a fall. The government-fund budget's largest line, and the one local governments lean on." },
+        { title: "Land sale revenue, year-to-date growth", key: "fiscal_growth", labels: ["Land sale revenue, year to date (YoY %)"], years: 2, note: "Monthly from 2025. The earlier history is a few points a year." },
       ],
     },
     {
@@ -161,7 +161,7 @@ const EQUITIES: Theme = {
       title: "Shanghai",
       charts: [
         { title: "Shanghai Composite, month-end close", key: "sse_composite", years: 15 },
-        { title: "Shanghai stock turnover, monthly total", key: "sse_turnover", years: 15, note: "Value of shares in the Shanghai Composite traded over the month; 300,000 is 30 trillion yuan." },
+        { title: "Shanghai stock turnover, monthly total", key: "sse_turnover", years: 15, note: "Value of shares in the Shanghai Composite traded over the month. 300,000 is 30 trillion yuan." },
         { title: "Shanghai SSE 50 index, month-end close", key: "sse_50", years: 15 },
         { title: "Shanghai STAR 50 index, month-end close", key: "star_50", years: 7 },
       ],
@@ -174,7 +174,7 @@ const EQUITIES: Theme = {
     },
     {
       title: "Policy uncertainty",
-      lede: "Both indices count uncertainty terms in two mainland newspapers, the People's Daily and the Guangming Daily; they are not the Baker, Bloom and Davis China index, which reads the South China Morning Post.",
+      lede: "Both indices count uncertainty terms in two mainland newspapers, the People's Daily and the Guangming Daily. They are not the Baker, Bloom and Davis China index, which reads the South China Morning Post.",
       charts: [
         { title: "China economic policy uncertainty index, monthly", key: "epu", years: 10 },
         { title: "China trade policy uncertainty index, monthly", key: "tpu", years: 10 },
@@ -185,17 +185,17 @@ const EQUITIES: Theme = {
 
 const ENERGY: Theme = {
   title: "Energy",
-  lede: "Electricity generation by source, from the statistics bureau, and consumption by user, from the energy administration; coal, crude oil and natural gas output; energy imports, from Customs; solar cell and new energy vehicle output.",
+  lede: "Electricity generation by source from the National Bureau of Statistics and consumption by user from the National Energy Administration. Coal, crude oil and natural gas output. Energy imports from Customs. Solar cell and new energy vehicle output.",
   sections: [
     {
       title: "Electricity",
       charts: [
         { title: "Electricity generation, growth on a year earlier", key: "electricity_output", years: 10, note: "Above-threshold industrial generators only (规上工业). February is January and February together." },
         { title: "Thermal and hydro generation, month", key: "electricity_by_source", labels: ["Thermal, month (亿千瓦时)", "Hydro, month (亿千瓦时)"], years: 8 },
-        { title: "Wind, solar and nuclear generation, month", key: "electricity_by_source", labels: ["Wind, month (亿千瓦时)", "Solar, month (亿千瓦时)", "Nuclear, month (亿千瓦时)"], years: 8, note: "Above-threshold industrial generators only (规上工业); most distributed solar, rooftop included, is outside it." },
-        { title: "Thermal, wind and solar generation, growth on a year earlier", key: "electricity_by_source_growth", labels: ["Thermal (YoY %)", "Wind (YoY %)", "Solar (YoY %)"], years: 8, note: "The bureau's rates, on a comparable set of enterprises; they run below growth worked out from the levels, most for solar (Aug 2026: 10.3% against 30%)." },
-        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 5, note: "The administration gives no December figure; its annual release comes in January. No release was published for May 2026." },
-        { title: "Electricity consumption by user, growth on a year earlier", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 5, note: "The administration gives no December figure; its annual release comes in January. No release was published for May 2026." },
+        { title: "Wind, solar and nuclear generation, month", key: "electricity_by_source", labels: ["Wind, month (亿千瓦时)", "Solar, month (亿千瓦时)", "Nuclear, month (亿千瓦时)"], years: 8, note: "Above-threshold industrial generators only (规上工业). Most distributed solar, rooftop included, is outside it." },
+        { title: "Thermal, wind and solar generation, growth on a year earlier", key: "electricity_by_source_growth", labels: ["Thermal (YoY %)", "Wind (YoY %)", "Solar (YoY %)"], years: 8, note: "The bureau's rates, on a comparable set of enterprises. They run below growth worked out from the levels, most for solar (Aug 2026: 10.3% against 30%)." },
+        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 5, note: "The administration gives no December figure. Its annual release comes in January. No release was published for May 2026." },
+        { title: "Electricity consumption by user, growth on a year earlier", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 5, note: "The administration gives no December figure. Its annual release comes in January. No release was published for May 2026." },
       ],
     },
     {
@@ -224,7 +224,7 @@ const ENERGY: Theme = {
     },
     {
       title: "Solar cell and new energy vehicle output",
-      lede: "January is never published on its own; a February point, where the table has one, is January and February combined.",
+      lede: "January is never published on its own. A February point, where the table has one, is January and February combined.",
       charts: [
         { title: "Solar cell output, month", key: OUTPUT.solar, years: 10 },
         { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
@@ -235,18 +235,18 @@ const ENERGY: Theme = {
 
 const DEMOGRAPHICS: Theme = {
   title: "Demographics",
-  lede: "The bureau's annual population tables, and UN estimates published by the World Bank for fertility, life expectancy and ageing, which the bureau does not publish every year.",
+  lede: "The National Bureau of Statistics' annual population tables. Fertility, life expectancy and ageing are UN estimates published by the World Bank, since the bureau does not publish them every year.",
   sections: [
     {
       title: "Population",
       charts: [
         { title: "Population, year end", key: "population_nbs", labels: ["Total, year end (10,000 persons)"], years: 30 },
         { title: "Urban and rural population, year end", key: "population_nbs", labels: ["Urban (10,000 persons)", "Rural (10,000 persons)"], years: 30 },
-        { title: "Birth, death and natural growth rates, year", key: "population_rates", years: 30, note: "Natural growth is births less deaths; migration is not in it." },
-        { title: "Population by age group, year end", key: "population_age", years: 30, note: "Survey estimates reset to each census; the steps in 2000, 2010 and 2020 are census revisions, not births or deaths. For 2025 the bureau has published only the 65 and over count." },
+        { title: "Birth, death and natural growth rates, year", key: "population_rates", years: 30, note: "Natural growth is births less deaths. Migration is not in it." },
+        { title: "Population by age group, year end", key: "population_age", years: 30, note: "Survey estimates reset to each census. The steps in 2000, 2010 and 2020 are census revisions, not births or deaths. For 2025 the bureau has published only the 65 and over count." },
         { title: "Population share aged 65 and over, year end", key: "population_age", derive: "share_65", years: 30, note: "Worked out here from the bureau's year-end counts: those aged 65 and over over the total. The World Bank's UN-based estimate runs about a point lower." },
-        { title: "Total fertility rate, year", key: "fertility", years: 40, note: "UN estimate published by the World Bank; the bureau publishes no annual total fertility rate." },
-        { title: "Life expectancy at birth, year", key: "life_expectancy", years: 40, note: "UN estimate published by the World Bank; the National Health Commission puts 2024 at 79.0 years." },
+        { title: "Total fertility rate, year", key: "fertility", years: 40, note: "UN estimate published by the World Bank. The bureau publishes no annual total fertility rate." },
+        { title: "Life expectancy at birth, year", key: "life_expectancy", years: 40, note: "UN estimate published by the World Bank. The National Health Commission puts 2024 at 79.0 years." },
       ],
     },
   ],
@@ -260,7 +260,7 @@ const LABOUR: Theme = {
       title: "Unemployment",
       charts: [
         { title: "Surveyed urban unemployment rate, national, monthly", key: "unemployment", labels: ["Surveyed urban (%)"], years: 8 },
-        { title: "Unemployment rate, ages 16 to 24, excluding students from December 2023, monthly", key: "unemployment", labels: ["Youth 16-24, ex-students (%)"], years: 8, note: "Students were included until June 2023. The bureau published no figure for July to November 2023 and resumed with December 2023 on a basis that excludes students; the two segments are not comparable." },
+        { title: "Unemployment rate, ages 16 to 24, excluding students from December 2023, monthly", key: "unemployment", labels: ["Youth 16-24, ex-students (%)"], years: 8, note: "Students were included until June 2023. The bureau published no figure for July to November 2023 and resumed with December 2023 on a basis that excludes students. The two segments are not comparable." },
         { title: "Unemployment rate by age, 25 to 29 and 30 to 59, excluding students, monthly", key: "unemployment", labels: ["Age 25-29, ex-students (%)", "Age 30-59, ex-students (%)"], years: 8, note: "Published from December 2023." },
         { title: "Surveyed urban unemployment rate, 31 major cities, monthly", key: "unemployment", labels: ["31 major cities (%)"], years: 8 },
         { title: "Unemployment rate by hukou, local and non-local, monthly", key: "unemployment", labels: ["Local hukou (%)", "Non-local hukou (%)"], years: 8 },
@@ -271,16 +271,16 @@ const LABOUR: Theme = {
       charts: [
         { title: "Average weekly hours worked, enterprise employees, monthly", key: "working_hours", years: 8 },
         { title: "Employed persons, total, urban and rural, year end", key: "employment", years: 30 },
-        { title: "Rural migrant workers away from home, quarter end", key: "migrant_workers", years: 8, note: "No fourth-quarter reading; the annual migrant worker survey covers the year. The count falls each first quarter around the Lunar New Year." },
-        { title: "Rural migrant workers away from home, average monthly income, nominal, quarterly", key: "migrant_workers_income", years: 8, note: "No fourth-quarter reading; the annual survey covers the year." },
-        { title: "Manufacturing PMI: employment index, monthly", key: "pmi_manufacturing", labels: ["Employment"], years: 8, note: "Diffusion index; below 50 is more firms shedding than hiring." },
+        { title: "Rural migrant workers away from home, quarter end", key: "migrant_workers", years: 8, note: "No fourth-quarter reading. The annual migrant worker survey covers the year. The count falls each first quarter around the Lunar New Year." },
+        { title: "Rural migrant workers away from home, average monthly income, nominal, quarterly", key: "migrant_workers_income", years: 8, note: "No fourth-quarter reading. The annual survey covers the year." },
+        { title: "Manufacturing PMI: employment index, monthly", key: "pmi_manufacturing", labels: ["Employment"], years: 8, note: "Diffusion index. Below 50 is more firms shedding than hiring." },
       ],
     },
     {
       title: "Income",
       charts: [
-        { title: "Household disposable income per person, real growth on a year earlier, year to date, all residents, urban and rural", key: "household_income_growth", years: 8, note: "Growth after deducting price changes. Each quarter covers January to the quarter's end; Q4 is the full year." },
-        { title: "Household disposable income per person, year to date", key: "household_income", years: 8, note: "The running total restarts each January; the drop from Q4 to Q1 is the reset, not a fall." },
+        { title: "Household disposable income per person, real growth on a year earlier, year to date, all residents, urban and rural", key: "household_income_growth", years: 8, note: "Growth after deducting price changes. Each quarter covers January to the quarter's end. Q4 is the full year." },
+        { title: "Household disposable income per person, year to date", key: "household_income", years: 8, note: "The running total restarts each January. The drop from Q4 to Q1 is the reset, not a fall." },
         { title: "Gini index of income inequality, World Bank estimate, annual", key: "gini", years: 30, note: "Latest reading 2022. Readings before 2010 are every two or three years." },
       ],
     },
@@ -290,26 +290,26 @@ const LABOUR: Theme = {
 export const THEMES: Record<string, Theme> = {
   trade: {
     title: "Trade and capital flows",
-    lede: "Exports and imports by partner and major exports by commodity, from Customs; the manufacturing behind them, from the statistics bureau; what drove each quarter's growth; and money crossing the border, from the exchange regulator, the central bank, the commerce ministry, CFETS and the US Treasury.",
+    lede: "Exports and imports by partner and major exports by commodity from Customs. The manufacturing behind them from the National Bureau of Statistics. What drove each quarter's growth. Money crossing the border from SAFE, the People's Bank, the Ministry of Commerce, CFETS and the US Treasury.",
     sections: [
       {
         title: "Totals and where growth comes from",
         charts: [
-          { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025; those months are left blank. February 2026 is a single month; January 2026 is not stored." },
+          { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank. February 2026 is a single month. January 2026 is not stored." },
           { title: "Exports and imports, growth on a year earlier, month", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 8, note: "Customs' own rates in USD terms. January and February were published only as a combined figure for 2020 to 2025. February 2026's 39.6% reflects the late Lunar New Year." },
-          { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025; those months are left blank." },
-          { title: "Contributions to quarterly GDP growth, by expenditure", key: "gdp_contributions", years: 8, note: "Shares of the quarter's growth; the three sum to 100." },
+          { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank." },
+          { title: "Contributions to quarterly GDP growth, by expenditure", key: "gdp_contributions", years: 8, note: "Shares of the quarter's growth. The three sum to 100." },
         ],
       },
       {
         title: "Trade by partner",
         charts: [
-          { title: "Exports to and imports from the United States, month", key: "trade_partners", region: "united-states", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined; June 2025 is missing." },
-          { title: "Exports to and imports from the European Union, month", key: "trade_partners", region: "european-union", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined; June 2025 is missing." },
-          { title: "Exports to and imports from ASEAN, month", key: "trade_partners", region: "asean", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined; June 2025 is missing." },
-          { title: "Exports to and imports from Japan, month", key: "trade_partners", region: "japan", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined; June 2025 is missing." },
-          { title: "Exports to and imports from South Korea, month", key: "trade_partners", region: "r-o-korea", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined; June 2025 is missing." },
-          { title: "Exports to and imports from Russia, month", key: "trade_partners", region: "russian-federation", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined; June 2025 is missing." },
+          { title: "Exports to and imports from the United States, month", key: "trade_partners", region: "united-states", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
+          { title: "Exports to and imports from the European Union, month", key: "trade_partners", region: "european-union", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
+          { title: "Exports to and imports from ASEAN, month", key: "trade_partners", region: "asean", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
+          { title: "Exports to and imports from Japan, month", key: "trade_partners", region: "japan", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
+          { title: "Exports to and imports from South Korea, month", key: "trade_partners", region: "r-o-korea", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
+          { title: "Exports to and imports from Russia, month", key: "trade_partners", region: "russian-federation", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
         ],
       },
       {
@@ -319,7 +319,7 @@ export const THEMES: Record<string, Theme> = {
           { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined. Hi-tech products overlap other commodity lines." },
           { title: "Mobile phone exports, value, month", key: "major_exports", region: "mobile-phones", labels: ["Value"], years: 6, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
           { title: "Motor vehicle exports, value, month", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 5, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
-          { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: "Customs added this line in 2026; January 2026 is not stored." },
+          { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: "Customs added this line in 2026. January 2026 is not stored." },
           { title: "Ship exports, value, month", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
         ],
       },
@@ -327,7 +327,7 @@ export const THEMES: Record<string, Theme> = {
         title: "Manufacturing",
         lede: "There is no January or February point on the monthly charts: the bureau publishes the two months only as a combined year-to-date figure.",
         charts: [
-          { title: "Industrial production, growth on a year earlier", key: "industrial_production", years: 10, note: "Value added of industrial firms with annual revenue over 20 million yuan. The February point is January and February combined; there is no January point." },
+          { title: "Industrial production, growth on a year earlier", key: "industrial_production", years: 10, note: "Value added of industrial firms with annual revenue over 20 million yuan. The February point is January and February combined. There is no January point." },
           { title: "Manufacturing value added, growth on a year earlier", key: "industrial_output_by_division", labels: ["Manufacturing (YoY %)"], years: 6 },
           { title: "New energy vehicle output, growth on a year earlier", key: "output_nev", labels: ["New energy vehicles, month (YoY %)"], years: 4 },
           { title: "Automobile output, growth on a year earlier", key: "output_autos", labels: ["Automobiles, month (YoY %)"], years: 10 },
@@ -341,7 +341,7 @@ export const THEMES: Record<string, Theme> = {
       },
       {
         title: "Output by product",
-        lede: "Monthly output from the bureau's table. January is never published on its own; a February point, where the table has one, is January and February combined.",
+        lede: "Monthly output from the bureau's table. January is never published on its own. A February point, where the table has one, is January and February combined.",
         charts: [
           { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
           { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },
@@ -352,7 +352,7 @@ export const THEMES: Record<string, Theme> = {
       },
       {
         title: "Capital flows",
-        lede: "The balance of payments from the exchange regulator, quarterly; banks' cross-border receipts and payments and FX settlement, monthly; foreign direct investment from the commerce ministry; and the reserves and the yuan.",
+        lede: "The balance of payments from SAFE each quarter. Banks' cross-border receipts and payments and FX settlement each month. Foreign direct investment from the Ministry of Commerce. The reserves and the yuan.",
         charts: [
           { title: "Balance of payments: current account and financial account excluding reserves, quarter", key: "balance_of_payments", labels: ["Current account", "Financial account excluding reserves"], years: 10, note: "A financial-account deficit is money leaving. The current account, the financial account, reserve assets and errors and omissions sum to zero. The financial account for the latest quarter comes later than the current account." },
           { title: "Balance of payments: financial account by kind, quarter", key: "balance_of_payments", labels: ["Direct investment", "Portfolio investment", "Other investment"], years: 10 },
@@ -361,9 +361,9 @@ export const THEMES: Record<string, Theme> = {
           { title: "Foreign direct investment, actual use, year to date", key: "fdi_actual_use", labels: ["Actual use of foreign investment, year to date"], years: 3, note: "The running total restarts each January. The commerce ministry stopped its dollar series in 2023. Some months are missing." },
           { title: "Foreign direct investment, year-to-date growth", key: "fdi_growth", labels: ["Actual use of foreign investment, year to date (YoY %)"], years: 3 },
           { title: "Foreign exchange reserves, month-end", key: "forex_reserves", years: 15 },
-          { title: "China's holdings of US Treasuries, month-end", key: "us_treasury_holdings", years: 15, note: "The Treasury's own survey of foreign holders; custodial holdings in Belgium and elsewhere are not counted as China's." },
+          { title: "China's holdings of US Treasuries, month-end", key: "us_treasury_holdings", years: 15, note: "The Treasury's own survey of foreign holders. Custodial holdings in Belgium and elsewhere are not counted as China's." },
           { title: "Yuan per dollar, central parity", key: "central_parity", labels: ["USD/CNY"], years: 10, note: "Up is a weaker yuan." },
-          { title: "CFETS yuan index", key: "cfets_rmb_index", labels: ["CFETS basket"], years: 10, note: "The yuan against a trade-weighted basket; up is stronger." },
+          { title: "CFETS yuan index", key: "cfets_rmb_index", labels: ["CFETS basket"], years: 10, note: "The yuan against a trade-weighted basket. Up is stronger." },
         ],
       },
     ],

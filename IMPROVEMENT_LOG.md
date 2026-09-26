@@ -35,6 +35,19 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the copy reads as sentences): the owner sent the
+  Property page lede, "...land revenue and bonds, from the finance
+  ministry.", and called the comma-tacked tail "terrible claude-speak". The
+  same tic ran through the copy: six page and section ledes strung with
+  semicolons and ending in a ", from the X" attribution, forty semicolon
+  chains in theme notes, and thirty-six series descriptions on the client
+  with ", from NBS's monthly table" tails. Every lede is now short
+  declarative sentences that name the publisher in full inside the sentence
+  ("Land sale revenue and local government bonds from the Ministry of
+  Finance."); every semicolon in a note or lede is a full stop; every
+  description is rewritten by hand the same way. Rule recorded for future
+  rounds: no comma-tacked attribution or afterthought, no semicolon chains,
+  one idea per sentence. Verified: typecheck clean, 441 tests.
 - 2026-09-25 (round: search audit, twelve researcher queries): ten led with
   the right series on the live site (youth unemployment, steel output, home
   prices, money supply, retail sales, fixed asset investment, Guangdong GDP,
