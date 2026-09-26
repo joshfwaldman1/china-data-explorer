@@ -84,3 +84,23 @@ test("themeData returns every section with a stored series read and filtered to 
 test("an unknown theme is null, so the route can answer 404", async () => {
   expect(await themeData("weather")).toBeNull();
 });
+
+test("the share aged 65 and over is worked out from the bureau's counts, year by year, and links to the age table", async () => {
+  const stamp = new Date().toISOString();
+  writeSeries({
+    key: "population_age", title: "Population by Age Group", agency: "National Bureau of Statistics", unit: "Ten thousand persons (万人)", frequency: "Annual", sourceUrl: "https://data.stats.gov.cn/",
+    series: [
+      { label: "Aged 65 and over (10,000 persons)", points: [{ date: "2024", value: 22023 }, { date: "2025", value: 22365 }] },
+      { label: "Aged 15 to 64 (10,000 persons)", points: [{ date: "2024", value: 96565 }] },
+    ],
+  } as never, "", stamp);
+  writeSeries({
+    key: "population_nbs", title: "Population", agency: "National Bureau of Statistics", unit: "Ten thousand persons (万人)", frequency: "Annual", sourceUrl: "https://data.stats.gov.cn/",
+    series: [{ label: "Total, year end (10,000 persons)", points: [{ date: "2024", value: 140828 }, { date: "2025", value: 140489 }] }],
+  } as never, "", stamp);
+  const data = await themeData("demographics");
+  const chart = data!.sections.flatMap((section) => section.charts).find((item) => item.derive === "share_65")!;
+  expect(chart.key).toBe("population_age");
+  expect(chart.result?.agency).toBe("National Bureau of Statistics");
+  expect(chart.result?.series[0]?.points).toEqual([{ date: "2024", value: 15.64 }, { date: "2025", value: 15.92 }]);
+});

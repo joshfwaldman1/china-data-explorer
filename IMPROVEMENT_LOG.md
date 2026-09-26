@@ -21,9 +21,6 @@ not from scratch. Rounds are small on purpose.
   Price Index" 3.8%), and monthly rows that do not say "month on a year
   earlier". Owner's call on the naming pattern; the audit's proposals are in
   the 2026-09-25 log entry.
-- Demographics: the 65-and-over share is a UN estimate that runs about a
-  point below the bureau's own counts on the same page (14.9% against 15.9%
-  for 2025). Derive the share from `population_age` over `population_nbs`.
 - Long-term backup retention and recovery drills. The verified nightly workflow
   now targets 90-day GitHub artifacts, with matching service/repository credentials.
   Add independent object storage and measure recovery time; revision history
@@ -38,6 +35,17 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: the share aged 65 and over from the bureau's own
+  counts): the Demographics page drew the World Bank's share, a UN
+  estimate, beside the bureau's age counts, and the two disagreed by a
+  point (14.9% against 15.9% for 2025) with nothing said. The bureau
+  publishes the counts but no national share series (the only "65岁及以上
+  人口比重" in the catalog is the international dataset's World Bank
+  figure, by country). A theme chart can now carry `derive: "share_65"`:
+  the share is worked out in `themes.ts` from `population_age` over
+  `population_nbs`, year by year, drawn as the bureau's, and the card links
+  to the age table. The note names the World Bank gap. Verified: typecheck
+  clean, 440 tests (one new, 22,365 over 140,489 reading 15.92).
 - 2026-09-25 (round: province cards and profile rows say what they are):
   the cards under the map read "GRP, 2025: 145,847 100M yuan", "Residents,
   end 2025: 128.6m" and "Industrial output growth", and the profile's

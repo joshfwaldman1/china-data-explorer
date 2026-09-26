@@ -31,6 +31,12 @@ export interface ThemeChart {
   years?: number;
   /** A sentence under the chart: what the reader should know before quoting it. */
   note?: string;
+  /**
+   * A line computed here from two stored series rather than read from one.
+   * `share_65` is those aged 65 and over as a share of the year-end total,
+   * both from the bureau's annual tables; the card links to `key`.
+   */
+  derive?: "share_65";
 }
 
 export interface ThemeSection { title: string; lede?: string; charts: ThemeChart[] }
@@ -238,7 +244,7 @@ const DEMOGRAPHICS: Theme = {
         { title: "Urban and rural population, year end", key: "population_nbs", labels: ["Urban (10,000 persons)", "Rural (10,000 persons)"], years: 30 },
         { title: "Birth, death and natural growth rates, year", key: "population_rates", years: 30, note: "Natural growth is births less deaths; migration is not in it." },
         { title: "Population by age group, year end", key: "population_age", years: 30, note: "Survey estimates reset to each census; the steps in 2000, 2010 and 2020 are census revisions, not births or deaths. For 2025 the bureau has published only the 65 and over count." },
-        { title: "Population share aged 65 and over, mid-year estimate", key: "population_65", years: 40, note: "UN estimate published by the World Bank; the bureau's year-end counts give 15.9% for 2025." },
+        { title: "Population share aged 65 and over, year end", key: "population_age", derive: "share_65", years: 30, note: "Worked out here from the bureau's year-end counts: those aged 65 and over over the total. The World Bank's UN-based estimate runs about a point lower." },
         { title: "Total fertility rate, year", key: "fertility", years: 40, note: "UN estimate published by the World Bank; the bureau publishes no annual total fertility rate." },
         { title: "Life expectancy at birth, year", key: "life_expectancy", years: 40, note: "UN estimate published by the World Bank; the National Health Commission puts 2024 at 79.0 years." },
       ],
@@ -397,7 +403,28 @@ function limitFor(key: string, years: number): number {
  * raw, a theme card drew a different line from the page it links to: the
  * output tables had no February at all here and the combined one there.
  */
+/**
+ * Those aged 65 and over as a share of the year-end population, from the
+ * bureau's own counts. The World Bank's share, a UN estimate, runs about a
+ * point below the bureau's counts (14.9% against 15.9% for 2025), and the two
+ * sat on one page without a word about the gap; the bureau publishes the
+ * counts but no national share series, so the share is worked out here.
+ */
+function share65(): SeriesResult | null {
+  const ages = readSeries("population_age", 80);
+  const totals = readSeries("population_nbs", 80);
+  const over65 = ages?.series.find((line) => /65 and over/i.test(line.label))?.points ?? [];
+  const total = new Map((totals?.series.find((line) => /^Total/i.test(line.label))?.points ?? []).map((point) => [point.date, point.value]));
+  const points = over65.flatMap((point) => { const whole = total.get(point.date); return whole ? [{ date: point.date, value: Math.round((point.value / whole) * 10000) / 100 }] : []; });
+  if (points.length === 0 || !ages) return null;
+  return {
+    key: "population_age", title: "Population share aged 65 and over", agency: ages.agency, sourceUrl: ages.sourceUrl,
+    frequency: "Annual", unit: "Percent of the year-end population", series: [{ label: "Aged 65 and over, share of population (%)", points }],
+  };
+}
+
 async function chartSeries(chart: ThemeChart, region: string | undefined): Promise<SeriesResult | null> {
+  if (chart.derive === "share_65") return share65();
   if (chart.key.startsWith("nbs_")) {
     const entry = await getNbsCatalogEntry(chart.key);
     if (!entry) return null;
@@ -423,7 +450,8 @@ export async function themeData(name: string): Promise<ThemeData | null> {
         const place = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
         const stored = await chartSeries(chart, place?.value);
         const configured = configuredLabels(chart.key);
-        const wanted = chart.labels ?? configured;
+        // A derived line is not among the series' configured lines; it is drawn as computed.
+        const wanted = chart.derive ? undefined : (chart.labels ?? configured);
         const result = stored
           ? { ...stored, title: chart.title ?? stored.title, series: wanted ? stored.series.filter((line) => wanted.includes(line.label)) : stored.series }
           : null;
