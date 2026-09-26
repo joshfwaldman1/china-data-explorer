@@ -35,6 +35,22 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: search audit, twelve researcher queries): ten led with
+  the right series on the live site (youth unemployment, steel output, home
+  prices, money supply, retail sales, fixed asset investment, Guangdong GDP,
+  birth rate, Shanghai composite, exports to the US by the test's own rule).
+  Two did not. "cpi" and "inflation" led with the provincial CPI table:
+  "cpi" is a synonym of the national CPI and a word inside "provincial
+  cpi", both scored as a whole-phrase match, and the tie fell to catalog
+  order. `matchCurated` now ranks a query that is one of an entry's names
+  (its title or a synonym, whole) above one that only contains it, and a
+  national series above a provincial one on the same score. "coal imports"
+  found no curated series and led with three annual bureau tables, so the
+  Customs monthly commodity keys gained commodity synonyms (coal, natural
+  gas, energy, copper imports; car, vehicle, ship, phone, chip, hi-tech
+  exports). Verified: typecheck clean, 441 tests (one new, holding "cpi",
+  "inflation", "provincial cpi", "coal imports" and "car exports" to their
+  series against the real catalog).
 - 2026-09-25 (round: the share aged 65 and over from the bureau's own
   counts): the Demographics page drew the World Bank's share, a UN
   estimate, beside the bureau's age counts, and the two disagreed by a

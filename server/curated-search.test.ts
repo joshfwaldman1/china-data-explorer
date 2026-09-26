@@ -58,3 +58,19 @@ test("an NBS series that is exactly what was asked for leads the headline series
   const exact = result.results.find((entry) => (entry.nameEn ?? "").toLowerCase().replace(/\s*[(（][^()（）]*[)）]\s*$/, "") === "birth rate");
   expect(exact).toBeDefined();
 }, 30000);
+
+test("a query that is a series' own name beats one that only contains it, and the national series beats the provincial", async () => {
+  const { catalogList } = await import("./data.ts");
+  const real = (query: string) => {
+    const allTerms = normalizeQuery(query).split(/\s+/).filter(Boolean);
+    const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
+    return matchCurated(catalogList(), allTerms, meaningful.length > 0 ? meaningful : allTerms).map((entry) => entry.key);
+  };
+  // "cpi" is a synonym of the national CPI and a word in "provincial cpi"; the tie used to fall to catalog order.
+  expect(real("cpi")[0]).toBe("cpi");
+  expect(real("inflation")[0]).toBe("cpi");
+  expect(real("provincial cpi")[0]).toBe("provincial_cpi");
+  // Customs' monthly commodity tables answer an import or export commodity, ahead of the bureau's annual tables.
+  expect(real("coal imports")[0]).toBe("major_imports");
+  expect(real("car exports")[0]).toBe("major_exports");
+});

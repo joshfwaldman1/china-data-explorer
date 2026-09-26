@@ -63,8 +63,8 @@ export interface SeriesResult {
 export const CURATED_SYNONYMS: Record<string, string[]> = {
   cgb_yields: ["bond yields", "government bond yield", "10-year yield", "10y", "treasury yield", "yield curve", "cgb", "国债收益率", "十年期国债"],
   trade_partners: ["trade by country", "exports by country", "imports by country", "trade partners", "bilateral trade", "分国别", "国别贸易"],
-  major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品"],
-  major_imports: ["imports by commodity", "major imports", "import commodities", "主要进口商品", "crude oil imports", "soybean imports", "iron ore imports"],
+  major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品", "car exports", "vehicle exports", "auto exports", "ship exports", "phone exports", "mobile phone exports", "chip exports", "integrated circuit exports", "hi-tech exports"],
+  major_imports: ["imports by commodity", "major imports", "import commodities", "主要进口商品", "crude oil imports", "oil imports", "soybean imports", "iron ore imports", "coal imports", "natural gas imports", "gas imports", "energy imports", "copper imports"],
   consumer_confidence: ["consumer confidence", "sentiment", "消费者信心指数", "消费者信心"],
   enterprise_boom: ["business confidence", "enterprise boom", "企业景气指数", "景气"],
   tax_revenue: ["tax revenue", "taxes", "fiscal revenue", "税收收入", "税收"],
@@ -2283,9 +2283,15 @@ export function matchCurated(entries: CatalogEntry[], allTerms: string[], queryT
       : new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack));
     if (!hit) return [];
     const wholePhrase = phrase.length > 0 && new RegExp(`(^|[^a-z0-9])${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`).test(haystack);
-    return [{ entry, wholePhrase }];
+    // "cpi" is a synonym of the national CPI and a word inside "provincial cpi": the whole
+    // phrase matched both, and the tie fell to catalog order, which put the provincial
+    // table first. A query that is one of an entry's names outranks one that only
+    // contains it, and a national series outranks a provincial one on the same score.
+    const exact = entry.title.toLocaleLowerCase() === phrase || (CURATED_SYNONYMS[entry.key] ?? []).some((name) => name.toLocaleLowerCase() === phrase);
+    const regional = entry.key.startsWith("provincial_") || /^provincial /i.test(entry.title);
+    return [{ entry, score: (exact ? 2 : 0) + (wholePhrase ? 1 : 0), regional }];
   });
-  return matched.sort((a, b) => Number(b.wholePhrase) - Number(a.wholePhrase)).map((item) => item.entry);
+  return matched.sort((a, b) => b.score - a.score || Number(a.regional) - Number(b.regional)).map((item) => item.entry);
 }
 
 export interface CatalogEntry {
