@@ -1993,6 +1993,7 @@ function SeriesPage(props: {
               {shownTracks.length > 1 && <div className="chart-legend" aria-label="Legend">{shownTracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
+              {smoothing && <p className="chart-caption">Each line is the average of its latest three months, by calendar month; a month with no value is left out of the average.</p>}
               {!built.notes.length && firstSeries && <p className="chart-caption">{unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
             </>
           )}
