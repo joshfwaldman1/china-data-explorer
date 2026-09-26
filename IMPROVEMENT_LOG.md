@@ -21,9 +21,6 @@ not from scratch. Rounds are small on purpose.
   Price Index" 3.8%), and monthly rows that do not say "month on a year
   earlier". Owner's call on the naming pattern; the audit's proposals are in
   the 2026-09-25 log entry.
-- Provinces: the province exports field prints "843,388,066 k USD" (say
-  "843.4 billion USD"), and the card fields "GRP" and "Residents" are
-  unexplained ("Gross regional product", "Resident population").
 - Demographics: the 65-and-over share is a UN estimate that runs about a
   point below the bureau's own counts on the same page (14.9% against 15.9%
   for 2025). Derive the share from `population_age` over `population_nbs`.
@@ -41,6 +38,17 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-25 (round: province cards and profile rows say what they are):
+  the cards under the map read "GRP, 2025: 145,847 100M yuan", "Residents,
+  end 2025: 128.6m" and "Industrial output growth", and the profile's
+  exports row printed the bureau's thousand-dollar figure as
+  "843,388,066 k USD". The cards now say "Gross regional product, 2025:
+  14.58 trillion yuan", "Resident population, end 2025: 128.6 million" and
+  "Industrial value added growth, large firms" (the series is 工业增加值 of
+  above-threshold firms, not output). A profile row in 千美元, 万美元 or
+  亿美元 is rescaled to billions of dollars, its points with it, so the
+  sparkline and the change read the same figure. Verified: typecheck clean,
+  439 tests.
 - 2026-09-25 (round: a month-end reading for the running month says so):
   the daily fixings and closes aggregated to their month (the 10-year yield,
   the parity rate, SHIBOR, the exchange indices, the Shanghai indices) carry

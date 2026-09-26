@@ -152,6 +152,15 @@ const UNIT_EN: Record<string, string> = {
   "千美元": "k USD", "万美元": "10k USD", "亿美元": "100M USD", "%": "%", "万吨": "10k tonnes",
 };
 
+/**
+ * A dollar figure the bureau states in thousands is nine digits on a profile
+ * row ("843,388,066 k USD" for Guangdong's exports); it is shown in billions,
+ * the points scaled with it so the sparkline and the change read the same.
+ */
+const RESCALE: Record<string, { factor: number; suffix: string }> = {
+  "千美元": { factor: 1e-6, suffix: "billion USD" }, "万美元": { factor: 1e-5, suffix: "billion USD" }, "亿美元": { factor: 0.1, suffix: "billion USD" },
+};
+
 /** What the catalog knows about a key: a curated entry, or the bureau's own listing for a catalog series. */
 async function describe(key: string): Promise<{ agency: string; frequency: string; unit: string }> {
   const curated = catalogList().find((entry: CatalogEntry) => entry.key === key);
@@ -164,12 +173,13 @@ async function readRow(entry: ProfileEntry, code: string): Promise<ProfileRow> {
   const about = await describe(entry.key);
   const stored = readSeries(entry.key, 72, code);
   const line = entry.line ? stored?.series.find((item) => item.label === entry.line) : stored?.series[0];
-  const points = line?.points ?? [];
+  const bureauUnit = about.unit.trim();
+  const rescale = CATALOG[entry.key] ? undefined : RESCALE[bureauUnit];
+  const points = (line?.points ?? []).map((point) => rescale ? { date: point.date, value: Math.round(point.value * rescale.factor * 100) / 100 } : point);
   const latest = points.at(-1), previous = points.at(-2);
   const measure = measureOf(about.unit);
   // A catalog row's suffix is the bureau's unit; write it the way the site does.
-  const bureauUnit = about.unit.trim();
-  const shown = CATALOG[entry.key] ? measure : { ...measure, suffix: UNIT_EN[bureauUnit] ?? measure.suffix };
+  const shown = CATALOG[entry.key] ? measure : { ...measure, suffix: rescale?.suffix ?? UNIT_EN[bureauUnit] ?? measure.suffix };
   return {
     key: entry.key, label: entry.label, agency: about.agency, frequency: about.frequency, unit: about.unit, measure: shown,
     ...(entry.ended ? { ended: entry.ended, endedNote: entry.endedNote } : {}),

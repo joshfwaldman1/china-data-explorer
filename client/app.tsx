@@ -2128,8 +2128,9 @@ function ProvinceCards() {
   }, []);
   if (!cards || cards.length === 0) return null;
   const pct = (item: { value: number } | null) => item ? `${item.value.toFixed(1)}%` : "–";
-  const millions = (item: { value: number } | null) => item ? `${(item.value / 100).toFixed(1)}m` : "–";
-  const yuan = (item: { value: number } | null) => item ? Math.round(item.value).toLocaleString("en-US") : "–";
+  // The store holds 10,000 persons and 100 million yuan; a card says millions of people and trillions of yuan.
+  const millions = (item: { value: number } | null) => item ? `${(item.value / 100).toFixed(1)} million` : "–";
+  const trillionYuan = (item: { value: number } | null) => item ? `${(item.value / 10000).toFixed(2)} trillion yuan` : "–";
   const growthPeriod = cards.find((card) => card.gdpGrowth)?.gdpGrowth?.period;
   const grpYear = cards.find((card) => card.grp)?.grp?.year;
   return (
@@ -2141,9 +2142,9 @@ function ProvinceCards() {
             <h3>{card.en} <Zh className="gloss">{card.zh}</Zh></h3>
             <dl>
               <div><dt>Real GDP growth{card.gdpGrowth ? `, ${periodSpan(card.gdpGrowth.period, "Quarterly")}` : ""}</dt><dd>{pct(card.gdpGrowth)}</dd></div>
-              <div><dt>Industrial output growth{card.industrialGrowth ? `, ${periodPretty(card.industrialGrowth.period)}` : ""}</dt><dd>{pct(card.industrialGrowth)}</dd></div>
-              <div><dt>GRP{card.grp ? `, ${card.grp.year}` : ""}</dt><dd>{card.grp ? <>{yuan(card.grp)}<small> 100M yuan</small></> : "—"}</dd></div>
-              <div><dt>Residents{card.population ? `, end ${card.population.year}` : ""}</dt><dd>{millions(card.population)}</dd></div>
+              <div><dt>Industrial value added growth, large firms{card.industrialGrowth ? `, ${periodPretty(card.industrialGrowth.period)}` : ""}</dt><dd>{pct(card.industrialGrowth)}</dd></div>
+              <div><dt>Gross regional product{card.grp ? `, ${card.grp.year}` : ""}</dt><dd>{trillionYuan(card.grp)}</dd></div>
+              <div><dt>Resident population{card.population ? `, end ${card.population.year}` : ""}</dt><dd>{millions(card.population)}</dd></div>
             </dl>
             {card.sectors.length > 0 && (
               <div className="province-shares" aria-label="Sector shares of GRP">
