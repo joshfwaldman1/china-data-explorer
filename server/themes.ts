@@ -36,7 +36,7 @@ export interface ThemeChart {
    * `share_65` is those aged 65 and over as a share of the year-end total,
    * both from the bureau's annual tables; the card links to `key`.
    */
-  derive?: "share_65";
+  derive?: "share_65" | "trade_3m";
 }
 
 export interface ThemeSection { title: string; lede?: string; charts: ThemeChart[] }
@@ -297,6 +297,7 @@ export const THEMES: Record<string, Theme> = {
         charts: [
           { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank. February 2026 is a single month. January 2026 is not stored." },
           { title: "Exports and imports, growth on a year earlier, month", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 8, note: "Customs' own rates in USD terms. January and February were published only as a combined figure for 2020 to 2025. February 2026's 39.6% reflects the late Lunar New Year." },
+          { title: "Exports and imports, growth on a year earlier, three-month average", key: "trade", derive: "trade_3m", years: 8, note: "Customs' rates in US dollar terms, averaged over the latest three months. January and February both take the combined two-month rate, as Customs publishes it." },
           { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank." },
           { title: "Contributions to quarterly GDP growth, by expenditure", key: "gdp_contributions", years: 8, note: "Shares of the quarter's growth. The three sum to 100." },
         ],
@@ -337,17 +338,6 @@ export const THEMES: Record<string, Theme> = {
           { title: "Manufacturing capacity utilisation, quarter", key: "capacity_utilisation", labels: ["Manufacturing, quarter (%)"], years: 6 },
           { title: "Manufacturing profits, year-to-date growth", key: "industrial_profits", labels: ["Manufacturing, year to date (YoY %)"], years: 8, note: "The 2021 spike is measured against the shutdown months of 2020." },
           { title: "Manufacturing investment, year-to-date growth", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)"], years: 8 },
-        ],
-      },
-      {
-        title: "Output by product",
-        lede: "Monthly output from the bureau's table. January is never published on its own. A February point, where the table has one, is January and February combined.",
-        charts: [
-          { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
-          { title: "Automobile output, month", key: OUTPUT.autos, years: 10 },
-          { title: "Solar cell output, month", key: OUTPUT.solar, years: 10 },
-          { title: "Industrial robot output, month", key: OUTPUT.robots, years: 10 },
-          { title: "Civil ship output, month", key: OUTPUT.ships, years: 10 },
         ],
       },
       {
@@ -423,8 +413,46 @@ function share65(): SeriesResult | null {
   };
 }
 
+/**
+ * Customs' export and import growth rates averaged over three months, the
+ * form these rates are usually read in: one month carries the Lunar New Year
+ * and the combined January-February release. January and February both take
+ * the combined two-month rate, which Customs publishes as the February year
+ * to date; a month with no rate leaves the window short and the point is
+ * skipped rather than averaged over fewer months.
+ */
+function trade3m(): SeriesResult | null {
+  const trade = readSeries("trade", 400);
+  if (!trade) return null;
+  const line = (label: string) => new Map((trade.series.find((item) => item.label === label)?.points ?? []).map((point) => [point.date, point.value]));
+  const smooth = (month: Map<string, number>, ytd: Map<string, number>) => {
+    const rates = new Map(month);
+    for (const [date, value] of ytd) if (date.endsWith("-02")) { rates.set(`${date.slice(0, 4)}-01`, value); rates.set(date, value); }
+    const dates = [...rates.keys()].sort();
+    const points: { date: string; value: number }[] = [];
+    for (const date of dates) {
+      const [year, mon] = date.split("-").map(Number);
+      if (!year || !mon) continue;
+      const window = [0, 1, 2].map((back) => { const m = mon - back; const y = m < 1 ? year - 1 : year; return rates.get(`${y}-${String(m < 1 ? m + 12 : m).padStart(2, "0")}`); });
+      const values = window.filter((value): value is number => value !== undefined);
+      if (values.length < 3) continue;
+      points.push({ date, value: Math.round((values.reduce((sum, value) => sum + value, 0) / 3) * 10) / 10 });
+    }
+    return points;
+  };
+  const exports = smooth(line("Exports (YoY %)"), line("Exports, year to date (YoY %)"));
+  const imports = smooth(line("Imports (YoY %)"), line("Imports, year to date (YoY %)"));
+  if (exports.length === 0 && imports.length === 0) return null;
+  return {
+    key: "trade", title: "Exports and imports, growth on a year earlier, three-month average", agency: trade.agency, sourceUrl: trade.sourceUrl,
+    frequency: "Monthly", unit: "Percent change from year ago, three-month average",
+    series: [{ label: "Exports, 3-month average (YoY %)", points: exports }, { label: "Imports, 3-month average (YoY %)", points: imports }],
+  };
+}
+
 async function chartSeries(chart: ThemeChart, region: string | undefined): Promise<SeriesResult | null> {
   if (chart.derive === "share_65") return share65();
+  if (chart.derive === "trade_3m") return trade3m();
   if (chart.key.startsWith("nbs_")) {
     const entry = await getNbsCatalogEntry(chart.key);
     if (!entry) return null;

@@ -212,3 +212,17 @@ test("a month-end reading for the running month says so; a rate fixed once a mon
   // A monthly release for the running month (none exists, but the rule must not fire on it).
   expect(isOpenMonth("2026-09", "Percent change from year ago", now)).toBe(false);
 });
+
+test("a three-month average runs over calendar months, so a missing month is left out rather than an older one pulled in", async () => {
+  const { movingAverage } = await import("./lib");
+  const track: Track = { id: "t", name: "Exports", unit: "%", frequency: "Monthly", color: "", dash: "", points: [
+    { t: Date.UTC(2025, 11, 1), v: 6.6, p: "2025-12" }, { t: Date.UTC(2026, 1, 1), v: 39.6, p: "2026-02" }, { t: Date.UTC(2026, 2, 1), v: 2.5, p: "2026-03" }, { t: Date.UTC(2026, 3, 1), v: 14.1, p: "2026-04" },
+  ] };
+  const smoothed = movingAverage(track, 3);
+  expect(smoothed.name).toBe("Exports, 3-month average");
+  // February's window is December to February; January is absent, so it averages the two it has.
+  expect(smoothed.points.map((point) => point.v)).toEqual([6.6, 23.1, 21.05, 18.73]);
+  // A quarterly track is not smoothed.
+  const quarterly: Track = { ...track, frequency: "Quarterly" };
+  expect(movingAverage(quarterly, 3)).toBe(quarterly);
+});

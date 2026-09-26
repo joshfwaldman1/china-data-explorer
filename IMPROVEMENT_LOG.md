@@ -35,6 +35,29 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-26 (round: the three-month average): the owner sent four charts
+  of the kind economists circulate (real GDP growth, CPI inflation, the
+  yuan, exports and imports) and asked that the site carry the same
+  methodologies. Three already match to the decimal: real GDP growth on a
+  year earlier by quarter, CPI on a year earlier by month, and the yuan per
+  dollar as the Fed's monthly average (`fx_usdcny`; the CFETS fixing is
+  beside it). The fourth is Customs' export and import growth as a
+  three-month average, which the site did not have; the site's monthly
+  rates reproduce it exactly (June 2026: exports 20.2, imports 29.6). Two
+  additions. A series page has a "3-month average" option for any monthly
+  series (`movingAverage` in client/lib.ts, `ma=3` in the URL): the window
+  is by calendar month, so a missing month is left out rather than an
+  older one pulled in. And the Trade page has a card, "Exports and imports,
+  growth on a year earlier, three-month average" (`derive: "trade_3m"`),
+  which follows the convention those charts use: January and February both
+  take the combined two-month rate Customs publishes as the February year
+  to date, and a month whose window is short is skipped. The Trade page's
+  "Output by product" section, five charts repeated verbatim from the
+  Manufacturing page, is gone; the page was over the forty-chart cap.
+  Verified: typecheck clean, 443 tests (two new: the calendar window and the
+  January-February convention). Noted: the backup verifier test, which
+  spawns three child processes, sometimes hits its 60-second cap under the
+  full suite and passes alone in under half a second.
 - 2026-09-25 (round: the chart's keyboard state and its focus ring): the
   owner sent two screenshots of a series chart after a click: a blue
   rounded ring around the active dots, and on a four-line compare the dots

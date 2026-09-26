@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
+import { FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
 import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -117,7 +117,7 @@ interface Revised { label: string; period: string; vintages: Vintage[]; }
 
 type Route =
   | { view: "home" }
-  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string; freq: string; agg: string; lny: string }
+  | { view: "series"; keys: string[]; show: string; range: string; region: string; from: string; to: string; freq: string; agg: string; lny: string; ma: string }
   | { view: "search"; q: string; freq: string; cat: string; dataset: string; geo: string }
   | { view: "browse"; cat: string }
   | { view: "releases"; month: string }
@@ -395,7 +395,7 @@ function parseRoute(hash: string): Route {
   const parts = path.split("/").filter(Boolean);
   const head = parts[0] ?? "";
   if (head === "series" && parts[1]) {
-    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "", freq: query.get("freq") ?? "", agg: query.get("agg") ?? "", lny: query.get("lny") ?? "" };
+    return { view: "series", keys: parts[1].split(",").filter(Boolean).slice(0, 4), show: query.get("show") ?? "", range: query.get("range") ?? "", region: query.get("region") ?? "", from: query.get("from") ?? "", to: query.get("to") ?? "", freq: query.get("freq") ?? "", agg: query.get("agg") ?? "", lny: query.get("lny") ?? "", ma: query.get("ma") ?? "" };
   }
   if (head === "search") return { view: "search", q: query.get("q") ?? "", freq: query.get("freq") ?? "", cat: query.get("cat") ?? "", dataset: query.get("dataset") ?? "", geo: query.get("geo") ?? "" };
   if (head === "browse") return { view: "browse", cat: "" };
@@ -414,7 +414,7 @@ function routeHash(route: Route): string {
   const qs = (pairs: [string, string][]) => { const query = new URLSearchParams(pairs.filter(([, value]) => value)); const text = query.toString(); return text ? `?${text}` : ""; };
   switch (route.view) {
     case "home": return "#/";
-    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to], ["freq", route.freq], ["agg", route.agg], ["lny", route.lny]])}`;
+    case "series": return `#/series/${route.keys.join(",")}${qs([["show", route.show], ["range", route.range], ["region", route.region], ["from", route.from], ["to", route.to], ["freq", route.freq], ["agg", route.agg], ["lny", route.lny], ["ma", route.ma]])}`;
     case "search": return `#/search${qs([["q", route.q], ["freq", route.freq], ["cat", route.cat], ["dataset", route.dataset], ["geo", route.geo]])}`;
     case "browse": return "#/browse";
     case "releases": return `#/releases${qs([["month", route.month]])}`;
@@ -428,7 +428,7 @@ function routeHash(route: Route): string {
   }
 }
 function seriesHash(keys: string[], extra: Partial<{ show: string; range: string; region: string; from: string; to: string }> = {}): string {
-  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "", freq: "", agg: "", lny: "" });
+  return routeHash({ view: "series", keys, show: extra.show ?? "", range: extra.range ?? "", region: extra.region ?? "", from: extra.from ?? "", to: extra.to ?? "", freq: "", agg: "", lny: "", ma: "" });
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -1593,7 +1593,7 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
               setOpen(false);
               setDraft("");
               if (props.onPick) props.onPick(entry);
-              else props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" });
+              else props.navigate({ view: "series", keys: [...props.keys, entry.key], show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "", ma: "" });
             }}>
               <span className="title">{zhFirst ? <Zh>{entry.name}</Zh> : entry.nameEn}</span>
               {entry.nameEn && entry.datasetCode !== 0 && <span className="gloss">{zhFirst ? entry.nameEn : <Zh>{entry.name}</Zh>}</span>}
@@ -1634,7 +1634,7 @@ function SeriesPage(props: {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("chart");
   const [logScale, setLogScale] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(Boolean(props.route.freq || props.route.show || props.route.lny));
+  const [optionsOpen, setOptionsOpen] = useState(Boolean(props.route.freq || props.route.show || props.route.lny || props.route.ma));
   useEffect(() => { void warmShareFonts(); }, []);
   const [customDates, setCustomDates] = useState(Boolean(props.route.from || props.route.to));
   const [revised, setRevised] = useState<Revised[] | null>(null);
@@ -1758,7 +1758,9 @@ function SeriesPage(props: {
   const finestRank = Math.min(...built.tracks.map((track) => FREQUENCY_RANK[track.frequency] ?? 1), 3);
   const coarserFrequencies = (["Quarterly", "Annual"] satisfies TargetFrequency[]).filter((item) => (FREQUENCY_RANK[item] ?? 0) > finestRank);
   const aggregation: Aggregation = isAggregation(props.route.agg) ? props.route.agg : "avg";
-  const nativeTracks = targetFrequency ? built.tracks.map((track) => convertTrack(track, targetFrequency, aggregation)) : built.tracks;
+  // A monthly line can be shown as its three-month average, the smoothing trade and activity rates are usually read with.
+  const smoothing = props.route.ma === "3";
+  const nativeTracks = (targetFrequency ? built.tracks.map((track) => convertTrack(track, targetFrequency, aggregation)) : built.tracks).map((track) => smoothing ? movingAverage(track, 3) : track);
   const converted = targetFrequency ? built.tracks.filter((track) => (FREQUENCY_RANK[track.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)) : [];
   const convertedTitles = [...new Set(results.filter((result) => targetFrequency && (FREQUENCY_RANK[result.frequency] ?? 0) < (FREQUENCY_RANK[targetFrequency] ?? 0)).map((result) => displayTitle(result, results)))];
   // Mixed level units are rebased to a common index; a percentage cannot be
@@ -1981,6 +1983,7 @@ function SeriesPage(props: {
           <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
           {results.some((result) => result.frequency === "Monthly") && <label><input type="checkbox" checked={lunar} onChange={(event) => set({ lny: event.target.checked ? "1" : "" })} /> Shade Lunar New Year</label>}
+          {results.some((result) => result.frequency === "Monthly") && !targetFrequency && <label><input type="checkbox" checked={smoothing} onChange={(event) => set({ ma: event.target.checked ? "3" : "" })} /> 3-month average</label>}
         </div>}
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
@@ -2454,7 +2457,7 @@ function App() {
       <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); if (main) { main.focus(); main.scrollIntoView(); } }}>Skip to content</a>
       <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
         <a className="brand" href="#/"><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "", geo: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 66302).toLocaleString("en-US")} series in English or Chinese`} /></div>
+        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "", ma: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "", geo: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 66302).toLocaleString("en-US")} series in English or Chinese`} /></div>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>

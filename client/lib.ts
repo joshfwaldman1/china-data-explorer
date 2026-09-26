@@ -160,6 +160,28 @@ export function observationLabel(date: string, frequency: string): string {
 }
 
 /**
+ * A monthly track averaged over a calendar window of `months` months ending at
+ * each point: the three-month average of a year-on-year rate that trade and
+ * activity charts are usually drawn with, since one month of Chinese data
+ * carries the Lunar New Year and the combined January-February release. The
+ * window is by calendar month, not by index, so a missing month is left out
+ * rather than pulling an older one in; a point averages what the window holds.
+ * A track that is not monthly is returned as it is.
+ */
+export function movingAverage(track: Track, months = 3): Track {
+  if (track.frequency !== "Monthly" || months < 2) return track;
+  const index = (t: number) => { const d = new Date(t); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
+  const byMonth = new Map(track.points.map((point) => [index(point.t), point.v]));
+  const points = track.points.map((point) => {
+    const at = index(point.t);
+    const values: number[] = [];
+    for (let back = 0; back < months; back += 1) { const v = byMonth.get(at - back); if (v !== undefined && v !== null) values.push(v); }
+    return { ...point, v: Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 100) / 100 };
+  });
+  return { ...track, name: `${track.name}, ${months}-month average`, points };
+}
+
+/**
  * Whether a month-end reading is being shown for a month that has not ended.
  *
  * A daily fixing or close aggregated to its month (the 10-year yield, the
