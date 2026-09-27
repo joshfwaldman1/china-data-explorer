@@ -35,6 +35,18 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-26 (round: exports and imports as levels): the owner asked for
+  exports and imports as levels rather than growth. The site held the
+  levels (`trade_values`: exports, imports, total and balance in 100
+  million US dollars, from Customs' totals table) and the Trade page's
+  first card drew them, but Home showed only "Export Growth". Home now has
+  "Exports, Month" and "Imports, Month" rows from the levels series, with
+  the change column giving the growth on a year earlier, in place of the
+  growth row. The totals table's lines are declared (`customsLabels`), so
+  the Home row test can hold a Customs row's line as it holds the bureau's,
+  and the series is titled "Merchandise Exports and Imports, Value".
+  Verified: typecheck clean, 443 tests, the two rows on a local render;
+  the live values follow the deploy.
 - 2026-09-26 (round: the three-month average): the owner sent four charts
   of the kind economists circulate (real GDP growth, CPI inflation, the
   yuan, exports and imports) and asked that the site carry the same

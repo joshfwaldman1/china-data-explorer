@@ -12,7 +12,7 @@ import { join } from "node:path";
 
 process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-home-rows-")), "test.db");
 process.env.CHINA_SEED = "off";
-const { CATALOG, HOME_ROWS, HERO_KEYS, NBS_PROVINCES, catalogList } = await import("./data.ts");
+const { CATALOG, HOME_ROWS, HERO_KEYS, NBS_PROVINCES, catalogList, configuredLabels } = await import("./data.ts");
 
 test("every Home row names an existing key in its own group, once per line, and a row's line exists", () => {
   const seen = new Set<string>();
@@ -28,10 +28,7 @@ test("every Home row names an existing key in its own group, once per line, and 
       seen.add(id);
       // A hero tile's table appears in the list only through one of its other lines.
       if (HERO_KEYS.includes(row.key)) expect(row.line).toBeDefined();
-      if (row.line) {
-        const ids = Reflect.get(cfg as object, "ids") as { label: string }[] | undefined;
-        expect(ids?.some((item) => item.label === row.line)).toBe(true);
-      }
+      if (row.line) expect(configuredLabels(row.key), `${row.key}: ${row.line}`).toContain(row.line);
     }
   }
   expect(HOME_ROWS.map((group) => group.group)).toEqual([...new Set(HOME_ROWS.map((group) => group.group))]);

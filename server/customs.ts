@@ -539,6 +539,18 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
   };
 }
 
+/**
+ * The lines the totals table serves, as `fetchCustomsRegion` names them: the
+ * four levels, or Customs' own growth rates. A partner or commodity table's
+ * lines depend on the row (a commodity's quantity unit), so they have none here.
+ */
+export function customsLabels(cfg: CustomsIndicator): string[] | null {
+  if (cfg.table !== "totals") return null;
+  return cfg.measure === "levels"
+    ? ["Exports", "Imports", "Total trade", "Balance"]
+    : ["Exports (YoY %)", "Imports (YoY %)", "Total trade (YoY %)", "Exports, year to date (YoY %)", "Imports, year to date (YoY %)"];
+}
+
 /** The partners and commodities named in the current tables, as region options. */
 export async function customsRegions(table: CustomsTable): Promise<NbsRegion[]> {
   const month = recentMonths(2)[0] ?? "";

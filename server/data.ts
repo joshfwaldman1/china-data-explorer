@@ -11,7 +11,7 @@
  */
 
 import { fetchJson } from "./http";
-import { fetchCustomsRegion, type CustomsIndicator } from "./customs";
+import { customsLabels, fetchCustomsRegion, type CustomsIndicator } from "./customs";
 import { fetchCfets, type CfetsIndicator } from "./cfets";
 import { fetchNea, neaLabels, type NeaIndicator } from "./nea";
 import { fetchPboc, FLOW_COLUMNS, STOCK_ROWS, MONEY_ROWS, RESERVE_ROWS, CREDIT_ROWS, type PbocIndicator } from "./pboc";
@@ -1267,8 +1267,8 @@ export const CATALOG: Record<string, Indicator> = {
     releaseDay: 14,
   },
   trade_values: {
-    kind: "customs", group: "Trade & External", home: false,
-    title: "Merchandise Trade Values (Exports / Imports)", agency: "General Administration of Customs",
+    kind: "customs", group: "Trade & External",
+    title: "Merchandise Exports and Imports, Value", agency: "General Administration of Customs",
     frequency: "Monthly", unit: "Hundred million USD (亿美元)",
     table: "totals", measure: "levels",
     regions: [{ text: "Total", value: "total", en: "Total" }],
@@ -2394,7 +2394,8 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "cfets_rmb_index", title: "CFETS RMB Index" },
   ] },
   { group: "Trade & External", rows: [
-    { key: "trade", title: "Export Growth" },
+    { key: "trade_values", line: "Exports", title: "Exports, Month" },
+    { key: "trade_values", line: "Imports", title: "Imports, Month" },
     { key: "trade_partners" },
     { key: "balance_of_payments", title: "Current Account Balance" },
     { key: "forex_reserves", title: "Official Foreign Exchange Reserves" },
@@ -2885,7 +2886,8 @@ export function configuredLabels(key: string): string[] | null {
   if (cfg.kind === "safe") return cfg.items.map((item) => item.label);
   if (cfg.kind === "mofcom") return mofcomLabels(cfg);
   if (cfg.kind === "sse") return sseLabels(cfg);
-  // Customs labels depend on the row (a commodity's quantity unit), so the store's own labels stand.
+  // The totals table's lines are fixed; a partner's or commodity's depend on the row (a quantity unit), so the store's own labels stand.
+  if (cfg.kind === "customs") return customsLabels(cfg);
   return null;
 }
 
