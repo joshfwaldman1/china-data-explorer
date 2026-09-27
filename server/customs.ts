@@ -20,6 +20,7 @@
  */
 
 import type { NbsRegion, SeriesPoint, SeriesResult } from "./data";
+import { upstreamFetch } from "./upstream";
 
 const CUSTOMS_BASE = "http://english.customs.gov.cn";
 const LISTING_COLUMN = 1; // the preliminary release
@@ -287,7 +288,7 @@ export function slugOf(name: string): string {
 // ── Fetching ─────────────────────────────────────────────────────────────────
 
 async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "text/html" }, signal: AbortSignal.timeout(45_000) });
+  const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "text/html" }, timeoutMs: 45_000 });
   if (!response.ok) throw new Error(`Customs -> HTTP ${response.status} for ${url}`);
   return await response.text();
 }

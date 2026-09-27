@@ -10,6 +10,7 @@ import { findGeographyInQuery, findPlaceInQuery } from "../shared/places.ts";
 import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, seriesFullHistoryCheck, storedLatest, writeSeries } from "./db";
 import { glossTitle, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
+import { upstreamFetch } from "./upstream";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const NATIONAL = { text: "全国", value: "000000000000" };
@@ -1361,9 +1362,9 @@ export async function getNbsCatalogEntry(key: string): Promise<NbsCatalogEntry |
 }
 
 async function getJson(path: string): Promise<unknown> {
-  const response = await fetch(`${API}${path}`, {
+  const response = await upstreamFetch(`${API}${path}`, {
     headers: { Accept: "application/json", Referer: "https://data.stats.gov.cn/dg/website/page.html" },
-    signal: AbortSignal.timeout(30_000),
+    timeoutMs: 30_000,
   });
   if (!response.ok) throw new Error(`NBS metadata -> HTTP ${response.status}`);
   const text = await response.text();

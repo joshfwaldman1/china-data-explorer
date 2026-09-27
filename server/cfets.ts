@@ -30,6 +30,7 @@
  */
 
 import type { SeriesPoint, SeriesResult } from "./data";
+import { upstreamFetch } from "./upstream";
 
 const ENDPOINT = "https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/ClsYldCurvHis";
 const SHIBOR_ENDPOINT = "https://www.chinamoney.com.cn/ags/ms/cm-u-bk-shibor/ShiborHis";
@@ -195,11 +196,11 @@ const TABLES: Record<CfetsTable, { endpoint: string; fields: Record<string, stri
 export type CfetsPost = (endpoint: string, body: URLSearchParams) => Promise<unknown>;
 
 async function post(endpoint: string, body: URLSearchParams): Promise<unknown> {
-  const response = await fetch(endpoint, {
+  const response = await upstreamFetch(endpoint, {
     method: "POST",
     headers: { "User-Agent": USER_AGENT, Referer: "https://www.chinamoney.com.cn/", "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
-    signal: AbortSignal.timeout(45_000),
+    timeoutMs: 45_000,
   });
   if (!response.ok) throw new Error(`CFETS -> HTTP ${response.status}`);
   const text = await response.text();

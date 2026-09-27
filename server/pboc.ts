@@ -17,6 +17,7 @@
  */
 
 import type { SeriesPoint, SeriesResult } from "./data";
+import { upstreamFetch } from "./upstream";
 
 const SITE = "https://www.pbc.gov.cn";
 const STATISTICS = `${SITE}/diaochatongjisi/116219/116319/index.html`;
@@ -239,7 +240,7 @@ export function decodePage(bytes: ArrayBuffer): string {
 }
 
 async function get(url: string): Promise<ArrayBuffer> {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(45_000), redirect: "follow" });
+  const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT }, timeoutMs: 45_000, redirect: "follow" });
   if (!response.ok) throw new Error(`PBOC -> HTTP ${response.status}`);
   return response.arrayBuffer();
 }

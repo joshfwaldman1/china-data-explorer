@@ -21,6 +21,7 @@ import { measureOf, type Measure } from "../shared/measure";
 import { fetchSafe, BOP_ITEMS, CROSS_BORDER_ITEMS, FX_SETTLEMENT_ITEMS, type SafeIndicator } from "./safe";
 import { fetchMofcom, mofcomLabels, type MofcomIndicator } from "./mofcom";
 import { fetchSse, sseLabels, type SseIndicator } from "./sse";
+import { upstreamFetch } from "./upstream";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -2547,7 +2548,7 @@ async function loadEastmoneyTable(cfg: EastmoneyIndicator, pages: number): Promi
     // deployment's network it did so on the first burst of most days (nine house-price
     // refreshes failed that way in three days, each recovering on the next region's
     // download a minute later). A failed page is retried twice after a pause, not at once.
-    const load = async () => (await fetch(url, { headers, signal: AbortSignal.timeout(45_000) })).json();
+    const load = async () => (await upstreamFetch(url, { headers, timeoutMs: 45_000 })).json();
     let json: { result?: { data?: unknown; pages?: unknown } } | undefined;
     for (const pause of [0, 2_000, 6_000]) {
       if (pause > 0) await new Promise((resolve) => setTimeout(resolve, pause));

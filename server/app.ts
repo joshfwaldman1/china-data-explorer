@@ -58,6 +58,7 @@ import { provinceProfile, provinceCards } from "./province";
 import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
+import { upstreamFetch, upstreamStats } from "./upstream";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -106,7 +107,7 @@ async function fetchAgenda(startDate: string, endDate: string): Promise<{ data: 
   const hit = releaseCache.get(cacheKey);
   if (hit && Date.now() - hit.at < RELEASE_TTL_MS) return hit.body;
   const query = new URLSearchParams({ startDate, endDate });
-  const response = await fetch(
+  const response = await upstreamFetch(
     `https://data.stats.gov.cn/dg/website/publicrelease/web/external/queryAgendaByDate?${query}`,
     {
       headers: {
@@ -114,7 +115,7 @@ async function fetchAgenda(startDate: string, endDate: string): Promise<{ data: 
         Referer: "https://data.stats.gov.cn/dg/website/page.html",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/152 Safari/537.36",
       },
-      signal: AbortSignal.timeout(30_000),
+      timeoutMs: 30_000,
     },
   );
   const text = await response.text();
@@ -363,7 +364,7 @@ const routes = {
       const results = runConcordance();
       return Response.json({ ranAt: new Date().toISOString(), findings: results.filter((result) => result.status === "mismatch").length, results });
     },
-    "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState, worker: workerState() }),
+    "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState, worker: workerState(), upstream: upstreamStats() }),
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
     // Every place one series is published for, at one period: the tile map and

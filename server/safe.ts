@@ -22,6 +22,7 @@
 import type { SeriesPoint, SeriesResult } from "./data";
 import { columnLetters, readXlsx, type Sheet } from "./xlsx";
 import { readXls } from "./xls";
+import { upstreamFetch } from "./upstream";
 
 const SITE = "https://www.safe.gov.cn";
 const PAGE = `${SITE}/en/2019/0329/1496.html`;
@@ -300,7 +301,7 @@ export function parseBopWorkbook(bytes: ArrayBuffer | Uint8Array, items = BOP_IT
 }
 
 async function get(url: string): Promise<ArrayBuffer> {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(60_000), redirect: "follow" });
+  const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT }, timeoutMs: 60_000, redirect: "follow" });
   if (!response.ok) throw new Error(`SAFE -> HTTP ${response.status}`);
   return response.arrayBuffer();
 }

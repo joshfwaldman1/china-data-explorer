@@ -17,6 +17,7 @@
  */
 
 import type { SeriesPoint, SeriesResult } from "./data";
+import { upstreamFetch } from "./upstream";
 
 const DATA_CENTRE = "https://data.mofcom.gov.cn/datamofcom/front/lywz/direct/query";
 const SITE = "https://www.mofcom.gov.cn";
@@ -122,13 +123,13 @@ export function parseFdiRelease(html: string): FdiFigures | null {
 }
 
 async function post(url: string, body: string): Promise<string> {
-  const response = await fetch(url, { method: "POST", headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded", Referer: "https://data.mofcom.gov.cn/lywz/inmr.shtml" }, body, signal: AbortSignal.timeout(30_000) });
+  const response = await upstreamFetch(url, { method: "POST", headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded", Referer: "https://data.mofcom.gov.cn/lywz/inmr.shtml" }, body, timeoutMs: 30_000 });
   if (!response.ok) throw new Error(`MOFCOM data centre -> HTTP ${response.status}`);
   return response.text();
 }
 
 async function get(url: string): Promise<string> {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT, Referer: `${SITE}/xwfb/rcxwfb/index.html` }, signal: AbortSignal.timeout(30_000), redirect: "follow" });
+  const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT, Referer: `${SITE}/xwfb/rcxwfb/index.html` }, timeoutMs: 30_000, redirect: "follow" });
   if (!response.ok) throw new Error(`MOFCOM -> HTTP ${response.status}`);
   return response.text();
 }

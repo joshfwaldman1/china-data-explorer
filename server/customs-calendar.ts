@@ -19,6 +19,8 @@
  * indicator's `releaseDay`.
  */
 
+import { upstreamFetch } from "./upstream";
+
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const LISTING = "http://english.customs.gov.cn/Statistics/Statistics?ColumnId=4";
 /** The hour, China Standard Time, the preliminary release is taken to appear. Customs does not publish a time. */
@@ -111,7 +113,7 @@ const CACHE_MS = 24 * 60 * 60 * 1000;
 const MISS_MS = 6 * 60 * 60 * 1000;
 
 async function get(url: string): Promise<string> {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(30_000), redirect: "follow" });
+  const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT }, timeoutMs: 30_000, redirect: "follow" });
   if (!response.ok) throw new Error(`Customs -> HTTP ${response.status}`);
   return response.text();
 }

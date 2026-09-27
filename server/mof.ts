@@ -17,6 +17,7 @@
  */
 
 import type { SeriesPoint, SeriesResult } from "./data";
+import { upstreamFetch } from "./upstream";
 
 const SITE = "http://gks.mof.gov.cn";
 const LISTING = `${SITE}/tongjishuju/`;
@@ -189,7 +190,7 @@ export function parseFiscalRelease(html: string): MofFigures | null {
 async function get(url: string): Promise<string> {
   let last = "";
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    const response = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(30_000), redirect: "follow" });
+    const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT }, timeoutMs: 30_000, redirect: "follow" });
     if (response.ok) return response.text();
     last = `MOF -> HTTP ${response.status}`;
     if (response.status < 500 && response.status !== 429) break;
