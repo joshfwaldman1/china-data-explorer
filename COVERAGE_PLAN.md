@@ -1,212 +1,228 @@
-# Coverage plan: what a cohesive picture of the Chinese economy still needs
+# Coverage plan: closing the gap to CEIC from official sources
 
-15 September 2026. What the site holds, what a macro reader would reach for
-and not find, where each missing thing is published, and the order to add it.
+27 September 2026. Replaces the 15 September plan, whose steps A to E have
+shipped (summary at the end). The benchmark is CEIC's China Premium
+database. This plan says what the site holds, where CEIC is ahead, what can
+be matched from official publishers, what cannot, and the order to do it in.
+
+`DATASET_QUEUE.md` holds the next few rounds. This file is where its items
+come from.
 
 ## Where we are
 
-The catalog is now the bureau's own: 79,756 entries across all ten NBS
-dataset families, 66,222 browsable, with 43 curated headline series on top
-(NBS, PBOC, Customs and Caixin via the Eastmoney mirror; 24 via FRED). The
-NBS side is close to complete for what the bureau publishes through its
-portal. The gaps are almost all **other publishers**: Customs, the central
-bank, the finance ministry, the energy administration, the FX regulator, the
-bond market. Those are where a picture of trade, credit, energy and the
-external balance comes from, and each is a small adapter, not a crawl.
+**The NBS portal is done.** All twelve dataset families are crawled.
+64,509 of 66,302 national series are stored (97%); the remainder came back
+empty from NBS itself, mostly discontinued indicators. A sample of 60
+provincial and city series found every place filled in 47 and none empty.
+Counting each province and city series separately, as CEIC does, the site
+holds roughly 180,000 series.
 
-What is verified below: the Eastmoney report names (from the AkShare source,
-which lists every `RPT_ECONOMY_*` it uses) and the AkShare function list. What
-is not yet verified: the exact page or file shape of the GAC, SAFE, NEA, MOF
-and ChinaBond releases, which a first adapter would capture.
+**Other publishers are started.** 153 curated series from 20 publishers:
+NBS (69), People's Bank of China (13), Ministry of Finance (10), Customs (9),
+CFETS (8), SAFE (7), Ministry of Commerce (5), National Energy
+Administration (2), the Shanghai Stock Exchange (4), and FRED-hosted series
+from the BIS, IMF, OECD, World Bank and US agencies.
 
-## Gaps by domain
+**What CEIC has.** Library guides put China Premium at 345,000 to 415,000
+series. CEIC's own pages give no current total. The difference from us is
+almost all outside the NBS portal: the full central bank, finance ministry
+and FX regulator tables, Customs by HS code, provincial debt, city and
+county data from yearbooks, industry associations, daily market and
+high-frequency data, constructed series (seasonally adjusted, single-month
+from year to date), and history back to 1949.
 
-### 1. Trade — the biggest gap
+## What we will not mirror
 
-Have: total exports, imports and balance (monthly, Customs via Eastmoney);
-US–China bilateral from the US side (Census, via FRED); NBS annual trade
-tables.
+Some of CEIC's China coverage is licensed, not published. It needs a
+contract, not an adapter, and the site does not proxy it.
 
-Missing: **exports and imports by partner** (US, EU, ASEAN, Japan, Korea,
-Russia, Africa, Latin America) and **by commodity** (crude, iron ore,
-soybeans, integrated circuits, autos, solar, ships) — the two cuts every trade
-story is written from. Also processing vs ordinary trade, and USD vs CNY
-denomination (Customs publishes both and the growth rates differ).
+- Private property data: China Index Academy and CREIS 100-city prices,
+  CRIC developer sales rankings.
+- Wind and other terminal-sourced market data.
+- Association data sold to members only (detailed CPCA and CISA tables).
+- CEIC's own composite indicators.
 
-Sources:
-- **UN Comtrade API** (free key, JSON): monthly China exports/imports by
-  partner and HS chapter, one to two months behind Customs. Clean, stable,
-  documented. The right backbone for partner × commodity.
-- **GAC monthly release tables** (customs.gov.cn, Chinese, HTML/Excel): the
-  headline partner and commodity breakdown on release day. This is the
-  official-release-table adapter the faster-updates handoff proposes, applied
-  to trade first — the same parser pattern serves CPI later.
-- Eastmoney `RPT_ECONOMY_CUSTOMS` carries totals only (already used).
+An official-sources mirror can plausibly match most of CEIC's macro and
+sector coverage. It will stay behind on property and high-frequency depth,
+and the site should say so rather than fill the gap with a proxy.
 
-### 2. Energy
+## Steps, in order
 
-Have: coal, crude, natural gas, electricity output and thermal, hydro,
-nuclear, wind and solar generation (NBS monthly, all in the catalog); crude
-oil and gas import volumes (Customs, NBS); annual energy balance tables (NBS
-annual, now in the catalog).
+Ordered by value for the effort. Each step names its sources, what is known
+about access from a US address, and what "done" means.
 
-Missing: **electricity consumption** (全社会用电量, the demand-side figure
-economists watch; National Energy Administration monthly), consumption by
-sector, **installed capacity by source** (NEA/CEC monthly — the solar and wind
-build-out numbers), refinery throughput is present but not curated, and any
-carbon series (there is no official monthly one; the site should say so
-rather than proxy).
+### 1. Depth from publishers we already read
 
-Sources: NEA monthly press releases (nea.gov.cn, HTML); AkShare
-`macro_china_society_electricity`; CEC (cec.org.cn). Daily coal burn at the
-six power groups (`macro_china_daily_energy`) is a commercial high-frequency
-proxy — label it as such if used.
+The cheapest step: the access paths and parsers exist.
 
-### 3. Money, credit and the bond market
+- **People's Bank of China statistics tables** (pbc.gov.cn, 统计数据, monthly
+  Excel and HTML, annual archives from 1999). Have: headline loans, total
+  social financing, money supply, the credit balance by four sectors. Add:
+  the sources and uses of credit funds by sector and term (household short
+  and medium/long-term loans, enterprise loans by term), deposits by sector,
+  the central bank balance sheet, and the depository institutions survey.
+  This fills the Consumption and Investment pages' credit gaps.
+  *Access: unverified. First job is one captured table as a fixture.*
+- **Ministry of Finance monthly fiscal release**, full tables. Have: revenue,
+  expenditure, tax by type, land sales, local bond issuance and debt. Add:
+  expenditure by function (education, social security, infrastructure-heavy
+  urban and rural community affairs), the government fund budget in full,
+  and the social insurance fund.
+- **SAFE full tables** (Excel). Have: balance of payments headline and
+  financial account by kind, FX settlement, cross-border flows. Add: the
+  international investment position, gross external debt, balance of
+  payments detail (goods, services, primary income), and settlement by item.
+- **Commerce ministry.** Add outward direct investment, monthly.
 
-Have: M1, M2, new loans, LPR, SHIBOR, FX reserves, gold, BIS credit ratios,
-IMF government debt.
+*Done when:* each table has a fixture-tested parser that refuses a changed
+layout, a due rule, and its series on the page it belongs to.
 
-Missing: **total social financing** (社会融资规模, stock and monthly flow —
-the credit aggregate China-watchers use ahead of M2), PBOC balance sheet,
-deposits, the RRR history as a series (Eastmoney `RPT_ECONOMY_DEPOSIT_RESERVE`
-is an event table), FX loans and deposits (`RPT_ECONOMY_FOREX_LOAN`,
-`RPT_ECONOMY_FOREX_DEPOSIT`), and the **10-year government bond yield** and
-the yield curve — the single most-cited Chinese financial variable the site
-does not have. Also stock market capitalisation and turnover
-(`RPT_ECONOMY_STOCK_STATISTICS`).
+### 2. Provincial debt and finance
 
-Sources: PBOC monthly release tables (pbc.gov.cn, HTML) for TSF and the
-balance sheet; AkShare `macro_china_shrzgm`, `macro_china_central_bank_balance`
-(jin10-sourced, lags); **ChinaBond** (chinabond.com.cn) for yields, AkShare
-`bond_china_yield`; Eastmoney for the four report names above.
+Damian Ma's "Provinces — Debt" category, and the largest provincial gap.
 
-### 4. Fiscal
+- **China Local Government Debt Information Disclosure Platform**
+  (celma.org.cn, run for the finance ministry). Bond issuance, debt
+  outstanding, limits and bond rates by province, monthly and annual. One
+  site for all 31 provinces.
+  *Access: unverified.*
+- **Provincial finance departments' budget and final accounts reports.**
+  Annual, one site per province, inconsistent layouts. After celma.
+- There is no official LGFV debt series. The page says so rather than
+  showing a proxy.
 
-Have: nothing curated; NBS annual fiscal tables in the catalog.
+*Done when:* a Provinces debt page shows debt outstanding and issuance for
+all 31 provinces, as a map and as series, with the national figure matching
+the finance ministry's total.
 
-Missing: **monthly government revenue and expenditure** (MOF), tax revenue
-by type (`RPT_ECONOMY_TAX` exists on Eastmoney), **land sale revenue**
-(国有土地使用权出让收入, MOF monthly — the local-government-finance variable),
-local government bond issuance (MOF/ChinaBond). No official LGFV series exists;
-say so.
+### 3. NBS press releases
 
-Sources: MOF monthly fiscal release (mof.gov.cn, HTML); AkShare
-`macro_china_czsr`, `macro_china_national_tax_receipts`; Eastmoney TAX.
+Figures NBS publishes in its monthly releases but not in its portal tables:
+infrastructure investment (基础设施投资), high-tech industry investment
+(高技术产业投资), and some program figures. The Investment page needs the
+first to compare manufacturing, infrastructure and real estate on one chart.
 
-### 5. Property
+The release-page HTML adapter is already on the not-done list from the
+faster-updates work (15 September). Build it in shadow mode first: parse
+each release and compare the figures it shares with the portal before
+trusting the ones it alone carries.
 
-Have: 70-city new and existing prices, real estate investment, and the NBS
-monthly property tables (sales area and value, new starts, completions,
-inventory, developer funding by source) in the catalog.
+*Done when:* infrastructure and high-tech investment, year to date, are
+stored from each release, and the shadow comparison has matched the portal
+for three months running.
 
-Missing: curated headline treatment of sales and starts (they exist but are
-not on the home page), land purchases (NBS monthly, in catalog), a
-developers'-funding view, and second-hand transaction volumes (no national
-official series; cities publish, and the site should not proxy).
+### 4. A China-side fetch path
 
-This is mostly curation, not new sources.
+Several sources answer a US address with a block: Customs' Chinese site and
+statistics portal (HTTP 412), the NBS query API (UrlACL 403), and possibly
+some provincial sites. The earlier agent repo had a `relay/`; this repo does
+not. Steps 5 and 7 depend on it.
 
-### 6. External balance
+Requirements: one request at a time with the adapters' existing pauses,
+never raised concurrency; the relay only fetches, and parsing stays here;
+every fetch logged with the channel it went through.
 
-Have: FX reserves, USDCNY, BIS real effective rate, US-side bilateral trade.
+*Done when:* one Customs query-platform table is fetched through the relay
+and parsed to figures that match the English site's release.
 
-Missing: **balance of payments** (SAFE quarterly: current account, goods,
-services, income, financial account, reserves), **FDI actual use** (MOFCOM
-monthly; Eastmoney `RPT_ECONOMY_FDI`), outward direct investment (MOFCOM),
-bank FX settlement and sales (SAFE monthly — the flow measure of pressure on
-the currency), CFETS RMB index.
+### 5. Customs by HS code
 
-Sources: SAFE (safe.gov.cn, Excel downloads); MOFCOM (data.mofcom.gov.cn,
-which AkShare already reads for FDI); CFETS (chinamoney.com.cn).
+The largest single gain in series count. Have: 30 partners and blocs and
+about 65 commodity lines from Customs' English release, back to 2022. The
+statistics query platform (stats.customs.gov.cn) serves trade by HS code
+(to 8 digits), by partner, by province of origin and by trade mode.
 
-### 7. Households, sentiment, labour
+Start narrow: HS 2-digit by month, then the 4-digit lines the pages use
+(integrated circuits, vehicles, solar cells, batteries, crude, iron ore,
+soybeans), then partner by HS 2-digit. Full 8-digit coverage only if
+someone asks for it.
 
-Have: surveyed unemployment with the youth breakdown, quarterly household
-income and expenditure, annual wages by industry (catalog), retail sales.
+*Prerequisite: step 4.*
+*Done when:* HS 2-digit exports and imports, monthly, are stored back to
+2017 and sum to Customs' published totals.
 
-Missing: **consumer confidence** (NBS index, Eastmoney `RPT_ECONOMY_FAITH_INDEX`),
-**enterprise boom and entrepreneur confidence** (`RPT_ECONOMY_BOOM_INDEX`),
-migrant worker numbers (NBS quarterly, in catalog, not curated), urban
-household income by quintile (annual, catalog).
+### 6. Other ministries and agencies
 
-### 8. High-frequency and alternative
+Each needs a small adapter. Official, so no proxy label.
 
-Have: none by design; everything is official and monthly or slower.
+- Ministry of Transport: port throughput by port, road and waterway freight.
+- Civil Aviation Administration: passengers and cargo.
+- Ministry of Industry and Information Technology: telecoms, software
+  revenue, industrial robots and other sector figures.
+- National Financial Regulatory Administration: bank assets, NPL ratios,
+  capital adequacy.
+- Securities regulator and the exchanges: already queued in
+  `DATASET_QUEUE.md` item 4.
+- Ministry of Natural Resources: land supply by use.
+- Ministry of Ecology and Environment: city air quality.
 
-Worth adding, labelled as commercial or proxy: Baltic and China containerised
-freight indices (`macro_china_freight_index`, `macro_china_bdti_index`), auto
-sales weekly (CPCA) and monthly (CAAM; NBS has output), port container
-throughput (Ministry of Transport monthly), air passengers (CAAC monthly),
-subway ridership (city transit authorities; no national series). Keep these in
-a separate "High-frequency" group so the official series stay unmixed.
+### 7. Industry associations and high-frequency data
 
-### 9. International context
+Official-adjacent, so each is labelled with its publisher and kept in its
+own group, as the rules below require.
 
-Have: 24 FRED series (BIS, OECD, IMF, World Bank, US agencies).
+- CAAM monthly vehicle sales and CPCA passenger car sales (free press
+  releases). The Consumption page needs car sales, not output.
+- China Construction Machinery Association excavator sales (Investment).
+- CISA crude steel output, ten-day.
+- CANSI shipbuilding orders.
+- Freight indices (SCFI, CCFI).
 
-Missing: the bureau's own **international datasets** (国际数据: monthly data
-for the three big economies and annual data for major countries) — a crawl of
-two more dataset codes with the existing collector; IMF WEO and IFS for China
-(IMF DataMapper API, free JSON); World Bank WDI beyond the seven curated.
+### 8. Statistical yearbooks
 
-### 10. Sector
+The national yearbook and the 31 provincial yearbooks carry city and county
+data and history from before the portal. This is how CEIC reaches back to
+1949 and down to counties. It is the biggest parsing job on this list, with
+a layout that changes year to year, so it comes last and starts with one
+province's yearbook as a trial.
 
-Mostly covered by the NBS catalog (crude steel, integrated circuits, solar
-cells, NEVs, cement, autos). Missing: shipbuilding orders (CANSI), the
-RatingDog PMI that replaced Caixin's after September 2025 (S&P Global press
-releases, HTML), and semiconductor import value by product (Customs).
+*Prerequisite: step 4 for provincial sites that block.*
 
-## Order of work
+### 9. Constructed series
 
-Value per effort, with the adapter each step needs.
+No new sources, and a large part of what analysts pay CEIC for.
 
-**A. Existing Eastmoney adapter — done 15 September.** Added: consumer
-confidence (headline, expectations, satisfaction), enterprise boom index, tax
-revenue year to date, foreign-currency loans outstanding, and the commerce
-ministry's commodity price index with its energy, mineral and farm components.
-Checked and left out: `RPT_ECONOMY_FDI` stops at July 2023 (the ministry
-ended the monthly USD release), `RPT_ECONOMY_FOREX_DEPOSIT` carries a balance
-column whose unit could not be reconciled with any published figure, and
-`RPT_ECONOMY_STOCK_STATISTICS` is now null except for index highs and lows.
+- **Single-month from year to date**, where NBS publishes only the
+  cumulative figure: month = this month's year-to-date level less last
+  month's. January is never derived; the January-February figure stays
+  combined. Labelled as derived, linked to its source series.
+- **Seasonal adjustment** with a Lunar New Year correction, using the
+  Census Bureau's X-13ARIMA-SEATS program. Shown as an option, never
+  replacing the published figure.
+- **Real values** deflated by the matching price index, and chained
+  indices across NBS base changes.
 
-**B. Trade by partner and commodity — first version shipped 15 September.**
-Measured before building: UN Comtrade's monthly data for China ends at
-December 2024, and Customs' Chinese site and statistics portal answer a
-foreign address with HTTP 412. Customs' **English** site does not, and carries
-the whole preliminary release as HTML tables, paginated monthly back to 2022.
-`server/customs.ts` is the site's first official-release-table adapter: three
-curated keys, `trade_partners` (30 partners and blocs, exports, imports and
-balance, USD millions), `major_exports` (31 commodities) and `major_imports`
-(34, including crude, iron ore, soybeans, copper and coal, with quantities).
-Parsers are fixture-tested and refuse a changed layout. Still to do: a
-backfill to 2022 through the ingest, the Customs release calendar as a due
-rule, and the CNY-denominated tables.
+### 10. Infrastructure that every step needs
 
-**C. Credit and the bond market — source verified 15 September.** The
-government bond yield curve comes from CFETS/ChinaMoney, not ChinaBond:
-`POST https://www.chinamoney.com.cn/ags/ms/cm-u-bk-currency/ClsYldCurvHis`
-(`bondType=CYCC000`, `reference=1`, a date range, `termId` for one tenor,
-`pageSize` up to 1000) answers a foreign address with clean JSON — 103 tenors
-per trading day from one month to fifty years, back years. The adapter to
-build: 1y, 2y, 5y, 10y and 30y, stored as daily closes and served at month
-end for the site's monthly frame. Then TSF stock and flow, the PBOC balance
-sheet and deposits from PBOC's release tables; RRR as a stepped series.
+- Finish the English translations: 41,349 of about 55,600 base concepts are
+  glossed (`bun run china:translate --concurrency=8` resumes).
+- Durable jobs across restarts and a per-host rate limit across processes,
+  both on the not-done list from 15 September.
+- A health-report line per source, so a publisher going dark shows up the
+  day it happens.
 
-**D. Energy and fiscal — a week together.** nea.gov.cn answers a foreign
-address (the CEC site does not); the monthly electricity release is a press
-item ("1-N月份全国电力工业统计数据"), so the adapter needs the news listing
-mapped and a fixture-tested parser like the Customs one. MOF revenue,
-expenditure and land sales; a curated "Energy" group joining NEA demand with
-NBS generation by source and Customs' crude, coal and gas imports (the last
-three are in `major_imports` now).
+## Suggested first round
 
-**E. External balance — a few days.** SAFE BoP quarterly and FX settlement
-monthly (Excel), MOFCOM FDI and ODI, CFETS index.
+Steps 1 and 2, then 3. Together they fill the credit gaps on the
+Consumption and Investment pages, give Damian's list a provincial debt
+page, and put infrastructure investment on the Investment page. Step 5 adds
+the most series but waits on step 4.
 
-**F. Context and high-frequency — as time allows.** NBS international
-datasets via the existing crawler; IMF and World Bank APIs; the freight, auto
-and port series in a labelled high-frequency group.
+## Shipped under the 15 September plan
+
+- **A. Eastmoney adapter:** consumer confidence, enterprise boom index, tax
+  revenue, foreign-currency loans, commerce ministry commodity prices.
+- **B. Trade:** Customs' English site, partners and major exports and
+  imports in USD and CNY (`server/customs.ts`).
+- **C. Credit and bonds:** CFETS yield curve (`cgb_yields`), SHIBOR, repo
+  fixings, central parity, CFETS index; total social financing flow and
+  stock; the credit balance by sector.
+- **D. Energy and fiscal:** NEA electricity consumption; finance ministry
+  revenue, expenditure, tax by type, land sales, local government bonds.
+- **E. External balance:** SAFE balance of payments, FX settlement,
+  cross-border flows; commerce ministry FDI.
+- **F. Context:** partly done through FRED (BIS, OECD, IMF, World Bank, US
+  agencies). The NBS international datasets are crawled.
 
 ## Rules that apply to every addition
 
@@ -219,3 +235,5 @@ and port series in a labelled high-frequency group.
   than being silently replaced.
 - Every new source gets its due rule (release calendar or elapsed-time
   fallback) and its own fetch-log entries, so a source going dark is visible.
+- Licensed data is not scraped or proxied. Where CEIC has it and we do not,
+  the page says the figure is not published officially.
