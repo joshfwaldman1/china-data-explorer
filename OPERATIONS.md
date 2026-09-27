@@ -167,8 +167,14 @@ This hardening pass does not make the service horizontally scalable. Next:
   JSON-parses and revives all 79,836 stored entries on boot. Reading them
   lazily from the database, or serving curated series before the search
   index is up, would take `/ready` from a minute to seconds.
-- Persist jobs, attempts, retry times and leases so restarts cannot lose work;
-  separate scheduled ingestion from HTTP serving while preserving portal pacing.
+- Done 27 September 2026: the ingest clock and release retries are rows in
+  `scheduled_jobs` (`server/jobs.ts`), so a deploy neither triggers a full
+  ingest nor forgets a release still loading; a boot fetches only curated
+  keys the store has never held. Every publisher request goes through the
+  per-host gate in `server/upstream.ts` (one in flight per host, a gap
+  after each, tallies on `/api/schedule`). Still to do: leases, if a second
+  process ever writes the store, and separating scheduled ingestion from
+  HTTP serving.
 - Archive original publisher responses with content hashes, parser versions and
   metadata versions, so a parsed observation can be reproduced and audited.
 - Monitor source freshness, overdue full audits, queue age, backup age, disk/WAL

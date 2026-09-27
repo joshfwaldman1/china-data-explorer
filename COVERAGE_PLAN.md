@@ -118,6 +118,11 @@ statistics portal (HTTP 412), the NBS query API (UrlACL 403), and possibly
 some provincial sites. The earlier agent repo had a `relay/`; this repo does
 not. Steps 5 and 7 depend on it.
 
+Built 27 September: `relay/server.ts` (token-guarded, allow-listed, parses
+nothing) and the explorer side in `server/upstream.ts`, switched on by
+`CHINA_RELAY_URL`, `CHINA_RELAY_TOKEN` and `CHINA_RELAY_HOSTS`. What is
+left is a mainland host to run it on, which is the owner's call.
+
 Requirements: one request at a time with the adapters' existing pauses,
 never raised concurrency; the relay only fetches, and parsing stays here;
 every fetch logged with the channel it went through.
@@ -196,10 +201,10 @@ No new sources, and a large part of what analysts pay CEIC for.
 
 - Finish the English translations: 41,349 of about 55,600 base concepts are
   glossed (`bun run china:translate --concurrency=8` resumes).
-- Durable jobs across restarts and a per-host rate limit across processes,
-  both on the not-done list from 15 September.
-- A health-report line per source, so a publisher going dark shows up the
-  day it happens.
+- Done 27 September: durable jobs across restarts (`server/jobs.ts`) and a
+  per-host gate for every publisher request (`server/upstream.ts`), with
+  the relay channel of step 4 built into it. The health report already
+  lists failing and recovered sources.
 
 ## Suggested first round
 

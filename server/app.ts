@@ -59,6 +59,7 @@ import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 import { upstreamFetch, upstreamStats } from "./upstream";
+import { delayUntilDue, lastRun, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -674,15 +675,35 @@ if (ingestEveryHours > 0) {
         const tally = await runIngest();
         console.log(`  Scheduled ingest: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty in ${Math.round((Date.now() - started) / 1000)}s`);
       });
+      recordRun("ingest");
     } catch (error) {
       console.error("  Scheduled ingest failed:", error instanceof Error ? error.message : String(error));
     } finally {
       ingesting = false;
     }
   };
-  setTimeout(tick, 2 * 60 * 1000);
-  setInterval(tick, ingestEveryHours * 60 * 60 * 1000);
-  console.log(`  Ingest scheduled every ${ingestEveryHours}h (first run in 2 minutes)`);
+  // The ingest's clock is in the store, not in this process. A boot used to
+  // run a full ingest two minutes in and restart the 24 hours, so a day of
+  // deploys was a day of full sweeps against every publisher. Now the full
+  // ingest waits out its period from the last one that finished, and a boot
+  // fetches only the curated keys the store has never held (a series the
+  // deploy just added).
+  const ingestPeriodMs = ingestEveryHours * 60 * 60 * 1000;
+  const scheduleIngest = (delayMs: number) => {
+    setTimeout(() => { void tick().finally(() => scheduleIngest(ingestPeriodMs)); }, delayMs);
+  };
+  const firstIngestMs = delayUntilDue(lastRun("ingest"), ingestPeriodMs, 2 * 60 * 1000);
+  scheduleIngest(firstIngestMs);
+  console.log(`  Ingest scheduled every ${ingestEveryHours}h (next full run in ${Math.round(firstIngestMs / 60000)} minutes)`);
+  setTimeout(() => {
+    const stored = new Set(storedLatest("").map((row) => row.key));
+    const unstored = catalogList().map((entry) => entry.key).filter((key) => !stored.has(key));
+    if (unstored.length === 0) return;
+    void worker.run("New series", PRIORITY.catchUp, async () => {
+      const tally = await runIngest(unstored);
+      console.log(`  New series (${unstored.join(", ")}): ${tally.ok} ok, ${tally.error} failed`);
+    }).catch((error) => console.error("  New series ingest failed:", error instanceof Error ? error.message : String(error)));
+  }, 2 * 60 * 1000);
 
   // Release days. NBS publishes on a fixed agenda (09:30 and 10:00 CST, mostly),
   // PBOC and Customs in the afternoon. Three things make the site current
@@ -697,6 +718,14 @@ if (ingestEveryHours > 0) {
   const runWhenFree = async (job: () => Promise<void>, label: string): Promise<void> => {
     try { await worker.run(label, PRIORITY.release, job); }
     catch (error) { console.error(`  ${label} failed:`, error instanceof Error ? error.message : String(error)); }
+  };
+  // A release job is in the store from the moment its first attempt is
+  // planned until it is complete or given up, so a restart inside the
+  // bureau's three-day loading window picks up the retries where they were.
+  const releaseJobId = (item: AgendaItem) => `release:${item._id}`;
+  const scheduleReleaseAttempt = (item: AgendaItem, attempt: number, at: number) => {
+    scheduleJob({ id: releaseJobId(item), kind: "release", payload: item, attempt, nextAt: at });
+    setTimeout(() => { void releaseRefresh(item, attempt); }, Math.max(0, at - Date.now()));
   };
   const releaseRefresh = async (item: AgendaItem, attempt: number) => {
     const startedAt = new Date().toISOString();
@@ -719,7 +748,7 @@ if (ingestEveryHours > 0) {
       logFetch({ key: "release_refresh", region: "", startedAt, finishedAt: status.lastReleaseRefresh.at, status: "ok", points: catalog.advanced, changed: attempt, message: item.en || item.content });
       const periods = targets.map((target: ReleaseTarget) => `${target.frequency.toLowerCase()} ${target.period}`).join(" and ");
       console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${after.length - behind.length}/${after.length} headline and ${catalog.advanced}/${catalog.checked} catalog series hold ${periods}${done ? "" : `; ${behind.length + catalog.pending} still behind`}`);
-      if (done) return;
+      if (done) { settleJob(releaseJobId(item), "done"); return; }
       // The bureau gives itself about three working days for every short-term
       // indicator to reach its database, so a release that has not arrived is
       // normally late rather than lost. Check often at first, then back off,
@@ -728,9 +757,10 @@ if (ingestEveryHours > 0) {
       const wait = releaseRetryDelayMs(attempt);
       if (wait === null) {
         console.log(`  Release refresh (${item.en || item.content}): still incomplete after ${attempt} attempts; leaving it to the due check`);
+        settleJob(releaseJobId(item), "abandoned");
         return;
       }
-      setTimeout(() => { void releaseRefresh(item, attempt + 1); }, wait);
+      scheduleReleaseAttempt(item, attempt + 1, Date.now() + wait);
     }, "Release refresh");
   };
   const planReleases = async () => {
@@ -748,7 +778,7 @@ if (ingestEveryHours > 0) {
         status.nextReleases.push({ en: item.en || item.content, at: at.toISOString(), keys: item.keys });
         if (scheduled.has(item._id) || fireAt - Date.now() > 8 * 24 * 60 * 60 * 1000) continue;
         scheduled.add(item._id);
-        setTimeout(() => { void releaseRefresh(item, 1); }, Math.max(0, fireAt - Date.now()));
+        scheduleReleaseAttempt(item, 1, fireAt);
       }
       status.nextReleases.sort((a, b) => a.at.localeCompare(b.at));
       console.log(`  Release plan: ${status.nextReleases.length} upcoming releases, ${scheduled.size} scheduled`);
@@ -756,6 +786,15 @@ if (ingestEveryHours > 0) {
       console.error("  Release plan failed:", error instanceof Error ? error.message : String(error));
     }
   };
+  // Releases a previous process was still retrying, at the attempt they were
+  // on. Marked scheduled first so the plan below does not start them over.
+  const resumed = pendingJobs<AgendaItem>("release");
+  for (const job of resumed) {
+    scheduled.add(job.payload._id);
+    setTimeout(() => { void releaseRefresh(job.payload, job.attempt); }, Math.max(60 * 1000, job.nextAt - Date.now()));
+  }
+  if (resumed.length > 0) console.log(`  Release refresh: resumed ${resumed.length} release${resumed.length === 1 ? "" : "s"} from the store`);
+  pruneSettledJobs();
   setTimeout(() => { void planReleases(); }, 60 * 1000);
   setInterval(() => { void planReleases(); }, 6 * 60 * 60 * 1000);
 
