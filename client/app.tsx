@@ -1055,6 +1055,8 @@ const NBS_PORTAL_PAGE_NAMES: Record<string, string> = { monthData: "monthly tabl
 /** The pages, in the order the owner named them. The names are the hashes and the server's theme names. */
 const THEME_PAGES = [
   { name: "manufacturing", label: "Manufacturing" },
+  { name: "consumption", label: "Consumption" },
+  { name: "investment", label: "Investment" },
   { name: "property", label: "Property" },
   { name: "trade", label: "Trade & flows" },
   { name: "equities", label: "Equities" },

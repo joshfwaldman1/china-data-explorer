@@ -287,6 +287,120 @@ const LABOUR: Theme = {
   ],
 };
 
+/**
+ * Bureau catalog series the consumption and investment pages draw that have
+ * no curated key. Each is a national monthly table line; the ids are the
+ * bureau's own, held to the catalog by the theme test.
+ */
+const CATALOG_SERIES = {
+  cateringMonth: "nbs_476cfe584e9849c2a2bac63a2fe1dd49",
+  servicesRetailYtd: "nbs_b4689b643a27430b9673a192210138d0",
+  newProjectsPlannedYtd: "nbs_16e62d9a7bd6429dac1671dee1322e09",
+  equipmentPurchasesYtd: "nbs_59b2716c393f4861bfb30e244358005b",
+  constructionInstallationYtd: "nbs_e98c774721a04bccb6bb7b22fb5a57b1",
+  privateManufacturingYtd: "nbs_370980134e894827bd007f142eaf4740",
+} as const;
+
+/** The retail sales category lines, by commodity, month on a year earlier. */
+const RETAIL_GROWTH = {
+  appliances: "Home appliances, month (YoY %)",
+  phones: "Communication equipment, month (YoY %)",
+  autos: "Motor vehicles, month (YoY %)",
+  oil: "Oil products, month (YoY %)",
+  food: "Food and cooking oil, month (YoY %)",
+  clothing: "Clothing and textiles, month (YoY %)",
+  cosmetics: "Cosmetics, month (YoY %)",
+  furniture: "Furniture, month (YoY %)",
+  building: "Building and decorating materials, month (YoY %)",
+  jewellery: "Gold, silver and jewellery, month (YoY %)",
+} as const;
+
+/** Retail's February point is the combined January-February release; the note every monthly retail card needs. */
+const RETAIL_FEBRUARY_NOTE = "There is no January point. The February point is January and February combined.";
+
+const CONSUMPTION: Theme = {
+  title: "Consumption",
+  lede: "",
+  sections: [
+    {
+      title: "Spending",
+      charts: [
+        { title: "Retail sales of consumer goods, growth on a year earlier, month", key: "retail_sales", years: 10, note: `Nominal. Goods and catering, not most services. ${RETAIL_FEBRUARY_NOTE} The 2021 high is measured against the shutdown of early 2020.` },
+        { title: "Household consumption spending per person, real growth on a year earlier, year to date, all residents, urban and rural", key: "household_spending_growth", years: 8, note: "From the household survey, after deducting price changes. Unlike retail sales it includes services. Each quarter covers January to the quarter's end. Q4 is the full year." },
+        { title: "Services retail sales, year-to-date growth", key: CATALOG_SERIES.servicesRetailYtd, years: 4, note: "The bureau began publishing this in July 2023. The early readings are measured against the lockdown months of 2022." },
+        { title: "Catering revenue, growth on a year earlier, month", key: CATALOG_SERIES.cateringMonth, years: 8, note: `Restaurant and other food service sales, part of retail sales. ${RETAIL_FEBRUARY_NOTE} The swings of 2020 to 2023 are measured against lockdown months.` },
+        { title: "Index of services production, growth on a year earlier, month", key: "services_production", labels: ["Services production, month (YoY %)"], years: 8, note: "Output of the whole service sector, business services included, not only what households buy." },
+        { title: "Final consumption's share of GDP growth, quarter", key: "gdp_contributions", labels: ["Final consumption expenditure, quarter (% of growth)"], years: 8, note: "Share of the quarter's growth. Consumption, capital formation and net exports sum to 100." },
+      ],
+    },
+    {
+      title: "Retail sales by category",
+      charts: [
+        { title: "Retail sales of home appliances and communication equipment, growth on a year earlier, month", key: "retail_by_category_growth", labels: [RETAIL_GROWTH.appliances, RETAIL_GROWTH.phones], years: 5, note: `Appliances came under the consumer goods trade-in subsidy in 2024 and phones in January 2025. ${RETAIL_FEBRUARY_NOTE}` },
+        { title: "Retail sales of motor vehicles and oil products, growth on a year earlier, month", key: "retail_by_category_growth", labels: [RETAIL_GROWTH.autos, RETAIL_GROWTH.oil], years: 5, note: `Oil product sales move with fuel prices as much as with volumes. ${RETAIL_FEBRUARY_NOTE}` },
+        { title: "Retail sales of food, clothing and cosmetics, growth on a year earlier, month", key: "retail_by_category_growth", labels: [RETAIL_GROWTH.food, RETAIL_GROWTH.clothing, RETAIL_GROWTH.cosmetics], years: 5, note: RETAIL_FEBRUARY_NOTE },
+        { title: "Retail sales of furniture and building materials, growth on a year earlier, month", key: "retail_by_category_growth", labels: [RETAIL_GROWTH.furniture, RETAIL_GROWTH.building], years: 5, note: `Both follow home sales and move-ins. ${RETAIL_FEBRUARY_NOTE}` },
+        { title: "Retail sales of gold, silver and jewellery, growth on a year earlier, month", key: "retail_by_category_growth", labels: [RETAIL_GROWTH.jewellery], years: 5, note: `Sales values, so they move with the gold price. ${RETAIL_FEBRUARY_NOTE}` },
+      ],
+    },
+    {
+      title: "Income, saving and borrowing",
+      charts: [
+        { title: "Household disposable income per person, real growth on a year earlier, year to date, all residents, urban and rural", key: "household_income_growth", years: 8, note: "Growth after deducting price changes. Each quarter covers January to the quarter's end. Q4 is the full year." },
+        { title: "Household deposits and loans to households outstanding, month-end", key: "bank_credit", labels: ["Deposits of households", "Loans to households"], years: 10, note: "Yuan balances at all financial institutions, in 100 million yuan. Mortgages are the largest part of loans to households." },
+      ],
+    },
+    {
+      title: "Confidence and prices",
+      charts: [
+        { title: "Consumer confidence index, with expectations and satisfaction, month", key: "consumer_confidence", years: 10, note: "100 is neutral. Confidence fell from 113 to 87 in April 2022, during the Shanghai lockdown, and has stayed below 100 since." },
+        { title: "Core CPI and services CPI, growth on a year earlier, month", key: "cpi_detail", labels: ["Core CPI, excluding food and energy (YoY %)", "Services (YoY %)"], years: 6 },
+      ],
+    },
+  ],
+};
+
+const INVESTMENT: Theme = {
+  title: "Investment",
+  lede: "",
+  sections: [
+    {
+      title: "Total",
+      charts: [
+        { title: "Fixed-asset investment, total and private, year-to-date growth", key: "fai", labels: ["Fixed-asset investment, year to date (YoY %)", "Private investment, year to date (YoY %)"], years: 10, note: "Excludes rural households. Each year's first point covers January and February. The 2021 high is measured against the shutdown months of 2020." },
+        { title: "Fixed-asset investment by sector, primary, secondary and tertiary industry, year-to-date growth", key: "fai", labels: ["Primary industry, year to date (YoY %)", "Secondary industry, year to date (YoY %)", "Tertiary industry, year to date (YoY %)"], years: 10, note: "Each year's first point covers January and February." },
+        { title: "Gross capital formation's share of GDP growth, quarter", key: "gdp_contributions", labels: ["Gross capital formation, quarter (% of growth)"], years: 8, note: "Share of the quarter's growth. Consumption, capital formation and net exports sum to 100." },
+      ],
+    },
+    {
+      title: "Manufacturing, infrastructure and real estate",
+      charts: [
+        { title: "Fixed-asset investment in manufacturing and the real estate industry, year-to-date growth", key: "fai_by_industry", labels: ["Manufacturing, year to date (YoY %)", "Real estate industry, year to date (YoY %)"], years: 8, note: "The real estate industry line is the investment survey's industry total. Developers' investment, on the Property page, is a different series. Each year's first point covers January and February." },
+        { title: "Fixed-asset investment in railways, roads, and water, environment and public facilities, year-to-date growth", key: "fai_by_industry", labels: ["Railways, year to date (YoY %)", "Roads, year to date (YoY %)", "Water, environment and public facilities, year to date (YoY %)"], years: 8, note: "The bureau's infrastructure total is published only in its monthly release, not in its data tables, so the industries that make it up are shown here." },
+        { title: "Fixed-asset investment in utilities and mining, year-to-date growth", key: "fai_by_industry", labels: ["Utilities, year to date (YoY %)", "Mining, year to date (YoY %)"], years: 8, note: "Utilities is power, heat, gas and water supply, where grid and power plant spending falls." },
+        { title: "Private fixed-asset investment in manufacturing, year-to-date growth", key: CATALOG_SERIES.privateManufacturingYtd, years: 8, note: "Each year's first point covers January and February." },
+      ],
+    },
+    {
+      title: "Equipment, construction and new projects",
+      charts: [
+        { title: "Fixed-asset investment in equipment and tool purchases, year-to-date growth", key: CATALOG_SERIES.equipmentPurchasesYtd, years: 8, note: "The large-scale equipment renewal program announced in March 2024 targets this line." },
+        { title: "Fixed-asset investment in construction and installation work, year-to-date growth", key: CATALOG_SERIES.constructionInstallationYtd, years: 8 },
+        { title: "Planned total investment of projects started this year, year-to-date growth", key: CATALOG_SERIES.newProjectsPlannedYtd, years: 8, note: "What newly started projects are budgeted to spend over their life, so it leads spending." },
+      ],
+    },
+    {
+      title: "Funding",
+      charts: [
+        { title: "Fixed-asset investment funds in place, total and by source, year-to-date growth", key: "fai_funding", years: 10, note: "Sources are the state budget, domestic loans and self-raised funds, the largest of the three. Each year's first point covers January and February." },
+        { title: "Local government bonds issued, total and special, month", key: "lgb_issuance", labels: ["Bonds issued in the month, total", "Special bonds issued in the month"], years: 2, note: "Special bonds pay for projects, most of them infrastructure. History here starts December 2024." },
+        { title: "Total social financing, net government bond and corporate bond financing, month", key: "tsf_flow", labels: ["Government bonds", "Corporate bonds"], years: 8, note: "Net new financing in the month, in 100 million yuan." },
+        { title: "Loans to non-financial enterprises outstanding, month-end", key: "bank_credit", labels: ["Loans to non-financial enterprises"], years: 10, note: "Yuan balances at all financial institutions, in 100 million yuan." },
+      ],
+    },
+  ],
+};
+
 export const THEMES: Record<string, Theme> = {
   trade: {
     title: "Trade and capital flows",
@@ -359,6 +473,8 @@ export const THEMES: Record<string, Theme> = {
     ],
   },
   manufacturing: MANUFACTURING,
+  consumption: CONSUMPTION,
+  investment: INVESTMENT,
   property: PROPERTY,
   equities: EQUITIES,
   energy: ENERGY,
@@ -367,7 +483,7 @@ export const THEMES: Record<string, Theme> = {
 };
 
 /** The pages in the order the owner named them; Home and Provinces are not themes but sit in the same strip. */
-export const THEME_ORDER = ["manufacturing", "property", "trade", "equities", "energy", "demographics", "labour"] as const;
+export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "trade", "equities", "energy", "demographics", "labour"] as const;
 
 export interface ThemeChartData extends ThemeChart {
   result: SeriesResult | null;
