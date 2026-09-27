@@ -34,7 +34,8 @@ function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult 
   const kept = stored.series.filter((series) => labels.includes(series.label));
   return kept.length > 0 ? { ...stored, series: kept } : stored;
 }
-import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries, recentReleaseChecks } from "./db";
+import { PUBLISHER_WINDOWS, activeWindows, keysAwaitingRelease } from "./release-windows";
 import {
   getNbsCatalogSeries,
   getNbsCatalogEntry,
@@ -366,6 +367,11 @@ const routes = {
       return Response.json({ ranAt: new Date().toISOString(), findings: results.filter((result) => result.status === "mismatch").length, results });
     },
     "/api/schedule": () => Response.json({ ...scheduleStatus(), crawl: crawlState, worker: workerState(), upstream: upstreamStats() }),
+    // Every release-day check of the last two weeks, attempt by attempt, with what was still behind.
+    "/api/release-checks": (req: RouteRequest) => {
+      const days = Math.min(90, Math.max(1, Number(new URL(req.url).searchParams.get("days") ?? 14) || 14));
+      return Response.json({ days, checks: recentReleaseChecks(days) });
+    },
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
     // Every place one series is published for, at one period: the tile map and
@@ -745,6 +751,15 @@ if (ingestEveryHours > 0) {
       // arriving early used to end the retries for all the others.
       const done = behind.length === 0 && catalog.pending === 0 && (after.length > 0 || catalog.checked > 0);
       status.lastReleaseRefresh = { en: item.en || item.content, at: new Date().toISOString(), attempts: attempt, advanced: catalog.advanced + (after.length - behind.length) };
+      // One row per attempt naming what was still missing, so a release that
+      // lands days late can be read back as "NBS had not loaded it" or "we
+      // did not ask" (/api/release-checks).
+      const missing = behind.map((series) => (series.region ? `${series.key}@${series.region}` : series.key));
+      logFetch({
+        key: "release_attempt", region: item._id, startedAt, finishedAt: status.lastReleaseRefresh.at, status: "ok",
+        points: after.length - behind.length, changed: attempt,
+        message: `${item.en || item.content}: ${done ? "complete" : `behind ${missing.join(", ") || "none"}${catalog.pending > 0 ? `; ${catalog.pending} catalog series pending` : ""}`}`,
+      });
       logFetch({ key: "release_refresh", region: "", startedAt, finishedAt: status.lastReleaseRefresh.at, status: "ok", points: catalog.advanced, changed: attempt, message: item.en || item.content });
       const periods = targets.map((target: ReleaseTarget) => `${target.frequency.toLowerCase()} ${target.period}`).join(" and ");
       console.log(`  Release refresh (${item.en || item.content}, attempt ${attempt}): ${after.length - behind.length}/${after.length} headline and ${catalog.advanced}/${catalog.checked} catalog series hold ${periods}${done ? "" : `; ${behind.length + catalog.pending} still behind`}`);
@@ -820,15 +835,50 @@ if (ingestEveryHours > 0) {
   setInterval(audit, 24 * 60 * 60 * 1000);
 
   // Fixed sweeps of the headline series at the usual publication hours (UTC).
-  const sweepHours = [2, 3, 8];
+  // 10:10, 11:10 and 16:10 Beijing time, and 18:40 for the central bank's
+  // late-afternoon releases, which otherwise waited for the next morning.
+  const sweepTimes: [number, number][] = [[2, 10], [3, 10], [8, 10], [10, 40]];
   const scheduleSweep = () => {
     const now = new Date();
-    const candidates = sweepHours.map((hour) => Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + (hour <= now.getUTCHours() ? 1 : 0), hour, 10));
-    const next = Math.min(...candidates.filter((t) => t > now.getTime()), Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, sweepHours[0] ?? 2, 10));
+    const today = (hour: number, minute: number) => Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, minute);
+    const candidates = sweepTimes.flatMap(([hour, minute]) => [today(hour, minute), today(hour, minute) + 24 * 60 * 60 * 1000]);
+    const next = Math.min(...candidates.filter((t) => t > now.getTime()));
     setTimeout(() => { void runWhenFree(async () => { const tally = await runIngest(headlineKeys); console.log(`  Headline sweep: ${tally.ok} ok, ${tally.error} failed`); }, "Headline sweep").then(scheduleSweep); }, next - now.getTime());
   };
   scheduleSweep();
-  scheduleStatus = () => status;
+
+  // Publishers with no calendar (PBOC, MOF, SAFE, MOFCOM, NEA): inside each
+  // one's usual stretch of the month, an hourly check of the series still
+  // one month behind. See release-windows.ts.
+  const windowStatus = { lastCheck: null as null | { at: string; checked: string[]; arrived: string[] } };
+  const latestPeriods = (keys: string[]) => {
+    const latest = new Map<string, string>();
+    for (const row of storedLatest("")) if (keys.includes(row.key) && row.lastPeriod && row.lastPeriod > (latest.get(row.key) ?? "")) latest.set(row.key, row.lastPeriod);
+    return latest;
+  };
+  const checkPublisherWindows = async () => {
+    const series = catalogList().map((entry) => ({ key: entry.key, agency: entry.agency, frequency: entry.frequency, ...(entry.ended ? { ended: entry.ended } : {}) }));
+    const keys = keysAwaitingRelease(series, storedLatest("").map((row) => ({ key: row.key, lastPeriod: row.lastPeriod })), new Date());
+    if (keys.length === 0) return;
+    await runWhenFree(async () => {
+      const startedAt = new Date().toISOString();
+      const before = latestPeriods(keys);
+      await runIngest(keys);
+      const after = latestPeriods(keys);
+      const arrived = keys.filter((key) => (after.get(key) ?? "") > (before.get(key) ?? ""));
+      const finishedAt = new Date().toISOString();
+      windowStatus.lastCheck = { at: finishedAt, checked: keys, arrived };
+      logFetch({ key: "publisher_window", region: "", startedAt, finishedAt, status: "ok", points: arrived.length, changed: keys.length, message: `checked ${keys.join(", ")}; arrived ${arrived.join(", ") || "none"}` });
+      console.log(`  Publisher window: checked ${keys.length}, arrived ${arrived.length}${arrived.length > 0 ? ` (${arrived.join(", ")})` : ""}`);
+    }, "Publisher window");
+  };
+  setTimeout(() => { void checkPublisherWindows(); }, 4 * 60 * 1000);
+  setInterval(() => { void checkPublisherWindows(); }, 60 * 60 * 1000);
+
+  scheduleStatus = () => ({
+    ...status,
+    publisherWindows: { open: activeWindows(new Date()).map((window) => window.agency), windows: PUBLISHER_WINDOWS, lastCheck: windowStatus.lastCheck },
+  });
 
   // The catalog crawl fills in series nobody has opened: a budget of series
   // every few hours until the whole catalog is stored, then a no-op. It

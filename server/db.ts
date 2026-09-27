@@ -688,6 +688,22 @@ export function storedLatest(prefix: string): ({ key: string; region: string; fi
  * new period, changed = the attempt number). In memory it would reset on
  * every deploy, and there are many.
  */
+/**
+ * Release-day checks from the fetch log, newest first: each release refresh
+ * attempt with the series it found still behind, and each publisher-window
+ * check with what arrived. A release that took days to land can be read
+ * back attempt by attempt, to tell a publisher loading late from a check
+ * that never ran.
+ */
+export function recentReleaseChecks(days = 14, limit = 300): { kind: string; release: string; at: string; attempt: number; arrived: number; message: string }[] {
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+  return db().query<{ kind: string; release: string; at: string; attempt: number; arrived: number; message: string }, Record<string, string | number>>(`
+    SELECT key AS kind, region AS release, finished_at AS at, changed_count AS attempt, point_count AS arrived, message
+    FROM fetch_log WHERE key IN ('release_attempt', 'publisher_window') AND finished_at > $cutoff
+    ORDER BY id DESC LIMIT $limit
+  `).all({ $cutoff: cutoff, $limit: limit });
+}
+
 export function lastReleaseRefresh(): { en: string; at: string; attempts: number; advanced: number } | null {
   const row = db().query<{ message: string; finishedAt: string; attempts: number; advanced: number }, []>(
     "SELECT message, finished_at AS finishedAt, changed_count AS attempts, point_count AS advanced FROM fetch_log WHERE key = 'release_refresh' ORDER BY id DESC LIMIT 1",
