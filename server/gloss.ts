@@ -404,6 +404,11 @@ export function splitTitle(name: string): TitleParts {
 
 /** Longest-match segmentation over the token dictionary. */
 export function segmentGloss(base: string): string {
+  return segmentGlossDetailed(base).text;
+}
+
+/** The segmentation, and whether any of it had to be romanised because the dictionary could not render it. */
+function segmentGlossDetailed(base: string): { text: string; romanised: boolean } {
   const out: string[] = [];
   let index = 0;
   let pending = "";
@@ -425,7 +430,8 @@ export function segmentGloss(base: string): string {
   // What the dictionary cannot render is romanised rather than left in
   // Chinese, so an English title never carries characters a reader of
   // English cannot read; the Chinese title beside it stays authoritative.
-  return out.map((piece) => (/[\u4e00-\u9fff]/.test(piece) ? romanise(piece) : piece)).join(" ").replace(/\s+,/g, ",").replace(/\s+/g, " ").trim();
+  const romanised = out.some((piece) => /[\u4e00-\u9fff]/.test(piece));
+  return { text: out.map((piece) => (/[\u4e00-\u9fff]/.test(piece) ? romanise(piece) : piece)).join(" ").replace(/\s+,/g, ",").replace(/\s+/g, " ").trim(), romanised };
 }
 
 /** "日照" -> "Rizhao": pinyin without tones, capitalised, digits and Latin kept. */
@@ -435,17 +441,31 @@ function romanise(text: string): string {
 
 /** The English gloss for a title, or "" when nothing at all could be rendered. */
 export function glossTitle(name: string): string {
+  return glossTitleDetailed(name).text;
+}
+
+/**
+ * The gloss, and whether it is fit to be a title. A gloss that had to
+ * romanise part of the name ("Guojishichang energy price index" for
+ * 国际市场能源价格指数) is not English a reader can use: it still helps search,
+ * where pinyin is a way in, but as a title the Chinese name is better.
+ */
+export function glossTitleDetailed(name: string): { text: string; romanised: boolean } {
   const parts = splitTitle(name);
   const known = table ?? {};
-  const glossed = normalizeIndexPrefix(known[parts.base] ?? segmentGloss(parts.base));
+  const translated = known[parts.base];
+  const segmented = translated ? null : segmentGlossDetailed(parts.base);
+  const romanised = segmented?.romanised ?? false;
+  const glossed = normalizeIndexPrefix(translated ?? segmented?.text ?? "");
   // A few national-accounts glosses carry the base inside their text, "(same period last year=100)";
   // the base belongs last, in the site's own words, derived from the title when the unit field has none.
   const baseEn = glossed.replace(/\s*\([^()]*=\s*100\)\s*/, " ").replace(/\s+,/g, ",").trim();
-  if (!baseEn) return "";
+  if (!baseEn) return { text: "", romanised };
   const measureEn = MEASURES.find(([zh]) => zh === parts.measure)?.[1] ?? "";
-  const base = baseOf(parts.unit) || (/=\s*100/.test(glossed) ? baseOf(name) : "");
+  // The base comes from the unit, else from the name when the gloss or the Chinese base concept names one.
+  const base = baseOf(parts.unit) || (/=\s*100/.test(glossed) || /=\s*100/.test(parts.base) ? baseOf(name) : "");
   const head = [baseEn, measureEn, base].filter(Boolean).join(", ");
-  return head.charAt(0).toUpperCase() + head.slice(1);
+  return { text: head.charAt(0).toUpperCase() + head.slice(1), romanised };
 }
 
 /**
@@ -495,6 +515,9 @@ export function plainRanges(text: string): string {
 /** An index title's base period, "(上月=100)", is part of what the series is, so it stays in the English title. */
 function baseOf(unit: string): string {
   if (!/=\s*100/.test(unit)) return "";
+  // A fixed base year says which: "(2010=100)" reads "2010 = 100", not "base period = 100".
+  const year = unit.match(/(\d{4})\s*=\s*100/);
+  if (year) return `${year[1]} = 100`;
   if (/上年同月/.test(unit)) return "same month a year earlier = 100";
   if (/上年同期/.test(unit)) return "same period a year earlier = 100";
   if (/上月/.test(unit)) return "previous month = 100";

@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { splitTitle, glossTitle, segmentGloss, toPinyin, baseConcepts, normalizeIndexPrefix, warmGloss, plainRanges } from "./gloss.ts";
+import { splitTitle, glossTitle, glossTitleDetailed, segmentGloss, toPinyin, baseConcepts, normalizeIndexPrefix, warmGloss, plainRanges } from "./gloss.ts";
 
 test("titles split into base, measure and unit", () => {
   expect(splitTitle("粗钢产量累计增长 (%)")).toEqual({ base: "粗钢产量", measure: "累计增长", unit: "%" });
@@ -70,4 +70,15 @@ test("year ranges read in the site's words, without en dashes", () => {
   expect(plainRanges("By type of registration (2024–)")).toBe("By type of registration (2024-present)");
   expect(plainRanges("Crucian carp (0.2–0.5 kg) farmers' market price")).toBe("Crucian carp (0.2-0.5 kg) farmers' market price");
   expect(plainRanges("Main economic indicators (2012-2017)")).toBe("Main economic indicators (2012-2017)");
+});
+
+test("a gloss that had to romanise part of the name says so, and one from the table does not", async () => {
+  await warmGloss();
+  // 国际市场 is not in the token dictionary; composed, it came out "Guojishichang".
+  const composed = glossTitleDetailed("国际市场某某价格指数 (%)");
+  expect(composed.romanised).toBe(true);
+  expect(glossTitleDetailed("粗钢产量累计增长 (%)").romanised).toBe(false);
+  // The 23 titles that used to carry pinyin are translated in the table.
+  expect(glossTitleDetailed("国际市场能源价格指数 (2010=100) (%)")).toEqual({ text: "International commodity price index: energy, 2010 = 100", romanised: false });
+  expect(glossTitle("总和生育率")).toBe("Total fertility rate");
 });

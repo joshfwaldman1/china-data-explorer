@@ -8,7 +8,7 @@ import { catalogPath, readCatalogSnapshot } from "./catalog-file";
 import { collectedRegions, withEnglishNames } from "./regions";
 import { findGeographyInQuery, findPlaceInQuery } from "../shared/places.ts";
 import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, seriesFullHistoryCheck, storedLatest, writeSeries } from "./db";
-import { glossTitle, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
+import { glossTitle, glossTitleDetailed, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 import { upstreamFetch } from "./upstream";
 
@@ -294,7 +294,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 27; // 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 30; // 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -622,9 +622,11 @@ async function loadSnapshot(): Promise<CatalogSnapshot> {
       const entries = entriesRaw.map(parseEntry).filter((entry): entry is NbsCatalogEntry => entry !== null)
         .map((entry) => {
           const spaced = toPinyin(entry.shortName);
-          const gloss = glossTitle(entry.name);
-          const english = resolveEnglishLabel(entry.key, entry.name, gloss);
-          const labelled = { ...entry, ...english, ...(english.nameEnSource === "nbs-official" && gloss ? { glossEn: gloss } : {}), pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
+          const { text: gloss, romanised } = glossTitleDetailed(entry.name);
+          // A romanised gloss is not offered as the title: with no official
+          // English the page leads with the Chinese name instead. It is kept for search.
+          const english = resolveEnglishLabel(entry.key, entry.name, romanised ? "" : gloss);
+          const labelled = { ...entry, ...english, ...(english.nameEnSource !== "generated" && gloss ? { glossEn: gloss } : {}), pinyin: `${spaced} ${spaced.replaceAll(" ", "")}` };
           return withProseEnglish({ ...labelled, nameEn: tableQualifiedTitle(labelled) }, notesTable);
         });
       const stitched = qualifyDuplicateTitles(attachFamilies(entries));
