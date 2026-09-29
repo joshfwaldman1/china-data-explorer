@@ -5,7 +5,7 @@
  * The regions page ranks every province on one series at a time. A reader who
  * clicks Guangdong wants the other direction — everything about Guangdong —
  * and until now got a single figure and a link. This assembles it: growth
- * from the curated provincial keys, and size, structure, labour, households
+ * from the curated provincial keys, and size, structure, labor, households
  * and trade from the bureau's provincial tables in the catalog, all read from
  * the store by the province's own code. Nothing here fetches; the crawl and
  * the ingest keep every one of these current, so the page stays current with
@@ -76,7 +76,7 @@ export const PROVINCE_PROFILE: ProfileSection[] = [
     ],
   },
   {
-    title: "Labour and households",
+    title: "Labor and households",
     entries: [
       {
         key: NBS.registeredUnemployment, label: "Registered urban unemployment rate", ended: "2021",

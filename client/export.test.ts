@@ -150,7 +150,7 @@ describe("layoutShareImage", () => {
     expect(layout.footer.source.text).toBe("Source: People's Bank of China");
   });
   test("a long note wraps to a second line instead of ending in an ellipsis; notes take at most three lines", () => {
-    const long = "NBS suspended the 16-24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labour-market conditions.";
+    const long = "NBS suspended the 16-24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labor-market conditions.";
     const wrapped = layoutShareImage({ ...input, notes: [long] }, measure);
     expect(wrapped.notes.length).toBe(2);
     expect(wrapped.notes.map((note) => note.text).join(" ")).toBe(long);

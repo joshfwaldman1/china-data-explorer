@@ -1,5 +1,5 @@
 /**
- * The labour keys point at the NBS tables they claim: each id resolves in the
+ * The labor keys point at the NBS tables they claim: each id resolves in the
  * shipped snapshot to the named migrant-worker series in the quarterly
  * dataset's 人民生活 category, from the one table both share.
  */
@@ -9,7 +9,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-labour-")), "test.db");
+process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-labor-")), "test.db");
 process.env.CHINA_SEED = "off";
 const { CATALOG } = await import("./data.ts");
 const { readCatalogSnapshot } = await import("./catalog-file.ts");
@@ -40,7 +40,7 @@ const LINES: Record<string, { dataset: number; category: string; lines: Record<s
   population_age: { dataset: 3, category: "人口", lines: { "Aged 65 and over (10,000 persons)": "65岁及以上人口 (万人)", "Aged 15 to 64 (10,000 persons)": "15-64岁人口 (万人)", "Aged 0 to 14 (10,000 persons)": "0-14岁人口 (万人)" } },
 };
 
-test("the labour and population keys' lines resolve to the named NBS series, one table per key", () => {
+test("the labor and population keys' lines resolve to the named NBS series, one table per key", () => {
   for (const [key, expected] of Object.entries(LINES)) {
     const cfg: unknown = CATALOG[key];
     expect(cfg).toBeDefined();
@@ -58,7 +58,7 @@ test("the labour and population keys' lines resolve to the named NBS series, one
   }
 });
 
-test("each labour key resolves to the named quarterly series from the migrant-worker table", () => {
+test("each labor key resolves to the named quarterly series from the migrant-worker table", () => {
   for (const [key, expected] of Object.entries(EXPECTED)) {
     const cfg: unknown = CATALOG[key];
     expect(cfg).toBeDefined();

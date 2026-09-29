@@ -389,6 +389,20 @@ function writePref(key: string, value: string): void { try { localStorage.setIte
 
 // ── Routing ───────────────────────────────────────────────────────────────────
 
+/**
+ * Pages whose address changed. An old link is rewritten in the address bar,
+ * not merely served, so what a reader copies next is the current address.
+ */
+const RENAMED_PAGES: Record<string, string> = { labour: "labor" };
+
+/** The hash with a renamed page's old name replaced, and the address bar updated to match. */
+function currentHash(): string {
+  const hash = window.location.hash;
+  const renamed = hash.replace(/^#\/([^/?]+)/, (whole, head: string) => (RENAMED_PAGES[head] ? `#/${RENAMED_PAGES[head]}` : whole));
+  if (renamed !== hash) window.history.replaceState(null, "", renamed);
+  return renamed;
+}
+
 function parseRoute(hash: string): Route {
   const [path = "", queryText = ""] = hash.replace(/^#/, "").split("?");
   const query = new URLSearchParams(queryText);
@@ -651,7 +665,7 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
 // ── Home ──────────────────────────────────────────────────────────────────────
 
 const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
-// Briefing order: activity, then prices and labour, property, money and rates, the yuan, the external accounts, the budget, sentiment, the provinces.
+// Briefing order: activity, then prices and labor, property, money and rates, the yuan, the external accounts, the budget, sentiment, the provinces.
 const GROUP_ORDER = ["Growth & Output", "Consumption", "Prices", "Labor", "Property", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Public Finance", "Sentiment", "Markets", "Demographics", "Regional"];
 const homeRank = (entry: CuratedEntry) => entry.homeRank ?? Number.MAX_SAFE_INTEGER;
 /**
@@ -1062,7 +1076,7 @@ const THEME_PAGES = [
   { name: "equities", label: "Equities" },
   { name: "energy", label: "Energy" },
   { name: "demographics", label: "Demographics" },
-  { name: "labour", label: "Labor" },
+  { name: "labor", label: "Labor" },
 ] as const;
 
 /** One row under the top bar naming every page: the headline, the provinces, and each theme. */
@@ -1157,7 +1171,7 @@ interface ProvinceProfile {
  * One province across everything the site holds for it. The regions page
  * ranks every province on one series; this is the other direction. Growth
  * from the curated provincial keys, then size, the makeup of the economy,
- * labour and households, and trade from the bureau's own provincial tables —
+ * labor and households, and trade from the bureau's own provincial tables —
  * all read from the store by the province's code, so it stays current with
  * the crawl and needs no adapter of its own.
  */
@@ -2362,7 +2376,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
 // ── App ───────────────────────────────────────────────────────────────────────
 
 function App() {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  const [route, setRoute] = useState<Route>(() => parseRoute(currentHash()));
   const [stats, setStats] = useState<CatalogStats | null>(null);
   const [curated, setCurated] = useState<CuratedEntry[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
@@ -2393,7 +2407,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const update = () => setRoute(parseRoute(window.location.hash));
+    const update = () => setRoute(parseRoute(currentHash()));
     window.addEventListener("hashchange", update);
     window.addEventListener("popstate", update);
     return () => { window.removeEventListener("hashchange", update); window.removeEventListener("popstate", update); };

@@ -965,7 +965,7 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "nbs", group: "Labor",
     title: "Rural Migrant Workers Away from Home", agency: "National Bureau of Statistics",
     frequency: "Quarterly", unit: "Ten thousand persons (万人)",
-    // NBS's quarterly reading of 外出务工农村劳动力: rural labour working away
+    // NBS's quarterly reading of 外出务工农村劳动力: rural labor working away
     // from home at the quarter's end, from the migrant-worker monitoring
     // survey. No fourth-quarter reading: the annual survey covers the year.
     // No pair: the quarterly survey is the only source; the annual 农民工
@@ -987,7 +987,7 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "nbs", group: "Labor",
     title: "Average Weekly Hours Worked", agency: "National Bureau of Statistics",
     frequency: "Monthly", unit: "Hours per week",
-    // 企业就业人员周平均工作时间 from the monthly labour force survey, the
+    // 企业就业人员周平均工作时间 from the monthly labor force survey, the
     // one intensity measure NBS publishes monthly. No pair: the survey's
     // only reading.
     cid: "ee3b7046b390415b9b7745e3d16f6052",
@@ -2325,7 +2325,7 @@ export interface CatalogEntry {
 
 /**
  * The Home page, row by row. Groups run in briefing order (activity, then
- * prices and labour, then property, money, rates, the yuan, the external
+ * prices and labor, then property, money, rates, the yuan, the external
  * accounts, the budget, sentiment, the provinces); within a group the
  * headline comes first. A row is named for what its first line is, not for
  * the table it comes from: "M2 Growth", not "Money Supply (M1 / M2 Growth)".
@@ -2335,7 +2335,7 @@ export interface CatalogEntry {
  */
 export const HOME_ROWS: { group: string; rows: { key: string; title?: string; line?: string }[] }[] = [
   // A row may lift one line of a table into a group other than the table's own
-  // (the PMI employment indexes belong beside the labour series, though the PMI
+  // (the PMI employment indexes belong beside the labor series, though the PMI
   // tables sit under Sentiment). Such a row must name the line it lifts.
   { group: "Growth & Output", rows: [
     { key: "industrial_production", title: "Industrial Production Growth" },
@@ -2360,9 +2360,9 @@ export const HOME_ROWS: { group: string; rows: { key: string; title?: string; li
     { key: "ppi", title: "Producer Price Index" },
     { key: "cpi_detail", title: "Core CPI, Excluding Food and Energy" },
   ] },
-  // Labour: the survey's headline is a hero tile; its youth and big-city lines are rows of their own.
+  // Labor: the survey's headline is a hero tile; its youth and big-city lines are rows of their own.
   // China publishes no participation rate; the annual employed-persons count stands in for the
-  // labour force's size.
+  // labor force's size.
   { group: "Labor", rows: [
     { key: "unemployment", line: "Youth 16-24, ex-students (%)", title: "Youth Unemployment, 16-24 Excluding Students" },
     { key: "pmi_manufacturing", line: "Employment", title: "Manufacturing PMI, Employment" },

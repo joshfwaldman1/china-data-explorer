@@ -82,7 +82,7 @@ const TOKENS: [string, string][] = [
   ["采掘", "mining"], ["原材料", "raw materials"], ["加工", "processing"], ["黑色金属", "ferrous metals"], ["有色金属", "non-ferrous metals"], ["化学原料", "chemical raw materials"], ["石油", "petroleum"], ["煤炭", "coal"],
   ["民间", "private"], ["基础设施", "infrastructure"], ["高技术产业", "high-tech industries"], ["东部地区", "eastern region"], ["中部地区", "central region"], ["西部地区", "western region"], ["东北地区", "northeastern region"],
   ["全国", "national"], ["31个大城市", "31 major cities"], ["16—24岁", "aged 16-24"], ["16-24岁", "aged 16-24"], ["25—29岁", "aged 25-29"], ["30—59岁", "aged 30-59"], ["本地户籍", "local hukou"], ["外来户籍", "migrant hukou"],
-  ["劳动力", "labour force"], ["就业人员", "employed persons"], ["人口", "population"], ["出生率", "birth rate"], ["死亡率", "death rate"], ["城镇化率", "urbanisation rate"],
+  ["劳动力", "labor force"], ["就业人员", "employed persons"], ["人口", "population"], ["出生率", "birth rate"], ["死亡率", "death rate"], ["城镇化率", "urbanisation rate"],
   ["主营业务收入", "main business revenue"], ["资产", "assets"], ["负债", "liabilities"], ["应收账款", "accounts receivable"], ["产成品", "finished goods"],
   ["总额", "total"], ["总量", "total"], ["总值", "gross value"], ["数", "number"], ["量", "volume"], ["额", "value"], ["率", "rate"], ["指数", "index"], ["不变价", "constant prices"], ["现价", "current prices"],
   ["月度", "monthly"], ["季度", "quarterly"], ["年度", "annual"], ["分类", "by category"], ["分行业", "by industry"], ["主要", "major"], ["产品", "products"], ["商品", "goods"], ["新增", "new"], ["余额", "balance"],

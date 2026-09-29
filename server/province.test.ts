@@ -44,13 +44,13 @@ test("the ids name the series their labels claim", () => {
     "工业增加值 (亿元)", "建筑业增加值 (亿元)", "批发和零售业增加值 (亿元)", "交通运输、仓储和邮政业增加值 (亿元)",
     "金融业增加值 (亿元)", "房地产业增加值 (亿元)", "住宿和餐饮业增加值 (亿元)",
   ]);
-  const labour = PROVINCE_PROFILE.find((section) => section.title.startsWith("Labour"))!;
-  expect(nameOf(labour.entries[0]!.key)).toBe("城镇登记失业率 (%)");
+  const labor = PROVINCE_PROFILE.find((section) => section.title.startsWith("Labor"))!;
+  expect(nameOf(labor.entries[0]!.key)).toBe("城镇登记失业率 (%)");
 });
 
 test("the unemployment rate says it is the registered rate and that the bureau stopped it", () => {
-  const labour = PROVINCE_PROFILE.find((section) => section.title.startsWith("Labour"))!;
-  const rate = labour.entries[0]!;
+  const labor = PROVINCE_PROFILE.find((section) => section.title.startsWith("Labor"))!;
+  const rate = labor.entries[0]!;
   expect(rate.label).toContain("Registered");
   expect(rate.ended).toBe("2021");
   // The surveyed rate the site shows nationally is not published by province; the note must say so.
@@ -100,7 +100,7 @@ test("a profile names its province in both languages and refuses a code that is 
   const profile = await provinceProfile("440000000000");
   expect(profile?.region.text).toBe("广东省");
   expect(profile?.region.en).toBe("Guangdong");
-  expect(profile?.sections.map((section) => section.title)).toEqual(["Growth", "Size", "Labour and households", "Exports"]);
+  expect(profile?.sections.map((section) => section.title)).toEqual(["Growth", "Size", "Labor and households", "Exports"]);
   expect(await provinceProfile("000000000000")).toBeNull();
   expect(await provinceProfile("not-a-code")).toBeNull();
 });

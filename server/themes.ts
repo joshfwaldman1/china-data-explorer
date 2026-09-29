@@ -252,7 +252,7 @@ const DEMOGRAPHICS: Theme = {
   ],
 };
 
-const LABOUR: Theme = {
+const LABOR: Theme = {
   title: "Labor market",
   lede: "",
   sections: [
@@ -479,11 +479,11 @@ export const THEMES: Record<string, Theme> = {
   equities: EQUITIES,
   energy: ENERGY,
   demographics: DEMOGRAPHICS,
-  labour: LABOUR,
+  labor: LABOR,
 };
 
 /** The pages in the order the owner named them; Home and Provinces are not themes but sit in the same strip. */
-export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "trade", "equities", "energy", "demographics", "labour"] as const;
+export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "trade", "equities", "energy", "demographics", "labor"] as const;
 
 export interface ThemeChartData extends ThemeChart {
   result: SeriesResult | null;

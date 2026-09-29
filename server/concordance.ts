@@ -641,7 +641,7 @@ export const NO_PAIR: Record<string, string> = {
   retail_by_category_growth: "The category detail of retail sales; the headline total is paired through retail_sales, and a pair per category would only repeat the check.",
   gdp_by_industry: "The industry detail of the same table the paired GDP lines come from; a pair per industry would only repeat the check.",
   port_throughput: "The tonnage; the pair is on port_throughput_growth, the rates NBS prints beside it.",
-  working_hours: "The labour force survey's only reading of hours; nothing else on the site measures them.",
+  working_hours: "The labor force survey's only reading of hours; nothing else on the site measures them.",
   employment: "NBS's annual employment count is the only source; the census years are the same series.",
   population_nbs: "NBS's year-end count; the World Bank population on the site is a UN estimate on another basis.",
   population_rates: "NBS's annual vital rates; the World Bank fertility rate on the site is a different measure.",
