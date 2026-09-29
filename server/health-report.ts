@@ -32,7 +32,7 @@
 
 import { CATALOG, catalogList } from "./data";
 import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
-import { dbHealth, fetchFailures, fetchLogOldest, lastSuccessByKey, latestPeriods } from "./db";
+import { dbHealth, fetchFailures, fetchLogOldest, lastSuccessByKey, latestPeriods, singlePointLines } from "./db";
 import { comparablePeriod, expectedPeriod } from "./due";
 
 /** A pair of readings that disagree, with enough to act on it. */
@@ -85,11 +85,26 @@ export interface CrawlFailures {
   reasons: { reason: string; series: number }[];
 }
 
+/**
+ * A curated line holding a single period. Usually one the parser invented (a
+ * number read as a unit label names a line of its own); occasionally a line
+ * the publisher has only just begun. Either way a person should look.
+ */
+export interface SinglePointSeries {
+  key: string;
+  title: string;
+  region: string;
+  label: string;
+  period: string | null;
+}
+
 export interface HealthReport {
   ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
   sources: { failing: FailingSource[]; recovered: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
+  /** Curated lines with one point, from the per-line count the write path keeps. */
+  singlePoint: SinglePointSeries[];
   store: { observations: number; keys: number; lastFetch: string | null };
 }
 
@@ -221,6 +236,11 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
     else if (entry.refreshBlocked) blocked.push({ ...row, blocked: entry.refreshBlocked });
     else publisher.push(row);
   }
+  // Curated keys only, for the same reason as the newest periods above; and
+  // read from series.periods, so this never counts observations.
+  const singlePoint: SinglePointSeries[] = singlePointLines(entries.map((entry) => entry.key))
+    .map((line) => ({ ...line, title: CATALOG[line.key]?.title ?? line.key }));
+
   const byAge = (left: BehindSeries, right: BehindSeries) => (left.lastPeriod ?? "").localeCompare(right.lastPeriod ?? "");
 
   return {
@@ -243,6 +263,7 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
       consideredSince: [since, fetchLogOldest() ?? since].sort().at(-1) ?? since,
     },
     behind: { publisher: publisher.sort(byAge), blocked: blocked.sort(byAge), ended: ended.sort(byAge) },
+    singlePoint,
     store: { observations: health.observations, keys: latestByKey.size, lastFetch: health.lastFetch },
   };
 }

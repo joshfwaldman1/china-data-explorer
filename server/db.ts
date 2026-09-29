@@ -392,6 +392,13 @@ export function db(): Database {
   if (!seriesColumns.some((column) => column.name === "position")) {
     database.exec("ALTER TABLE series ADD COLUMN position INTEGER NOT NULL DEFAULT 0");
   }
+  // How many periods each line holds, kept by the write path so the health
+  // report can find a line with a single point without counting observations.
+  // NULL means "not yet counted": a store that predates the column is counted
+  // lazily, key by key, by singlePointLines, never in one pass at boot.
+  if (!seriesColumns.some((column) => column.name === "periods")) {
+    database.exec("ALTER TABLE series ADD COLUMN periods INTEGER");
+  }
 
   handle = database;
   return handle;
@@ -465,11 +472,20 @@ export function writeSeries(
     VALUES ($key, $region, $label, $period, $value, $fetchedAt)
   `);
 
+  // The line's own period count, refreshed only when something in it was
+  // written: one prefix read of the primary key, the same as series_range's.
+  const countLinePeriods = database.prepare(`
+    UPDATE series SET periods = (
+      SELECT COUNT(DISTINCT period) FROM observations WHERE key = $key AND region = $region AND label = $label
+    ) WHERE key = $key AND region = $region AND label = $label
+  `);
+
   let points = 0;
   let changed = 0;
 
   const write = database.transaction((series: Series[]) => {
     for (const [position, one] of series.entries()) {
+      const changedBeforeThisLine = changed;
       upsertSeries.run({
         $key: result.key, $region: region, $label: one.label,
         $title: result.title, $agency: result.agency,
@@ -493,6 +509,7 @@ export function writeSeries(
         });
         changed += 1;
       }
+      if (changed > changedBeforeThisLine) countLinePeriods.run({ $key: result.key, $region: region, $label: one.label });
     }
     // Same transaction as the rows themselves, so neither the count nor the
     // range summary can drift from what was actually written.
@@ -826,6 +843,45 @@ export function fetchFailures(sinceIso: string): { key: string; failures: number
  * tables across every stored series — 78,000 of them, nearly all from the
  * catalog crawl — to answer a question about the 149 that are curated.
  */
+/** A stored line that holds exactly one period, and which period that is. */
+export interface SinglePointLine { key: string; region: string; label: string; period: string | null }
+
+/**
+ * Lines of the named keys that hold a single period.
+ *
+ * A line with one point is almost always a line the parser invented: April
+ * 2025's Customs exports table dropped its unit column, the parser read the
+ * quantity as the unit, and "Quantity (62.0)" sat beside the real quantity
+ * line for months with one point, flagged by nothing. Read from the per-line
+ * count the write path keeps in `series.periods`, never by counting
+ * observations. A line whose count predates the column is counted here, once,
+ * for these keys only (the curated ones, not the crawl's sixty thousand).
+ */
+export function singlePointLines(keys: string[]): SinglePointLine[] {
+  if (keys.length === 0) return [];
+  const database = db();
+  const countUncounted = database.prepare(`
+    UPDATE series SET periods = (
+      SELECT COUNT(DISTINCT o.period) FROM observations o
+      WHERE o.key = series.key AND o.region = series.region AND o.label = series.label
+    ) WHERE key = $key AND periods IS NULL
+  `);
+  const single = database.query<{ key: string; region: string; label: string }, { $key: string }>(
+    "SELECT key, region, label FROM series WHERE key = $key AND periods = 1 ORDER BY region, position, label",
+  );
+  const onlyPeriod = database.query<{ period: string | null }, { $key: string; $region: string; $label: string }>(
+    "SELECT MIN(period) AS period FROM observations WHERE key = $key AND region = $region AND label = $label",
+  );
+  const out: SinglePointLine[] = [];
+  for (const key of keys) {
+    countUncounted.run({ $key: key });
+    for (const line of single.all({ $key: key })) {
+      out.push({ ...line, period: onlyPeriod.get({ $key: key, $region: line.region, $label: line.label })?.period ?? null });
+    }
+  }
+  return out;
+}
+
 export function latestPeriods(keys: string[]): Map<string, string | null> {
   const out = new Map<string, string | null>();
   if (keys.length === 0) return out;

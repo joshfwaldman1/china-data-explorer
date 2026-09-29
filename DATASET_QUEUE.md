@@ -8,22 +8,6 @@ what the site does not carry).
 
 ## Queue
 
-1. **A Customs quantity read as a unit label, once.** The commodity series
-    for motor vehicles, mobile phones and ships each carry a stray line —
-    "Quantity (62.0)", "Quantity (5,612.6)", "Quantity (807.0)" — holding a
-    single point at April 2025 whose value is that month's *value* figure,
-    beside the real quantity line ("Quantity (10,000 Autos)"). For that one
-    month the table's unit column carried a number, and `parseCommodities`
-    took it as the unit and shifted the columns by one, so the value landed
-    under quantity and a phantom line was born. Found on 24 September while
-    building the mock-up's export unit values; nothing on the site flags a
-    line with one point. Capture the April 2025 table as a fixture, refuse a
-    numeric unit cell rather than believing it, and drop the phantom lines
-    from the store — they are wrong, not merely stale. Then consider a check
-    in the health report for any series line with a single point.
-    *Test:* the April 2025 fixture parses to the same lines as March and May,
-    and the store holds no "Quantity (<number>)" label.
-
 2. **What the copy audit left** (26 September 2026). Axis scales in
     natural units: a "300K" axis over 100M yuan should read "30 trillion
     yuan", "1.4M" over million USD "1.4 trillion", "145K" over 10,000
@@ -177,6 +161,19 @@ what the site does not carry).
   request from inside China or a paid feed.]
 
 ## Done
+
+- 2026-09-29 — A Customs quantity read as a unit label, once. The parser
+  and the store were already fixed on 25 September (`5354b2e`): April
+  2025's exports table has no quantity-unit column, `parseCommodities`
+  now reads such a table without it and never takes a number as a unit
+  (fixture `major-exports-2025-04-usd.html`, test in `customs.test.ts`),
+  and `removeMisparsedQuantityLines` drops the "Quantity (<number>)" lines
+  at boot (`retraction.test.ts`). Live on 29 September: motor vehicles,
+  mobile phones and ships, USD and CNY, carry no such line. What was
+  missing was the check. `series.periods` now holds each line's period
+  count, kept by the write path, and the Data Health page lists any curated
+  line with a single point, without counting observations
+  (`health-report.test.ts`).
 
 - 2026-09-24 — The by-country table's January–February layout (2022–2025):
   no month column, so February's exports were the two months' imports and

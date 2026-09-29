@@ -1259,11 +1259,14 @@ interface Finding { name: string; kind: string; note?: string; latest?: { period
 interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string; recoveredAt?: string }
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
 interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
+interface SinglePointSeries { key: string; title: string; region: string; label: string; period: string | null }
 interface Health {
   headline: string; ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
   sources: { failing: FailingSource[]; recovered?: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
+  // Optional so a page served before the server knew the check still renders.
+  singlePoint?: SinglePointSeries[];
   store: { observations: number; keys: number; lastFetch: string | null };
 }
 
@@ -1389,6 +1392,18 @@ function HealthPage() {
                 ))}</ul>
               </>
             )}
+          </section>
+
+          <section>
+            <h2>Lines with a single point</h2>
+            <p>A line of a headline series that holds one period. It is usually a line the parser made up, such as a number read as a unit and given a line of its own. Now and then it is a line the publisher has only just started.</p>
+            {(data.singlePoint ?? []).length === 0
+              ? <p className="quiet">Every line holds more than one period.</p>
+              : <ul className="health-list">{(data.singlePoint ?? []).map((line) => (
+                  <li key={`${line.key}|${line.region}|${line.label}`}>
+                    <b><a href={seriesHash([line.key], { region: line.region })}>{line.title}</a></b> <span className="quiet">{line.region ? `${line.region}: ` : ""}{line.label}. Only period: {line.period ? periodPretty(line.period) : "none"}.</span>
+                  </li>
+                ))}</ul>}
           </section>
 
           <section>

@@ -19,7 +19,7 @@ import { join } from "node:path";
 
 process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-health-")), "test.db");
 process.env.CHINA_SEED = "off";
-const { logFetch } = await import("./db.ts");
+const { logFetch, writeSeries, db } = await import("./db.ts");
 const { healthReport, healthHeadline } = await import("./health-report.ts");
 const { compareValues } = await import("./concordance.ts");
 
@@ -119,6 +119,27 @@ test("the three kinds of behind stay apart, because only one of them is ours", (
   expect(all.some((row) => row.key === "fx_usdcny")).toBe(false);
   // Every row says what it was measured against.
   for (const row of all) expect(row.expected.length).toBeGreaterThan(3);
+});
+
+test("a curated line holding a single point is listed; a line that grows past one leaves the list", () => {
+  // The shape of the April 2025 Customs misread, one point beside the real line. Not named "Quantity (<number>)",
+  // because the store is shared and the cleanup test counts those.
+  const region = "health-single-point-vehicles";
+  const write = (points: { label: string; dates: string[] }[], at: string) => writeSeries({
+    key: "major_exports", title: "Major exports", agency: "General Administration of Customs", unit: "Million USD", frequency: "Monthly", sourceUrl: "",
+    series: points.map((line) => ({ label: line.label, points: line.dates.map((date) => ({ date, value: 1 })) })),
+  } as never, region, at);
+  write([{ label: "Value", dates: ["2025-03", "2025-04", "2025-05"] }, { label: "A stray line", dates: ["2025-04"] }], "2026-09-01T00:00:00.000Z");
+  const flagged = healthReport([agreeing]).singlePoint.filter((line) => line.region === region);
+  expect(flagged).toEqual([{ key: "major_exports", title: "Major Exports by Commodity", region, label: "A stray line", period: "2025-04" }]);
+  // A second period written later takes it off the list: the count follows the write path.
+  write([{ label: "A stray line", dates: ["2025-05"] }], "2026-09-02T00:00:00.000Z");
+  expect(healthReport([agreeing]).singlePoint.some((line) => line.region === region)).toBe(false);
+  // A store that predates the count is counted on first ask, not left unknown.
+  db().query("UPDATE series SET periods = NULL WHERE key = 'major_exports' AND region = $region").run({ $region: region });
+  write([{ label: "Another stray line", dates: ["2025-06"] }], "2026-09-03T00:00:00.000Z");
+  db().query("UPDATE series SET periods = NULL WHERE key = 'major_exports' AND region = $region").run({ $region: region });
+  expect(healthReport([agreeing]).singlePoint.filter((line) => line.region === region).map((line) => line.label)).toEqual(["Another stray line"]);
 });
 
 test("the store line reports what is actually stored", () => {
