@@ -6,7 +6,7 @@
  * holds July but not yet August, as production did that day.
  */
 
-import { test, expect, afterAll } from "bun:test";
+import { test, expect, afterAll, beforeEach } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,17 +14,23 @@ import { join, resolve } from "node:path";
 process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-press-releases-")), "test.db");
 process.env.CHINA_SEED = "off";
 const {
-  NBS_RELEASE_LISTING_URL, REFUSED_PAGE_RETRY_MS, checkPressReleases, compareWithStore, describeComparison, parseReleaseListing,
-  parseReleasePage, pressReleaseHealth, recentPressReleases, releaseKindOfTitle, roundAsPrinted,
+  NBS_RELEASE_LISTING_URL, REFUSAL_CURRENT_DAYS, REFUSED_PAGE_RETRY_MS, UNLISTED_REFUSAL_RETRY_MS, checkPressReleases, compareWithStore,
+  describeComparison, forgetUnlistedRetries, parseReleaseListing, parseReleasePage, pressReleaseHealth, recentPressReleases,
+  refusedPressReleases, releaseKindOfTitle, roundAsPrinted,
 } = await import("./nbs-releases.ts");
 const { db } = await import("./db.ts");
 
-// bun test runs every file in one process against one scratch store, so the
-// reads and refusals written here are removed afterwards; otherwise the health
-// report's tests would find a refused press release in their store.
-afterAll(() => {
+// bun test runs every file in one process against one scratch store. Each test
+// starts from no reads, no refusals and no press_release log rows, and does its
+// own reads, so the tests pass in any order; and the rows are removed at the end
+// so the health report's tests do not find a refused press release in theirs.
+const clearPressReleaseRows = () => {
+  refusedPressReleases(); // creates the reader's tables if this is the first touch
   db().exec("DELETE FROM press_release_reads; DELETE FROM press_release_refusals; DELETE FROM fetch_log WHERE key = 'press_release'");
-});
+  forgetUnlistedRetries();
+};
+beforeEach(clearPressReleaseRows);
+afterAll(clearPressReleaseRows);
 
 const fixture = (name: string) => Bun.file(resolve(import.meta.dir, `fixtures/nbs-releases/${name}`)).text();
 const PROFITS_URL = "https://www.stats.gov.cn/sj/zxfb/202609/t20260928_1965425.html";
@@ -293,7 +299,7 @@ test("a check reads the listing and each new release page once, one request at a
     return page;
   };
   const first = await checkPressReleases(read, production);
-  expect(first).toEqual({ listed: 15, relevant: 2, read: 2, failed: 0, waiting: 0 });
+  expect(first).toEqual({ listed: 15, relevant: 2, read: 2, failed: 0, waiting: 0, retriedUnlisted: 0 });
   expect(requested).toEqual([NBS_RELEASE_LISTING_URL, PROFITS_URL, BUNDLE_URL]);
   expect(mostInFlight).toBe(1);
 
@@ -323,16 +329,21 @@ test("a check reads the listing and each new release page once, one request at a
   expect(headlineNow).toMatchObject({ status: "agree", parsed: 15.7, stored: 15.7 });
 });
 
+/** The page NBS might publish in a layout the parser does not know. */
+const UNKNOWN_SHAPE = `<meta name="ArticleTitle" content="9月份国民经济运行总体平稳"><meta name="PubDate" content="2026/10/15 10:00"><div class="trs_editor_view"><p>新的版式</p></div>`;
+const REFUSED_URL = "https://www.stats.gov.cn/sj/zxfb/202610/t20261015_1.html";
+const REFUSED_ITEM = `<li><a href="./202610/t20261015_1.html" title='9月份国民经济运行总体平稳'>x</a><span>2026-10-15</span></li>`;
+
 test("a refused page is logged as an error, recorded, and fetched again at most once a day", async () => {
-  const listing = `<ul><li><a href="./202610/t20261015_1.html" title='9月份国民经济运行总体平稳'>x</a><span>2026-10-15</span></li></ul>`;
+  const listing = `<ul>${REFUSED_ITEM}</ul>`;
   const requested: string[] = [];
   const read = async (url: string) => {
     requested.push(url);
-    return url === NBS_RELEASE_LISTING_URL ? listing : `<meta name="ArticleTitle" content="9月份国民经济运行总体平稳"><meta name="PubDate" content="2026/10/15 10:00"><div class="trs_editor_view"><p>新的版式</p></div>`;
+    return url === NBS_RELEASE_LISTING_URL ? listing : UNKNOWN_SHAPE;
   };
   const refusedAt = Date.UTC(2026, 9, 15, 2, 20);
   const tally = await checkPressReleases(read, production, () => refusedAt);
-  expect(tally).toEqual({ listed: 1, relevant: 1, read: 0, failed: 1, waiting: 0 });
+  expect(tally).toEqual({ listed: 1, relevant: 1, read: 0, failed: 1, waiting: 0, retriedUnlisted: 0 });
   // An hour later the page is not fetched again: only the listing is.
   const soon = await checkPressReleases(read, production, () => refusedAt + 60 * 60 * 1000);
   expect(soon).toMatchObject({ read: 0, failed: 0, waiting: 1 });
@@ -344,13 +355,66 @@ test("a refused page is logged as an error, recorded, and fetched again at most 
   expect(errors.length).toBe(2);
   expect(errors[0]?.message).toContain("not in a shape this parser knows");
   expect(errors[1]?.message).toContain("attempt 2");
+});
 
-  // The health report carries it, beside the latest read and the disagreements.
-  const health = pressReleaseHealth(production);
-  expect(health.refused.map((page) => [page.title, page.attempts])).toEqual([["9月份国民经济运行总体平稳", 2]]);
+test("the health summary names the latest read, figures disagreeing with the database, and pages refused", async () => {
+  const pages: Record<string, string> = {
+    [NBS_RELEASE_LISTING_URL]: (await fixture("listing-2026-09-29.html")).replace("<li>", `${REFUSED_ITEM}<li>`),
+    [PROFITS_URL]: await fixture("profits-2026-08.html"),
+    [BUNDLE_URL]: await fixture("national-economy-2026-08.html"),
+    [REFUSED_URL]: UNKNOWN_SHAPE,
+  };
+  const at = Date.UTC(2026, 8, 29, 6);
+  const tally = await checkPressReleases(async (url) => pages[url] ?? "", production, () => at);
+  expect(tally).toMatchObject({ listed: 16, relevant: 3, read: 2, failed: 1 });
+  const health = pressReleaseHealth(production, at);
+  expect(health.refused.map((page) => [page.title, page.attempts])).toEqual([["9月份国民经济运行总体平稳", 1]]);
+  expect(health.noLongerListed).toBe(0);
   expect(health.latest?.url).toBe(PROFITS_URL);
+  expect(health.latest?.publishedAt).toBe("2026-09-28 09:30");
   expect(health.disagreements).toEqual([]);
+  // Six August profits lines, and the bundle's manufacturing and real estate investment, which that store lacked.
   expect(health.awaitingDatabase).toBe(8);
-  const disagreeing = pressReleaseHealth((key, label, period) => (key === "fai" && label === "Private investment, year to date (YoY %)" && period === "2026-08" ? -10.2 : production(key, label, period)));
+  const disagreeing = pressReleaseHealth((key, label, period) => (key === "fai" && label === "Private investment, year to date (YoY %)" && period === "2026-08" ? -10.2 : production(key, label, period)), at);
   expect(disagreeing.disagreements).toEqual([{ title: "8月份国民经济运行平稳、发展向新向优", name: "Private investment, year to date (YoY %)", period: "2026-08", parsed: -10.1, stored: -10.2 }]);
+});
+
+test("a refusal ages out once its page falls off the listing, and is retried by URL after a deploy and then weekly", async () => {
+  const requested: string[] = [];
+  let listing = `<ul>${REFUSED_ITEM}</ul>`;
+  let page = UNKNOWN_SHAPE;
+  const read = async (url: string) => {
+    requested.push(url);
+    return url === NBS_RELEASE_LISTING_URL ? listing : page;
+  };
+  const day = 24 * 60 * 60 * 1000;
+  const refusedAt = Date.UTC(2026, 9, 15, 2, 20);
+  await checkPressReleases(read, production, () => refusedAt);
+  expect(pressReleaseHealth(production, refusedAt).refused.length).toBe(1);
+
+  // The page falls off the listing. Still counted as current for five weeks from when it was last listed.
+  listing = `<ul><li><a href="./202611/t20261116_2.html" title='2026年10月份能源生产情况'>x</a><span>2026-11-16</span></li></ul>`;
+  const withinFiveWeeks = refusedAt + (REFUSAL_CURRENT_DAYS - 1) * day;
+  expect(pressReleaseHealth(production, withinFiveWeeks)).toMatchObject({ noLongerListed: 0 });
+  expect(pressReleaseHealth(production, withinFiveWeeks).refused.length).toBe(1);
+  const afterFiveWeeks = refusedAt + (REFUSAL_CURRENT_DAYS + 1) * day;
+  const aged = pressReleaseHealth(production, afterFiveWeeks);
+  expect(aged.refused).toEqual([]);
+  expect(aged.noLongerListed).toBe(1);
+
+  // The first check in this process (as after a deploy) retries it by its stored URL, once.
+  const beforeRetry = requested.length;
+  const firstCheck = await checkPressReleases(read, production, () => afterFiveWeeks);
+  expect(firstCheck).toMatchObject({ retriedUnlisted: 1, failed: 1 });
+  expect(requested.slice(beforeRetry)).toEqual([NBS_RELEASE_LISTING_URL, REFUSED_URL]);
+  // Retrying it off the listing does not make it current again.
+  expect(pressReleaseHealth(production, afterFiveWeeks + 1000)).toMatchObject({ refused: [], noLongerListed: 1 });
+  // Within the week, not again.
+  const secondCheck = await checkPressReleases(read, production, () => afterFiveWeeks + day);
+  expect(secondCheck.retriedUnlisted).toBe(0);
+  // A week on, and with the parser able to read it (here: the page is now one it knows), it is read.
+  page = await fixture("national-economy-2026-08.html");
+  const weekLater = await checkPressReleases(read, production, () => afterFiveWeeks + UNLISTED_REFUSAL_RETRY_MS + 1000);
+  expect(weekLater).toMatchObject({ retriedUnlisted: 1, read: 1, failed: 0 });
+  expect(pressReleaseHealth(production, afterFiveWeeks + UNLISTED_REFUSAL_RETRY_MS + 2000)).toMatchObject({ refused: [], noLongerListed: 0 });
 });

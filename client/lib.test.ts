@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
+import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, fmtDate, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -386,4 +386,17 @@ test("a line name drops a trailing unit only when that bracket is a count's unit
 test("the series page's change reads in the same natural unit as its value; the Home list's short change does not", () => {
   expect(deltaText({ date: "2026-08", value: 3_476_700 }, { date: "2026-07", value: 3_464_300 }, "Hundred million yuan (亿元)")).toBe("Up 1.24 trillion yuan from Jul 2026");
   expect(deltaText({ date: "2026-08", value: 34_383 }, { date: "2026-07", value: 34_000 }, "100M USD", "short")).toBe("+383");
+test("a date-only string is the calendar day it names, wherever the reader is", () => {
+  // West of UTC, "2026-09-28" parsed as UTC midnight used to read as Sep 27.
+  const zone = process.env.TZ;
+  try {
+    for (const tz of ["America/Los_Angeles", "UTC", "Asia/Shanghai"]) {
+      process.env.TZ = tz;
+      expect(fmtDate("2026-09-28")).toBe("Sep 28, 2026");
+    }
+  } finally {
+    if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone;
+  }
+  expect(fmtDate("")).toBe("");
+  expect(fmtDate("not a date")).toBe("");
 });

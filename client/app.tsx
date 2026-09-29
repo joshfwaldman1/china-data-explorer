@@ -1311,6 +1311,7 @@ interface PressReleaseHealth {
   disagreements: { title: string; name: string; period: string; parsed: number; stored: number | null }[];
   awaitingDatabase: number;
   refused: { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; attempts: number; message: string }[];
+  noLongerListed?: number;
 }
 interface Health {
   headline: string; ranAt: string;
@@ -1427,7 +1428,7 @@ function HealthPage() {
                 None of them is shown as a series yet.
               </p>
               {data.pressReleases.latest
-                ? <p className="quiet">Latest read: <a href={data.pressReleases.latest.url} target="_blank" rel="noreferrer">{data.pressReleases.latest.title}</a>, published {data.pressReleases.latest.publishedAt}, read {day(data.pressReleases.latest.readAt)}. {data.pressReleases.awaitingDatabase} figure{data.pressReleases.awaitingDatabase === 1 ? " is" : "s are"} not yet in the database.</p>
+                ? <p className="quiet">Latest read: <a href={data.pressReleases.latest.url} target="_blank" rel="noreferrer">{data.pressReleases.latest.title}</a>, published {fmtDate(data.pressReleases.latest.publishedAt.slice(0, 10))}, {data.pressReleases.latest.publishedAt.slice(11, 16)} China time, read {day(data.pressReleases.latest.readAt)}. {data.pressReleases.awaitingDatabase} figure{data.pressReleases.awaitingDatabase === 1 ? " is" : "s are"} not yet in the database.</p>
                 : <p className="quiet">No release read yet.</p>}
               {data.pressReleases.disagreements.length === 0
                 ? <p className="quiet">No figure disagrees with the database.</p>
@@ -1441,10 +1442,16 @@ function HealthPage() {
                 <ul className="health-list">{data.pressReleases.refused.map((page) => (
                   <li key={page.url}>
                     <b><a href={page.url} target="_blank" rel="noreferrer">{page.title}</a></b>
-                    <div className="quiet">Refused {page.attempts} time{page.attempts === 1 ? "" : "s"}, first on {day(page.firstRefusedAt)}, most recently {day(page.lastRefusedAt)}. Tried again once a day.</div>
+                    <div className="quiet">Refused {page.attempts} time{page.attempts === 1 ? "" : "s"}, first on {day(page.firstRefusedAt)}, most recently {day(page.lastRefusedAt)}. Tried again once a day while it is on the bureau's listing.</div>
                     <div className="health-message">{page.message}</div>
                   </li>
                 ))}</ul>
+              )}
+              {(data.pressReleases.noLongerListed ?? 0) > 0 && (
+                <p className="quiet">
+                  {data.pressReleases.noLongerListed} refused page{data.pressReleases.noLongerListed === 1 ? " has" : "s have"} fallen off the bureau's
+                  listing and {data.pressReleases.noLongerListed === 1 ? "is" : "are"} not counted above. Each is tried again after every deploy and once a week.
+                </p>
               )}
             </section>
           )}

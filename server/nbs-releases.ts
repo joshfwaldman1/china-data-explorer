@@ -588,13 +588,17 @@ function releasesDb() {
     `);
     // A page the parser refused: kept so it is retried at most once a day
     // rather than fetched and error-logged on every check for the month it
-    // stays on the listing's first page.
+    // stays on the listing's first page. last_listed_at is when the page was
+    // last seen on that listing: a refusal counts as current only while the
+    // page is listed, since once it falls off, only a weekly or post-deploy
+    // retry reaches it and it should stop reading as a live fault.
     database.exec(`
       CREATE TABLE IF NOT EXISTS press_release_refusals (
         url               TEXT PRIMARY KEY,
         title             TEXT NOT NULL,
         first_refused_at  TEXT NOT NULL,
         last_refused_at   TEXT NOT NULL,
+        last_listed_at    TEXT NOT NULL,
         attempts          INTEGER NOT NULL DEFAULT 1,
         message           TEXT NOT NULL
       )
@@ -604,33 +608,64 @@ function releasesDb() {
   return database;
 }
 
-/** How long a refused page waits before it is fetched again. */
-export const REFUSED_PAGE_RETRY_MS = 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** How long a refused page still on the listing waits before it is fetched again. */
+export const REFUSED_PAGE_RETRY_MS = DAY_MS;
+/** How long a refused page no longer on the listing waits, unless a deploy has happened since. */
+export const UNLISTED_REFUSAL_RETRY_MS = 7 * DAY_MS;
+/**
+ * A refusal is current while its page was on the listing within this many
+ * days. The listing's first page spans about a month, so a page last seen
+ * over five weeks ago has fallen off it.
+ */
+export const REFUSAL_CURRENT_DAYS = 35;
 
-export interface PressReleaseRefusal { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; attempts: number; message: string }
+export interface PressReleaseRefusal { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; lastListedAt: string; attempts: number; message: string }
+
+const REFUSAL_COLUMNS = "r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, r.last_listed_at AS lastListedAt, r.attempts, r.message";
 
 function lastRefusal(url: string): PressReleaseRefusal | null {
-  return releasesDb().query<PressReleaseRefusal, { $url: string }>(
-    "SELECT url, title, first_refused_at AS firstRefusedAt, last_refused_at AS lastRefusedAt, attempts, message FROM press_release_refusals WHERE url = $url",
-  ).get({ $url: url });
+  return releasesDb().query<PressReleaseRefusal, { $url: string }>(`SELECT ${REFUSAL_COLUMNS} FROM press_release_refusals r WHERE r.url = $url`).get({ $url: url });
 }
 
-function recordRefusal(url: string, title: string, message: string, at: string): void {
+/** Record a refusal. `listedAt` is now when the page was on the listing, and null when it was retried from the record alone. */
+function recordRefusal(url: string, title: string, message: string, at: string, listedAt: string | null): void {
   releasesDb().query(`
-    INSERT INTO press_release_refusals (url, title, first_refused_at, last_refused_at, attempts, message)
-    VALUES ($url, $title, $at, $at, 1, $message)
-    ON CONFLICT(url) DO UPDATE SET last_refused_at = excluded.last_refused_at, attempts = attempts + 1, message = excluded.message
-  `).run({ $url: url, $title: title, $at: at, $message: message });
+    INSERT INTO press_release_refusals (url, title, first_refused_at, last_refused_at, last_listed_at, attempts, message)
+    VALUES ($url, $title, $at, $at, COALESCE($listedAt, $at), 1, $message)
+    ON CONFLICT(url) DO UPDATE SET last_refused_at = excluded.last_refused_at, attempts = attempts + 1, message = excluded.message,
+      last_listed_at = COALESCE($listedAt, last_listed_at)
+  `).run({ $url: url, $title: title, $at: at, $listedAt: listedAt, $message: message });
 }
 
-/** Pages refused and still unread, newest refusal first: the ones a person needs to look at. */
-export function refusedPressReleases(): PressReleaseRefusal[] {
+/** A refused page seen on the listing again, though not fetched this time (its day has not passed). */
+function markStillListed(url: string, at: string): void {
+  releasesDb().query("UPDATE press_release_refusals SET last_listed_at = $at WHERE url = $url").run({ $url: url, $at: at });
+}
+
+function unreadRefusals(): PressReleaseRefusal[] {
   return releasesDb().query<PressReleaseRefusal, []>(`
-    SELECT r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, r.attempts, r.message
+    SELECT ${REFUSAL_COLUMNS}
     FROM press_release_refusals r
     WHERE NOT EXISTS (SELECT 1 FROM press_release_reads p WHERE p.url = r.url)
     ORDER BY r.last_refused_at DESC
   `).all();
+}
+
+/**
+ * Pages refused and still unread, split by whether the refusal is current.
+ * Current: the page was on the listing within REFUSAL_CURRENT_DAYS, so it is
+ * retried daily and a person should look at it. No longer listed: it fell off
+ * the listing while refused; it is retried weekly and after each deploy, so a
+ * parser fix can still clear it, but it is not a live fault.
+ */
+export function refusedPressReleases(now = Date.now()): { current: PressReleaseRefusal[]; noLongerListed: PressReleaseRefusal[] } {
+  const cutoff = now - REFUSAL_CURRENT_DAYS * DAY_MS;
+  const all = unreadRefusals();
+  return {
+    current: all.filter((row) => Date.parse(row.lastListedAt) >= cutoff),
+    noLongerListed: all.filter((row) => Date.parse(row.lastListedAt) < cutoff),
+  };
 }
 
 export function hasReadRelease(url: string): boolean {
@@ -698,7 +733,16 @@ export interface PressReleaseCheck {
   failed: number;
   /** Refused pages not fetched this run because their last refusal was less than a day ago. */
   waiting: number;
+  /** Refused pages no longer on the listing, fetched again by their stored URL this run. */
+  retriedUnlisted: number;
 }
+
+/**
+ * Refused pages retried by URL in this process. The first check after a
+ * deploy retries every unlisted refusal once, since a deploy is when a parser
+ * fix arrives; after that, once a week.
+ */
+const retriedUnlistedThisProcess = new Set<string>();
 
 /** The fetch-log region for a release: the page's own id ("t20260928_1965425"), stable and short. */
 function pageId(url: string): string {
@@ -710,8 +754,10 @@ function pageId(url: string): string {
  * One request at a time: each await finishes before the next is sent, and
  * every request goes through the per-host gate in server/upstream.ts. A page
  * is recorded as read only once it parses. A refused page is recorded with
- * its attempts and tried again once a day, each attempt an error row in the
- * fetch log: visible, without an error row for every release refresh.
+ * its attempts and tried again once a day while it is listed, each attempt an
+ * error row in the fetch log: visible, without an error row for every release
+ * refresh. Once it has fallen off the listing it is retried by its stored URL
+ * after a deploy and then weekly.
  */
 export async function checkPressReleases(read: (url: string) => Promise<string> = get, lookup: StoredValueLookup = storeLookup, now: () => number = Date.now): Promise<PressReleaseCheck> {
   const startedAt = new Date().toISOString();
@@ -727,33 +773,62 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
     const kind = releaseKindOfTitle(item.title);
     return kind ? [{ ...item, kind }] : [];
   });
-  const tally: PressReleaseCheck = { listed: listing.length, relevant: relevant.length, read: 0, failed: 0, waiting: 0 };
-  for (const item of relevant) {
-    if (hasReadRelease(item.url)) continue;
-    const refused = lastRefusal(item.url);
-    if (refused && now() - Date.parse(refused.lastRefusedAt) < REFUSED_PAGE_RETRY_MS) { tally.waiting += 1; continue; }
+  const tally: PressReleaseCheck = { listed: listing.length, relevant: relevant.length, read: 0, failed: 0, waiting: 0, retriedUnlisted: 0 };
+  const nowIso = () => new Date(now()).toISOString();
+
+  /** Fetch, parse, compare and record one page; a refusal is recorded and logged, never thrown. */
+  const readPage = async (url: string, title: string, kind: NbsReleaseKind, listed: boolean, previousAttempts: number) => {
     const pageStartedAt = new Date().toISOString();
     try {
-      const release = parseReleasePage(await read(item.url), item.url, item.kind);
+      const release = parseReleasePage(await read(url), url, kind);
       const comparisons = compareWithStore(release.figures, lookup);
       recordReleaseRead(release, comparisons);
       logFetch({
-        key: "press_release", region: pageId(item.url), startedAt: pageStartedAt, finishedAt: new Date().toISOString(), status: "ok",
+        key: "press_release", region: pageId(url), startedAt: pageStartedAt, finishedAt: new Date().toISOString(), status: "ok",
         points: release.figures.length, changed: comparisons.filter((comparison) => comparison.status === "disagree").length,
         message: describeComparison(release, comparisons),
       });
       tally.read += 1;
     } catch (error) {
       tally.failed += 1;
-      const message = `"${item.title}": ${error instanceof Error ? error.message : String(error)}`;
-      recordRefusal(item.url, item.title, message, new Date(now()).toISOString());
+      const message = `"${title}": ${error instanceof Error ? error.message : String(error)}`;
+      recordRefusal(url, title, message, nowIso(), listed ? nowIso() : null);
       logFetch({
-        key: "press_release", region: pageId(item.url), startedAt: pageStartedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0,
-        message: `${message} (attempt ${(refused?.attempts ?? 0) + 1}; next try in a day)`,
+        key: "press_release", region: pageId(url), startedAt: pageStartedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0,
+        message: `${message} (attempt ${previousAttempts + 1}; ${listed ? "next try in a day" : "no longer listed; next try in a week or after a deploy"})`,
       });
     }
+  };
+
+  for (const item of relevant) {
+    if (hasReadRelease(item.url)) continue;
+    const refused = lastRefusal(item.url);
+    if (refused && now() - Date.parse(refused.lastRefusedAt) < REFUSED_PAGE_RETRY_MS) {
+      markStillListed(item.url, nowIso());
+      tally.waiting += 1;
+      continue;
+    }
+    await readPage(item.url, item.title, item.kind, true, refused?.attempts ?? 0);
+  }
+
+  // Refused pages that have fallen off the listing, retried by their stored URL.
+  const listedUrls = new Set(listing.map((item) => item.url));
+  for (const refusal of unreadRefusals()) {
+    if (listedUrls.has(refusal.url)) continue;
+    const kind = releaseKindOfTitle(refusal.title);
+    if (!kind) continue;
+    const firstSinceDeploy = !retriedUnlistedThisProcess.has(refusal.url);
+    if (!firstSinceDeploy && now() - Date.parse(refusal.lastRefusedAt) < UNLISTED_REFUSAL_RETRY_MS) continue;
+    retriedUnlistedThisProcess.add(refusal.url);
+    tally.retriedUnlisted += 1;
+    await readPage(refusal.url, refusal.title, kind, false, refusal.attempts);
   }
   return tally;
+}
+
+/** For tests: forget which unlisted refusals this process has retried, as a deploy would. */
+export function forgetUnlistedRetries(): void {
+  retriedUnlistedThisProcess.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -770,8 +845,10 @@ export interface PressReleaseHealth {
   disagreements: { title: string; name: string; period: string; parsed: number; stored: number | null }[];
   /** Figures across the newest reads that the store does not hold yet. */
   awaitingDatabase: number;
-  /** Pages refused and still unread. */
+  /** Pages refused, still unread, and on the listing within the last five weeks: a live fault. */
   refused: PressReleaseRefusal[];
+  /** Pages refused and still unread that have fallen off the listing. Counted, not a live fault. */
+  noLongerListed: number;
 }
 
 /**
@@ -780,14 +857,16 @@ export interface PressReleaseHealth {
  * construction: two small tables and, per figure of the newest few reads, one
  * point lookup on the observations' primary key. It never scans observations.
  */
-export function pressReleaseHealth(lookup: StoredValueLookup = storeLookup): PressReleaseHealth {
+export function pressReleaseHealth(lookup: StoredValueLookup = storeLookup, now = Date.now()): PressReleaseHealth {
   const recent = recentPressReleases(HEALTH_READS, lookup);
+  const refusals = refusedPressReleases(now);
   const newest = recent[0];
   return {
     latest: newest ? { title: newest.title, url: newest.url, kind: newest.kind, period: newest.period, publishedAt: newest.publishedAt, readAt: newest.readAt } : null,
     disagreements: recent.flatMap((view) => view.comparisonNow.filter((item) => item.status === "disagree")
       .map((item) => ({ title: view.title, name: item.name, period: item.period, parsed: item.parsed, stored: item.stored }))),
     awaitingDatabase: recent.reduce((sum, view) => sum + view.comparisonNow.filter((item) => item.status === "not_in_database").length, 0),
-    refused: refusedPressReleases(),
+    refused: refusals.current,
+    noLongerListed: refusals.noLongerListed.length,
   };
 }

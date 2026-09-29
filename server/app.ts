@@ -805,7 +805,7 @@ if (ingestEveryHours > 0) {
     lastPressReleaseCheckAt = Date.now();
     await runWhenFree(async () => {
       const tally = await checkPressReleases();
-      console.log(`  Press releases (shadow): ${tally.relevant} of ${tally.listed} listed are read here; ${tally.read} new read, ${tally.failed} refused, ${tally.waiting} refused earlier and waiting a day`);
+      console.log(`  Press releases (shadow): ${tally.relevant} of ${tally.listed} listed are read here; ${tally.read} new read, ${tally.failed} refused, ${tally.waiting} refused earlier and waiting a day, ${tally.retriedUnlisted} no longer listed retried`);
     }, "Press release check");
   };
   const planReleases = async () => {

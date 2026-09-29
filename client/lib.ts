@@ -269,7 +269,11 @@ export function ordinal(day: number): string {
 export function fmtDate(iso: string | undefined): string {
   if (!iso) return "";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  // A date-only string ("2026-09-28") parses as UTC midnight, and formatted in
+  // local time it read a day early west of UTC. It names a calendar day, so it
+  // is formatted in UTC; a full timestamp keeps the reader's local time.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", ...(dateOnly ? { timeZone: "UTC" } : {}) });
 }
 
 /** A period label to a timestamp: months to the first of the month, quarters to their last month. */
