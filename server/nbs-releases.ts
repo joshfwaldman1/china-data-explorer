@@ -133,11 +133,14 @@ export function parseReleaseListing(html: string, listingUrl = NBS_RELEASE_LISTI
 
 /** Which kind of release a listing title names, or null for one this reader does not read. */
 export function releaseKindOfTitle(title: string): NbsReleaseKind | null {
-  // Commentary ("解读") and the annual communiqué (统计公报) mention the same
-  // subjects but are not the release.
-  if (/解读|统计公报/.test(title)) return null;
+  // Commentary ("解读"), the annual communiqué (统计公报) and the bureau's
+  // composite indices ("2025年经济发展新动能指数增长12.5%") share words with the
+  // bundle's titles but are not the release.
+  if (/解读|统计公报|指数/.test(title)) return null;
   if (/规模以上工业企业利润/.test(title)) return "industrial_profits";
-  if (/国民经济/.test(title)) return "national_economy";
+  // The bundle is not always titled 国民经济: the half-year and annual ones read
+  // "上半年经济运行在合理区间 新动能快速成长" and "2025年经济发展向新向优 预期目标圆满实现".
+  if (/国民经济|经济运行|经济发展/.test(title)) return "national_economy";
   return null;
 }
 
@@ -186,8 +189,11 @@ const DASH = "[—–\\-~～－]";
  * quarter names some releases use for the year to date.
  */
 const PERIOD_MARKER = `(?:\\d{4}年)?(?:\\d{1,2}${DASH}\\d{1,2}月份?|\\d{1,2}月份?)|全年|上半年|前三季度|一季度|\\d{4}年`;
-/** Growth as the text states it: "同比增长15.7%", "下降12.0%", "增长5.2%", or 持平 (unchanged). */
-const GROWTH = "(?:同比)?((?:增长|下降|减少)\\d+(?:\\.\\d+)?%|持平)";
+/**
+ * Growth as the text states it: "同比增长15.7%", "下降12.0%", "增长5.2%", 持平
+ * (unchanged), and in an annual release "比上年增长0.6%".
+ */
+const GROWTH = "(?:同比|比上年)?((?:增长|下降|减少)\\d+(?:\\.\\d+)?%|持平)";
 const NUMBER = "(\\d+(?:\\.\\d+)?)";
 
 interface ReadPeriod { period: string; basis: "month" | "year_to_date" }
@@ -215,6 +221,10 @@ function readPeriodMarker(marker: string, publishedOn: string): ReadPeriod {
   if (single) {
     const month = Number(single[1]);
     if (month < 1 || month > 12) throw new Error(`NBS release: unexpected month "${marker}"`);
+    // NBS publishes January and February together for every indicator read
+    // here. A single-month January figure is something the bureau does not
+    // publish, so a sentence claiming one is a misread and the page is refused.
+    if (month === 1) throw new Error(`NBS release: a single-month January figure ("${marker}"), which NBS does not publish for these indicators`);
     return { period: at(month), basis: "month" };
   }
   if (marker === "一季度") return { period: at(3), basis: "year_to_date" };
@@ -257,7 +267,9 @@ interface Statement {
  */
 function statements(paragraphs: string[], body: string, publishedOn: string): Statement[] {
   const found: Statement[] = [];
-  const opener = new RegExp(`(?:^|[。；])(${PERIOD_MARKER})，${body}`, "g");
+  // The annual bundle writes "全年全国规模以上工业增加值比上年增长5.9%" with no
+  // comma after 全年; every other marker is followed by one.
+  const opener = new RegExp(`(?:^|[。；])(${PERIOD_MARKER})(?:，|(?<=全年))${body}`, "g");
   const nextMarker = new RegExp(`[。；](?:${PERIOD_MARKER})，`, "g");
   for (const paragraph of paragraphs) {
     for (const match of paragraph.matchAll(opener)) {
@@ -348,7 +360,8 @@ function parseNationalEconomyRelease(paragraphs: string[], publishedOn: string):
   const growthPercent = "percent change from year ago" as const;
 
   // Industrial value added: "8月份，全国规模以上工业增加值同比增长5.2%" and "1—8月份，…5.3%".
-  const valueAdded = statements(paragraphs, `全国规模以上工业增加值${GROWTH}`, publishedOn);
+  // Quarterly and annual bundles drop 全国 from the month's sentence ("3月份，规模以上工业增加值同比增长5.7%").
+  const valueAdded = statements(paragraphs, `(?:全国)?规模以上工业增加值${GROWTH}`, publishedOn);
   for (const statement of valueAdded) {
     const growth = statement.groups[0] ?? "";
     if (statement.period.basis === "month") {
@@ -367,7 +380,8 @@ function parseNationalEconomyRelease(paragraphs: string[], publishedOn: string):
 
   // Retail sales: "8月份，社会消费品零售总额39824亿元，同比增长0.4%" and "1—8月份，社会消费品零售总额327569亿元，同比增长1.1%".
   // Not the newer 社会消费商品和服务零售总额 (goods and services), a different aggregate.
-  const retail = statements(paragraphs, `社会消费品零售总额${NUMBER}亿元，${GROWTH}`, publishedOn);
+  // Some months give no level: "4月份，社会消费品零售总额同比增长0.2%". The level is optional.
+  const retail = statements(paragraphs, `社会消费品零售总额(?:${NUMBER}亿元，)?${GROWTH}`, publishedOn);
   for (const statement of retail) {
     const growth = statement.groups[1] ?? "";
     if (statement.period.basis === "month") {
@@ -450,6 +464,17 @@ function parseNationalEconomyRelease(paragraphs: string[], publishedOn: string):
     figures.some((item) => item.id === "unemployment.month.urban") ? null : "surveyed unemployment rate",
   ].filter((name): name is string => name !== null);
   if (missing.length > 0) throw new Error(`NBS national economy release: no headline sentence for ${missing.join(", ")}; the page is not in a shape this parser knows`);
+  // A page that opens a sentence with a month and value added or retail sales
+  // has a month figure for it. If that figure was not read, the sentence is in
+  // a form this parser does not know, and dropping it silently is how the
+  // March and April 2026 months went missing in the first version.
+  const opensMonthSentence = (subject: string) => paragraphs.some((paragraph) => new RegExp(`(?:^|[。；])\\d{1,2}月份?，${subject}`).test(paragraph));
+  if (opensMonthSentence("(?:全国)?规模以上工业增加值") && !figures.some((item) => item.id === "value_added.month")) {
+    throw new Error("NBS national economy release: a month sentence for industrial value added that the parser could not read");
+  }
+  if (opensMonthSentence("社会消费品零售总额") && !figures.some((item) => item.id === "retail.month")) {
+    throw new Error("NBS national economy release: a month sentence for retail sales that the parser could not read");
+  }
   return figures;
 }
 
@@ -490,8 +515,22 @@ export type StoredValueLookup = (key: string, label: string, period: string) => 
 const storeLookup: StoredValueLookup = (key, label, period) => storedValue(key, "", label, period);
 
 /**
- * Each figure against the store. Agreement allows for rounding only: the
- * stored value, rounded to the decimals NBS printed, must equal the figure.
+ * A value rounded to `decimals` places, halves away from zero as NBS rounds.
+ * The small nudge keeps a binary value like 2.35 (stored as 2.34999...) on the
+ * side of the half its decimal digits say it is on.
+ */
+export function roundAsPrinted(value: number, decimals: number): number {
+  const scale = 10 ** decimals;
+  const rounded = Math.floor(Math.abs(value) * scale + 0.5 + 1e-9) / scale;
+  return value < 0 ? -rounded : rounded;
+}
+
+/**
+ * Each figure against the store. Agreement allows for rounding only, and
+ * NBS's rounding at that: the stored value, rounded to the decimals the page
+ * printed, must equal the printed figure. A stored -2.35 against a printed
+ * -2.3 is a disagreement (NBS would have printed -2.4), where a test of
+ * "within half a unit" would have let it pass.
  */
 export function compareWithStore(figures: ReleaseFigure[], lookup: StoredValueLookup = storeLookup): FigureComparison[] {
   return figures.map((item) => {
@@ -499,8 +538,7 @@ export function compareWithStore(figures: ReleaseFigure[], lookup: StoredValueLo
     if (!item.storeLine) return { ...base, stored: null, status: "no_comparable_series" as const };
     const stored = lookup(item.storeLine.key, item.storeLine.label, item.period);
     if (stored === null) return { ...base, stored: null, status: "not_in_database" as const };
-    const halfUnit = 0.5 * 10 ** -item.decimals;
-    return { ...base, stored, status: Math.abs(stored - item.value) < halfUnit + 1e-9 ? "agree" as const : "disagree" as const };
+    return { ...base, stored, status: roundAsPrinted(stored, item.decimals) === item.value ? "agree" as const : "disagree" as const };
   });
 }
 
@@ -548,9 +586,51 @@ function releasesDb() {
         comparison    TEXT NOT NULL
       )
     `);
+    // A page the parser refused: kept so it is retried at most once a day
+    // rather than fetched and error-logged on every check for the month it
+    // stays on the listing's first page.
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS press_release_refusals (
+        url               TEXT PRIMARY KEY,
+        title             TEXT NOT NULL,
+        first_refused_at  TEXT NOT NULL,
+        last_refused_at   TEXT NOT NULL,
+        attempts          INTEGER NOT NULL DEFAULT 1,
+        message           TEXT NOT NULL
+      )
+    `);
     tableReady = true;
   }
   return database;
+}
+
+/** How long a refused page waits before it is fetched again. */
+export const REFUSED_PAGE_RETRY_MS = 24 * 60 * 60 * 1000;
+
+export interface PressReleaseRefusal { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; attempts: number; message: string }
+
+function lastRefusal(url: string): PressReleaseRefusal | null {
+  return releasesDb().query<PressReleaseRefusal, { $url: string }>(
+    "SELECT url, title, first_refused_at AS firstRefusedAt, last_refused_at AS lastRefusedAt, attempts, message FROM press_release_refusals WHERE url = $url",
+  ).get({ $url: url });
+}
+
+function recordRefusal(url: string, title: string, message: string, at: string): void {
+  releasesDb().query(`
+    INSERT INTO press_release_refusals (url, title, first_refused_at, last_refused_at, attempts, message)
+    VALUES ($url, $title, $at, $at, 1, $message)
+    ON CONFLICT(url) DO UPDATE SET last_refused_at = excluded.last_refused_at, attempts = attempts + 1, message = excluded.message
+  `).run({ $url: url, $title: title, $at: at, $message: message });
+}
+
+/** Pages refused and still unread, newest refusal first: the ones a person needs to look at. */
+export function refusedPressReleases(): PressReleaseRefusal[] {
+  return releasesDb().query<PressReleaseRefusal, []>(`
+    SELECT r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, r.attempts, r.message
+    FROM press_release_refusals r
+    WHERE NOT EXISTS (SELECT 1 FROM press_release_reads p WHERE p.url = r.url)
+    ORDER BY r.last_refused_at DESC
+  `).all();
 }
 
 export function hasReadRelease(url: string): boolean {
@@ -616,6 +696,8 @@ export interface PressReleaseCheck {
   read: number;
   /** Pages refused or unreachable this run; each has an error row in fetch_log. */
   failed: number;
+  /** Refused pages not fetched this run because their last refusal was less than a day ago. */
+  waiting: number;
 }
 
 /** The fetch-log region for a release: the page's own id ("t20260928_1965425"), stable and short. */
@@ -627,10 +709,11 @@ function pageId(url: string): string {
  * Read the listing, and every release page of a known kind not read before.
  * One request at a time: each await finishes before the next is sent, and
  * every request goes through the per-host gate in server/upstream.ts. A page
- * is recorded only once it parses, so a refused page is tried again on the
- * next check and fails visibly in the fetch log each time.
+ * is recorded as read only once it parses. A refused page is recorded with
+ * its attempts and tried again once a day, each attempt an error row in the
+ * fetch log: visible, without an error row for every release refresh.
  */
-export async function checkPressReleases(read: (url: string) => Promise<string> = get, lookup: StoredValueLookup = storeLookup): Promise<PressReleaseCheck> {
+export async function checkPressReleases(read: (url: string) => Promise<string> = get, lookup: StoredValueLookup = storeLookup, now: () => number = Date.now): Promise<PressReleaseCheck> {
   const startedAt = new Date().toISOString();
   let listing: NbsListedRelease[];
   try {
@@ -644,9 +727,11 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
     const kind = releaseKindOfTitle(item.title);
     return kind ? [{ ...item, kind }] : [];
   });
-  const tally: PressReleaseCheck = { listed: listing.length, relevant: relevant.length, read: 0, failed: 0 };
+  const tally: PressReleaseCheck = { listed: listing.length, relevant: relevant.length, read: 0, failed: 0, waiting: 0 };
   for (const item of relevant) {
     if (hasReadRelease(item.url)) continue;
+    const refused = lastRefusal(item.url);
+    if (refused && now() - Date.parse(refused.lastRefusedAt) < REFUSED_PAGE_RETRY_MS) { tally.waiting += 1; continue; }
     const pageStartedAt = new Date().toISOString();
     try {
       const release = parseReleasePage(await read(item.url), item.url, item.kind);
@@ -660,11 +745,49 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
       tally.read += 1;
     } catch (error) {
       tally.failed += 1;
+      const message = `"${item.title}": ${error instanceof Error ? error.message : String(error)}`;
+      recordRefusal(item.url, item.title, message, new Date(now()).toISOString());
       logFetch({
         key: "press_release", region: pageId(item.url), startedAt: pageStartedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0,
-        message: `"${item.title}": ${error instanceof Error ? error.message : String(error)}`,
+        message: `${message} (attempt ${(refused?.attempts ?? 0) + 1}; next try in a day)`,
       });
     }
   }
   return tally;
+}
+
+// ---------------------------------------------------------------------------
+// For the health report
+// ---------------------------------------------------------------------------
+
+/** How many of the newest reads the health report judges: two months of both kinds. */
+const HEALTH_READS = 4;
+
+export interface PressReleaseHealth {
+  /** The newest release read, or null before the first. */
+  latest: { title: string; url: string; kind: NbsReleaseKind; period: string; publishedAt: string; readAt: string } | null;
+  /** Figures that disagree with the store now, across the newest reads. */
+  disagreements: { title: string; name: string; period: string; parsed: number; stored: number | null }[];
+  /** Figures across the newest reads that the store does not hold yet. */
+  awaitingDatabase: number;
+  /** Pages refused and still unread. */
+  refused: PressReleaseRefusal[];
+}
+
+/**
+ * The shadow reader's state in a few lines, so a disagreement shows on the
+ * Data Health page and not only at /api/press-releases. Cheap by
+ * construction: two small tables and, per figure of the newest few reads, one
+ * point lookup on the observations' primary key. It never scans observations.
+ */
+export function pressReleaseHealth(lookup: StoredValueLookup = storeLookup): PressReleaseHealth {
+  const recent = recentPressReleases(HEALTH_READS, lookup);
+  const newest = recent[0];
+  return {
+    latest: newest ? { title: newest.title, url: newest.url, kind: newest.kind, period: newest.period, publishedAt: newest.publishedAt, readAt: newest.readAt } : null,
+    disagreements: recent.flatMap((view) => view.comparisonNow.filter((item) => item.status === "disagree")
+      .map((item) => ({ title: view.title, name: item.name, period: item.period, parsed: item.parsed, stored: item.stored }))),
+    awaitingDatabase: recent.reduce((sum, view) => sum + view.comparisonNow.filter((item) => item.status === "not_in_database").length, 0),
+    refused: refusedPressReleases(),
+  };
 }

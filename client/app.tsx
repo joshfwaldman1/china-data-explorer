@@ -1306,8 +1306,15 @@ interface FailingSource { key: string; title: string; agency: string; failures: 
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
 interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
 interface SinglePointSeries { key: string; title: string; region: string; regionName?: string; label: string; period: string | null; reviewed?: string }
+interface PressReleaseHealth {
+  latest: { title: string; url: string; kind: string; period: string; publishedAt: string; readAt: string } | null;
+  disagreements: { title: string; name: string; period: string; parsed: number; stored: number | null }[];
+  awaitingDatabase: number;
+  refused: { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; attempts: number; message: string }[];
+}
 interface Health {
   headline: string; ranAt: string;
+  pressReleases?: PressReleaseHealth;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
   sources: { failing: FailingSource[]; recovered?: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
@@ -1339,7 +1346,9 @@ function HealthPage() {
     return () => { cancelled = true; };
   }, []);
   const day = (iso: string | null) => iso ? fmtDate(iso.slice(0, 10)) : "—";
-  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0 && (data.singlePoint ?? []).every((line) => line.reviewed);
+  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0
+    && (data.singlePoint ?? []).every((line) => line.reviewed)
+    && (data.pressReleases?.disagreements.length ?? 0) === 0 && (data.pressReleases?.refused.length ?? 0) === 0;
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Data health</span></div>
@@ -1409,6 +1418,36 @@ function HealthPage() {
               </>
             )}
           </section>
+
+          {data.pressReleases && (
+            <section>
+              <h2>NBS press releases (shadow mode)</h2>
+              <p>
+                The headline figures read from the National Bureau of Statistics' release pages, compared with the database.
+                None of them is shown as a series yet.
+              </p>
+              {data.pressReleases.latest
+                ? <p className="quiet">Latest read: <a href={data.pressReleases.latest.url} target="_blank" rel="noreferrer">{data.pressReleases.latest.title}</a>, published {data.pressReleases.latest.publishedAt}, read {day(data.pressReleases.latest.readAt)}. {data.pressReleases.awaitingDatabase} figure{data.pressReleases.awaitingDatabase === 1 ? " is" : "s are"} not yet in the database.</p>
+                : <p className="quiet">No release read yet.</p>}
+              {data.pressReleases.disagreements.length === 0
+                ? <p className="quiet">No figure disagrees with the database.</p>
+                : <ul className="health-list">{data.pressReleases.disagreements.map((item) => (
+                    <li key={`${item.title}|${item.name}|${item.period}`}>
+                      <b>{item.name}, {periodPretty(item.period)}</b>
+                      <div className="quiet">Release page {item.parsed}, database {item.stored ?? "none"}. From {item.title}.</div>
+                    </li>
+                  ))}</ul>}
+              {data.pressReleases.refused.length > 0 && (
+                <ul className="health-list">{data.pressReleases.refused.map((page) => (
+                  <li key={page.url}>
+                    <b><a href={page.url} target="_blank" rel="noreferrer">{page.title}</a></b>
+                    <div className="quiet">Refused {page.attempts} time{page.attempts === 1 ? "" : "s"}, first on {day(page.firstRefusedAt)}, most recently {day(page.lastRefusedAt)}. Tried again once a day.</div>
+                    <div className="health-message">{page.message}</div>
+                  </li>
+                ))}</ul>
+              )}
+            </section>
+          )}
 
           <section>
             <h2>Series that have not advanced</h2>

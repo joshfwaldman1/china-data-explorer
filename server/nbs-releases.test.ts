@@ -6,7 +6,7 @@
  * holds July but not yet August, as production did that day.
  */
 
-import { test, expect } from "bun:test";
+import { test, expect, afterAll } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,10 +14,17 @@ import { join, resolve } from "node:path";
 process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-press-releases-")), "test.db");
 process.env.CHINA_SEED = "off";
 const {
-  NBS_RELEASE_LISTING_URL, checkPressReleases, compareWithStore, describeComparison, parseReleaseListing,
-  parseReleasePage, recentPressReleases, releaseKindOfTitle,
+  NBS_RELEASE_LISTING_URL, REFUSED_PAGE_RETRY_MS, checkPressReleases, compareWithStore, describeComparison, parseReleaseListing,
+  parseReleasePage, pressReleaseHealth, recentPressReleases, releaseKindOfTitle, roundAsPrinted,
 } = await import("./nbs-releases.ts");
 const { db } = await import("./db.ts");
+
+// bun test runs every file in one process against one scratch store, so the
+// reads and refusals written here are removed afterwards; otherwise the health
+// report's tests would find a refused press release in their store.
+afterAll(() => {
+  db().exec("DELETE FROM press_release_reads; DELETE FROM press_release_refusals; DELETE FROM fetch_log WHERE key = 'press_release'");
+});
 
 const fixture = (name: string) => Bun.file(resolve(import.meta.dir, `fixtures/nbs-releases/${name}`)).text();
 const PROFITS_URL = "https://www.stats.gov.cn/sj/zxfb/202609/t20260928_1965425.html";
@@ -58,6 +65,12 @@ test("the listing names each release once, with its date, and only profits and t
   // The separate pages NBS posts beside the bundle carry nothing the bundle does not.
   expect(releaseKindOfTitle("2026年8月份规模以上工业增加值增长5.2%")).toBeNull();
   expect(releaseKindOfTitle("中华人民共和国2025年国民经济和社会发展统计公报")).toBeNull();
+  // The half-year and annual bundles are not titled 国民经济, and must still be read.
+  expect(releaseKindOfTitle("上半年经济运行在合理区间 新动能快速成长")).toBe("national_economy");
+  expect(releaseKindOfTitle("2025年经济发展向新向优 预期目标圆满实现")).toBe("national_economy");
+  // The bureau's composite index shares the words and is not a bundle; it is on this very listing.
+  expect(releaseKindOfTitle("2025年经济发展新动能指数增长12.5%")).toBeNull();
+  expect(listing.some((item) => item.title === "2025年经济发展新动能指数增长12.5%")).toBe(true);
   expect(() => parseReleaseListing("<html><body><ul></ul></body></html>")).toThrow(/no release items/);
 });
 
@@ -112,6 +125,77 @@ test("the August 2026 national economy bundle parses to value added +5.2%, retai
   });
 });
 
+test("the half-year bundle, titled without 国民经济, reads June's month and the first half's year to date, including the month sentences written without 全国 or a level", async () => {
+  const release = parseReleasePage(await fixture("national-economy-2026-06-half-year.html"), "https://www.stats.gov.cn/sj/zxfb/202607/t20260715_1964121.html", "national_economy");
+  expect(release.title).toBe("上半年经济运行在合理区间 新动能快速成长");
+  expect(release.period).toBe("2026-06");
+  expect(values(release.figures)).toEqual({
+    // "上半年，全国规模以上工业增加值同比增长5.4%" and "6月份，规模以上工业增加值同比增长5.3%".
+    "value_added.ytd 2026-06 year_to_date": 5.4,
+    "value_added.month 2026-06 month": 5.3,
+    "retail.ytd 2026-06 year_to_date": 1.3,
+    "retail.month 2026-06 month": 1,
+    "fai.ytd.total 2026-06 year_to_date": -5.7,
+    "fai.ytd.private 2026-06 year_to_date": -8.5,
+    "fai.ytd.primary 2026-06 year_to_date": 0.9,
+    "fai.ytd.secondary 2026-06 year_to_date": -1.1,
+    "fai.ytd.tertiary 2026-06 year_to_date": -8.4,
+    "fai.ytd.manufacturing 2026-06 year_to_date": -1.2,
+    "fai.ytd.infrastructure 2026-06 year_to_date": -2.4,
+    "fai.ytd.high_tech 2026-06 year_to_date": 4.6,
+    "fai.ytd.real_estate 2026-06 year_to_date": -18,
+    "unemployment.month.urban 2026-06 month": 5,
+    "unemployment.month.local_hukou 2026-06 month": 5,
+    "unemployment.month.non_local_hukou 2026-06 month": 4.9,
+    "unemployment.month.major_cities 2026-06 month": 5,
+    "unemployment.ytd_average.urban 2026-06 year_to_date_average": 5.2,
+    "profits.ytd.total 2026-05 year_to_date": 18.8,
+  });
+});
+
+test("April 2026's retail sales month, written without a level, is read rather than dropped", async () => {
+  const release = parseReleasePage(await fixture("national-economy-2026-04.html"), "https://www.stats.gov.cn/sj/zxfb/202605/t20260518_1963732.html");
+  // "4月份，社会消费品零售总额同比增长0.2%" beside "1—4月份，社会消费品零售总额164941亿元，同比增长1.9%".
+  const figures = values(release.figures);
+  expect(figures["retail.month 2026-04 month"]).toBe(0.2);
+  expect(figures["retail.ytd 2026-04 year_to_date"]).toBe(1.9);
+  expect(figures["value_added.month 2026-04 month"]).toBe(4.1);
+  expect(figures["value_added.ytd 2026-04 year_to_date"]).toBe(5.6);
+});
+
+test("the 2025 annual releases read as December and the year to date through December", async () => {
+  const bundle = parseReleasePage(await fixture("national-economy-2025-annual.html"), "https://www.stats.gov.cn/sj/zxfb/202601/t20260119_1962330.html", "national_economy");
+  expect(bundle.title).toBe("2025年经济发展向新向优 预期目标圆满实现");
+  expect(bundle.period).toBe("2025-12");
+  const figures = values(bundle.figures);
+  // "全年全国规模以上工业增加值比上年增长5.9%": no comma after 全年, and 比上年 for 同比.
+  expect(figures["value_added.ytd 2025-12 year_to_date"]).toBe(5.9);
+  expect(figures["value_added.month 2025-12 month"]).toBe(5.2);
+  // "全年社会消费品零售总额501202亿元，比上年增长3.7%" and "12月份，社会消费品零售总额同比增长0.9%".
+  expect(figures["retail.ytd 2025-12 year_to_date"]).toBe(3.7);
+  expect(figures["retail.month 2025-12 month"]).toBe(0.9);
+  expect(figures["fai.ytd.total 2025-12 year_to_date"]).toBe(-3.8);
+  expect(figures["fai.ytd.private 2025-12 year_to_date"]).toBe(-6.4);
+  expect(figures["fai.ytd.infrastructure 2025-12 year_to_date"]).toBe(-2.2);
+  expect(figures["unemployment.month.urban 2025-12 month"]).toBe(5.1);
+  expect(figures["unemployment.ytd_average.urban 2025-12 year_to_date_average"]).toBe(5.2);
+
+  const profits = parseReleasePage(await fixture("profits-2025-annual.html"), "https://www.stats.gov.cn/sj/zxfb/202601/t20260127_1962382.html", "industrial_profits");
+  expect(profits.title).toBe("2025年全国规模以上工业企业利润增长0.6%");
+  expect(profits.period).toBe("2025-12");
+  expect(values(profits.figures)).toEqual({
+    // "2025年，全国规模以上工业企业实现利润总额73982.0亿元，比上年增长0.6%".
+    "profits.ytd.total 2025-12 year_to_date": 0.6,
+    "profits.ytd.total_level 2025-12 year_to_date": 73982,
+    "profits.ytd.mining 2025-12 year_to_date": -26.2,
+    "profits.ytd.manufacturing 2025-12 year_to_date": 5,
+    "profits.ytd.manufacturing_level 2025-12 year_to_date": 56915.7,
+    "profits.ytd.utilities 2025-12 year_to_date": 9.4,
+    // "12月份，规模以上工业企业利润同比增长5.3%", published in January, belongs to 2025.
+    "profits.month.total 2025-12 month": 5.3,
+  });
+});
+
 test("a page whose shape the parser does not recognise is refused, not guessed at", async () => {
   const bundle = await fixture("national-economy-2026-08.html");
   // Without the value-added sentences the bundle is a page this parser does not know.
@@ -135,6 +219,26 @@ test("a page whose shape the parser does not recognise is refused, not guessed a
   const julyUnemployment = bundle.replace(/>8(<\/span><span[^>]*>月份，全国城镇调查失业率为)/, ">7$1");
   expect(julyUnemployment).not.toBe(bundle);
   expect(() => parseReleasePage(julyUnemployment, BUNDLE_URL)).toThrow(/in a release for 2026-08/);
+  // A month sentence for value added or retail sales that is not read refuses the page,
+  // rather than the month going missing as March and April 2026 once did.
+  const unreadMonth = bundle.replace(/(>月份，全国规模以上工业增加值)同比增长/, "$1比去年同月增长");
+  expect(unreadMonth).not.toBe(bundle);
+  expect(() => parseReleasePage(unreadMonth, BUNDLE_URL)).toThrow(/month sentence for industrial value added/);
+  const unreadRetail = bundle.replace(/(月份，社会消费品零售总额)((?:<[^>]*>|\s)*39824)/, "$1约$2");
+  expect(unreadRetail).not.toBe(bundle);
+  expect(() => parseReleasePage(unreadRetail, BUNDLE_URL)).toThrow(/month sentence for retail sales/);
+  // A single-month January figure is refused outright: NBS publishes January with February.
+  expect(() => parseReleasePage(shortPage("1月份国民经济", "1月份，全国规模以上工业增加值同比增长5.0%。"), BUNDLE_URL)).toThrow(/single-month January/);
+});
+
+test("agreement follows NBS's rounding: the stored value rounded to the printed decimals must equal the printed figure", () => {
+  const printed = { id: "fai.ytd.primary", name: "x", basis: "year_to_date" as const, period: "2026-08", value: -2.3, decimals: 1, unit: "percent change from year ago" as const, storeLine: { key: "fai", label: "Primary industry, year to date (YoY %)" } };
+  expect(compareWithStore([printed], () => -2.35)[0]?.status).toBe("disagree");
+  expect(compareWithStore([printed], () => -2.34)[0]?.status).toBe("agree");
+  expect(compareWithStore([printed], () => -2.3)[0]?.status).toBe("agree");
+  expect(roundAsPrinted(2.35, 1)).toBe(2.4);
+  expect(roundAsPrinted(-0.05, 1)).toBe(-0.1);
+  expect(roundAsPrinted(52719.8, 1)).toBe(52719.8);
 });
 
 test("against the store of 29 September, August profits are not yet in the database, and the mid-month figures agree", async () => {
@@ -189,7 +293,7 @@ test("a check reads the listing and each new release page once, one request at a
     return page;
   };
   const first = await checkPressReleases(read, production);
-  expect(first).toEqual({ listed: 15, relevant: 2, read: 2, failed: 0 });
+  expect(first).toEqual({ listed: 15, relevant: 2, read: 2, failed: 0, waiting: 0 });
   expect(requested).toEqual([NBS_RELEASE_LISTING_URL, PROFITS_URL, BUNDLE_URL]);
   expect(mostInFlight).toBe(1);
 
@@ -219,14 +323,34 @@ test("a check reads the listing and each new release page once, one request at a
   expect(headlineNow).toMatchObject({ status: "agree", parsed: 15.7, stored: 15.7 });
 });
 
-test("a refused page is logged as an error and tried again on the next check", async () => {
+test("a refused page is logged as an error, recorded, and fetched again at most once a day", async () => {
   const listing = `<ul><li><a href="./202610/t20261015_1.html" title='9月份国民经济运行总体平稳'>x</a><span>2026-10-15</span></li></ul>`;
-  const read = async (url: string) => (url === NBS_RELEASE_LISTING_URL ? listing : `<meta name="ArticleTitle" content="9月份国民经济运行总体平稳"><meta name="PubDate" content="2026/10/15 10:00"><div class="trs_editor_view"><p>新的版式</p></div>`);
-  const tally = await checkPressReleases(read, production);
-  expect(tally).toEqual({ listed: 1, relevant: 1, read: 0, failed: 1 });
-  const again = await checkPressReleases(read, production);
-  expect(again.failed).toBe(1);
+  const requested: string[] = [];
+  const read = async (url: string) => {
+    requested.push(url);
+    return url === NBS_RELEASE_LISTING_URL ? listing : `<meta name="ArticleTitle" content="9月份国民经济运行总体平稳"><meta name="PubDate" content="2026/10/15 10:00"><div class="trs_editor_view"><p>新的版式</p></div>`;
+  };
+  const refusedAt = Date.UTC(2026, 9, 15, 2, 20);
+  const tally = await checkPressReleases(read, production, () => refusedAt);
+  expect(tally).toEqual({ listed: 1, relevant: 1, read: 0, failed: 1, waiting: 0 });
+  // An hour later the page is not fetched again: only the listing is.
+  const soon = await checkPressReleases(read, production, () => refusedAt + 60 * 60 * 1000);
+  expect(soon).toMatchObject({ read: 0, failed: 0, waiting: 1 });
+  expect(requested.filter((url) => url !== NBS_RELEASE_LISTING_URL).length).toBe(1);
+  // A day later it is tried again, and refused again.
+  const nextDay = await checkPressReleases(read, production, () => refusedAt + REFUSED_PAGE_RETRY_MS + 1000);
+  expect(nextDay).toMatchObject({ failed: 1, waiting: 0 });
   const errors = db().query<{ message: string }, []>("SELECT message FROM fetch_log WHERE key = 'press_release' AND region = 't20261015_1' AND status = 'error'").all();
   expect(errors.length).toBe(2);
   expect(errors[0]?.message).toContain("not in a shape this parser knows");
+  expect(errors[1]?.message).toContain("attempt 2");
+
+  // The health report carries it, beside the latest read and the disagreements.
+  const health = pressReleaseHealth(production);
+  expect(health.refused.map((page) => [page.title, page.attempts])).toEqual([["9月份国民经济运行总体平稳", 2]]);
+  expect(health.latest?.url).toBe(PROFITS_URL);
+  expect(health.disagreements).toEqual([]);
+  expect(health.awaitingDatabase).toBe(8);
+  const disagreeing = pressReleaseHealth((key, label, period) => (key === "fai" && label === "Private investment, year to date (YoY %)" && period === "2026-08" ? -10.2 : production(key, label, period)));
+  expect(disagreeing.disagreements).toEqual([{ title: "8月份国民经济运行平稳、发展向新向优", name: "Private investment, year to date (YoY %)", period: "2026-08", parsed: -10.1, stored: -10.2 }]);
 });

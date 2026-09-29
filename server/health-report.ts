@@ -34,6 +34,7 @@ import { CATALOG, catalogList, seriesRegions } from "./data";
 import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
 import { dbHealth, fetchFailures, fetchLogOldest, lastSuccessByKey, latestPeriods, singlePointLines } from "./db";
 import { comparablePeriod, expectedPeriod } from "./due";
+import { pressReleaseHealth, type PressReleaseHealth } from "./nbs-releases";
 
 /** A pair of readings that disagree, with enough to act on it. */
 export interface Finding {
@@ -131,6 +132,13 @@ export interface HealthReport {
   /** Curated lines with one point, from the per-line count the write path keeps. */
   singlePoint: SinglePointSeries[];
   store: { observations: number; keys: number; lastFetch: string | null };
+  /**
+   * NBS release pages read in shadow mode (server/nbs-releases.ts). A figure
+   * that disagrees with the store is a finding like a cross-check's, and a
+   * refused page is a source not reading; neither is served, so they are
+   * reported apart from the curated sources.
+   */
+  pressReleases: PressReleaseHealth;
 }
 
 /**
@@ -294,6 +302,7 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
     behind: { publisher: publisher.sort(byAge), blocked: blocked.sort(byAge), ended: ended.sort(byAge) },
     singlePoint,
     store: { observations: health.observations, keys: latestByKey.size, lastFetch: health.lastFetch },
+    pressReleases: pressReleaseHealth(),
   };
 }
 
@@ -307,6 +316,11 @@ export function healthHeadline(report: HealthReport): string {
   // Reviewed lines are listed on the page but are not a fault, so the banner can clear.
   const single = (report.singlePoint ?? []).filter((line) => !line.reviewed).length;
   if (single > 0) parts.push(`${single} line${single === 1 ? "" : "s"} with a single point`);
+  // Optional so a report built before the shadow reader existed still reads.
+  const pressDisagreements = report.pressReleases?.disagreements.length ?? 0;
+  const pressRefused = report.pressReleases?.refused.length ?? 0;
+  if (pressDisagreements > 0) parts.push(`${pressDisagreements} press-release figure${pressDisagreements === 1 ? "" : "s"} disagreeing with the database`);
+  if (pressRefused > 0) parts.push(`${pressRefused} press release${pressRefused === 1 ? "" : "s"} the parser refused`);
   if (parts.length === 0) return `All ${report.checks.total} cross-checks agree, every source read cleanly, nothing overdue.`;
   return `${parts.join("; ")}.`;
 }
