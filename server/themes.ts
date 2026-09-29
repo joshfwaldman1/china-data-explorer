@@ -253,7 +253,7 @@ const DEMOGRAPHICS: Theme = {
 };
 
 const LABOUR: Theme = {
-  title: "Labour market",
+  title: "Labor market",
   lede: "",
   sections: [
     {

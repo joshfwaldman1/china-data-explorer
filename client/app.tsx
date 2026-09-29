@@ -186,7 +186,7 @@ const CATEGORY_EN: Record<string, string> = {
   "财政": "Public finance", "金融": "Finance", "对外经济贸易": "Foreign trade and investment", "农业": "Agriculture", "房地产": "Real estate",
   "建筑业": "Construction", "就业和工资": "Employment and wages", "人口": "Population", "旅游": "Tourism", "综合": "Overview",
   "科学技术": "Science and technology", "教育": "Education", "卫生": "Health", "环境": "Environment", "文化": "Culture",
-  "社会保障": "Social security", "劳动": "Labour", "就业": "Employment", "工资": "Wages", "价格": "Prices",
+  "社会保障": "Social security", "劳动": "Labor", "就业": "Employment", "工资": "Wages", "价格": "Prices",
   "科技": "Science and technology",
   "批发和零售业": "Wholesale and retail trade",
   "固定资产投资和房地产": "Fixed-asset investment and real estate",
@@ -207,7 +207,7 @@ const CATEGORY_EN: Record<string, string> = {
   "贫困与收入": "Poverty and income",
   "居民收入与价格": "Household income and prices",
   "能源生产和使用": "Energy production and use",
-  "劳动力与就业": "Labour force and employment",
+  "劳动力与就业": "Labor force and employment",
   "财政金融": "Public finance and money",
   "开发区高新技术企业主要经济指标": "High-technology enterprises in development zones",
   "政府财政": "Government finance",
@@ -270,14 +270,14 @@ const ABOUT: Record<string, string> = {
   household_spending_growth: "Per-capita consumption spending from the quarterly household survey, year to date, real growth on a year earlier (the bureau deducts price changes), all residents and urban and rural.",
   household_spending: "Per-capita consumption spending in yuan, year to date. The National Bureau of Statistics' quarterly household survey.",
   services_production: "NBS's index of services production, the services counterpart of industrial production: growth on a year earlier for the month and for the year to date. January and February are published together, so the month line's February value covers both months.",
-  working_hours: "Average hours worked per week by enterprise employees. The National Bureau of Statistics' monthly labour force survey, and the one measure of labour intensity the bureau publishes monthly.",
-  employment: "The National Bureau of Statistics' year-end count of employed persons, total and by urban and rural residence. The annual dataset. China publishes no monthly labour force participation rate.",
+  working_hours: "Average hours worked per week by enterprise employees. The National Bureau of Statistics' monthly labor force survey, and the one measure of labor intensity the bureau publishes monthly.",
+  employment: "The National Bureau of Statistics' year-end count of employed persons, total and by urban and rural residence. The annual dataset. China publishes no monthly labor force participation rate.",
   population_nbs: "NBS's year-end population, total and by urban and rural residence. The World Bank series on the site is a UN estimate on a different basis.",
   population_rates: "Births, deaths and natural growth per thousand population each year. The National Bureau of Statistics. Natural growth turned negative in 2022.",
   population_age: "Year-end population by age group from NBS's annual dataset: under 15, working age 15 to 64, and 65 and over.",
-  migrant_workers: "The National Bureau of Statistics' quarterly count of rural labour working away from home (外出务工农村劳动力) at the quarter's end. The migrant-worker monitoring survey. There is no fourth-quarter reading. The annual survey covers the year.",
+  migrant_workers: "The National Bureau of Statistics' quarterly count of rural labor working away from home (外出务工农村劳动力) at the quarter's end. The migrant-worker monitoring survey. There is no fourth-quarter reading. The annual survey covers the year.",
   migrant_workers_income: "Average monthly income in yuan of rural migrant workers away from home. The same quarterly survey.",
-  unemployment: "Surveyed urban unemployment from the monthly labour force survey, with age breakdowns. The 16-24 series was suspended after June 2023 and resumed in December 2023 excluding students. The two segments are not comparable.",
+  unemployment: "Surveyed urban unemployment from the monthly labor force survey, with age breakdowns. The 16-24 series was suspended after June 2023 and resumed in December 2023 excluding students. The two segments are not comparable.",
   retail_sales: "Retail sales of consumer goods, nominal, on a year earlier. Includes goods sold to households and to institutions. Catering is included. Most services are not. January and February are published together. The February point carries the combined figure and there is no January point.",
   money_supply: "M1 (cash plus demand deposits) and M2 (M1 plus savings and time deposits) on a year earlier. The People's Bank of China. M1 was redefined in January 2025 to include personal demand deposits.",
   new_loans: "New yuan-denominated loans extended by financial institutions in the month. The People's Bank of China. Strongly seasonal: January is always the largest month.",
@@ -319,8 +319,8 @@ const ABOUT: Record<string, string> = {
 const READING: Record<string, string[]> = {
   migrant_workers: ["A quarter-end stock, not a flow: compare with the same quarter a year earlier, since the count falls every first quarter around the Lunar New Year.", "MOHRSS's urban new jobs (城镇新增就业) is not on the site: the ministry's portal answers with a script challenge."],
   unemployment: [
-    "The youth rate rises every summer as graduates enter the labour market, so compare July with July, not with June.",
-    "The urban survey excludes most rural migrant workers who return home when work ends, so it understates slack relative to a total-labour-force measure.",
+    "The youth rate rises every summer as graduates enter the labor market, so compare July with July, not with June.",
+    "The urban survey excludes most rural migrant workers who return home when work ends, so it understates slack relative to a total-labor-force measure.",
     "Figures are not seasonally adjusted; Lunar New Year shifts between January and February and distorts both months.",
   ],
   cpi: ["Food is roughly a fifth of the basket; pork alone can swing the headline by a few tenths.", "Core CPI (excluding food and energy) is published alongside and is usually the steadier read."],
@@ -333,7 +333,7 @@ const BREAKS: { key: string; match: RegExp; from: string; to: string; before: st
   {
     key: "unemployment", match: /16-24/, from: "2023-07", to: "2023-11",
     before: "Youth 16-24, incl. students (%)", after: "Youth 16-24, ex-students (%)",
-    note: "NBS suspended the 16-24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labour-market conditions.",
+    note: "NBS suspended the 16-24 unemployment rate after June 2023 and resumed it in December 2023 on a new basis that excludes students. Readings before and after the shaded gap are not comparable, and a change across it should not be read as a change in labor-market conditions.",
   },
 ];
 
@@ -1059,10 +1059,10 @@ const THEME_PAGES = [
   { name: "investment", label: "Investment" },
   { name: "property", label: "Property" },
   { name: "trade", label: "Trade & flows" },
-  { name: "equities", label: "Equities" },
   { name: "energy", label: "Energy" },
   { name: "demographics", label: "Demographics" },
-  { name: "labour", label: "Labour" },
+  { name: "equities", label: "Equities" },
+  { name: "labour", label: "Labor" },
 ] as const;
 
 /** One row under the top bar naming every page: the headline, the provinces, and each theme. */
@@ -1186,7 +1186,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
       {status === "ok" && data && (
         <>
           <h1>{name} <Zh className="gloss">{data.region.text}</Zh></h1>
-          <p className="lede">{name}'s headline series: growth, size, structure, labour, households and exports. Annual figures lag the monthly ones by up to a year.</p>
+          <p className="lede">{name}'s headline series: growth, size, structure, labor, households and exports. Annual figures lag the monthly ones by up to a year.</p>
           <div className="indicator-list">
             {data.sections.map((section) => (
               <section key={section.title} aria-label={section.title}>
