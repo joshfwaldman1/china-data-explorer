@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { axisScale, naturalUnit, naturalValue, bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
+import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -307,6 +307,67 @@ test("the axis examples the copy audit named read in natural units", () => {
   const tonnes = axisScale("万吨", [0, 5_000, 10_000, 15_000]);
   expect(tonnes?.title).toBe("Millions of tonnes");
   expect(tonnes?.format(15_000)).toBe("150");
+});
+
+test("a quantity line is never given a money scale", () => {
+  // Customs stores value and quantity under one series unit; the quantity's own unit is in its label.
+  expect(lineUnit("Quantity (10,000 Sets)", "Million USD")).toBe("10,000 Sets");
+  expect(lineUnit("Quantity (Ton)", "Hundred million CNY (亿元)")).toBe("Ton");
+  expect(lineUnit("Quantity", "Million USD")).toBe("");
+  expect(lineUnit("Value", "Million USD")).toBe("Million USD");
+  for (const label of ["Quantity (10,000 Sets)", "Quantity (10,000 Autos)", "Quantity (Ship)", "Quantity (Ton)", "Quantity"]) {
+    expect(naturalValue(4_043_000, lineUnit(label, "Million USD"))).toBeNull();
+    expect(axisScale(lineUnit(label, "Million USD"), [0, 2_000_000, 4_000_000])).toBeNull();
+  }
+});
+
+test("close ticks never repeat: the axis drops to the next word down when three decimals are not enough", () => {
+  // Year-end population, 140,828 to 140,967 万人: "1.408 | 1.409 | 1.409" in billions.
+  const ticks = [140_800, 140_825, 140_850, 140_875, 140_900, 140_925, 140_950, 140_975];
+  const people = axisScale("Ten thousand persons (万人)", ticks, 140_967);
+  expect(people?.title).toBe("Millions of people");
+  const labels = ticks.map((tick) => people?.format(tick));
+  expect(new Set(labels).size).toBe(ticks.length);
+  expect(labels[1]).toBe("1,408.25");
+  // FX reserves, 34,380 to 34,395 亿美元: "3.438 | 3.439 | 3.439" in trillions.
+  const reserveTicks = [34_380, 34_385, 34_390, 34_395];
+  const reserves = axisScale("Hundred million USD (亿美元)", reserveTicks, 34_395);
+  expect(reserves?.title).toBe("Billions of US dollars");
+  expect(reserveTicks.map((tick) => reserves?.format(tick))).toEqual(["3,438.0", "3,438.5", "3,439.0", "3,439.5"]);
+});
+
+test("the axis word comes from the largest figure shown, not a rounded-up top tick", () => {
+  // Electricity peaking at 9,400 亿千瓦时 on an axis whose top tick is 10,000 reads in billions, not "0.2 trillion" steps.
+  const power = axisScale("Hundred million kWh (亿千瓦时)", [0, 2_000, 4_000, 6_000, 8_000, 10_000], 9_400);
+  expect(power?.title).toBe("Billions of kWh");
+  expect(power?.format(10_000)).toBe("1,000");
+});
+
+test("a value is rounded before its scale word is chosen, so it never reads 1,000 of a word", () => {
+  expect(naturalValue(999.96, "Million USD")).toBe("1 billion US dollars");
+  expect(naturalValue(999.4, "Million USD")).toBe("999.4 million US dollars");
+});
+
+test("a unit already in the thing itself is not rescaled", () => {
+  // 13,860 US dollars per head reads better as it is than as "13.86 thousand".
+  for (const unit of ["Current US dollars", "US dollars", "Yuan", "Persons", "Tons", "元", "人", "吨"]) {
+    expect(naturalUnit(unit)).toBeNull();
+    expect(naturalValue(13_860, unit)).toBeNull();
+  }
+});
+
+test("a value that is not a finite number gives no natural reading rather than a crash or an infinity", () => {
+  expect(naturalValue(Number.NaN, "亿元")).toBeNull();
+  expect(naturalValue(Number.POSITIVE_INFINITY, "亿元")).toBeNull();
+  expect(naturalValue(Number.NEGATIVE_INFINITY, "Million USD")).toBeNull();
+});
+
+test("a line name drops a trailing unit only when that bracket is a count's unit", () => {
+  expect(withoutUnitSuffix("FX reserves (100M USD)")).toBe("FX reserves");
+  expect(withoutUnitSuffix("Deposits (亿元)")).toBe("Deposits");
+  expect(withoutUnitSuffix("Exports (goods)")).toBe("Exports (goods)");
+  expect(withoutUnitSuffix("CPI (YoY %)")).toBe("CPI (YoY %)");
+  expect(withoutUnitSuffix("Total deposits")).toBe("Total deposits");
 });
 
 test("the series page's change reads in the same natural unit as its value; the Home list's short change does not", () => {

@@ -835,31 +835,29 @@ export function fetchFailures(sinceIso: string): { key: string; failures: number
   return [...grouped.values()].sort((left, right) => right.failures - left.failures || left.key.localeCompare(right.key));
 }
 
-/**
- * The newest stored period for each of the named keys, at whichever region
- * reaches furthest. Reads the summary the write path keeps.
- *
- * `storedLatest("")` answers this too and is the wrong tool: it joins three
- * tables across every stored series — 78,000 of them, nearly all from the
- * catalog crawl — to answer a question about the 149 that are curated.
- */
 /** A stored line that holds exactly one period, and which period that is. */
 export interface SinglePointLine { key: string; region: string; label: string; period: string | null }
 
 /**
  * Lines of the named keys that hold a single period.
  *
- * A line with one point is almost always a line the parser invented: April
- * 2025's Customs exports table dropped its unit column, the parser read the
- * quantity as the unit, and "Quantity (62.0)" sat beside the real quantity
- * line for months with one point, flagged by nothing. Read from the per-line
- * count the write path keeps in `series.periods`, never by counting
- * observations. A line whose count predates the column is counted here, once,
- * for these keys only (the curated ones, not the crawl's sixty thousand).
+ * A line with one point is worth a look. The parser may have invented it:
+ * April 2025's Customs exports table dropped its unit column, the parser read
+ * the quantity as the unit, and "Quantity (62.0)" sat beside the real quantity
+ * line for months, flagged by nothing. Or the publisher changed a line's name
+ * or unit and it split in two (Customs moved a quantity from "Ton" to "10,000
+ * Tons"). Or the line is simply new. Read from the per-line count the write
+ * path keeps in `series.periods`, never by counting observations. A line whose
+ * count predates the column is counted here, once, for these keys only (the
+ * curated ones, not the crawl's sixty thousand); a key with nothing left to
+ * count costs one indexed lookup and no write.
  */
 export function singlePointLines(keys: string[]): SinglePointLine[] {
   if (keys.length === 0) return [];
   const database = db();
+  const hasUncounted = database.query<{ found: number }, { $key: string }>(
+    "SELECT 1 AS found FROM series WHERE key = $key AND periods IS NULL LIMIT 1",
+  );
   const countUncounted = database.prepare(`
     UPDATE series SET periods = (
       SELECT COUNT(DISTINCT o.period) FROM observations o
@@ -872,9 +870,11 @@ export function singlePointLines(keys: string[]): SinglePointLine[] {
   const onlyPeriod = database.query<{ period: string | null }, { $key: string; $region: string; $label: string }>(
     "SELECT MIN(period) AS period FROM observations WHERE key = $key AND region = $region AND label = $label",
   );
+  const uncounted = keys.filter((key) => hasUncounted.get({ $key: key }) !== null);
+  // One transaction for whatever is left to count, and none at all once everything has been.
+  if (uncounted.length > 0) database.transaction(() => { for (const key of uncounted) countUncounted.run({ $key: key }); })();
   const out: SinglePointLine[] = [];
   for (const key of keys) {
-    countUncounted.run({ $key: key });
     for (const line of single.all({ $key: key })) {
       out.push({ ...line, period: onlyPeriod.get({ $key: key, $region: line.region, $label: line.label })?.period ?? null });
     }
@@ -882,6 +882,14 @@ export function singlePointLines(keys: string[]): SinglePointLine[] {
   return out;
 }
 
+/**
+ * The newest stored period for each of the named keys, at whichever region
+ * reaches furthest. Reads the summary the write path keeps.
+ *
+ * `storedLatest("")` answers this too and is the wrong tool: it joins three
+ * tables across every stored series — 78,000 of them, nearly all from the
+ * catalog crawl — to answer a question about the 149 that are curated.
+ */
 export function latestPeriods(keys: string[]): Map<string, string | null> {
   const out = new Map<string, string | null>();
   if (keys.length === 0) return out;

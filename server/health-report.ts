@@ -30,7 +30,7 @@
  * the page costs a publisher nothing however often it is opened.
  */
 
-import { CATALOG, catalogList } from "./data";
+import { CATALOG, catalogList, seriesRegions } from "./data";
 import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
 import { dbHealth, fetchFailures, fetchLogOldest, lastSuccessByKey, latestPeriods, singlePointLines } from "./db";
 import { comparablePeriod, expectedPeriod } from "./due";
@@ -86,14 +86,18 @@ export interface CrawlFailures {
 }
 
 /**
- * A curated line holding a single period. Usually one the parser invented (a
- * number read as a unit label names a line of its own); occasionally a line
- * the publisher has only just begun. Either way a person should look.
+ * A curated line holding a single period. The parser may have invented it (a
+ * number read as a unit label names a line of its own), the publisher may have
+ * renamed the line or changed its unit so that it split in two, or the line is
+ * new. Any of them is worth a person's look.
  */
 export interface SinglePointSeries {
   key: string;
   title: string;
+  /** The region's stored value (a slug or an NBS code), for the link. */
   region: string;
+  /** What the series page calls the region: "Medical and pharmaceutical products", not its slug. */
+  regionName: string;
   label: string;
   period: string | null;
 }
@@ -239,7 +243,10 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
   // Curated keys only, for the same reason as the newest periods above; and
   // read from series.periods, so this never counts observations.
   const singlePoint: SinglePointSeries[] = singlePointLines(entries.map((entry) => entry.key))
-    .map((line) => ({ ...line, title: CATALOG[line.key]?.title ?? line.key }));
+    .map((line) => {
+      const place = line.region ? seriesRegions(line.key).find((region) => region.value === line.region) : undefined;
+      return { ...line, title: CATALOG[line.key]?.title ?? line.key, regionName: place ? (place.en ?? place.text) : line.region };
+    });
 
   const byAge = (left: BehindSeries, right: BehindSeries) => (left.lastPeriod ?? "").localeCompare(right.lastPeriod ?? "");
 
@@ -274,6 +281,9 @@ export function healthHeadline(report: HealthReport): string {
   if (report.checks.findings.length > 0) parts.push(`${report.checks.findings.length} cross-check${report.checks.findings.length === 1 ? "" : "s"} disagreeing`);
   if (report.sources.failing.length > 0) parts.push(`${report.sources.failing.length} source${report.sources.failing.length === 1 ? "" : "s"} not reading`);
   if (report.behind.publisher.length > 0) parts.push(`${report.behind.publisher.length} series behind`);
+  // Counted so the banner agrees with the list below it.
+  const single = report.singlePoint?.length ?? 0;
+  if (single > 0) parts.push(`${single} line${single === 1 ? "" : "s"} with a single point`);
   if (parts.length === 0) return `All ${report.checks.total} cross-checks agree, every source read cleanly, nothing overdue.`;
   return `${parts.join("; ")}.`;
 }

@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { axisScale, naturalUnit, naturalValue, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
+import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
 import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -494,7 +494,9 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
       }
       const slot = colors.get(colorId) ?? 0;
       tracks.push({
-        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length === 1 ? displayTitle(result, results) : labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label, unit: result.unit, frequency: result.frequency,
+        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length === 1 ? displayTitle(result, results) : labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label,
+        // A quantity line stored under a value series' unit carries its own ("Quantity (10,000 Sets)").
+        unit: lineUnit(one.label, result.unit), frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
         points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
         // februaryFrom marks a February taken from the year-to-date sibling, which is the combined
@@ -506,11 +508,38 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
   return { tracks, notes, gaps };
 }
 
+/**
+ * The value axis in natural units for the lines a chart shows, or null for a
+ * raw axis. Scaled only when every line is in the chart's unit: a quantity line
+ * beside a value line keeps the raw axis rather than borrowing the money's
+ * scale. The word comes from the largest figure shown, not the top tick. The
+ * series page asks the same question for its caption and legend, so both say
+ * what the axis says.
+ */
+function valueAxisFor(shown: Track[], unit: string, logScale: boolean): AxisScale | null {
+  if (shown.length === 0 || shown.some((track) => track.unit !== unit)) return null;
+  const values = shown.flatMap((track) => track.points.map((point) => point.v)).filter(Number.isFinite);
+  if (values.length === 0) return null;
+  const largest = Math.max(...values.map(Math.abs));
+  if (logScale) return axisScale(unit, [largest]);
+  return axisScale(unit, niceTicks(Math.min(...values), Math.max(...values), 5).ticks, largest);
+}
 
+/**
+ * "Published in hundred million yuan (亿元). The chart shows it in trillions of
+ * yuan." Null where the axis is not rescaled, or is in the published unit
+ * already (a series stored in 万亿元 on a trillions axis), so the caller keeps
+ * its plain unit line.
+ */
+function rescaledUnitText(unit: string, axis: AxisScale | null): string | null {
+  if (!axis || axis.divisor === 1) return null;
+  const published = unitLabel(unit).replace(/^[A-Z](?=[a-z])/, (letter) => letter.toLowerCase());
+  return `Published in ${published}. The chart shows it in ${axis.title.charAt(0).toLowerCase()}${axis.title.slice(1)}.`;
+}
 
 // ── Chart ─────────────────────────────────────────────────────────────────────
 
-function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }) {
+function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string; units?: Map<string, string> }) {
   if (!props.active || !props.payload || props.payload.length === 0) return null;
   const first = props.payload[0];
   // Every item is a column of the one row under the cursor, so the period is the row's.
@@ -521,9 +550,13 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }
       {props.payload.map((item, index) => {
         const value = num(item, "value");
         const color = str(item, "color") || str(item, "stroke");
-        const name = str(item, "name");
+        // Each row in its own line's unit: a quantity beside a value is never read as money.
+        const unit = props.units?.get(str(item, "dataKey")) ?? props.unit;
         // A count reads in its natural unit ("34.77 trillion yuan"), anything else as stored.
-        return <div key={index}><i style={{ color }} /><span className="n">{name}</span><span className="v">{value === null ? "—" : (naturalValue(value, props.unit) ?? fmt(value, props.unit))}</span></div>;
+        const natural = value === null ? null : naturalValue(value, unit);
+        // The value then says the unit, so the name's own "(100M USD)" is dropped.
+        const name = natural === null ? str(item, "name") : withoutUnitSuffix(str(item, "name"));
+        return <div key={index}><i style={{ color }} /><span className="n">{name}</span><span className="v">{value === null ? "—" : (natural ?? fmt(value, unit))}</span></div>;
       })}
     </div>
   );
@@ -556,11 +589,9 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const shownValues = shown.flatMap((track) => track.points.map((point) => point.v));
   const yScale = niceTicks(Math.min(...shownValues), Math.max(...shownValues), 5);
   // A count's axis reads in its natural unit, one scale word for the whole axis, named above
-  // it: "30" under "Trillions of yuan" where the stored 300,000 亿元 printed as "300K". A log
-  // axis picks its own ticks, so the word is chosen from the largest value instead.
-  const valueAxis = props.logScale
-    ? axisScale(props.unit, [Math.max(...shownValues.map(Math.abs))])
-    : axisScale(props.unit, yScale.ticks);
+  // it: "30" under "Trillions of yuan" where the stored 300,000 亿元 printed as "300K".
+  const valueAxis = valueAxisFor(shown, props.unit, props.logScale);
+  const trackUnits = new Map(shown.map((track) => [track.id, track.unit]));
   const topMargin = (props.compact ? 8 : 12) + (valueAxis ? 14 : 0);
   // Lunar New Year falls in January or February and shifts between them, so
   // monthly comparisons across that window mislead. Shade it, faintly, on
@@ -593,7 +624,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
           {props.gaps.map((gap) => (
             <ReferenceArea key={gap.from} x1={periodTime(gap.from)} x2={periodTime(gap.to)} fill="var(--amber)" fillOpacity={0.09} stroke="var(--amber)" strokeOpacity={0.5} strokeDasharray="4 4" label={{ value: "series suspended", position: "insideTop", fontSize: 10, fill: "var(--amber)" }} />
           ))}
-          <Tooltip content={<ChartTip unit={props.unit} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
+          <Tooltip content={<ChartTip unit={props.unit} units={trackUnits} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
           {shown.map((track) => (
             <Line key={track.id} dataKey={track.id} name={track.name} type="linear" stroke={track.color} strokeWidth={props.compact ? 1.5 : 2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls />
           ))}
@@ -1143,6 +1174,8 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                   const built = result ? (() => { const made = buildTracks([result], new Map()); return { ...made, tracks: withoutSharedSuffix(made.tracks) }; })() : null;
                   const hasPoints = built ? built.tracks.some((track) => track.points.length > 1) : false;
                   const title = chart.title ?? result?.title ?? chart.key;
+                  // The axis the card's chart draws, asked here for the footnote and legend.
+                  const cardAxis = built && hasPoints && result ? valueAxisFor(visibleTracks(built.tracks, chart.years ?? 10), result.unit, false) : null;
                   return (
                     <article key={`${chart.key}|${chart.region ?? ""}|${title}`} className="theme-card">
                       {/* The heading is the link to the series; nothing else on the card says "open". */}
@@ -1150,10 +1183,14 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                       {hasPoints && built && result
                         ? <>
                             <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} height={250} compact />
-                            {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
+                            {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{cardAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
                           </>
                         : <div className="state small"><b>Nothing stored yet</b></div>}
-                      <small className="theme-note">{result ? `${result.agency}${result.unit ? `, ${unitLabel(result.unit)}` : ""}` : ""}{chart.note ? `. ${chart.note}` : ""}</small>
+                      {/* Under a rescaled axis the published unit is said as such, in its own sentence, so it
+                          does not read as the axis's unit ("Trillions of US dollars" over "Hundred million USD"). */}
+                      <small className="theme-note">{result && cardAxis && cardAxis.divisor !== 1
+                        ? `${result.agency}. Published in ${unitLabel(result.unit).replace(/^[A-Z](?=[a-z])/, (letter) => letter.toLowerCase())}.${chart.note ? ` ${chart.note}` : ""}`
+                        : <>{result ? `${result.agency}${result.unit ? `, ${unitLabel(result.unit)}` : ""}` : ""}{chart.note ? `. ${chart.note}` : ""}</>}</small>
                     </article>
                   );
                 })}
@@ -1268,7 +1305,7 @@ interface Finding { name: string; kind: string; note?: string; latest?: { period
 interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string; recoveredAt?: string }
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
 interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
-interface SinglePointSeries { key: string; title: string; region: string; label: string; period: string | null }
+interface SinglePointSeries { key: string; title: string; region: string; regionName?: string; label: string; period: string | null }
 interface Health {
   headline: string; ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
@@ -1302,7 +1339,7 @@ function HealthPage() {
     return () => { cancelled = true; };
   }, []);
   const day = (iso: string | null) => iso ? fmtDate(iso.slice(0, 10)) : "—";
-  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0;
+  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0 && (data.singlePoint ?? []).length === 0;
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Data health</span></div>
@@ -1405,12 +1442,12 @@ function HealthPage() {
 
           <section>
             <h2>Lines with a single point</h2>
-            <p>A line of a headline series that holds one period. It is usually a line the parser made up, such as a number read as a unit and given a line of its own. Now and then it is a line the publisher has only just started.</p>
+            <p>A line of a headline series that holds one period. The parser may have invented it. The publisher may have changed the line's name or unit so that it split in two. Or the line is new.</p>
             {(data.singlePoint ?? []).length === 0
               ? <p className="quiet">Every line holds more than one period.</p>
               : <ul className="health-list">{(data.singlePoint ?? []).map((line) => (
                   <li key={`${line.key}|${line.region}|${line.label}`}>
-                    <b><a href={seriesHash([line.key], { region: line.region })}>{line.title}</a></b> <span className="quiet">{line.region ? `${line.region}: ` : ""}{line.label}. Only period: {line.period ? periodPretty(line.period) : "none"}.</span>
+                    <b><a href={seriesHash([line.key], { region: line.region })}>{line.title}</a></b> <span className="quiet">{line.region ? `${regionLabel({ value: line.region, text: line.regionName ?? line.region })}: ` : ""}{line.label}. Only period: {line.period ? periodPretty(line.period) : "none"}.</span>
                   </li>
                 ))}</ul>}
           </section>
@@ -1873,7 +1910,9 @@ function SeriesPage(props: {
   // What the figure is, said once: the line, the months it covers, what it is measured against.
   // The unit sits on the meta line above it and is not repeated here.
   const cumulative = isCumulative(primary.unit, headline?.label, primary.title);
-  const delta = deltaText(latest, previous, primary.unit, "long", primary.frequency, cumulative);
+  // The headline line's own unit: a quantity line leading a value series is not money.
+  const headlineUnit = lineUnit(headline?.label ?? "", primary.unit);
+  const delta = deltaText(latest, previous, headlineUnit, "long", primary.frequency, cumulative);
   const statPeriod = latest ? (cumulative ? periodSpan(latest.date, primary.frequency) : `${observationLabel(latest.date, primary.frequency)}${isOpenMonth(latest.date, primary.unit) ? " to date" : ""}`) : "";
   const yearOnYear = /from year ago|year on year|yoy|同比/i.test(`${unitLabel(primary.unit)} ${headline?.label ?? ""}`);
   const statAgainst = latest && yearOnYear ? (cumulative ? `, on the same months of ${Number(latest.date.slice(0, 4)) - 1}` : ` on ${observationLabel(yearEarlier(latest.date), primary.frequency)}`) : "";
@@ -1891,6 +1930,9 @@ function SeriesPage(props: {
   const lunar = props.route.lny === "1";
   // The legend names the lines; the measure they share is written once in the caption under the chart.
   const shownTracks = withoutSharedSuffix(tracks);
+  // The same axis the chart draws, asked here so the caption and legend say what it says.
+  const pageAxis = valueAxisFor(visibleTracks(shownTracks, years, windowStart, windowEnd), unit, logScale && canLog);
+  const rescaledCaption = rescaledUnitText(unit, pageAxis);
   // A shared image of a discontinued series says so; the page's amber notice does not travel with the picture.
   const endedNotes = results.flatMap((result) => {
     const entry = props.curated.find((item) => item.key === result.key);
@@ -1977,7 +2019,7 @@ function SeriesPage(props: {
       {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
         <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
-          <span className="stat-value">{naturalValue(latest.value, primary.unit) ?? fmt(latest.value, primary.unit)}</span><span className="visually-hidden">, </span>
+          <span className="stat-value">{naturalValue(latest.value, headlineUnit) ?? fmt(latest.value, headlineUnit)}</span><span className="visually-hidden">, </span>
           <span className="stat-text">{statLine}{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{statPeriod}{statAgainst}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
       )}
@@ -2030,11 +2072,11 @@ function SeriesPage(props: {
             <>
               <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => setCustomDates((value) => !value)}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" autoFocus={customDates && !windowed} /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
               <div><SeriesChart tracks={shownTracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
-              {shownTracks.length > 1 && <div className="chart-legend" aria-label="Legend">{shownTracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{track.name}</span>)}</div>}
+              {shownTracks.length > 1 && <div className="chart-legend" aria-label="Legend">{shownTracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{pageAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
               {smoothing && <p className="chart-caption">Each line is the average of its latest three months, by calendar month; a month with no value is left out of the average.</p>}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{naturalUnit(unit) ? `Published in ${unitLabel(unit).replace(/^[A-Z](?=[a-z])/, (letter) => letter.toLowerCase())}. The chart shows it in ${naturalUnit(unit)?.thing}` : unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{rescaledCaption ?? unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? `${rescaledCaption ? " " : ". "}January and February are shaded: Lunar New Year falls in either month and distorts both.` : ""}</p>}
             </>
           )}
           {tab === "table" && (

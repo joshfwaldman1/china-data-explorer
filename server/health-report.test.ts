@@ -33,13 +33,14 @@ test("a clean report says so in one line, and names the number of checks", () =>
   expect(report.checks.findings).toEqual([]);
   // The headline is a pure reading of a report, so it is stated against one
   // rather than against whatever the shared test store happens to hold.
-  const line = healthHeadline({ ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] } });
+  const line = healthHeadline({ ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] }, singlePoint: [] });
   expect(line).toContain("All 2 cross-checks agree");
   expect(line).toContain("nothing overdue");
 });
 
 test("the headline names each kind of wrong, and only the kinds present", () => {
-  const base = healthReport([agreeing]);
+  // Stated with no single-point lines, since the shared test store holds whatever other files wrote.
+  const base = { ...healthReport([agreeing]), singlePoint: [] };
   const withFinding = healthHeadline({ ...base, checks: { ...base.checks, findings: [{ name: "x", kind: "value", disagreements: [] }] }, sources: { ...base.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] } });
   expect(withFinding).toBe("1 cross-check disagreeing.");
   const withBoth = healthHeadline({
@@ -124,14 +125,18 @@ test("the three kinds of behind stay apart, because only one of them is ours", (
 test("a curated line holding a single point is listed; a line that grows past one leaves the list", () => {
   // The shape of the April 2025 Customs misread, one point beside the real line. Not named "Quantity (<number>)",
   // because the store is shared and the cleanup test counts those.
-  const region = "health-single-point-vehicles";
+  // A real commodity, so the list can be held to the name the series page uses rather than the slug.
+  const region = "aquatic-products";
   const write = (points: { label: string; dates: string[] }[], at: string) => writeSeries({
     key: "major_exports", title: "Major exports", agency: "General Administration of Customs", unit: "Million USD", frequency: "Monthly", sourceUrl: "",
     series: points.map((line) => ({ label: line.label, points: line.dates.map((date) => ({ date, value: 1 })) })),
   } as never, region, at);
   write([{ label: "Value", dates: ["2025-03", "2025-04", "2025-05"] }, { label: "A stray line", dates: ["2025-04"] }], "2026-09-01T00:00:00.000Z");
   const flagged = healthReport([agreeing]).singlePoint.filter((line) => line.region === region);
-  expect(flagged).toEqual([{ key: "major_exports", title: "Major Exports by Commodity", region, label: "A stray line", period: "2025-04" }]);
+  expect(flagged).toEqual([{ key: "major_exports", title: "Major Exports by Commodity", region, regionName: "Aquatic products", label: "A stray line", period: "2025-04" }]);
+  // The banner counts what the list shows.
+  const report = healthReport([agreeing]);
+  expect(healthHeadline({ ...report, singlePoint: flagged })).toContain("1 line with a single point");
   // A second period written later takes it off the list: the count follows the write path.
   write([{ label: "A stray line", dates: ["2025-05"] }], "2026-09-02T00:00:00.000Z");
   expect(healthReport([agreeing]).singlePoint.some((line) => line.region === region)).toBe(false);
@@ -228,7 +233,7 @@ test("a source that has fetched cleanly since its last failure is recovered, not
   expect(tsf?.recoveredAt).toBe(recoveredAt);
   // Recovered means not failing: it is in one list and not the other, and not in the headline.
   expect(report.sources.failing.some((source) => source.key === "tsf_flow")).toBe(false);
-  expect(healthHeadline({ ...report, sources: { ...report.sources, failing: report.sources.failing.filter((s) => s.key === "tsf_flow") }, behind: { publisher: [], blocked: [], ended: [] } })).toContain("All 1 cross-check");
+  expect(healthHeadline({ ...report, sources: { ...report.sources, failing: report.sources.failing.filter((s) => s.key === "tsf_flow") }, behind: { publisher: [], blocked: [], ended: [] }, singlePoint: [] })).toContain("All 1 cross-check");
   // A source whose last event is a failure is still failing, however many successes preceded it.
   const lgb = report.sources.failing.find((source) => source.key === "lgb_rate");
   expect(lgb).toBeDefined();

@@ -115,51 +115,92 @@ function englishNaturalUnit(head: string): NaturalUnit | null {
 }
 
 /**
- * What a unit counts and in what multiple, or null when it is not a plain
- * count: a rate, an index, a ratio ("Yuan per person"), or a thing this does
- * not know. Reads the Chinese unit where the string carries one, since that is
- * the publisher's own ("Hundred million CNY (亿元)" and a bare "亿元" alike),
- * and the English head otherwise ("Million USD", "Millions of US dollars").
+ * What a unit counts and in what multiple, or null when there is nothing to
+ * rescale: a rate, an index, a ratio ("Yuan per person"), a thing this does
+ * not know, or a unit already in the thing itself ("Current US dollars",
+ * "Persons"), where 13,860 reads better than "13.86 thousand". Reads the
+ * Chinese unit where the string carries one, since that is the publisher's
+ * own ("Hundred million CNY (亿元)" and a bare "亿元" alike), and the English
+ * head otherwise ("Million USD", "Millions of US dollars").
  */
 export function naturalUnit(unit: string): NaturalUnit | null {
   if (!unit || isRate(unit)) return null;
   // A ratio is not a count; and "亿元; Million USD" is two series' units sharing a raw axis, not one unit.
   if (/ per |\/|;/i.test(unit)) return null;
   const bracketed = unit.match(/[(（]([^)）]*)[)）]/)?.[1] ?? "";
-  if (HAS_CJK.test(bracketed)) return chineseNaturalUnit(bracketed);
   // The head ends at a bracket or a clause (", month"), not at the comma inside "10,000".
   const head = (unit.split(/[(（]|,\s/)[0] ?? "").trim();
-  if (HAS_CJK.test(head)) return chineseNaturalUnit(head);
-  return englishNaturalUnit(head);
+  const natural = HAS_CJK.test(bracketed) ? chineseNaturalUnit(bracketed) : HAS_CJK.test(head) ? chineseNaturalUnit(head) : englishNaturalUnit(head);
+  return natural && natural.multiplier > 1 ? natural : null;
+}
+
+/**
+ * The unit one line of a series is in. Customs stores a commodity's value and
+ * its quantity under one series unit ("Million USD"), and the quantity line
+ * says its own unit in its label: "Quantity (10,000 Sets)" is sets, never
+ * dollars. A line named for a quantity takes the unit in its label, or none;
+ * any other line takes the series' unit.
+ */
+export function lineUnit(label: string, seriesUnit: string): string {
+  // A series shown as a rate (a year-on-year change of every line) is a rate on every line.
+  if (!/^quantity\b/i.test(label.trim()) || isRate(seriesUnit)) return seriesUnit;
+  return label.match(/\(([^()]*)\)\s*$/)?.[1]?.trim() ?? "";
+}
+
+/**
+ * A line's name without a trailing unit in brackets, for a chart that already
+ * says the unit in natural terms: "FX reserves (100M USD)" beside "3.4 trillion
+ * US dollars" is "FX reserves". Only a bracket that is itself a count's unit
+ * is dropped; "Exports (goods)" is left as it is. Display only.
+ */
+export function withoutUnitSuffix(name: string): string {
+  const match = name.match(/^(.*\S)\s*\(([^()]*)\)\s*$/);
+  if (!match || naturalUnit(match[2] ?? "") === null) return name;
+  return match[1] ?? name;
 }
 
 /** The scale words, largest first: the size, the word after a number, the word heading an axis. */
 const SCALE_WORDS: [number, string, string][] = [[1e12, "trillion", "Trillions"], [1e9, "billion", "Billions"], [1e6, "million", "Millions"], [1e3, "thousand", "Thousands"]];
 
-/** The largest scale word not above a magnitude, or none below a thousand. */
-function scaleWord(magnitude: number): [number, string, string] | null {
-  return SCALE_WORDS.find(([size]) => magnitude >= size) ?? null;
+/** The position of the largest scale word not above a magnitude; SCALE_WORDS.length means none (below a thousand). */
+function scaleIndex(magnitude: number): number {
+  const index = SCALE_WORDS.findIndex(([size]) => magnitude >= size);
+  return index < 0 ? SCALE_WORDS.length : index;
 }
 
-/** Four significant figures at most, trailing zeros dropped: 347.67 is "347.7", 1.4 is "1.4", 620 is "620". */
-function significant(value: number): string {
-  const magnitude = Math.abs(value);
-  const decimals = magnitude === 0 ? 0 : Math.max(0, Math.min(3, 3 - Math.floor(Math.log10(magnitude))));
-  const text = value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: decimals });
+/** Decimals for four significant figures at most: 347.67 takes one, 1.4 three, 620 none. */
+function significantDecimals(magnitude: number): number {
+  return magnitude === 0 ? 0 : Math.max(0, Math.min(3, 3 - Math.floor(Math.log10(magnitude))));
+}
+
+/** A number to a fixed count of decimals at most, trailing zeros dropped, never "-0". */
+function plain(value: number, decimals: number, fixed = false): string {
+  const text = value.toLocaleString("en-US", { minimumFractionDigits: fixed ? decimals : 0, maximumFractionDigits: decimals });
   return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
 }
 
 /**
  * One stored figure in its natural unit, for a tooltip or the stat line:
- * 3,476,700 in 亿元 is "347.7 trillion yuan". Null when the unit is not a
- * plain count, so the caller falls back to the stored figure.
+ * 3,476,700 in 亿元 is "347.7 trillion yuan". Null when the unit has nothing
+ * to rescale or the value is not a finite number, so the caller falls back to
+ * the stored figure.
  */
 export function naturalValue(value: number, unit: string): string | null {
   const natural = naturalUnit(unit);
-  if (!natural) return null;
+  if (!natural || !Number.isFinite(value)) return null;
   const amount = value * natural.multiplier;
-  const word = scaleWord(Math.abs(amount));
-  return word ? `${significant(amount / word[0])} ${word[1]} ${natural.thing}` : `${significant(amount)} ${natural.thing}`;
+  let index = scaleIndex(Math.abs(amount));
+  // Rounded first, so 999.96 million is "1 billion" rather than "1,000 million".
+  const roundedAt = (at: number) => {
+    const scaled = amount / (SCALE_WORDS[at]?.[0] ?? 1);
+    const decimals = significantDecimals(Math.abs(scaled));
+    return { scaled, decimals, rounded: Math.round(scaled * 10 ** decimals) / 10 ** decimals };
+  };
+  let reading = roundedAt(index);
+  if (index > 0 && Math.abs(reading.rounded) >= 1000) { index -= 1; reading = roundedAt(index); }
+  const word = SCALE_WORDS[index];
+  const number = plain(reading.scaled, reading.decimals);
+  return word ? `${number} ${word[1]} ${natural.thing}` : `${number} ${natural.thing}`;
 }
 
 /** How a value axis over a count reads: the divisor applied to stored figures, a title naming the unit, and the tick format. */
@@ -172,27 +213,34 @@ export interface AxisScale {
 }
 
 /**
- * The scale for a value axis, chosen once for the whole axis from its largest
- * tick so every label is in the same word: over 亿元, an axis passes into
- * trillions once it reaches 10,000 (one trillion yuan). Decimals are the
- * fewest that keep the ticks distinct, at most three. Null for a unit that is
- * not a plain count; the axis then prints the stored figures as before.
+ * The scale for a value axis, one word for the whole axis, chosen from the
+ * largest figure shown (`largest`, in stored units; the largest tick when not
+ * given) rather than a rounded-up top tick: over 亿元, an axis passes into
+ * trillions once the data reach 10,000 (one trillion yuan). Every tick must
+ * read exactly in at most three decimals; when the ticks sit closer than that
+ * (1.40825 billion people) the axis drops to the next word down (1,408.25
+ * million), so no two labels repeat. Null for a unit with nothing to
+ * rescale; the axis then prints the stored figures as before.
  */
-export function axisScale(unit: string, ticks: number[]): AxisScale | null {
+export function axisScale(unit: string, ticks: number[], largest?: number): AxisScale | null {
   const natural = naturalUnit(unit);
   if (!natural) return null;
   const finite = ticks.filter(Number.isFinite);
-  const largest = Math.max(0, ...finite.map((tick) => Math.abs(tick * natural.multiplier)));
-  const word = scaleWord(largest);
+  const top = Number.isFinite(largest) ? Math.abs(largest ?? 0) : Math.max(0, ...finite.map(Math.abs));
+  let index = scaleIndex(top * natural.multiplier);
+  let decimals: number | null = null;
+  if (finite.length > 1) {
+    // Rounded before counting so 2.8500000000000001 is two decimals, not sixteen.
+    const needed = (at: number) => Math.max(...finite.map((tick) => ownDecimals(Number((tick * natural.multiplier / (SCALE_WORDS[at]?.[0] ?? 1)).toFixed(6)))));
+    while (index < SCALE_WORDS.length && needed(index) > 3) index += 1;
+    decimals = Math.min(3, needed(index));
+  }
+  const word = SCALE_WORDS[index];
   const divisor = (word ? word[0] : 1) / natural.multiplier;
   const title = word ? `${word[2]} of ${natural.thing}` : `${natural.thing.charAt(0).toUpperCase()}${natural.thing.slice(1)}`;
-  // Rounded before counting so 2.8500000000000001 is two decimals, not sixteen.
-  const decimals = finite.length > 1 ? Math.min(3, Math.max(...finite.map((tick) => ownDecimals(Number((tick / divisor).toFixed(6)))))) : null;
   const format = (value: number) => {
     const shown = value / divisor;
-    if (decimals === null) return significant(shown);
-    const text = shown.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-    return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
+    return decimals === null ? plain(shown, significantDecimals(Math.abs(shown))) : plain(shown, decimals, true);
   };
   return { divisor, title, format };
 }
