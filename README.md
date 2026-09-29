@@ -198,6 +198,9 @@ recovery steps, readiness semantics and the remaining scaling work.
 - `GET /api/releases?start=&end=` — the publication calendar mapped to series.
 - `GET /api/release-map` — the title-to-series mapping behind it.
 - `GET /api/audit/concordance` — the latest concordance results.
+- `GET /api/press-releases?limit=` — NBS release pages read in shadow mode: the
+  headline figures parsed from each, and whether each agrees with the store,
+  when read and now. Not served as series.
 - `GET /api/revisions/:key?label=&period=` — stored revision history.
 - `GET /api/status` — store size, totals, the fetch log, last runs and failures;
   `?series=1` for coverage per (key, region).

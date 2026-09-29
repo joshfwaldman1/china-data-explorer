@@ -62,6 +62,7 @@ import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases,
 import { createBackupManager } from "./backup";
 import { upstreamFetch, upstreamStats } from "./upstream";
 import { delayUntilDue, lastRun, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
+import { checkPressReleases, recentPressReleases } from "./nbs-releases";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
 // keeps the app usable before the first ingest run and for any series the
@@ -375,6 +376,13 @@ const routes = {
     "/api/release-checks": (req: RouteRequest) => {
       const days = Math.min(90, Math.max(1, Number(new URL(req.url).searchParams.get("days") ?? 14) || 14));
       return Response.json({ days, checks: recentReleaseChecks(days) });
+    },
+    // NBS press releases read in shadow mode (server/nbs-releases.ts): the
+    // headline figures parsed from each release page and how they stand
+    // against the store, when read and now. Nothing here is served as a series.
+    "/api/press-releases": (req: RouteRequest) => {
+      const limit = Math.min(100, Math.max(1, Number(new URL(req.url).searchParams.get("limit") ?? 24) || 24));
+      return Response.json({ agency: "National Bureau of Statistics", mode: "shadow", releases: recentPressReleases(limit) });
     },
     // Every region of a multi-region series at once, for the map: the latest
     // value per region plus the periods available, all from the store.
@@ -781,6 +789,24 @@ if (ingestEveryHours > 0) {
       }
       scheduleReleaseAttempt(item, attempt + 1, Date.now() + wait);
     }, "Release refresh");
+    // The release page is on www.stats.gov.cn at the release time, often days
+    // before the bureau's database has the figures. Read it in shadow mode
+    // after each attempt for an NBS item (Customs items share this agenda),
+    // once per attempt, through the same worker so it never runs beside
+    // another job. It fetches the listing and only pages not yet read.
+    if (!CUSTOMS_KEYS.includes(item.keys[0] ?? "")) await runPressReleaseCheck();
+  };
+  // Mid-month, six or more NBS items share one release time and each attempt
+  // would fetch the listing again within seconds. Nothing new can appear on
+  // it that fast, so a check within ten minutes of the last one is skipped.
+  let lastPressReleaseCheckAt = 0;
+  const runPressReleaseCheck = async () => {
+    if (Date.now() - lastPressReleaseCheckAt < 10 * 60 * 1000) return;
+    lastPressReleaseCheckAt = Date.now();
+    await runWhenFree(async () => {
+      const tally = await checkPressReleases();
+      console.log(`  Press releases (shadow): ${tally.relevant} of ${tally.listed} listed are read here; ${tally.read} new read, ${tally.failed} refused`);
+    }, "Press release check");
   };
   const planReleases = async () => {
     try {

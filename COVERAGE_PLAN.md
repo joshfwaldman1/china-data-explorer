@@ -107,6 +107,11 @@ faster-updates work (15 September). Build it in shadow mode first: parse
 each release and compare the figures it shares with the portal before
 trusting the ones it alone carries.
 
+Started 29 September: `server/nbs-releases.ts` reads the industrial profits
+release and the mid-month national economy bundle in shadow mode after each
+NBS release attempt, including infrastructure and high-tech investment, and
+records each figure's agreement with the store (`/api/press-releases`).
+
 *Done when:* infrastructure and high-tech investment, year to date, are
 stored from each release, and the shadow comparison has matched the portal
 for three months running.
