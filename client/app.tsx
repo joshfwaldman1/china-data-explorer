@@ -1072,6 +1072,7 @@ const THEME_PAGES = [
   { name: "consumption", label: "Consumption" },
   { name: "investment", label: "Investment" },
   { name: "property", label: "Property" },
+  { name: "tech", label: "Tech & innovation" },
   { name: "trade", label: "Trade & flows" },
   { name: "energy", label: "Energy" },
   { name: "demographics", label: "Demographics" },

@@ -50,11 +50,34 @@ const OUTPUT = {
   solar: "nbs_97951619231f4be6bee905d904d30bc2",
   robots: "nbs_b8b61050c1ea400189696189b74cfc82",
   ships: "nbs_ac26aa2ef2ea4c659cc59ebbdbeaa187",
+  ics: "nbs_09008937b0f148b7ac12855a9dbf8913",
 } as const;
 
 
 /** The month-on-a-year-earlier output growth lines, by product. */
 const MONTH_GROWTH = { nev: "New energy vehicles, month (YoY %)", autos: "Automobiles, month (YoY %)", ics: "Integrated circuits, month (YoY %)", steel: "Crude steel, month (YoY %)", cement: "Cement, month (YoY %)" } as const;
+
+/**
+ * What the stored Customs monthly tables hold around the Lunar New Year. For
+ * 2020 to 2025 Customs published January and February only as one combined
+ * figure, and the store keeps it differently by table and year, so each note
+ * says exactly what its series has. Checked against the live site on 29
+ * September 2026.
+ */
+const CUSTOMS_NOTES = {
+  /** Commodity lines from January 2019: hi-tech products, ships, coal. */
+  commodityFrom2019: "2019 has separate January and February points. There is no point for either month in 2020. For 2021 to 2023 the February point is January and February combined. There is no January or February point for 2024 or 2025. 2026 has a February point alone and no January.",
+  /** A commodity chart whose window opens in 2020 (mobile phones, six years). */
+  commodityFrom2021: "For 2021 to 2023 the February point is January and February combined. There is no January or February point for 2024 or 2025. 2026 has a February point alone and no January.",
+  /** A commodity chart whose window opens in 2021 (motor vehicles, five years). */
+  commodityFrom2022: "For 2022 and 2023 the February point is January and February combined. There is no January or February point for 2024 or 2025. 2026 has a February point alone and no January.",
+  /** Trade by partner. */
+  partners: "2019 has separate January and February points. There is no January or February point for 2020 to 2025. 2026 has a February point alone and no January.",
+  /** Lines the site began storing in 2026, such as integrated circuits. */
+  from2026: "The stored history starts in February 2026. January 2026 is not stored.",
+  hiTechOverlap: "Hi-tech products overlap other commodity lines.",
+  december2019Missing: "December 2019 is missing.",
+} as const;
 
 const MANUFACTURING: Theme = {
   title: "Manufacturing",
@@ -213,7 +236,7 @@ const ENERGY: Theme = {
       charts: [
         { title: "Crude oil imports, value, month", key: "major_imports", region: "crude-petroleum-oils", labels: ["Value"], years: 1, note: "Customs history on this site starts February 2026." },
         { title: "Natural gas imports, value, month", key: "major_imports", region: "natural-gases", labels: ["Value"], years: 1, note: "Customs history on this site starts February 2026." },
-        { title: "Coal imports, value, month", key: "major_imports", region: "coal-and-lignite", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
+        { title: "Coal imports, value, month", key: "major_imports", region: "coal-and-lignite", labels: ["Value"], years: 8, note: `${CUSTOMS_NOTES.commodityFrom2019} ${CUSTOMS_NOTES.december2019Missing}` },
       ],
     },
     {
@@ -401,6 +424,97 @@ const INVESTMENT: Theme = {
   ],
 };
 
+/**
+ * Bureau catalog series the tech and innovation page draws. All are national
+ * tables in datasets 1 to 3, none of them sliced into a family, so each id is
+ * the whole series. The annual science and technology tables carry both the
+ * domestic and foreign applicant counts; the page keeps invention, utility
+ * model and design patents on separate charts because the three are examined
+ * differently and are never summed here.
+ */
+const TECH_SERIES = {
+  inventionApplications: "nbs_0657dcd8475e427eb3118d1e75ab6003",
+  inventionGrants: "nbs_50f8cbced82e4c6e948ff3843abde5a0",
+  inventionApplicationsDomestic: "nbs_98cb0a74cf4d4413874450b17f5a7447",
+  inventionApplicationsForeign: "nbs_2bb2441b1123461a905f1ecfd5fc1d5d",
+  utilityModelApplications: "nbs_7356847f658c42c48a7bf331dcb83184",
+  designApplications: "nbs_37017d3c4dd54628ac79d8d5c9cb0f08",
+  rdSpending: "nbs_3a5061e303e546c9be5e1962fe13548d",
+  rdBasicResearch: "nbs_ea75287271a5427f8e2fb3724354fa58",
+  rdPersonnelFte: "nbs_bfadf37642ca44b0a45d2e26041bd040",
+  doctoralGraduates: "nbs_fb87c9bbe7c44203917e49678f838fbd",
+  postgraduateGraduates: "nbs_7f07420225924c389d51dd6db5e7cb56",
+  itValueAdded: "nbs_b46978955565481eb801c97029bbc779",
+  itValueAddedGrowth: "nbs_060c7617bdd846ae917d1b8738ff6a70",
+  itInvestmentYtd: "nbs_36a00c88e1924fd38df593bb043bebb1",
+  fiveGUsers: "nbs_d704a40c23344e2bbaf680e3c177c0fb",
+  technologyMarket: "nbs_fe4358b6030c41bc8414b60354f947d5",
+} as const;
+
+const TECH: Theme = {
+  title: "Tech and innovation",
+  lede: "",
+  sections: [
+    {
+      title: "Patents",
+      lede: "Invention patents are examined for novelty and inventiveness. Utility model and design patents get only a preliminary examination and are shown separately.",
+      charts: [
+        { title: "Invention patent applications, year", key: TECH_SERIES.inventionApplications, years: 30, note: "Applications received from domestic and foreign applicants. The 2024 and 2025 figures are rounded to the thousand." },
+        { title: "Invention patent grants, year", key: TECH_SERIES.inventionGrants, years: 30, note: "Patents granted to domestic and foreign applicants. The 2024 and 2025 figures are rounded to the thousand." },
+        { title: "Invention patent applications, domestic applicants, year", key: TECH_SERIES.inventionApplicationsDomestic, years: 30, note: "The 2024 and 2025 figures are rounded to the thousand." },
+        { title: "Invention patent applications, foreign applicants, year", key: TECH_SERIES.inventionApplicationsForeign, years: 30, note: "The 2024 and 2025 figures are rounded to the thousand." },
+        { title: "Utility model patent applications, year", key: TECH_SERIES.utilityModelApplications, years: 30, note: "Latest reading 2024." },
+        { title: "Design patent applications, year", key: TECH_SERIES.designApplications, years: 30, note: "Latest reading 2024." },
+      ],
+    },
+    {
+      title: "Research and development",
+      charts: [
+        { title: "R&D spending, total, year", key: TECH_SERIES.rdSpending, years: 30, note: "Spending on research and experimental development (研究与试验发展) by the units the bureau surveys. In 100 million yuan at current prices." },
+        { title: "R&D spending, basic research, year", key: TECH_SERIES.rdBasicResearch, years: 28, note: "Research not aimed at a particular use. In 2025 it was 7% of all R&D spending. In 100 million yuan at current prices." },
+        { title: "R&D personnel, full-time equivalent, year", key: TECH_SERIES.rdPersonnelFte, years: 30, note: "In 10,000 person-years. Someone who spends half their time on R&D counts as half." },
+        { title: "Technology market contract value, year", key: TECH_SERIES.technologyMarket, years: 30, note: "Contracts for technology development, transfer, consulting and services registered with the technology market. In 100 million yuan at current prices." },
+      ],
+    },
+    {
+      title: "Research workforce",
+      charts: [
+        { title: "Doctoral graduates, year", key: TECH_SERIES.doctoralGraduates, years: 20, note: "In 10,000 persons. Latest reading 2024." },
+        { title: "Postgraduate graduates, doctoral and master's combined, year", key: TECH_SERIES.postgraduateGraduates, years: 30, note: "In 10,000 persons. Master's graduates are about nine in ten." },
+      ],
+    },
+    {
+      title: "Tech output",
+      lede: "Monthly output from the bureau's table. January is never published on its own. A February point, where the table has one, is January and February combined. The Manufacturing page shows integrated circuit and new energy vehicle output as growth rates.",
+      charts: [
+        { title: "Integrated circuit output, month", key: OUTPUT.ics, years: 10, note: "In 100 million units. Chips of every kind." },
+        { title: "Industrial robot output, month", key: OUTPUT.robots, years: 10, note: "In sets." },
+        { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3, note: "In 10,000 vehicles." },
+        { title: "Solar cell output, month", key: OUTPUT.solar, years: 10, note: "In 10,000 kilowatts of capacity." },
+      ],
+    },
+    {
+      title: "Digital economy",
+      charts: [
+        { title: "Value added of information transmission, software and IT services, current prices, quarter", key: TECH_SERIES.itValueAdded, years: 10, note: "In 100 million yuan. The third quarter is the smallest each year, so compare a quarter with the same quarter a year earlier." },
+        { title: "Value added of information transmission, software and IT services, real growth on a year earlier, quarter", key: TECH_SERIES.itValueAddedGrowth, years: 10, note: "Growth after deducting price changes." },
+        { title: "Fixed-asset investment in information transmission, software and IT services, year-to-date growth", key: TECH_SERIES.itInvestmentYtd, years: 8, note: "Each year's first point covers January and February." },
+        { title: "5G mobile phone users, month-end", key: TECH_SERIES.fiveGUsers, years: 5, note: "In 10,000 subscribers, so 100,000 is one billion." },
+      ],
+    },
+    {
+      title: "Technology trade",
+      lede: "Customs' major exports and imports tables, value in million US dollars.",
+      charts: [
+        { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: `${CUSTOMS_NOTES.commodityFrom2019} ${CUSTOMS_NOTES.hiTechOverlap}` },
+        { title: "Hi-tech product imports, value, month", key: "major_imports", region: "hi-tech-products", labels: ["Value"], years: 8, note: `${CUSTOMS_NOTES.commodityFrom2019} ${CUSTOMS_NOTES.december2019Missing} ${CUSTOMS_NOTES.hiTechOverlap}` },
+        { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: CUSTOMS_NOTES.from2026 },
+        { title: "Integrated circuit imports, value, month", key: "major_imports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: CUSTOMS_NOTES.from2026 },
+      ],
+    },
+  ],
+};
+
 export const THEMES: Record<string, Theme> = {
   trade: {
     title: "Trade and capital flows",
@@ -419,23 +533,23 @@ export const THEMES: Record<string, Theme> = {
       {
         title: "Trade by partner",
         charts: [
-          { title: "Exports to and imports from the United States, month", key: "trade_partners", region: "united-states", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
-          { title: "Exports to and imports from the European Union, month", key: "trade_partners", region: "european-union", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
-          { title: "Exports to and imports from ASEAN, month", key: "trade_partners", region: "asean", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
-          { title: "Exports to and imports from Japan, month", key: "trade_partners", region: "japan", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
-          { title: "Exports to and imports from South Korea, month", key: "trade_partners", region: "r-o-korea", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
-          { title: "Exports to and imports from Russia, month", key: "trade_partners", region: "russian-federation", labels: ["Exports", "Imports"], years: 8, note: "No January or February figures for 2020 to 2025, when Customs published only the two months combined. June 2025 is missing." },
+          { title: "Exports to and imports from the United States, month", key: "trade_partners", region: "united-states", labels: ["Exports", "Imports"], years: 8, note: CUSTOMS_NOTES.partners },
+          { title: "Exports to and imports from the European Union, month", key: "trade_partners", region: "european-union", labels: ["Exports", "Imports"], years: 8, note: CUSTOMS_NOTES.partners },
+          { title: "Exports to and imports from ASEAN, month", key: "trade_partners", region: "asean", labels: ["Exports", "Imports"], years: 8, note: CUSTOMS_NOTES.partners },
+          { title: "Exports to and imports from Japan, month", key: "trade_partners", region: "japan", labels: ["Exports", "Imports"], years: 8, note: CUSTOMS_NOTES.partners },
+          { title: "Exports to and imports from South Korea, month", key: "trade_partners", region: "r-o-korea", labels: ["Exports", "Imports"], years: 8, note: CUSTOMS_NOTES.partners },
+          { title: "Exports to and imports from Russia, month", key: "trade_partners", region: "russian-federation", labels: ["Exports", "Imports"], years: 8, note: CUSTOMS_NOTES.partners },
         ],
       },
       {
         title: "Major exports, by value",
         lede: "From Customs' commodity table.",
         charts: [
-          { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined. Hi-tech products overlap other commodity lines." },
-          { title: "Mobile phone exports, value, month", key: "major_exports", region: "mobile-phones", labels: ["Value"], years: 6, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
-          { title: "Motor vehicle exports, value, month", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 5, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
-          { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: "Customs added this line in 2026. January 2026 is not stored." },
-          { title: "Ship exports, value, month", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: "No January or February figure for 2021 to 2025, when Customs published only the two months combined." },
+          { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: `${CUSTOMS_NOTES.commodityFrom2019} ${CUSTOMS_NOTES.hiTechOverlap}` },
+          { title: "Mobile phone exports, value, month", key: "major_exports", region: "mobile-phones", labels: ["Value"], years: 6, note: CUSTOMS_NOTES.commodityFrom2021 },
+          { title: "Motor vehicle exports, value, month", key: "major_exports", region: "motor-vehicles-including-chassis-fitted-with-engines", labels: ["Value"], years: 5, note: CUSTOMS_NOTES.commodityFrom2022 },
+          { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: CUSTOMS_NOTES.from2026 },
+          { title: "Ship exports, value, month", key: "major_exports", region: "ships", labels: ["Value"], years: 8, note: CUSTOMS_NOTES.commodityFrom2019 },
         ],
       },
       {
@@ -476,6 +590,7 @@ export const THEMES: Record<string, Theme> = {
   consumption: CONSUMPTION,
   investment: INVESTMENT,
   property: PROPERTY,
+  tech: TECH,
   // Equities is off the site (agreed page list, 29 September 2026). Its definition above is kept; restore it here, in THEME_ORDER and in the client page strip.
   energy: ENERGY,
   demographics: DEMOGRAPHICS,
@@ -483,7 +598,7 @@ export const THEMES: Record<string, Theme> = {
 };
 
 /** The pages in the order the owner named them; Home and Provinces are not themes but sit in the same strip. */
-export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "trade", "energy", "demographics", "labor"] as const;
+export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "tech", "trade", "energy", "demographics", "labor"] as const;
 
 export interface ThemeChartData extends ThemeChart {
   result: SeriesResult | null;
