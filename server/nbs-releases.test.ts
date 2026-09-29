@@ -451,42 +451,79 @@ test("a page that cannot be fetched is not a refusal: it is logged and tried aga
   expect((await checkPressReleases(read, production, () => morning + 10 * 60 * 1000)).waiting).toBe(1);
 });
 
-test("an unlisted refusal is given up after twenty attempts or 180 days, logged once, and no longer counted", async () => {
+const OFF_LISTING = `<ul><li><a href="./202611/t20261116_2.html" title='2026年10月份能源生产情况'>x</a><span>2026-11-16</span></li></ul>`;
+
+test("a page refused daily for its month on the listing still gets its retries once it falls off, and is read when the parser is fixed", async () => {
+  const day = 24 * 60 * 60 * 1000;
+  let listing = `<ul>${REFUSED_ITEM}</ul>`;
+  let page = UNKNOWN_SHAPE;
+  const requested: string[] = [];
+  const read = async (url: string) => {
+    requested.push(url);
+    return url === NBS_RELEASE_LISTING_URL ? listing : page;
+  };
+  const first = Date.UTC(2026, 9, 15, 2, 20);
+  for (let dayOnListing = 0; dayOnListing <= 30; dayOnListing += 1) {
+    await checkPressReleases(read, production, () => first + dayOnListing * (REFUSED_PAGE_RETRY_MS + 1000));
+  }
+  expect(refusedPressReleases(first + 31 * day).current[0]).toMatchObject({ attempts: 31, unlistedAttempts: 0 });
+
+  // Day 32: off the listing. Retried by URL, refused again, and not given up.
+  listing = OFF_LISTING;
+  const offList = await checkPressReleases(read, production, () => first + 32 * day);
+  expect(offList).toMatchObject({ retriedUnlisted: 1, failed: 1, givenUp: 0 });
+  expect(requested.at(-1)).toBe(REFUSED_URL);
+  // Day 40: a deploy with the parser fixed. The page is fetched and read.
+  forgetUnlistedRetries();
+  page = await fixture("national-economy-2026-08.html");
+  const afterDeploy = await checkPressReleases(read, production, () => first + 40 * day);
+  expect(afterDeploy).toMatchObject({ retriedUnlisted: 1, read: 1, givenUp: 0 });
+  expect(pressReleaseHealth(production, first + 40 * day)).toMatchObject({ refused: [], noLongerListed: 0, givenUp: 0 });
+});
+
+test("an unlisted refusal is given up after twenty tries off the listing or 180 days off it, logged once, and counted as given up", async () => {
   const read = async (url: string) => (url === NBS_RELEASE_LISTING_URL ? `<ul>${REFUSED_ITEM}</ul>` : UNKNOWN_SHAPE);
   const offListing = async (url: string) => {
-    if (url === NBS_RELEASE_LISTING_URL) return `<ul><li><a href="./202611/t20261116_2.html" title='2026年10月份能源生产情况'>x</a><span>2026-11-16</span></li></ul>`;
+    if (url === NBS_RELEASE_LISTING_URL) return OFF_LISTING;
     throw new Error("NBS release page -> HTTP 404"); // taken down
   };
   const day = 24 * 60 * 60 * 1000;
   const first = Date.UTC(2026, 9, 15, 2, 20);
   await checkPressReleases(read, production, () => first);
-  // Weekly retries of a page NBS has taken down: each 404 counts as an attempt, so the cap is reached.
-  let at = first + 40 * day;
-  for (let attempt = 2; attempt <= UNLISTED_REFUSAL_MAX_ATTEMPTS; attempt += 1) {
+  // Weekly retries of a page NBS has taken down: each 404 is a try off the listing.
+  // Started at day 36, so the twentieth try (day 169) comes before the 180-day limit.
+  let at = first + 36 * day;
+  for (let tryOffListing = 1; tryOffListing <= UNLISTED_REFUSAL_MAX_ATTEMPTS; tryOffListing += 1) {
     forgetUnlistedRetries();
     const tally = await checkPressReleases(offListing, production, () => at);
     expect(tally).toMatchObject({ retriedUnlisted: 1, unreachable: 1, givenUp: 0 });
     at += UNLISTED_REFUSAL_RETRY_MS;
   }
-  expect(refusedPressReleases(at).noLongerListed[0]?.attempts).toBe(UNLISTED_REFUSAL_MAX_ATTEMPTS);
+  expect(refusedPressReleases(at).noLongerListed[0]).toMatchObject({ unlistedAttempts: UNLISTED_REFUSAL_MAX_ATTEMPTS, attempts: UNLISTED_REFUSAL_MAX_ATTEMPTS + 1 });
   const givenUp = await checkPressReleases(offListing, production, () => at);
   expect(givenUp).toMatchObject({ givenUp: 1, retriedUnlisted: 0 });
-  expect(pressReleaseHealth(production, at)).toMatchObject({ refused: [], noLongerListed: 0 });
+  expect(pressReleaseHealth(production, at)).toMatchObject({ refused: [], noLongerListed: 0, givenUp: 1 });
   // Logged once: later checks, even after a deploy, neither retry it nor log it again.
   forgetUnlistedRetries();
   expect(await checkPressReleases(offListing, production, () => at + 30 * day)).toMatchObject({ givenUp: 0, retriedUnlisted: 0 });
   const notices = db().query<{ message: string }, []>("SELECT message FROM fetch_log WHERE key = 'press_release' AND message LIKE '%given up after%'").all();
   expect(notices.length).toBe(1);
-  expect(notices[0]?.message).toContain(`given up after ${UNLISTED_REFUSAL_MAX_ATTEMPTS} attempts since 2026-10-15`);
+  expect(notices[0]?.message).toContain(`given up after ${UNLISTED_REFUSAL_MAX_ATTEMPTS} tries off the listing (${UNLISTED_REFUSAL_MAX_ATTEMPTS + 1} in all), last listed 2026-10-15`);
 
-  // By age: a refusal first made 180 days ago is given up on its next retry, however few its attempts.
+  // By age: 180 days after it was last listed, with one try off the listing behind it, it is given up.
   clearPressReleaseRows();
   await checkPressReleases(read, production, () => first);
+  expect(await checkPressReleases(offListing, production, () => first + 36 * day)).toMatchObject({ retriedUnlisted: 1, givenUp: 0 });
   const old = await checkPressReleases(offListing, production, () => first + UNLISTED_REFUSAL_MAX_DAYS * day);
   expect(old).toMatchObject({ givenUp: 1, retriedUnlisted: 0 });
+
+  // But never before one try off the listing: a page first seen off it long after is retried first.
+  clearPressReleaseRows();
+  await checkPressReleases(read, production, () => first);
+  expect(await checkPressReleases(offListing, production, () => first + 200 * day)).toMatchObject({ retriedUnlisted: 1, givenUp: 0 });
 });
 
-test("a refusals table from before last_listed_at and given_up_at gains both columns, and its rows read as before", () => {
+test("a refusals table from before last_listed_at, given_up_at and unlisted_attempts gains all three columns, and its rows read as before", () => {
   db().exec("DROP TABLE IF EXISTS press_release_refusals");
   db().exec(`CREATE TABLE press_release_refusals (url TEXT PRIMARY KEY, title TEXT NOT NULL, first_refused_at TEXT NOT NULL, last_refused_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 1, message TEXT NOT NULL)`);
   db().exec(`INSERT INTO press_release_refusals VALUES ('${REFUSED_URL}', '9月份国民经济运行总体平稳', '2026-10-15T02:20:00.000Z', '2026-10-16T02:20:00.000Z', 2, 'refused')`);
@@ -496,6 +533,7 @@ test("a refusals table from before last_listed_at and given_up_at gains both col
   const columns = db().query<{ name: string }, []>("PRAGMA table_info(press_release_refusals)").all().map((column) => column.name);
   expect(columns).toContain("last_listed_at");
   expect(columns).toContain("given_up_at");
+  expect(columns).toContain("unlisted_attempts");
   // An empty last_listed_at reads as the last refusal, so the row is current until five weeks after it.
   expect(refusals.current.map((page) => [page.url, page.lastListedAt])).toEqual([[REFUSED_URL, "2026-10-16T02:20:00.000Z"]]);
 });

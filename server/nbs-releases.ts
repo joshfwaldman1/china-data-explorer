@@ -601,7 +601,8 @@ function releasesDb() {
         last_listed_at    TEXT NOT NULL DEFAULT '',
         attempts          INTEGER NOT NULL DEFAULT 1,
         message           TEXT NOT NULL,
-        given_up_at       TEXT NOT NULL DEFAULT ''
+        given_up_at       TEXT NOT NULL DEFAULT '',
+        unlisted_attempts INTEGER NOT NULL DEFAULT 0
       )
     `);
     // A store whose refusals table was created before these columns existed
@@ -609,6 +610,7 @@ function releasesDb() {
     const columns = new Set(database.query<{ name: string }, []>("PRAGMA table_info(press_release_refusals)").all().map((column) => column.name));
     if (!columns.has("last_listed_at")) database.exec("ALTER TABLE press_release_refusals ADD COLUMN last_listed_at TEXT NOT NULL DEFAULT ''");
     if (!columns.has("given_up_at")) database.exec("ALTER TABLE press_release_refusals ADD COLUMN given_up_at TEXT NOT NULL DEFAULT ''");
+    if (!columns.has("unlisted_attempts")) database.exec("ALTER TABLE press_release_refusals ADD COLUMN unlisted_attempts INTEGER NOT NULL DEFAULT 0");
     tableReady = true;
   }
   return database;
@@ -626,17 +628,27 @@ export const UNLISTED_REFUSAL_RETRY_MS = 7 * DAY_MS;
  */
 export const REFUSAL_CURRENT_DAYS = 35;
 /**
- * An unlisted refusal is given up after this many attempts or this many days
- * since it was first refused, whichever comes first: a page NBS has taken
- * down would otherwise be fetched weekly and after every deploy for ever.
+ * An unlisted refusal is given up after this many retries since it left the
+ * listing, or this many days since it was last listed, whichever comes first:
+ * a page NBS has taken down would otherwise be fetched weekly and after every
+ * deploy for ever. Both are counted from leaving the listing, not from the
+ * first refusal: a page refused daily for its month on the listing already
+ * has thirty attempts, and must still get its retries once it falls off.
  */
 export const UNLISTED_REFUSAL_MAX_ATTEMPTS = 20;
 export const UNLISTED_REFUSAL_MAX_DAYS = 180;
 
-export interface PressReleaseRefusal { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; lastListedAt: string; attempts: number; message: string }
+export interface PressReleaseRefusal {
+  url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; lastListedAt: string;
+  /** Every attempt, listed or not. */
+  attempts: number;
+  /** Retries since the page left the listing: what the give-up cap counts. */
+  unlistedAttempts: number;
+  message: string;
+}
 
 // A row migrated from before last_listed_at existed has it empty; its last refusal stands in.
-const REFUSAL_COLUMNS = "r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, CASE WHEN r.last_listed_at = '' THEN r.last_refused_at ELSE r.last_listed_at END AS lastListedAt, r.attempts, r.message";
+const REFUSAL_COLUMNS = "r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, CASE WHEN r.last_listed_at = '' THEN r.last_refused_at ELSE r.last_listed_at END AS lastListedAt, r.attempts, r.unlisted_attempts AS unlistedAttempts, r.message";
 
 function lastRefusal(url: string): PressReleaseRefusal | null {
   return releasesDb().query<PressReleaseRefusal, { $url: string }>(`SELECT ${REFUSAL_COLUMNS} FROM press_release_refusals r WHERE r.url = $url`).get({ $url: url });
@@ -649,7 +661,8 @@ function recordRefusal(url: string, title: string, message: string, at: string, 
     VALUES ($url, $title, $at, $at, COALESCE($listedAt, $at), 1, $message)
     ON CONFLICT(url) DO UPDATE SET last_refused_at = excluded.last_refused_at, attempts = attempts + 1, message = excluded.message,
       last_listed_at = COALESCE($listedAt, last_listed_at),
-      given_up_at = CASE WHEN $listedAt IS NULL THEN given_up_at ELSE '' END
+      given_up_at = CASE WHEN $listedAt IS NULL THEN given_up_at ELSE '' END,
+      unlisted_attempts = CASE WHEN $listedAt IS NULL THEN unlisted_attempts + 1 ELSE 0 END
   `).run({ $url: url, $title: title, $at: at, $listedAt: listedAt, $message: message });
 }
 
@@ -659,7 +672,7 @@ function recordRefusal(url: string, title: string, message: string, at: string, 
  * it was refused stays the parser's.
  */
 function recordUnlistedFetchFailure(url: string, at: string): void {
-  releasesDb().query("UPDATE press_release_refusals SET attempts = attempts + 1, last_refused_at = $at WHERE url = $url").run({ $url: url, $at: at });
+  releasesDb().query("UPDATE press_release_refusals SET attempts = attempts + 1, unlisted_attempts = unlisted_attempts + 1, last_refused_at = $at WHERE url = $url").run({ $url: url, $at: at });
 }
 
 function giveUpRefusal(url: string, at: string): void {
@@ -668,7 +681,8 @@ function giveUpRefusal(url: string, at: string): void {
 
 /** A refused page seen on the listing again, though not fetched this time (its day has not passed). */
 function markStillListed(url: string, at: string): void {
-  releasesDb().query("UPDATE press_release_refusals SET last_listed_at = $at WHERE url = $url").run({ $url: url, $at: at });
+  // Relisted: its retries off the listing start again from nothing if it falls off again.
+  releasesDb().query("UPDATE press_release_refusals SET last_listed_at = $at, unlisted_attempts = 0 WHERE url = $url").run({ $url: url, $at: at });
 }
 
 function unreadRefusals(): PressReleaseRefusal[] {
@@ -678,6 +692,14 @@ function unreadRefusals(): PressReleaseRefusal[] {
     WHERE NOT EXISTS (SELECT 1 FROM press_release_reads p WHERE p.url = r.url) AND r.given_up_at = ''
     ORDER BY r.last_refused_at DESC
   `).all();
+}
+
+/** Refused pages given up and still unread. */
+function givenUpRefusalCount(): number {
+  return releasesDb().query<{ count: number }, []>(`
+    SELECT COUNT(*) AS count FROM press_release_refusals r
+    WHERE r.given_up_at != '' AND NOT EXISTS (SELECT 1 FROM press_release_reads p WHERE p.url = r.url)
+  `).get()?.count ?? 0;
 }
 
 /**
@@ -867,15 +889,17 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
     if (listedUrls.has(refusal.url)) continue;
     const kind = releaseKindOfTitle(refusal.title);
     if (!kind) continue;
-    const tooMany = refusal.attempts >= UNLISTED_REFUSAL_MAX_ATTEMPTS;
-    const tooOld = now() - Date.parse(refusal.firstRefusedAt) >= UNLISTED_REFUSAL_MAX_DAYS * DAY_MS;
-    if (tooMany || tooOld) {
+    // Never before at least one retry off the listing: the post-deploy retry is
+    // the one a parser fix is waiting for.
+    const tooMany = refusal.unlistedAttempts >= UNLISTED_REFUSAL_MAX_ATTEMPTS;
+    const tooOld = now() - Date.parse(refusal.lastListedAt) >= UNLISTED_REFUSAL_MAX_DAYS * DAY_MS;
+    if (refusal.unlistedAttempts >= 1 && (tooMany || tooOld)) {
       // Given up once, logged once: a given-up row leaves unreadRefusals, so it is neither retried nor counted again.
       giveUpRefusal(refusal.url, nowIso());
       tally.givenUp += 1;
       logFetch({
         key: "press_release", region: pageId(refusal.url), startedAt: nowIso(), finishedAt: nowIso(), status: "error", points: 0, changed: 0,
-        message: `"${refusal.title}": given up after ${refusal.attempts} attempts since ${refusal.firstRefusedAt.slice(0, 10)}; no longer listed and no longer retried. Last reason: ${refusal.message}`,
+        message: `"${refusal.title}": given up after ${refusal.unlistedAttempts} tries off the listing (${refusal.attempts} in all), last listed ${refusal.lastListedAt.slice(0, 10)}; no longer retried. Last reason: ${refusal.message}`,
       });
       continue;
     }
@@ -888,12 +912,12 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
   return tally;
 }
 
-/** For tests: forget which unlisted refusals this process has retried, as a deploy would. */
 /** For tests: check the reader's tables and columns again on next use, as a new process would, so the migration runs. */
 export function resetPressReleaseTablesForTest(): void {
   tableReady = false;
 }
 
+/** For tests: forget which unlisted refusals this process has retried, as a deploy would. */
 export function forgetUnlistedRetries(): void {
   retriedUnlistedThisProcess.clear();
 }
@@ -916,6 +940,8 @@ export interface PressReleaseHealth {
   refused: PressReleaseRefusal[];
   /** Pages refused and still unread that have fallen off the listing. Counted, not a live fault. */
   noLongerListed: number;
+  /** Refused pages given up after their retries off the listing, still unread. Counted, not a live fault. */
+  givenUp: number;
 }
 
 /**
@@ -935,5 +961,6 @@ export function pressReleaseHealth(lookup: StoredValueLookup = storeLookup, now 
     awaitingDatabase: recent.reduce((sum, view) => sum + view.comparisonNow.filter((item) => item.status === "not_in_database").length, 0),
     refused: refusals.current,
     noLongerListed: refusals.noLongerListed.length,
+    givenUp: givenUpRefusalCount(),
   };
 }

@@ -1312,6 +1312,7 @@ interface PressReleaseHealth {
   awaitingDatabase: number;
   refused: { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; attempts: number; message: string }[];
   noLongerListed?: number;
+  givenUp?: number;
 }
 interface Health {
   headline: string; ranAt: string;
@@ -1450,7 +1451,14 @@ function HealthPage() {
               {(data.pressReleases.noLongerListed ?? 0) > 0 && (
                 <p className="quiet">
                   {data.pressReleases.noLongerListed} refused page{data.pressReleases.noLongerListed === 1 ? " has" : "s have"} fallen off the bureau's
-                  listing and {data.pressReleases.noLongerListed === 1 ? "is" : "are"} not counted above. Each is tried again after every deploy and once a week.
+                  listing and {data.pressReleases.noLongerListed === 1 ? "is" : "are"} not counted above. Each is tried again after every deploy and once a week,
+                  until given up after 20 tries or 180 days off the listing.
+                </p>
+              )}
+              {(data.pressReleases.givenUp ?? 0) > 0 && (
+                <p className="quiet">
+                  {data.pressReleases.givenUp} refused page{data.pressReleases.givenUp === 1 ? " was" : "s were"} given up after 20 tries or 180 days off the
+                  listing and {data.pressReleases.givenUp === 1 ? "is" : "are"} no longer retried. The fetch log has the last reason for each.
                 </p>
               )}
             </section>
