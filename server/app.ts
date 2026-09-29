@@ -43,6 +43,7 @@ import {
   isFrequency,
   nbsCatalogStats,
   searchNbsCatalogWithPlaces,
+  resolveTransform,
   transformLabel,
   transformPoints,
   type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery, warmSearchIndex } from "./nbs-catalog";
@@ -87,11 +88,14 @@ function isTransform(value: string | null): value is NbsTransform {
  * Curated series are stored raw; the same transforms the catalog series get
  * apply here on the way out, so the "Show as" control works for every series.
  */
-function applyTransform(result: SeriesResult, transform: NbsTransform | null): SeriesResult {
-  if (!transform || transform === "raw") return result;
+function applyTransform(result: SeriesResult, requested: NbsTransform | null): SeriesResult & { transform: NbsTransform } {
+  if (!requested || requested === "raw") return { ...result, transform: "raw" };
+  // "Index minus 100" only for an index on a year-earlier base; a level gets its real year-on-year change.
+  const transform = resolveTransform(requested, `${result.unit} ${result.title}`);
   const frequency = isFrequency(result.frequency) ? result.frequency : "Monthly";
   return {
     ...result,
+    transform,
     unit: transformLabel(transform),
     series: result.series.map((one) => ({ ...one, points: transformPoints(one.points, transform, frequency) })),
   };
@@ -608,14 +612,14 @@ const routes = {
         const region = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
         const stored = onlyConfigured(key, readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value));
         if (stored && stored.series.some((s) => s.points.length > 0)) {
-          return Response.json({ ...applyTransform(stored, transform), region, source: "store", transform: transform ?? "raw" });
+          return Response.json({ ...applyTransform(stored, transform), region, source: "store" });
         }
         if (!SERVE_LIVE_FALLBACK) {
           return Response.json({ error: "Not yet ingested" }, { status: 503 });
         }
         const data = region ? await fetchLiveRegion(key, region, Number.isFinite(limit) ? limit : 120) : await getSeries(key, Number.isFinite(limit) ? limit : 120);
         if (!data) return Response.json({ error: "Unknown series" }, { status: 404 });
-        return Response.json({ ...applyTransform(data, transform), region, source: "live", transform: transform ?? "raw" });
+        return Response.json({ ...applyTransform(data, transform), region, source: "live" });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Upstream fetch failed";
         return Response.json({ error: message }, { status: 502 });

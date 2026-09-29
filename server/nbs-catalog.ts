@@ -7,6 +7,7 @@ import { NBS_PROVINCES, type SeriesPoint, type SeriesResult } from "./data";
 import { catalogPath, readCatalogSnapshot } from "./catalog-file";
 import { collectedRegions, withEnglishNames } from "./regions";
 import { findGeographyInQuery, findPlaceInQuery } from "../shared/places.ts";
+import { isYearEarlierIndex } from "../shared/measure.ts";
 import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness, seriesFullHistoryCheck, storedLatest, writeSeries } from "./db";
 import { glossTitle, glossTitleDetailed, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
@@ -1523,6 +1524,19 @@ export function transformPoints(points: SeriesPoint[], transform: NbsTransform, 
   return output;
 }
 
+/**
+ * The transform a series can honestly take. "Index minus 100" is the change on
+ * a year earlier only for an index whose base is a year earlier (上年同月=100).
+ * Asked of anything else it subtracted 100 from a level and called the result a
+ * percentage: deposits of 3,476,700 亿元 read as a 3,476,600 percent change,
+ * "Up 11,997.3 pp". Such a request gets the year-on-year change computed from
+ * the levels instead, which is what the label says. `describing` is any text
+ * about the series: its unit, title, Chinese name.
+ */
+export function resolveTransform(transform: NbsTransform, describing: string): NbsTransform {
+  return transform === "index_growth" && !isYearEarlierIndex(describing) ? "yoy" : transform;
+}
+
 export function transformLabel(transform: NbsTransform): string {
   if (transform === "change") return "Change from previous period";
   if (transform === "percent_change") return "Percent change from previous period";
@@ -1836,7 +1850,7 @@ export async function getNbsCatalogSeries(options: {
   storeOnly?: boolean;
 }): Promise<NbsSeriesResult> {
   const limit = Math.min(historyLimit(options.entry.frequency), Math.max(2, options.limit ?? 120));
-  const transform = options.transform ?? defaultNbsTransform(options.entry);
+  const transform = resolveTransform(options.transform ?? defaultNbsTransform(options.entry), `${options.entry.name} ${options.entry.shortName} ${rawUnitOf(options.entry)}`);
   const region = await resolveNbsRegion(options.entry, options.region);
 
   // A sliced table is served whole: every member of the family, oldest first,

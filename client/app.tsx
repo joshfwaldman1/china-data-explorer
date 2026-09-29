@@ -7,7 +7,7 @@ import {
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
 import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
-import { measureOf, type Measure } from "../shared/measure";
+import { isYearEarlierIndex, measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
@@ -1930,6 +1930,10 @@ function SeriesPage(props: {
   const lunar = props.route.lny === "1";
   // The legend names the lines; the measure they share is written once in the caption under the chart.
   const shownTracks = withoutSharedSuffix(tracks);
+  // "Index minus 100" is offered only for an index on a year-earlier base (上年同月=100). The server
+  // answers such a request for anything else with the real year-on-year change, and the control says so.
+  const indexMinus100 = results.every((result) => isYearEarlierIndex(`${result.title} ${result.metadata?.name ?? ""} ${result.metadata?.shortName ?? ""} ${result.metadata?.unit ?? ""} ${!result.transform || result.transform === "raw" ? result.unit : ""}`));
+  const showSelected: Show = show === "index_growth" && !indexMinus100 ? "yoy" : show;
   // The same axis the chart draws, asked here so the caption and legend say what it says.
   const pageAxis = valueAxisFor(visibleTracks(shownTracks, years, windowStart, windowEnd), unit, logScale && canLog);
   const rescaledCaption = rescaledUnitText(unit, pageAxis);
@@ -2062,7 +2066,7 @@ function SeriesPage(props: {
               series cannot be shown quarterly, and offering it does nothing. */}
           <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option>{coarserFrequencies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
-          <label>Show as<select value={show} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label>Show as<select value={showSelected} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.filter((item) => item.value !== "index_growth" || indexMinus100).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
           {results.some((result) => result.frequency === "Monthly") && <label><input type="checkbox" checked={lunar} onChange={(event) => set({ lny: event.target.checked ? "1" : "" })} /> Shade Lunar New Year</label>}
           {results.some((result) => result.frequency === "Monthly") && !targetFrequency && <label><input type="checkbox" checked={smoothing} onChange={(event) => set({ ma: event.target.checked ? "3" : "" })} /> 3-month average</label>}

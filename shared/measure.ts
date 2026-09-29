@@ -93,6 +93,18 @@ export function measureOf(unit: string, declared: Partial<Measure> = {}): Measur
   return { ...derived, ...declared };
 }
 
+/**
+ * True for an index whose base is the same period a year earlier (NBS writes
+ * 上年同月=100, 上年同期=100, 上年=100), where the index minus 100 is the
+ * percentage change on a year earlier. Nothing else may be shown that way: a
+ * level minus 100 is the level, and an index on 2020 or the previous month
+ * minus 100 is not a year-on-year change. Read from any text that describes
+ * the series (its unit, title, Chinese name).
+ */
+export function isYearEarlierIndex(text: string): boolean {
+  return /上年(?:同期|同月|同季)?\s*[=＝]\s*100|prior[- ]year(?: (?:period|month|quarter|prices))?\s*=\s*100|year[- ](?:earlier|ago)\s*=\s*100/i.test(text);
+}
+
 /** True for anything that is not a quantity of something: the old isRate, by another route. */
 export function isRateMeasure(measure: Measure): boolean {
   return measure.kind !== "level";
