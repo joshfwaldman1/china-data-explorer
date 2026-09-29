@@ -336,6 +336,19 @@ test("close ticks never repeat: the axis drops to the next word down when three 
   expect(reserveTicks.map((tick) => reserves?.format(tick))).toEqual(["3,438.0", "3,438.5", "3,439.0", "3,439.5"]);
 });
 
+test("a tick that needs a fifth decimal is seen, so the axis drops a word rather than printing 1 twice", () => {
+  // 10,000 and 10,000.4 亿元 are 1 and 1.00004 trillion: rounded to four places both read "1".
+  const ticks = [10_000, 10_000.4];
+  const axis = axisScale("亿元", ticks, 10_000.4);
+  expect(axis?.title).toBe("Billions of yuan");
+  expect(ticks.map((tick) => axis?.format(tick))).toEqual(["1,000.00", "1,000.04"]);
+});
+
+test("an axis of nothing but zeros is left as stored rather than scaled around zero", () => {
+  expect(axisScale("亿元", [-1, 0, 1], 0)).toBeNull();
+  expect(axisScale("Million USD", [0])).toBeNull();
+});
+
 test("the axis word comes from the largest figure shown, not a rounded-up top tick", () => {
   // Electricity peaking at 9,400 亿千瓦时 on an axis whose top tick is 10,000 reads in billions, not "0.2 trillion" steps.
   const power = axisScale("Hundred million kWh (亿千瓦时)", [0, 2_000, 4_000, 6_000, 8_000, 10_000], 9_400);

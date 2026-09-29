@@ -96,7 +96,7 @@ function applyTransform(result: SeriesResult, requested: NbsTransform | null): S
   return {
     ...result,
     transform,
-    unit: transformLabel(transform),
+    unit: transformLabel(transform, result.unit),
     series: result.series.map((one) => ({ ...one, points: transformPoints(one.points, transform, frequency) })),
   };
 }

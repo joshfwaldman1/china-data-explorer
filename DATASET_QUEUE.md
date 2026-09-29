@@ -130,6 +130,21 @@ what the site does not carry).
     are carried in the consumer price detail; the quantities are not.
     *Test:* summer and autumn grain sum to the year's total within rounding.
 
+10. **A Customs quantity that changed unit, folded into one line.**
+    Medical and pharmaceutical products (major exports, USD and CNY)
+    carried "Quantity (Ton)" until Customs moved the quantity to
+    "10,000 Tons" in March 2026, so the stored line split in two and the
+    old one holds a single point. The Data Health page lists it as
+    reviewed (`REVIEWED_SINGLE_POINT_LINES` in `server/health-report.ts`).
+    Fold it in the Customs adapter: a "Ton" quantity for a commodity whose
+    current unit is "10,000 Tons" is divided by 10,000 and stored under
+    the 10,000 Tons line, and the stray line is removed from the store the
+    way `removeMisparsedQuantityLines` removes its lines. Then drop the two
+    reviewed entries.
+    *Test:* a fixture month in tons parses into the 10,000 Tons line at a
+    ten-thousandth of the figure, and the store holds no "Quantity (Ton)"
+    line for that commodity.
+
 - **The IMF's data quality assessment pages.** [parked: dsbb.imf.org serves
   the country pages from a client-rendered application — a plain request
   returns navigation only — and no JSON endpoint behind it answered

@@ -1305,7 +1305,7 @@ interface Finding { name: string; kind: string; note?: string; latest?: { period
 interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string; recoveredAt?: string }
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
 interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
-interface SinglePointSeries { key: string; title: string; region: string; regionName?: string; label: string; period: string | null }
+interface SinglePointSeries { key: string; title: string; region: string; regionName?: string; label: string; period: string | null; reviewed?: string }
 interface Health {
   headline: string; ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
@@ -1339,7 +1339,7 @@ function HealthPage() {
     return () => { cancelled = true; };
   }, []);
   const day = (iso: string | null) => iso ? fmtDate(iso.slice(0, 10)) : "—";
-  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0 && (data.singlePoint ?? []).length === 0;
+  const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0 && (data.singlePoint ?? []).every((line) => line.reviewed);
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Data health</span></div>
@@ -1443,13 +1443,25 @@ function HealthPage() {
           <section>
             <h2>Lines with a single point</h2>
             <p>A line of a headline series that holds one period. The parser may have invented it. The publisher may have changed the line's name or unit so that it split in two. Or the line is new.</p>
-            {(data.singlePoint ?? []).length === 0
-              ? <p className="quiet">Every line holds more than one period.</p>
-              : <ul className="health-list">{(data.singlePoint ?? []).map((line) => (
+            {(data.singlePoint ?? []).filter((line) => !line.reviewed).length === 0
+              ? <p className="quiet">Every line not reviewed below holds more than one period.</p>
+              : <ul className="health-list">{(data.singlePoint ?? []).filter((line) => !line.reviewed).map((line) => (
                   <li key={`${line.key}|${line.region}|${line.label}`}>
                     <b><a href={seriesHash([line.key], { region: line.region })}>{line.title}</a></b> <span className="quiet">{line.region ? `${regionLabel({ value: line.region, text: line.regionName ?? line.region })}: ` : ""}{line.label}. Only period: {line.period ? periodPretty(line.period) : "none"}.</span>
                   </li>
                 ))}</ul>}
+            {(data.singlePoint ?? []).some((line) => line.reviewed) && (
+              <>
+                <h3>Reviewed</h3>
+                <p className="quiet">Looked at, with the reason written down. Listed so they are not lost, and not counted above.</p>
+                <ul className="health-list">{(data.singlePoint ?? []).filter((line) => line.reviewed).map((line) => (
+                  <li key={`${line.key}|${line.region}|${line.label}`}>
+                    <b><a href={seriesHash([line.key], { region: line.region })}>{line.title}</a></b> <span className="quiet">{line.region ? `${regionLabel({ value: line.region, text: line.regionName ?? line.region })}: ` : ""}{line.label}. Only period: {line.period ? periodPretty(line.period) : "none"}.</span>
+                    <div className="quiet">{line.reviewed}</div>
+                  </li>
+                ))}</ul>
+              </>
+            )}
           </section>
 
           <section>
@@ -1932,7 +1944,12 @@ function SeriesPage(props: {
   const shownTracks = withoutSharedSuffix(tracks);
   // "Index minus 100" is offered only for an index on a year-earlier base (上年同月=100). The server
   // answers such a request for anything else with the real year-on-year change, and the control says so.
-  const indexMinus100 = results.every((result) => isYearEarlierIndex(`${result.title} ${result.metadata?.name ?? ""} ${result.metadata?.shortName ?? ""} ${result.metadata?.unit ?? ""} ${!result.transform || result.transform === "raw" ? result.unit : ""}`));
+  const describing = (result: SeriesResult) => `${result.title} ${result.metadata?.name ?? ""} ${result.metadata?.shortName ?? ""} ${result.metadata?.unit ?? ""} ${!result.transform || result.transform === "raw" ? result.unit : ""}`;
+  const indexMinus100 = results.every((result) => isYearEarlierIndex(describing(result)));
+  // A rate, or an index that already compares with a year earlier, has no meaningful "% change
+  // from a year ago" of its own: that would be the change in a growth rate, as a percentage.
+  const alreadyYearOnYear = results.some((result) => isYearEarlierIndex(describing(result))
+    || measureOf((!result.transform || result.transform === "raw") ? result.unit : (result.metadata?.unit ?? "")).kind === "rate");
   const showSelected: Show = show === "index_growth" && !indexMinus100 ? "yoy" : show;
   // The same axis the chart draws, asked here so the caption and legend say what it says.
   const pageAxis = valueAxisFor(visibleTracks(shownTracks, years, windowStart, windowEnd), unit, logScale && canLog);
@@ -2066,7 +2083,7 @@ function SeriesPage(props: {
               series cannot be shown quarterly, and offering it does nothing. */}
           <label>Frequency<select value={chosenFrequency} onChange={(event) => set({ freq: event.target.value === "" ? "" : event.target.value })}><option value="">{autoFrequency ? `Native (${autoFrequency.toLowerCase()} for this compare)` : "Native"}</option>{coarserFrequencies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           {targetFrequency && <label>Aggregate<select value={aggregation} onChange={(event) => set({ agg: event.target.value === "avg" ? "" : event.target.value })}><option value="avg">Average</option><option value="sum">Sum</option><option value="last">End of period</option></select></label>}
-          <label>Show as<select value={showSelected} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.filter((item) => item.value !== "index_growth" || indexMinus100).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label>Show as<select value={showSelected} onChange={(event) => { if (isShow(event.target.value)) set({ show: event.target.value === "default" ? "" : event.target.value }); }}>{SHOW_OPTIONS.filter((item) => (item.value !== "index_growth" || indexMinus100) && (item.value !== "yoy" || !alreadyYearOnYear || showSelected === "yoy")).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {canLog && <label><input type="checkbox" checked={logScale} onChange={(event) => setLogScale(event.target.checked)} /> Log scale</label>}
           {results.some((result) => result.frequency === "Monthly") && <label><input type="checkbox" checked={lunar} onChange={(event) => set({ lny: event.target.checked ? "1" : "" })} /> Shade Lunar New Year</label>}
           {results.some((result) => result.frequency === "Monthly") && !targetFrequency && <label><input type="checkbox" checked={smoothing} onChange={(event) => set({ ma: event.target.checked ? "3" : "" })} /> 3-month average</label>}

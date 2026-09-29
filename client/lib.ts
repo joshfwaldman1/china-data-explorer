@@ -203,6 +203,18 @@ export function naturalValue(value: number, unit: string): string | null {
   return word ? `${number} ${word[1]} ${natural.thing}` : `${number} ${natural.thing}`;
 }
 
+/**
+ * The decimals a tick needs to be written exactly, counted to nine places so
+ * a fifth decimal is seen (1.00004 needs five; ownDecimals, at four, would say
+ * none and two ticks would both read "1"), while float noise past the ninth
+ * (2.8500000000000001) is not.
+ */
+function tickDecimals(value: number): number {
+  const text = Math.abs(value).toFixed(9).replace(/0+$/, "");
+  const dot = text.indexOf(".");
+  return dot < 0 || dot === text.length - 1 ? 0 : text.length - dot - 1;
+}
+
 /** How a value axis over a count reads: the divisor applied to stored figures, a title naming the unit, and the tick format. */
 export interface AxisScale {
   /** Stored figures are divided by this for display: 10,000 for 亿元 on a trillions axis. */
@@ -227,11 +239,13 @@ export function axisScale(unit: string, ticks: number[], largest?: number): Axis
   if (!natural) return null;
   const finite = ticks.filter(Number.isFinite);
   const top = Number.isFinite(largest) ? Math.abs(largest ?? 0) : Math.max(0, ...finite.map(Math.abs));
+  // Nothing but zeros has no magnitude to name; a scale chosen for it would print the
+  // padding around zero ("Yuan", ±100,000,000), so the axis stays as stored.
+  if (top === 0) return null;
   let index = scaleIndex(top * natural.multiplier);
   let decimals: number | null = null;
   if (finite.length > 1) {
-    // Rounded before counting so 2.8500000000000001 is two decimals, not sixteen.
-    const needed = (at: number) => Math.max(...finite.map((tick) => ownDecimals(Number((tick * natural.multiplier / (SCALE_WORDS[at]?.[0] ?? 1)).toFixed(6)))));
+    const needed = (at: number) => Math.max(...finite.map((tick) => tickDecimals(tick * natural.multiplier / (SCALE_WORDS[at]?.[0] ?? 1))));
     while (index < SCALE_WORDS.length && needed(index) > 3) index += 1;
     decimals = Math.min(3, needed(index));
   }

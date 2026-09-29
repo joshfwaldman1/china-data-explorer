@@ -184,7 +184,7 @@ const EQUITIES: Theme = {
       title: "Shanghai",
       charts: [
         { title: "Shanghai Composite, month-end close", key: "sse_composite", years: 15 },
-        { title: "Shanghai stock turnover, monthly total", key: "sse_turnover", years: 15, note: "Value of shares in the Shanghai Composite traded over the month. 300,000 is 30 trillion yuan." },
+        { title: "Shanghai stock turnover, monthly total", key: "sse_turnover", years: 15, note: "Value of shares in the Shanghai Composite traded over the month." },
         { title: "Shanghai SSE 50 index, month-end close", key: "sse_50", years: 15 },
         { title: "Shanghai STAR 50 index, month-end close", key: "star_50", years: 7 },
       ],
@@ -370,7 +370,7 @@ const CONSUMPTION: Theme = {
       title: "Income, saving and borrowing",
       charts: [
         { title: "Household disposable income per person, real growth on a year earlier, year to date, all residents, urban and rural", key: "household_income_growth", years: 8, note: "Growth after deducting price changes. Each quarter covers January to the quarter's end. Q4 is the full year." },
-        { title: "Household deposits and loans to households outstanding, month-end", key: "bank_credit", labels: ["Deposits of households", "Loans to households"], years: 10, note: "Yuan balances at all financial institutions, in 100 million yuan. Mortgages are the largest part of loans to households." },
+        { title: "Household deposits and loans to households outstanding, month-end", key: "bank_credit", labels: ["Deposits of households", "Loans to households"], years: 10, note: "Yuan balances at all financial institutions. Mortgages are the largest part of loans to households." },
       ],
     },
     {
@@ -417,8 +417,8 @@ const INVESTMENT: Theme = {
       charts: [
         { title: "Fixed-asset investment funds in place, total and by source, year-to-date growth", key: "fai_funding", years: 10, note: "Sources are the state budget, domestic loans and self-raised funds, the largest of the three. Each year's first point covers January and February." },
         { title: "Local government bonds issued, total and special, month", key: "lgb_issuance", labels: ["Bonds issued in the month, total", "Special bonds issued in the month"], years: 2, note: "Special bonds pay for projects, most of them infrastructure. History here starts December 2024." },
-        { title: "Total social financing, net government bond and corporate bond financing, month", key: "tsf_flow", labels: ["Government bonds", "Corporate bonds"], years: 8, note: "Net new financing in the month, in 100 million yuan." },
-        { title: "Loans to non-financial enterprises outstanding, month-end", key: "bank_credit", labels: ["Loans to non-financial enterprises"], years: 10, note: "Yuan balances at all financial institutions, in 100 million yuan." },
+        { title: "Total social financing, net government bond and corporate bond financing, month", key: "tsf_flow", labels: ["Government bonds", "Corporate bonds"], years: 8, note: "Net new financing in the month." },
+        { title: "Loans to non-financial enterprises outstanding, month-end", key: "bank_credit", labels: ["Loans to non-financial enterprises"], years: 10, note: "Yuan balances at all financial institutions." },
       ],
     },
   ],
@@ -470,17 +470,17 @@ const TECH: Theme = {
     {
       title: "Research and development",
       charts: [
-        { title: "R&D spending, total, year", key: TECH_SERIES.rdSpending, years: 30, note: "Spending on research and experimental development (研究与试验发展) by the units the bureau surveys. In 100 million yuan at current prices." },
-        { title: "R&D spending, basic research, year", key: TECH_SERIES.rdBasicResearch, years: 28, note: "Research not aimed at a particular use. In 2025 it was 7% of all R&D spending. In 100 million yuan at current prices." },
+        { title: "R&D spending, total, year", key: TECH_SERIES.rdSpending, years: 30, note: "Spending on research and experimental development (研究与试验发展) by the units the bureau surveys. At current prices." },
+        { title: "R&D spending, basic research, year", key: TECH_SERIES.rdBasicResearch, years: 28, note: "Research not aimed at a particular use. In 2025 it was 7% of all R&D spending. At current prices." },
         { title: "R&D personnel, full-time equivalent, year", key: TECH_SERIES.rdPersonnelFte, years: 30, note: "In 10,000 person-years. Someone who spends half their time on R&D counts as half." },
-        { title: "Technology market contract value, year", key: TECH_SERIES.technologyMarket, years: 30, note: "Contracts for technology development, transfer, consulting and services registered with the technology market. In 100 million yuan at current prices." },
+        { title: "Technology market contract value, year", key: TECH_SERIES.technologyMarket, years: 30, note: "Contracts for technology development, transfer, consulting and services registered with the technology market. At current prices." },
       ],
     },
     {
       title: "Research workforce",
       charts: [
-        { title: "Doctoral graduates, year", key: TECH_SERIES.doctoralGraduates, years: 20, note: "In 10,000 persons. Latest reading 2024." },
-        { title: "Postgraduate graduates, doctoral and master's combined, year", key: TECH_SERIES.postgraduateGraduates, years: 30, note: "In 10,000 persons. Master's graduates are about nine in ten." },
+        { title: "Doctoral graduates, year", key: TECH_SERIES.doctoralGraduates, years: 20, note: "Latest reading 2024." },
+        { title: "Postgraduate graduates, doctoral and master's combined, year", key: TECH_SERIES.postgraduateGraduates, years: 30, note: "Master's graduates are about nine in ten." },
       ],
     },
     {
@@ -496,7 +496,7 @@ const TECH: Theme = {
     {
       title: "Digital economy",
       charts: [
-        { title: "Value added of information transmission, software and IT services, current prices, quarter", key: TECH_SERIES.itValueAdded, years: 10, note: "In 100 million yuan. The third quarter is the smallest each year, so compare a quarter with the same quarter a year earlier." },
+        { title: "Value added of information transmission, software and IT services, current prices, quarter", key: TECH_SERIES.itValueAdded, years: 10, note: "The third quarter is the smallest each year, so compare a quarter with the same quarter a year earlier." },
         { title: "Value added of information transmission, software and IT services, real growth on a year earlier, quarter", key: TECH_SERIES.itValueAddedGrowth, years: 10, note: "Growth after deducting price changes." },
         { title: "Fixed-asset investment in information transmission, software and IT services, year-to-date growth", key: TECH_SERIES.itInvestmentYtd, years: 8, note: "Each year's first point covers January and February." },
         { title: "5G mobile phone users, month-end", key: TECH_SERIES.fiveGUsers, years: 5, note: "In 10,000 subscribers, so 100,000 is one billion." },

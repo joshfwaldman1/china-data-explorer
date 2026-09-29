@@ -1537,17 +1537,24 @@ export function resolveTransform(transform: NbsTransform, describing: string): N
   return transform === "index_growth" && !isYearEarlierIndex(describing) ? "yoy" : transform;
 }
 
-export function transformLabel(transform: NbsTransform): string {
+/**
+ * The unit a transformed series is shown in. `sourceUnit` is the series' own
+ * unit: a year-to-date series stays year to date after the transform (the
+ * change on a year earlier of January-to-August is a year-to-date change), and
+ * the label must say so rather than read as a single month's growth.
+ */
+export function transformLabel(transform: NbsTransform, sourceUnit = ""): string {
+  const yearToDate = /cumulative,? year to date|累计/i.test(sourceUnit) ? ", cumulative year to date" : "";
   if (transform === "change") return "Change from previous period";
   if (transform === "percent_change") return "Percent change from previous period";
-  if (transform === "yoy") return "Percent change from year ago";
-  if (transform === "index_growth") return "Percent change from year ago";
+  if (transform === "yoy" || transform === "index_growth") return `Percent change from year ago${yearToDate}`;
   return "Raw value";
 }
 
 export function defaultNbsTransform(entry: Pick<NbsCatalogEntry, "name" | "shortName">): NbsTransform {
-  // Any year-on-year base (上年=100, 上年同期=100, 上年同月=100) reads as a % change by default; a previous-month base stays an index.
-  return /上年(?:同期|同月)?\s*=\s*100/.test(`${entry.name} ${entry.shortName}`) ? "index_growth" : "raw";
+  // Any year-on-year base (上年=100, 上年同期=100, 上年同月=100, 上年同季=100, 上年价格=100) reads as a %
+  // change by default; a previous-month base stays an index. The same test resolveTransform applies.
+  return isYearEarlierIndex(`${entry.name} ${entry.shortName}`) ? "index_growth" : "raw";
 }
 
 // ── Observations ──────────────────────────────────────────────────────────────
@@ -1905,7 +1912,7 @@ export async function getNbsCatalogSeries(options: {
   // Transform over the full history, then slice, so lagged transforms keep
   // their first year instead of losing it to the limit.
   const transformed = transformPoints(points, transform, options.entry.frequency).slice(-limit);
-  const unit = transform === "raw" ? rawUnitOf(options.entry) : transformLabel(transform);
+  const unit = transform === "raw" ? rawUnitOf(options.entry) : transformLabel(transform, `${rawUnitOf(options.entry)} ${options.entry.name}`);
   return {
     ...rawResult(options.entry, region, transformed),
     unit,

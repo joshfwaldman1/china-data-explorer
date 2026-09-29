@@ -102,7 +102,9 @@ export function measureOf(unit: string, declared: Partial<Measure> = {}): Measur
  * the series (its unit, title, Chinese name).
  */
 export function isYearEarlierIndex(text: string): boolean {
-  return /上年(?:同期|同月|同季)?\s*[=＝]\s*100|prior[- ]year(?: (?:period|month|quarter|prices))?\s*=\s*100|year[- ](?:earlier|ago)\s*=\s*100/i.test(text);
+  // 上年价格=100 is the annual producer price indices' base (麻类生产价格指数); the English forms are
+  // the glosses gloss.ts and data.ts write ("same period last year = 100", "prior-year prices = 100").
+  return /上年(?:同期|同月|同季|价格)?\s*[=＝]\s*100|prior[- ]year(?: (?:period|month|quarter|prices))?\s*=\s*100|year[- ](?:earlier|ago)\s*=\s*100|same (?:period|month|quarter) (?:of )?last year\s*=\s*100/i.test(text);
 }
 
 /** True for anything that is not a quantity of something: the old isRate, by another route. */

@@ -98,8 +98,29 @@ export interface SinglePointSeries {
   region: string;
   /** What the series page calls the region: "Medical and pharmaceutical products", not its slug. */
   regionName: string;
+  /** Set when a person has looked at the line and written down why it is so; it then no longer counts as a fault. */
+  reviewed?: string;
   label: string;
   period: string | null;
+}
+
+/**
+ * Single-point lines a person has looked at, with the reason in one line. A
+ * reviewed line is still listed, apart, so it is not lost; it stops counting in
+ * the headline so the banner can clear. Remove an entry once its cause is fixed
+ * and the line is gone. Keyed by key, region and label.
+ */
+export const REVIEWED_SINGLE_POINT_LINES: { key: string; region: string; label: string; reason: string }[] = [
+  // The proper fix is queued in DATASET_QUEUE.md: fold "Ton" into "10,000 Tons" in the Customs adapter.
+  ...["major_exports", "major_exports_cny"].map((key) => ({
+    key, region: "medical-and-pharmaceutical-products", label: "Quantity (Ton)",
+    reason: "Customs changed this quantity from tons to 10,000 tons in March 2026, so the line split in two.",
+  })),
+];
+
+/** The reason a single-point line was reviewed, or undefined when nobody has looked at it. */
+export function reviewedReason(line: { key: string; region: string; label: string }): string | undefined {
+  return REVIEWED_SINGLE_POINT_LINES.find((entry) => entry.key === line.key && entry.region === line.region && entry.label === line.label)?.reason;
 }
 
 export interface HealthReport {
@@ -245,7 +266,8 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
   const singlePoint: SinglePointSeries[] = singlePointLines(entries.map((entry) => entry.key))
     .map((line) => {
       const place = line.region ? seriesRegions(line.key).find((region) => region.value === line.region) : undefined;
-      return { ...line, title: CATALOG[line.key]?.title ?? line.key, regionName: place ? (place.en ?? place.text) : line.region };
+      const reviewed = reviewedReason(line);
+      return { ...line, title: CATALOG[line.key]?.title ?? line.key, regionName: place ? (place.en ?? place.text) : line.region, ...(reviewed ? { reviewed } : {}) };
     });
 
   const byAge = (left: BehindSeries, right: BehindSeries) => (left.lastPeriod ?? "").localeCompare(right.lastPeriod ?? "");
@@ -282,7 +304,8 @@ export function healthHeadline(report: HealthReport): string {
   if (report.sources.failing.length > 0) parts.push(`${report.sources.failing.length} source${report.sources.failing.length === 1 ? "" : "s"} not reading`);
   if (report.behind.publisher.length > 0) parts.push(`${report.behind.publisher.length} series behind`);
   // Counted so the banner agrees with the list below it.
-  const single = report.singlePoint?.length ?? 0;
+  // Reviewed lines are listed on the page but are not a fault, so the banner can clear.
+  const single = (report.singlePoint ?? []).filter((line) => !line.reviewed).length;
   if (single > 0) parts.push(`${single} line${single === 1 ? "" : "s"} with a single point`);
   if (parts.length === 0) return `All ${report.checks.total} cross-checks agree, every source read cleanly, nothing overdue.`;
   return `${parts.join("; ")}.`;

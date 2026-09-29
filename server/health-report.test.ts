@@ -147,6 +147,25 @@ test("a curated line holding a single point is listed; a line that grows past on
   expect(healthReport([agreeing]).singlePoint.filter((line) => line.region === region).map((line) => line.label)).toEqual(["Another stray line"]);
 });
 
+test("a reviewed single-point line is listed with its reason and no longer keeps the banner from clearing", () => {
+  // The production case: Customs moved this quantity from tons to 10,000 tons, and the old line kept one point.
+  writeSeries({
+    key: "major_exports_cny", title: "Major exports", agency: "General Administration of Customs", unit: "Hundred million CNY (亿元)", frequency: "Monthly", sourceUrl: "",
+    series: [
+      { label: "Value", points: [{ date: "2026-02", value: 10 }, { date: "2026-03", value: 11 }] },
+      { label: "Quantity (Ton)", points: [{ date: "2026-02", value: 5 }] },
+    ],
+  } as never, "medical-and-pharmaceutical-products", "2026-09-04T00:00:00.000Z");
+  const report = healthReport([agreeing]);
+  const line = report.singlePoint.find((one) => one.key === "major_exports_cny" && one.region === "medical-and-pharmaceutical-products");
+  expect(line?.label).toBe("Quantity (Ton)");
+  expect(line?.reviewed).toBe("Customs changed this quantity from tons to 10,000 tons in March 2026, so the line split in two.");
+  // Only reviewed lines: the banner clears. One unreviewed line beside it: it counts one.
+  const clean = { ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] } };
+  expect(healthHeadline({ ...clean, singlePoint: [line!] })).toContain("All 1 cross-check");
+  expect(healthHeadline({ ...clean, singlePoint: [line!, { ...line!, label: "A stray line", reviewed: undefined }] })).toBe("1 line with a single point.");
+});
+
 test("the store line reports what is actually stored", () => {
   const report = healthReport([agreeing]);
   expect(report.store.observations).toBeGreaterThanOrEqual(0);
