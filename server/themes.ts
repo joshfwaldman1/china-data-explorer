@@ -476,14 +476,14 @@ export const THEMES: Record<string, Theme> = {
   consumption: CONSUMPTION,
   investment: INVESTMENT,
   property: PROPERTY,
-  equities: EQUITIES,
+  // Equities is off the site (agreed page list, 29 September 2026). Its definition above is kept; restore it here, in THEME_ORDER and in the client page strip.
   energy: ENERGY,
   demographics: DEMOGRAPHICS,
   labor: LABOR,
 };
 
 /** The pages in the order the owner named them; Home and Provinces are not themes but sit in the same strip. */
-export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "trade", "equities", "energy", "demographics", "labor"] as const;
+export const THEME_ORDER = ["manufacturing", "consumption", "investment", "property", "trade", "energy", "demographics", "labor"] as const;
 
 export interface ThemeChartData extends ThemeChart {
   result: SeriesResult | null;

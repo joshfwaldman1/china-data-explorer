@@ -1066,14 +1066,13 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
 const NBS_PORTAL_PAGES: Record<number, string> = { 1: "monthData", 2: "quarterData", 3: "yearData", 4: "fsMonthData", 5: "fsQuarterData", 6: "fsYearData", 10: "gatYearData" };
 const NBS_PORTAL_PAGE_NAMES: Record<string, string> = { monthData: "monthly tables", quarterData: "quarterly tables", yearData: "annual tables", fsMonthData: "provincial monthly tables", fsQuarterData: "provincial quarterly tables", fsYearData: "provincial annual tables", gatYearData: "Hong Kong, Macao and Taiwan tables" };
 
-/** The pages, in the order the owner named them. The names are the hashes and the server's theme names. */
+/** The pages, in the order agreed with Damian Ma (29 September 2026): Macro (the home page) and Provinces sit in front of them. The names are the hashes and the server's theme names. */
 const THEME_PAGES = [
   { name: "manufacturing", label: "Manufacturing" },
   { name: "consumption", label: "Consumption" },
   { name: "investment", label: "Investment" },
   { name: "property", label: "Property" },
   { name: "trade", label: "Trade & flows" },
-  { name: "equities", label: "Equities" },
   { name: "energy", label: "Energy" },
   { name: "demographics", label: "Demographics" },
   { name: "labor", label: "Labor" },
@@ -1085,7 +1084,7 @@ function PageStrip(props: { route: Route }) {
   const at = (name: string) => (route.view === "theme" && route.name === name) ? "page" as const : undefined;
   return (
     <nav className="page-strip" aria-label="Pages">
-      <a href="#/" aria-current={route.view === "home" ? "page" : undefined}>Headline</a>
+      <a href="#/" aria-current={route.view === "home" ? "page" : undefined}>Macro</a>
       <a href="#/regions" aria-current={route.view === "regions" || route.view === "province" ? "page" : undefined}>Provinces</a>
       {THEME_PAGES.map((page) => <a key={page.name} href={`#/${page.name}`} aria-current={at(page.name)}>{page.label}</a>)}
     </nav>
