@@ -1059,9 +1059,9 @@ const THEME_PAGES = [
   { name: "investment", label: "Investment" },
   { name: "property", label: "Property" },
   { name: "trade", label: "Trade & flows" },
+  { name: "equities", label: "Equities" },
   { name: "energy", label: "Energy" },
   { name: "demographics", label: "Demographics" },
-  { name: "equities", label: "Equities" },
   { name: "labour", label: "Labor" },
 ] as const;
 
