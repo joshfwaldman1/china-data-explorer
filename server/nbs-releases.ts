@@ -598,11 +598,17 @@ function releasesDb() {
         title             TEXT NOT NULL,
         first_refused_at  TEXT NOT NULL,
         last_refused_at   TEXT NOT NULL,
-        last_listed_at    TEXT NOT NULL,
+        last_listed_at    TEXT NOT NULL DEFAULT '',
         attempts          INTEGER NOT NULL DEFAULT 1,
-        message           TEXT NOT NULL
+        message           TEXT NOT NULL,
+        given_up_at       TEXT NOT NULL DEFAULT ''
       )
     `);
+    // A store whose refusals table was created before these columns existed
+    // gains them here. An empty last_listed_at reads as the last refusal.
+    const columns = new Set(database.query<{ name: string }, []>("PRAGMA table_info(press_release_refusals)").all().map((column) => column.name));
+    if (!columns.has("last_listed_at")) database.exec("ALTER TABLE press_release_refusals ADD COLUMN last_listed_at TEXT NOT NULL DEFAULT ''");
+    if (!columns.has("given_up_at")) database.exec("ALTER TABLE press_release_refusals ADD COLUMN given_up_at TEXT NOT NULL DEFAULT ''");
     tableReady = true;
   }
   return database;
@@ -619,10 +625,18 @@ export const UNLISTED_REFUSAL_RETRY_MS = 7 * DAY_MS;
  * over five weeks ago has fallen off it.
  */
 export const REFUSAL_CURRENT_DAYS = 35;
+/**
+ * An unlisted refusal is given up after this many attempts or this many days
+ * since it was first refused, whichever comes first: a page NBS has taken
+ * down would otherwise be fetched weekly and after every deploy for ever.
+ */
+export const UNLISTED_REFUSAL_MAX_ATTEMPTS = 20;
+export const UNLISTED_REFUSAL_MAX_DAYS = 180;
 
 export interface PressReleaseRefusal { url: string; title: string; firstRefusedAt: string; lastRefusedAt: string; lastListedAt: string; attempts: number; message: string }
 
-const REFUSAL_COLUMNS = "r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, r.last_listed_at AS lastListedAt, r.attempts, r.message";
+// A row migrated from before last_listed_at existed has it empty; its last refusal stands in.
+const REFUSAL_COLUMNS = "r.url, r.title, r.first_refused_at AS firstRefusedAt, r.last_refused_at AS lastRefusedAt, CASE WHEN r.last_listed_at = '' THEN r.last_refused_at ELSE r.last_listed_at END AS lastListedAt, r.attempts, r.message";
 
 function lastRefusal(url: string): PressReleaseRefusal | null {
   return releasesDb().query<PressReleaseRefusal, { $url: string }>(`SELECT ${REFUSAL_COLUMNS} FROM press_release_refusals r WHERE r.url = $url`).get({ $url: url });
@@ -634,8 +648,22 @@ function recordRefusal(url: string, title: string, message: string, at: string, 
     INSERT INTO press_release_refusals (url, title, first_refused_at, last_refused_at, last_listed_at, attempts, message)
     VALUES ($url, $title, $at, $at, COALESCE($listedAt, $at), 1, $message)
     ON CONFLICT(url) DO UPDATE SET last_refused_at = excluded.last_refused_at, attempts = attempts + 1, message = excluded.message,
-      last_listed_at = COALESCE($listedAt, last_listed_at)
+      last_listed_at = COALESCE($listedAt, last_listed_at),
+      given_up_at = CASE WHEN $listedAt IS NULL THEN given_up_at ELSE '' END
   `).run({ $url: url, $title: title, $at: at, $listedAt: listedAt, $message: message });
+}
+
+/**
+ * An unlisted page that could not be fetched on its retry: the attempt counts
+ * towards giving up (a taken-down page answers 404 for ever), but the reason
+ * it was refused stays the parser's.
+ */
+function recordUnlistedFetchFailure(url: string, at: string): void {
+  releasesDb().query("UPDATE press_release_refusals SET attempts = attempts + 1, last_refused_at = $at WHERE url = $url").run({ $url: url, $at: at });
+}
+
+function giveUpRefusal(url: string, at: string): void {
+  releasesDb().query("UPDATE press_release_refusals SET given_up_at = $at WHERE url = $url").run({ $url: url, $at: at });
 }
 
 /** A refused page seen on the listing again, though not fetched this time (its day has not passed). */
@@ -647,7 +675,7 @@ function unreadRefusals(): PressReleaseRefusal[] {
   return releasesDb().query<PressReleaseRefusal, []>(`
     SELECT ${REFUSAL_COLUMNS}
     FROM press_release_refusals r
-    WHERE NOT EXISTS (SELECT 1 FROM press_release_reads p WHERE p.url = r.url)
+    WHERE NOT EXISTS (SELECT 1 FROM press_release_reads p WHERE p.url = r.url) AND r.given_up_at = ''
     ORDER BY r.last_refused_at DESC
   `).all();
 }
@@ -729,8 +757,12 @@ export interface PressReleaseCheck {
   relevant: number;
   /** Pages fetched and parsed this run. */
   read: number;
-  /** Pages refused or unreachable this run; each has an error row in fetch_log. */
+  /** Pages fetched and refused by the parser this run; each has an error row in fetch_log and a refusal record. */
   failed: number;
+  /** Pages that could not be fetched this run (HTTP error, timeout): logged, not refusals, tried again on the next check. */
+  unreachable: number;
+  /** Unlisted refusals given up this run after too many attempts or too long. */
+  givenUp: number;
   /** Refused pages not fetched this run because their last refusal was less than a day ago. */
   waiting: number;
   /** Refused pages no longer on the listing, fetched again by their stored URL this run. */
@@ -773,14 +805,32 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
     const kind = releaseKindOfTitle(item.title);
     return kind ? [{ ...item, kind }] : [];
   });
-  const tally: PressReleaseCheck = { listed: listing.length, relevant: relevant.length, read: 0, failed: 0, waiting: 0, retriedUnlisted: 0 };
+  const tally: PressReleaseCheck = { listed: listing.length, relevant: relevant.length, read: 0, failed: 0, unreachable: 0, givenUp: 0, waiting: 0, retriedUnlisted: 0 };
   const nowIso = () => new Date(now()).toISOString();
 
-  /** Fetch, parse, compare and record one page; a refusal is recorded and logged, never thrown. */
+  /**
+   * Fetch, parse, compare and record one page. A fetch that fails (an HTTP
+   * error, a timeout) is not the parser's refusal: it is logged and the page
+   * is tried again on the next check, so a timeout at 09:40 on release
+   * morning does not hold the page back a day. Only a page fetched and then
+   * not understood is recorded as refused. Nothing is thrown.
+   */
   const readPage = async (url: string, title: string, kind: NbsReleaseKind, listed: boolean, previousAttempts: number) => {
     const pageStartedAt = new Date().toISOString();
+    let html: string;
     try {
-      const release = parseReleasePage(await read(url), url, kind);
+      html = await read(url);
+    } catch (error) {
+      tally.unreachable += 1;
+      if (!listed) recordUnlistedFetchFailure(url, nowIso());
+      logFetch({
+        key: "press_release", region: pageId(url), startedAt: pageStartedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0,
+        message: `"${title}": the page could not be fetched (${error instanceof Error ? error.message : String(error)}); tried again on the next check`,
+      });
+      return;
+    }
+    try {
+      const release = parseReleasePage(html, url, kind);
       const comparisons = compareWithStore(release.figures, lookup);
       recordReleaseRead(release, comparisons);
       logFetch({
@@ -817,6 +867,18 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
     if (listedUrls.has(refusal.url)) continue;
     const kind = releaseKindOfTitle(refusal.title);
     if (!kind) continue;
+    const tooMany = refusal.attempts >= UNLISTED_REFUSAL_MAX_ATTEMPTS;
+    const tooOld = now() - Date.parse(refusal.firstRefusedAt) >= UNLISTED_REFUSAL_MAX_DAYS * DAY_MS;
+    if (tooMany || tooOld) {
+      // Given up once, logged once: a given-up row leaves unreadRefusals, so it is neither retried nor counted again.
+      giveUpRefusal(refusal.url, nowIso());
+      tally.givenUp += 1;
+      logFetch({
+        key: "press_release", region: pageId(refusal.url), startedAt: nowIso(), finishedAt: nowIso(), status: "error", points: 0, changed: 0,
+        message: `"${refusal.title}": given up after ${refusal.attempts} attempts since ${refusal.firstRefusedAt.slice(0, 10)}; no longer listed and no longer retried. Last reason: ${refusal.message}`,
+      });
+      continue;
+    }
     const firstSinceDeploy = !retriedUnlistedThisProcess.has(refusal.url);
     if (!firstSinceDeploy && now() - Date.parse(refusal.lastRefusedAt) < UNLISTED_REFUSAL_RETRY_MS) continue;
     retriedUnlistedThisProcess.add(refusal.url);
@@ -827,6 +889,11 @@ export async function checkPressReleases(read: (url: string) => Promise<string> 
 }
 
 /** For tests: forget which unlisted refusals this process has retried, as a deploy would. */
+/** For tests: check the reader's tables and columns again on next use, as a new process would, so the migration runs. */
+export function resetPressReleaseTablesForTest(): void {
+  tableReady = false;
+}
+
 export function forgetUnlistedRetries(): void {
   retriedUnlistedThisProcess.clear();
 }

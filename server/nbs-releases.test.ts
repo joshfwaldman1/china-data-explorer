@@ -14,9 +14,10 @@ import { join, resolve } from "node:path";
 process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-press-releases-")), "test.db");
 process.env.CHINA_SEED = "off";
 const {
-  NBS_RELEASE_LISTING_URL, REFUSAL_CURRENT_DAYS, REFUSED_PAGE_RETRY_MS, UNLISTED_REFUSAL_RETRY_MS, checkPressReleases, compareWithStore,
+  NBS_RELEASE_LISTING_URL, REFUSAL_CURRENT_DAYS, REFUSED_PAGE_RETRY_MS, UNLISTED_REFUSAL_MAX_ATTEMPTS, UNLISTED_REFUSAL_MAX_DAYS,
+  UNLISTED_REFUSAL_RETRY_MS, checkPressReleases, compareWithStore,
   describeComparison, forgetUnlistedRetries, parseReleaseListing, parseReleasePage, pressReleaseHealth, recentPressReleases,
-  refusedPressReleases, releaseKindOfTitle, roundAsPrinted,
+  refusedPressReleases, releaseKindOfTitle, resetPressReleaseTablesForTest, roundAsPrinted,
 } = await import("./nbs-releases.ts");
 const { db } = await import("./db.ts");
 
@@ -299,7 +300,7 @@ test("a check reads the listing and each new release page once, one request at a
     return page;
   };
   const first = await checkPressReleases(read, production);
-  expect(first).toEqual({ listed: 15, relevant: 2, read: 2, failed: 0, waiting: 0, retriedUnlisted: 0 });
+  expect(first).toEqual({ listed: 15, relevant: 2, read: 2, failed: 0, unreachable: 0, givenUp: 0, waiting: 0, retriedUnlisted: 0 });
   expect(requested).toEqual([NBS_RELEASE_LISTING_URL, PROFITS_URL, BUNDLE_URL]);
   expect(mostInFlight).toBe(1);
 
@@ -343,7 +344,7 @@ test("a refused page is logged as an error, recorded, and fetched again at most 
   };
   const refusedAt = Date.UTC(2026, 9, 15, 2, 20);
   const tally = await checkPressReleases(read, production, () => refusedAt);
-  expect(tally).toEqual({ listed: 1, relevant: 1, read: 0, failed: 1, waiting: 0, retriedUnlisted: 0 });
+  expect(tally).toEqual({ listed: 1, relevant: 1, read: 0, failed: 1, unreachable: 0, givenUp: 0, waiting: 0, retriedUnlisted: 0 });
   // An hour later the page is not fetched again: only the listing is.
   const soon = await checkPressReleases(read, production, () => refusedAt + 60 * 60 * 1000);
   expect(soon).toMatchObject({ read: 0, failed: 0, waiting: 1 });
@@ -417,4 +418,84 @@ test("a refusal ages out once its page falls off the listing, and is retried by 
   const weekLater = await checkPressReleases(read, production, () => afterFiveWeeks + UNLISTED_REFUSAL_RETRY_MS + 1000);
   expect(weekLater).toMatchObject({ retriedUnlisted: 1, read: 1, failed: 0 });
   expect(pressReleaseHealth(production, afterFiveWeeks + UNLISTED_REFUSAL_RETRY_MS + 2000)).toMatchObject({ refused: [], noLongerListed: 0 });
+});
+
+test("a page that cannot be fetched is not a refusal: it is logged and tried again on the next check; a page fetched and not understood is", async () => {
+  const listing = `<ul>${REFUSED_ITEM}</ul>`;
+  let answer: "timeout" | "unknown shape" | "bundle" = "timeout";
+  const requested: string[] = [];
+  const read = async (url: string) => {
+    requested.push(url);
+    if (url === NBS_RELEASE_LISTING_URL) return listing;
+    if (answer === "timeout") throw new Error("NBS release page -> HTTP 504");
+    return answer === "unknown shape" ? UNKNOWN_SHAPE : fixture("national-economy-2026-08.html");
+  };
+  const morning = Date.UTC(2026, 9, 15, 1, 40);
+  const timedOut = await checkPressReleases(read, production, () => morning);
+  expect(timedOut).toMatchObject({ read: 0, failed: 0, unreachable: 1 });
+  expect(refusedPressReleases(morning)).toEqual({ current: [], noLongerListed: [] });
+  const logged = db().query<{ status: string; message: string }, []>("SELECT status, message FROM fetch_log WHERE key = 'press_release' AND region = 't20261015_1'").all();
+  expect(logged).toEqual([{ status: "error", message: "\"9月份国民经济运行总体平稳\": the page could not be fetched (NBS release page -> HTTP 504); tried again on the next check" }]);
+  // Ten minutes later it is fetched again, not held back a day, and this time it parses.
+  answer = "bundle";
+  const retried = await checkPressReleases(read, production, () => morning + 10 * 60 * 1000);
+  expect(retried).toMatchObject({ read: 1, unreachable: 0, waiting: 0 });
+  expect(requested.filter((url) => url === REFUSED_URL).length).toBe(2);
+
+  // A page fetched and not understood is the parser's refusal, held for a day.
+  clearPressReleaseRows();
+  answer = "unknown shape";
+  const refused = await checkPressReleases(read, production, () => morning);
+  expect(refused).toMatchObject({ failed: 1, unreachable: 0 });
+  expect(refusedPressReleases(morning).current.map((page) => page.url)).toEqual([REFUSED_URL]);
+  expect((await checkPressReleases(read, production, () => morning + 10 * 60 * 1000)).waiting).toBe(1);
+});
+
+test("an unlisted refusal is given up after twenty attempts or 180 days, logged once, and no longer counted", async () => {
+  const read = async (url: string) => (url === NBS_RELEASE_LISTING_URL ? `<ul>${REFUSED_ITEM}</ul>` : UNKNOWN_SHAPE);
+  const offListing = async (url: string) => {
+    if (url === NBS_RELEASE_LISTING_URL) return `<ul><li><a href="./202611/t20261116_2.html" title='2026年10月份能源生产情况'>x</a><span>2026-11-16</span></li></ul>`;
+    throw new Error("NBS release page -> HTTP 404"); // taken down
+  };
+  const day = 24 * 60 * 60 * 1000;
+  const first = Date.UTC(2026, 9, 15, 2, 20);
+  await checkPressReleases(read, production, () => first);
+  // Weekly retries of a page NBS has taken down: each 404 counts as an attempt, so the cap is reached.
+  let at = first + 40 * day;
+  for (let attempt = 2; attempt <= UNLISTED_REFUSAL_MAX_ATTEMPTS; attempt += 1) {
+    forgetUnlistedRetries();
+    const tally = await checkPressReleases(offListing, production, () => at);
+    expect(tally).toMatchObject({ retriedUnlisted: 1, unreachable: 1, givenUp: 0 });
+    at += UNLISTED_REFUSAL_RETRY_MS;
+  }
+  expect(refusedPressReleases(at).noLongerListed[0]?.attempts).toBe(UNLISTED_REFUSAL_MAX_ATTEMPTS);
+  const givenUp = await checkPressReleases(offListing, production, () => at);
+  expect(givenUp).toMatchObject({ givenUp: 1, retriedUnlisted: 0 });
+  expect(pressReleaseHealth(production, at)).toMatchObject({ refused: [], noLongerListed: 0 });
+  // Logged once: later checks, even after a deploy, neither retry it nor log it again.
+  forgetUnlistedRetries();
+  expect(await checkPressReleases(offListing, production, () => at + 30 * day)).toMatchObject({ givenUp: 0, retriedUnlisted: 0 });
+  const notices = db().query<{ message: string }, []>("SELECT message FROM fetch_log WHERE key = 'press_release' AND message LIKE '%given up after%'").all();
+  expect(notices.length).toBe(1);
+  expect(notices[0]?.message).toContain(`given up after ${UNLISTED_REFUSAL_MAX_ATTEMPTS} attempts since 2026-10-15`);
+
+  // By age: a refusal first made 180 days ago is given up on its next retry, however few its attempts.
+  clearPressReleaseRows();
+  await checkPressReleases(read, production, () => first);
+  const old = await checkPressReleases(offListing, production, () => first + UNLISTED_REFUSAL_MAX_DAYS * day);
+  expect(old).toMatchObject({ givenUp: 1, retriedUnlisted: 0 });
+});
+
+test("a refusals table from before last_listed_at and given_up_at gains both columns, and its rows read as before", () => {
+  db().exec("DROP TABLE IF EXISTS press_release_refusals");
+  db().exec(`CREATE TABLE press_release_refusals (url TEXT PRIMARY KEY, title TEXT NOT NULL, first_refused_at TEXT NOT NULL, last_refused_at TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 1, message TEXT NOT NULL)`);
+  db().exec(`INSERT INTO press_release_refusals VALUES ('${REFUSED_URL}', '9月份国民经济运行总体平稳', '2026-10-15T02:20:00.000Z', '2026-10-16T02:20:00.000Z', 2, 'refused')`);
+  resetPressReleaseTablesForTest();
+  // The first use in a new process runs the migration.
+  const refusals = refusedPressReleases(Date.UTC(2026, 9, 20));
+  const columns = db().query<{ name: string }, []>("PRAGMA table_info(press_release_refusals)").all().map((column) => column.name);
+  expect(columns).toContain("last_listed_at");
+  expect(columns).toContain("given_up_at");
+  // An empty last_listed_at reads as the last refusal, so the row is current until five weeks after it.
+  expect(refusals.current.map((page) => [page.url, page.lastListedAt])).toEqual([[REFUSED_URL, "2026-10-16T02:20:00.000Z"]]);
 });
