@@ -12,7 +12,10 @@ what the site does not carry).
     natural units: a "300K" axis over 100M yuan should read "30 trillion
     yuan", "1.4M" over million USD "1.4 trillion", "145K" over 10,000
     persons "1.45 billion" — a display scale per unit family, applied to
-    ticks and tooltips, not to the stored values. An NBS index whose
+    ticks and tooltips, not to the stored values. *Axis scales done 29
+    September 2026* (`naturalUnit`, `naturalValue` and `axisScale` in
+    `client/lib.ts`: chart axes, tooltips and the series page's stat line;
+    the share image still prints raw ticks). An NBS index whose
     Chinese title ends "=100" but whose stored unit is "%" is labelled
     "Percent"; force the index unit from the title. A generated gloss
     that still carries a pinyin run ("Zongheshengyu rate") should fall

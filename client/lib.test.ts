@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
+import { axisScale, naturalUnit, naturalValue, bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -225,4 +225,91 @@ test("a three-month average runs over calendar months, so a missing month is lef
   // A quarterly track is not smoothed.
   const quarterly: Track = { ...track, frequency: "Quarterly" };
   expect(movingAverage(quarterly, 3)).toBe(quarterly);
+});
+
+// ── Natural units ──
+
+test("3,476,700 亿元 reads as 347.7 trillion yuan, in every spelling of the unit", () => {
+  // 1 亿 is 100 million, so 3,476,700 亿 is 347,670,000,000,000.
+  expect(naturalValue(3_476_700, "亿元")).toBe("347.7 trillion yuan");
+  expect(naturalValue(3_476_700, "(亿元)")).toBe("347.7 trillion yuan");
+  expect(naturalValue(3_476_700, "Hundred million yuan (亿元), cumulative year to date")).toBe("347.7 trillion yuan");
+  expect(naturalValue(3_476_700, "Hundred million CNY (亿元)")).toBe("347.7 trillion yuan");
+  expect(naturalValue(3_476_700, "100 million yuan (亿元)")).toBe("347.7 trillion yuan");
+  expect(naturalValue(3_476_700, "100M yuan")).toBe("347.7 trillion yuan");
+  // Below a trillion it steps down a word rather than printing "0.9 trillion".
+  expect(naturalValue(9_000, "亿元")).toBe("900 billion yuan");
+});
+
+test("each unit family converts by its own multiple", () => {
+  // 万元: 10,000 yuan.
+  expect(naturalValue(52_000, "万元")).toBe("520 million yuan");
+  // Million USD in each spelling: 1,400,000 million is 1.4 trillion.
+  expect(naturalValue(1_400_000, "Million USD")).toBe("1.4 trillion US dollars");
+  expect(naturalValue(1_400_000, "Millions of US dollars")).toBe("1.4 trillion US dollars");
+  expect(naturalValue(1_400_000, "USD millions")).toBe("1.4 trillion US dollars");
+  expect(naturalValue(1_400_000, "百万美元")).toBe("1.4 trillion US dollars");
+  // 亿美元: 100 million USD; 33,000 of them is 3.3 trillion.
+  expect(naturalValue(33_000, "Hundred million USD (亿美元)")).toBe("3.3 trillion US dollars");
+  expect(naturalValue(33_000, "亿美元")).toBe("3.3 trillion US dollars");
+  // 万人: 10,000 persons; 145,000 of them is 1.45 billion.
+  expect(naturalValue(145_000, "Ten thousand persons (万人)")).toBe("1.45 billion people");
+  expect(naturalValue(145_000, "万人")).toBe("1.45 billion people");
+  expect(naturalValue(145_000, "10,000 persons")).toBe("1.45 billion people");
+  expect(naturalValue(62, "万人")).toBe("620 thousand people");
+  // 万吨: 10,000 tonnes.
+  expect(naturalValue(15_600, "Ten thousand tonnes (万吨), month")).toBe("156 million tonnes");
+  expect(naturalValue(15_600, "10,000 tonnes")).toBe("156 million tonnes");
+  // Already in a large multiple, and in the thing itself.
+  expect(naturalValue(30.2, "Trillion yuan (万亿元)")).toBe("30.2 trillion yuan");
+  expect(naturalValue(18.74, "Trillions of current US dollars")).toBe("18.74 trillion US dollars");
+  expect(naturalValue(8_000, "Hundred million kWh (亿千瓦时)")).toBe("800 billion kWh");
+  // A negative flow keeps its sign.
+  expect(naturalValue(-2_345, "Hundred million yuan (亿元)")).toBe("-234.5 billion yuan");
+});
+
+test("percent, index, rate and ratio units are left untouched", () => {
+  for (const unit of ["%", "Percent", "Percent change from year ago", "Percent of GDP", "Percent per annum", "Index", "Index, 2020 = 100",
+    "Diffusion index (50 = neutral)", "上年同月=100", "Per thousand (‰)", "Yuan per person, cumulative year to date", "Yuan per US dollar",
+    "元/人", "Hours per week", "Enterprises, cumulative year to date", "Years", "万人次", "万吨标准煤", "Change from previous period",
+    // Two series' units on one raw axis: neither scale is the axis's.
+    "Hundred million yuan (亿元); Million USD", ""]) {
+    expect(naturalUnit(unit)).toBeNull();
+    expect(naturalValue(123_456, unit)).toBeNull();
+    expect(axisScale(unit, [0, 50_000, 100_000])).toBeNull();
+  }
+});
+
+test("an axis over 100 million yuan picks trillion when the range passes 10,000", () => {
+  const trillions = axisScale("Hundred million yuan (亿元)", [0, 100_000, 200_000, 300_000]);
+  expect(trillions?.title).toBe("Trillions of yuan");
+  // The old axis read "300K" here.
+  expect([0, 100_000, 200_000, 300_000].map((tick) => trillions?.format(tick))).toEqual(["0", "10", "20", "30"]);
+  // One tick below 10,000 亿 and the axis stays in billions.
+  const billions = axisScale("亿元", [0, 2_000, 4_000, 6_000, 8_000]);
+  expect(billions?.title).toBe("Billions of yuan");
+  expect(billions?.format(8_000)).toBe("800");
+  // Ticks closer than a whole trillion keep the decimals that tell them apart, and no more.
+  const close = axisScale("亿元", [28_000, 28_500, 29_000, 29_500]);
+  expect([28_000, 28_500, 29_000, 29_500].map((tick) => close?.format(tick))).toEqual(["2.80", "2.85", "2.90", "2.95"]);
+});
+
+test("the axis examples the copy audit named read in natural units", () => {
+  // "1.4M" over million USD.
+  const dollars = axisScale("Million USD", [0, 500_000, 1_000_000, 1_500_000]);
+  expect(dollars?.title).toBe("Trillions of US dollars");
+  expect(dollars?.format(1_500_000)).toBe("1.5");
+  expect(dollars?.format(1_000_000)).toBe("1.0");
+  // "145K" over 10,000 persons.
+  const people = axisScale("Ten thousand persons (万人)", [140_000, 142_500, 145_000]);
+  expect(people?.title).toBe("Billions of people");
+  expect(people?.format(145_000)).toBe("1.450");
+  const tonnes = axisScale("万吨", [0, 5_000, 10_000, 15_000]);
+  expect(tonnes?.title).toBe("Millions of tonnes");
+  expect(tonnes?.format(15_000)).toBe("150");
+});
+
+test("the series page's change reads in the same natural unit as its value; the Home list's short change does not", () => {
+  expect(deltaText({ date: "2026-08", value: 3_476_700 }, { date: "2026-07", value: 3_464_300 }, "Hundred million yuan (亿元)")).toBe("Up 1.24 trillion yuan from Jul 2026");
+  expect(deltaText({ date: "2026-08", value: 34_383 }, { date: "2026-07", value: 34_000 }, "100M USD", "short")).toBe("+383");
 });

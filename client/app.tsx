@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
+import { axisScale, naturalUnit, naturalValue, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
 import { measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -522,7 +522,8 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string }
         const value = num(item, "value");
         const color = str(item, "color") || str(item, "stroke");
         const name = str(item, "name");
-        return <div key={index}><i style={{ color }} /><span className="n">{name}</span><span className="v">{value === null ? "—" : fmt(value, props.unit)}</span></div>;
+        // A count reads in its natural unit ("34.77 trillion yuan"), anything else as stored.
+        return <div key={index}><i style={{ color }} /><span className="n">{name}</span><span className="v">{value === null ? "—" : (naturalValue(value, props.unit) ?? fmt(value, props.unit))}</span></div>;
       })}
     </div>
   );
@@ -554,6 +555,13 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const hasZero = isRate(props.unit) && !props.logScale;
   const shownValues = shown.flatMap((track) => track.points.map((point) => point.v));
   const yScale = niceTicks(Math.min(...shownValues), Math.max(...shownValues), 5);
+  // A count's axis reads in its natural unit, one scale word for the whole axis, named above
+  // it: "30" under "Trillions of yuan" where the stored 300,000 亿元 printed as "300K". A log
+  // axis picks its own ticks, so the word is chosen from the largest value instead.
+  const valueAxis = props.logScale
+    ? axisScale(props.unit, [Math.max(...shownValues.map(Math.abs))])
+    : axisScale(props.unit, yScale.ticks);
+  const topMargin = (props.compact ? 8 : 12) + (valueAxis ? 14 : 0);
   // Lunar New Year falls in January or February and shifts between them, so
   // monthly comparisons across that window mislead. Shade it, faintly, on
   // monthly charts short enough for the bands to read.
@@ -573,11 +581,12 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   for (const track of shown) for (const point of track.points) { const row = byTime.get(point.t); if (row) row[track.id] = point.v; }
   return (
     <div className="chart-wrap" style={{ width: "100%", height: props.height ?? 460 }}>
+      {valueAxis && <div className="axis-title" aria-hidden="true">{valueAxis.title}</div>}
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={0}>
-        <LineChart data={rows} margin={props.compact ? { top: 8, right: 12, bottom: 0, left: 0 } : { top: 12, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
+        <LineChart data={rows} margin={props.compact ? { top: topMargin, right: 12, bottom: 0, left: 0 } : { top: topMargin, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
           <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={props.compact ? 40 : 48} tickMargin={8} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line)" tickLine={false} />
-          <YAxis width={props.compact ? 44 : 64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={fmtTick} tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
+          <YAxis width={props.compact ? 44 : 64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={valueAxis ? valueAxis.format : fmtTick}tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
           {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
           {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
           {lunar.map((band) => <ReferenceArea key={`lny-${band.year}`} x1={Math.max(band.x1, min)} x2={Math.min(band.x2, max)} fill="var(--ink)" fillOpacity={0.035} stroke="none" />)}
@@ -1968,7 +1977,7 @@ function SeriesPage(props: {
       {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
         <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
-          <span className="stat-value">{fmt(latest.value, primary.unit)}</span><span className="visually-hidden">, </span>
+          <span className="stat-value">{naturalValue(latest.value, primary.unit) ?? fmt(latest.value, primary.unit)}</span><span className="visually-hidden">, </span>
           <span className="stat-text">{statLine}{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{statPeriod}{statAgainst}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
         </p>
       )}
@@ -2025,7 +2034,7 @@ function SeriesPage(props: {
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
               {smoothing && <p className="chart-caption">Each line is the average of its latest three months, by calendar month; a month with no value is left out of the average.</p>}
-              {!built.notes.length && firstSeries && <p className="chart-caption">{unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
+              {!built.notes.length && firstSeries && <p className="chart-caption">{naturalUnit(unit) ? `Published in ${unitLabel(unit).replace(/^[A-Z](?=[a-z])/, (letter) => letter.toLowerCase())}. The chart shows it in ${naturalUnit(unit)?.thing}` : unitLabel(unit)}{lunar && primary.frequency === "Monthly" ? ". January and February are shaded: Lunar New Year falls in either month and distorts both." : ""}</p>}
             </>
           )}
           {tab === "table" && (

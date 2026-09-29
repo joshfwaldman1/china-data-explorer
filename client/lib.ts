@@ -43,6 +43,160 @@ export function fmtTick(value: number): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
+// ── Natural units ─────────────────────────────────────────────────────────────
+//
+// Publishers store a count of money, people or goods in a multiple of it:
+// 亿元 is yuan in hundreds of millions, 万人 people in tens of thousands. An
+// axis that prints the stored number with a K or M after it ("300K" over
+// 亿元) leaves the arithmetic to the reader: 300 thousand hundred-millions is
+// 30 trillion. So the chart shows the figure in the thing itself, scaled to a
+// word a reader already has (thousand, million, billion, trillion). Only the
+// display changes; stored values, CSV downloads and the table keep the
+// publisher's own figures and unit.
+
+/** A unit whose figures are a count of `thing`, each stored figure worth `multiplier` of it. */
+export interface NaturalUnit { multiplier: number; thing: string }
+
+/** The Chinese multiples, longest first so 万亿 is not read as 万 of something. */
+const CHINESE_MULTIPLIER: [string, number][] = [["万亿", 1e12], ["亿", 1e8], ["百万", 1e6], ["万", 1e4], ["千", 1e3], ["", 1]];
+/** The things counted, as the bureau writes them. A compound (万人次, 万吨标准煤) is not in the list and is left alone. */
+const CHINESE_THING: Record<string, string> = {
+  "元": "yuan", "美元": "US dollars", "人": "people", "吨": "tonnes",
+  "千瓦时": "kWh", "千瓦小时": "kWh", "立方米": "cubic metres", "平方米": "square metres",
+};
+/** The English multiples as the catalog and the curated entries spell them. */
+const ENGLISH_MULTIPLIER: [RegExp, number][] = [
+  [/^(hundred millions?|100 million|100m)$/i, 1e8],
+  [/^(ten thousands?|10,000|10k)$/i, 1e4],
+  [/^trillions?$/i, 1e12],
+  [/^billions?$/i, 1e9],
+  [/^millions?$/i, 1e6],
+  [/^thousands?$/i, 1e3],
+];
+const ENGLISH_THING: [RegExp, string][] = [
+  [/^(yuan|cny|rmb)$/i, "yuan"],
+  [/^(usd|us dollars?|dollars?)$/i, "US dollars"],
+  [/^(persons|people)$/i, "people"],
+  [/^(tonnes|tons)$/i, "tonnes"],
+  [/^kwh$/i, "kWh"],
+  [/^(cubic metres|m³)$/i, "cubic metres"],
+  [/^(square metres|m²)$/i, "square metres"],
+];
+const HAS_CJK = /[㐀-鿿]/;
+
+function chineseNaturalUnit(token: string): NaturalUnit | null {
+  const text = token.trim();
+  for (const [prefix, multiplier] of CHINESE_MULTIPLIER) {
+    if (!text.startsWith(prefix)) continue;
+    const thing = CHINESE_THING[text.slice(prefix.length)];
+    if (thing) return { multiplier, thing };
+  }
+  return null;
+}
+
+function englishNaturalUnit(head: string): NaturalUnit | null {
+  const text = head.trim().replace(/\s+/g, " ").replace(/\b(current|constant) /i, "");
+  const thingOf = (words: string) => ENGLISH_THING.find(([pattern]) => pattern.test(words.trim()))?.[1];
+  const multiplierOf = (words: string) => ENGLISH_MULTIPLIER.find(([pattern]) => pattern.test(words.trim()))?.[1];
+  // "Hundred million yuan", "Millions of US dollars", "10,000 persons", "100M USD".
+  const leading = text.match(/^(hundred millions?|ten thousands?|trillions?|billions?|millions?|thousands?|100 million|100m|10,000|10k)\s+(?:of\s+)?(.+)$/i);
+  if (leading) {
+    const multiplier = multiplierOf(leading[1] ?? ""), thing = thingOf(leading[2] ?? "");
+    return multiplier && thing ? { multiplier, thing } : null;
+  }
+  // "USD millions".
+  const trailing = text.match(/^(.+?)\s+(trillions|billions|millions|thousands)$/i);
+  if (trailing) {
+    const multiplier = multiplierOf(trailing[2] ?? ""), thing = thingOf(trailing[1] ?? "");
+    return multiplier && thing ? { multiplier, thing } : null;
+  }
+  const thing = thingOf(text);
+  return thing ? { multiplier: 1, thing } : null;
+}
+
+/**
+ * What a unit counts and in what multiple, or null when it is not a plain
+ * count: a rate, an index, a ratio ("Yuan per person"), or a thing this does
+ * not know. Reads the Chinese unit where the string carries one, since that is
+ * the publisher's own ("Hundred million CNY (亿元)" and a bare "亿元" alike),
+ * and the English head otherwise ("Million USD", "Millions of US dollars").
+ */
+export function naturalUnit(unit: string): NaturalUnit | null {
+  if (!unit || isRate(unit)) return null;
+  // A ratio is not a count; and "亿元; Million USD" is two series' units sharing a raw axis, not one unit.
+  if (/ per |\/|;/i.test(unit)) return null;
+  const bracketed = unit.match(/[(（]([^)）]*)[)）]/)?.[1] ?? "";
+  if (HAS_CJK.test(bracketed)) return chineseNaturalUnit(bracketed);
+  // The head ends at a bracket or a clause (", month"), not at the comma inside "10,000".
+  const head = (unit.split(/[(（]|,\s/)[0] ?? "").trim();
+  if (HAS_CJK.test(head)) return chineseNaturalUnit(head);
+  return englishNaturalUnit(head);
+}
+
+/** The scale words, largest first: the size, the word after a number, the word heading an axis. */
+const SCALE_WORDS: [number, string, string][] = [[1e12, "trillion", "Trillions"], [1e9, "billion", "Billions"], [1e6, "million", "Millions"], [1e3, "thousand", "Thousands"]];
+
+/** The largest scale word not above a magnitude, or none below a thousand. */
+function scaleWord(magnitude: number): [number, string, string] | null {
+  return SCALE_WORDS.find(([size]) => magnitude >= size) ?? null;
+}
+
+/** Four significant figures at most, trailing zeros dropped: 347.67 is "347.7", 1.4 is "1.4", 620 is "620". */
+function significant(value: number): string {
+  const magnitude = Math.abs(value);
+  const decimals = magnitude === 0 ? 0 : Math.max(0, Math.min(3, 3 - Math.floor(Math.log10(magnitude))));
+  const text = value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: decimals });
+  return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
+}
+
+/**
+ * One stored figure in its natural unit, for a tooltip or the stat line:
+ * 3,476,700 in 亿元 is "347.7 trillion yuan". Null when the unit is not a
+ * plain count, so the caller falls back to the stored figure.
+ */
+export function naturalValue(value: number, unit: string): string | null {
+  const natural = naturalUnit(unit);
+  if (!natural) return null;
+  const amount = value * natural.multiplier;
+  const word = scaleWord(Math.abs(amount));
+  return word ? `${significant(amount / word[0])} ${word[1]} ${natural.thing}` : `${significant(amount)} ${natural.thing}`;
+}
+
+/** How a value axis over a count reads: the divisor applied to stored figures, a title naming the unit, and the tick format. */
+export interface AxisScale {
+  /** Stored figures are divided by this for display: 10,000 for 亿元 on a trillions axis. */
+  divisor: number;
+  /** Names what the ticks count: "Trillions of yuan", or the thing alone below a thousand. */
+  title: string;
+  format: (value: number) => string;
+}
+
+/**
+ * The scale for a value axis, chosen once for the whole axis from its largest
+ * tick so every label is in the same word: over 亿元, an axis passes into
+ * trillions once it reaches 10,000 (one trillion yuan). Decimals are the
+ * fewest that keep the ticks distinct, at most three. Null for a unit that is
+ * not a plain count; the axis then prints the stored figures as before.
+ */
+export function axisScale(unit: string, ticks: number[]): AxisScale | null {
+  const natural = naturalUnit(unit);
+  if (!natural) return null;
+  const finite = ticks.filter(Number.isFinite);
+  const largest = Math.max(0, ...finite.map((tick) => Math.abs(tick * natural.multiplier)));
+  const word = scaleWord(largest);
+  const divisor = (word ? word[0] : 1) / natural.multiplier;
+  const title = word ? `${word[2]} of ${natural.thing}` : `${natural.thing.charAt(0).toUpperCase()}${natural.thing.slice(1)}`;
+  // Rounded before counting so 2.8500000000000001 is two decimals, not sixteen.
+  const decimals = finite.length > 1 ? Math.min(3, Math.max(...finite.map((tick) => ownDecimals(Number((tick / divisor).toFixed(6)))))) : null;
+  const format = (value: number) => {
+    const shown = value / divisor;
+    if (decimals === null) return significant(shown);
+    const text = shown.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return /^-0(\.0+)?$/.test(text) ? text.slice(1) : text;
+  };
+  return { divisor, title, format };
+}
+
 /** "14th", "21st", "2nd": the day of the month as English writes it. */
 export function ordinal(day: number): string {
   const rest = day % 100;
@@ -264,6 +418,10 @@ export function deltaText(latest: SeriesPoint | undefined, previous: SeriesPoint
     // The short form sits beside "+0.3 pp" on the Home list, so an unchanged rate says "0.0 pp" too.
     return `${!isRate(unit) && Math.abs(latest.value) >= 1000 ? "0" : "0.0"}${points}`;
   }
+  // On the series page a count reads in its natural unit, the same as the stat
+  // value beside it: "Up 1.2 trillion yuan", not "Up 12,345" of hundred millions.
+  const natural = style === "long" && change === "absolute" && typeof unit === "string" ? naturalValue(Math.abs(difference), unit) : null;
+  if (natural !== null && !/^0 /.test(natural)) return `${difference > 0 ? "Up" : "Down"} ${natural} from ${before}`;
   // Levels in the thousands change by whole units; anything finer is noise at that scale.
   const magnitude = !isRate(unit) && Math.abs(latest.value) >= 1000 ? Math.round(Math.abs(difference)).toLocaleString("en-US") : fmt(Math.abs(difference), unit);
   // A difference that rounds away is "0.0 pp", not "-0.0 pp".
