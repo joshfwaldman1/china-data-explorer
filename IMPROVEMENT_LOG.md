@@ -45,6 +45,19 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the nightly cross-checks, and a correction): all 55
+  cross-check pairs agree and the press-release reader shows no
+  disagreement. The health report's seven failing sources are all the
+  finance ministry, still "MOF -> HTTP 502" at 22:57-23:02Z, after the
+  https change deployed at about 22:38Z, and the debt management feed
+  (always https) fails the same way. So the earlier entry's claim that the
+  http listing "is where the repeated 502s came from" was wrong: the
+  ministry intermittently refuses Railway's address over http and https
+  alike. The https change stands (from outside China plain http failed on
+  every try), but it did not cure the 502s. The data is current: all seven
+  hold August 2026, the latest published, each refreshed successfully
+  between 20:16 and 23:00Z today; the report lists them as failing because
+  the latest attempt failed. Nothing further to fix in code.
 - 2026-09-30 (round: the other plain-http sources): nothing to fix. After
   the finance ministry's http listing turned out to answer 502, the only
   other plain-http publisher address in the adapters is Customs' English
