@@ -2926,7 +2926,8 @@ export function seriesRegions(key: string): NbsRegion[] {
 export async function fetchLiveRegion(key: string, region: NbsRegion, limit = 120, options: { oldestStored?: string | null } = {}): Promise<SeriesResult | null> {
   const cfg = CATALOG[key];
   if (!cfg) return null;
-  if (cfg.kind === "nbs") return fetchNbs(key, { ...cfg, region }, limit);
+  // The earlier year slices are read for each place too: a province page otherwise starts at the current table.
+  if (cfg.kind === "nbs") return fetchNbsWithSlices(key, { ...cfg, region }, limit);
   if (cfg.kind === "eastmoney" && cfg.regions) return fetchEastmoneyRegion(key, cfg, region, limit);
   // Customs walks its archive a slice at a time; the store's oldest month says where the slice starts.
   if (cfg.kind === "customs") return fetchCustomsRegion(key, cfg, region, limit, options);
