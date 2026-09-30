@@ -40,6 +40,11 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: Browse and a category page): nothing to fix. CI green
+  on 7d9669e. Browse at 1280 pixels leads every card with English and the
+  Chinese beneath, groups by dataset (national monthly 8,776 series,
+  quarterly 793, annual 52,964), and nothing overflows; the Price indices
+  category page renders its English and Chinese heading with no overflow.
 - 2026-09-30 (round: the release calendar page): the calendar's content is
   right, and today's PMI release now lists both sub-index series. Its
   series links ran together as plain grey text six pixels apart,
