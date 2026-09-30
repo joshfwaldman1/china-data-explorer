@@ -4,7 +4,6 @@ node_modules
 dist
 venv
 captures
-screenshot.png
 china.db*
 catalog.db*
 catalog/*.partial

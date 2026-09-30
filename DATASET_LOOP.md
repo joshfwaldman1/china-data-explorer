@@ -1,7 +1,7 @@
 # One round of the dataset loop
 
 You are running one round of a standing loop that works through
-`COVERAGE_PLAN.md`: adding the sources and series that give a
+`docs/COVERAGE_PLAN.md`: adding the sources and series that give a
 cohesive picture of the Chinese economy. The owner wants steady, tested,
 verifiable progress, one item per round. Read this whole file, then the queue
 in `DATASET_QUEUE.md`, before doing anything.

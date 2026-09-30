@@ -40,6 +40,20 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (owner-directed: tidy the repository before adding a
+  collaborator): an audit found no secrets in the tree or the history, no
+  personal paths, the stores ignored, CI green. The top level carried
+  leftovers: HANDOFF.txt (stale: it still described the datatool split),
+  screenshot.png (31 August, the old interface), three unused portal
+  captures, AGENTS.md and CLAUDE.md as identical copies, and three
+  planning documents beside the code. Removed the first three (captures/
+  is now ignored; scripts/capture-area.ts creates it when it runs), moved
+  PROJECT_BRIEF.md, COVERAGE_PLAN.md and FRED_PARITY.md to docs/, made
+  CLAUDE.md a one-line import of AGENTS.md, and rewrote the README's file
+  list. LOOP.md, IMPROVEMENT_LOG.md, DATASET_LOOP.md and DATASET_QUEUE.md
+  stay at the root because the loops read them by path. Every reference to
+  a moved or removed file was updated. Verified: typecheck clean, 524
+  tests; CI watched after the push.
 - 2026-09-30 (round: a mixed-frequency comparison): nothing to fix. CPI
   compared with GDP on the live site converts CPI to quarterly averages,
   says so in a notice and in the chart note, leaves out Q3 2026 (only two

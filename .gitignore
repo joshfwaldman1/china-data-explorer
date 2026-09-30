@@ -47,3 +47,6 @@ venv/
 # stray SQLite sidecars from a seed rebuild
 seed/*.tmp-shm
 seed/*.tmp-wal
+
+# Portal captures written by scripts/capture-area.ts
+captures/

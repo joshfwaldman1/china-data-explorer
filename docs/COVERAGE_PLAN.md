@@ -5,7 +5,7 @@ shipped (summary at the end). The benchmark is CEIC's China Premium
 database. This plan says what the site holds, where CEIC is ahead, what can
 be matched from official publishers, what cannot, and the order to do it in.
 
-`DATASET_QUEUE.md` holds the next few rounds. This file is where its items
+`DATASET_QUEUE.md` (repository root) holds the next few rounds. This file is where its items
 come from.
 
 ## Where we are
@@ -162,7 +162,7 @@ Each needs a small adapter. Official, so no proxy label.
 - National Financial Regulatory Administration: bank assets, NPL ratios,
   capital adequacy.
 - Securities regulator and the exchanges: already queued in
-  `DATASET_QUEUE.md` item 4.
+  `DATASET_QUEUE.md` (repository root) item 4.
 - Ministry of Natural Resources: land supply by use.
 - Ministry of Ecology and Environment: city air quality.
 

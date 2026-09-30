@@ -78,9 +78,11 @@ scripts/            catalog crawls and translation runs (run from your machine, 
 seed/china.db       the small store a fresh deployment starts from
 Dockerfile          the image Railway builds; railway.toml points at it
 .github/workflows/  ci.yml (tests and type check on every push), backup.yml (nightly store copy)
-DATASET_LOOP.md     how a round of dataset work is done; DATASET_QUEUE.md what is next
-IMPROVEMENT_LOG.md  what changed and why, round by round; PROJECT_BRIEF.md the summary
-HANDOFF.txt         state and pending decisions for whoever picks this up
+AGENTS.md           conventions and gates for anyone changing the code (CLAUDE.md points here)
+CONTRIBUTING.md     the short version for a collaborator; OPERATIONS.md for running the service
+LOOP.md             one round of the improvement loop; IMPROVEMENT_LOG.md its queue and log
+DATASET_LOOP.md     one round of dataset work; DATASET_QUEUE.md what is next
+docs/               PROJECT_BRIEF.md (the summary), COVERAGE_PLAN.md, FRED_PARITY.md
 ```
 
 ## How it works

@@ -14,7 +14,7 @@
  * the store's value for the same series, line and period. Nothing here
  * writes an observation. The comparison has to agree for a few months
  * running before any of these figures is trusted as a series
- * (COVERAGE_PLAN.md step 3).
+ * (docs/COVERAGE_PLAN.md step 3).
  *
  * The two kinds, as NBS titles them on its 最新发布 listing (sj/zxfb):
  *

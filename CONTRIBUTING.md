@@ -5,7 +5,7 @@ trying to be is trustworthy, which shapes most of what follows: a figure has
 to be traceable to the agency that compiled it, checkable against an
 independent reading, and honest about what it is not.
 
-Read `README.md` for what the project is and how to run it, and `CLAUDE.md`
+Read `README.md` for what the project is and how to run it, and `AGENTS.md`
 for the working rules in full. This file is the short version.
 
 ## Getting set up
