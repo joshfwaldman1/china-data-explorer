@@ -37,17 +37,25 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
-- The monthly bundle's detail series still refresh only with the daily
-  ingest: the industrial output products and divisions, energy by source
-  and fuel output, fixed-asset investment by industry and funding, the
-  property detail keys, retail by commodity, working hours. Each belongs to
-  a release in `RELEASE_MAP`; adding them lengthens the release retries
-  until the portal fills, so check a release morning's request count first.
-  Provincial keys are left out on purpose: the portal fills provinces days
-  after the national figure.
 
 ## Log
 
+- 2026-09-30 (round: the monthly bundle's detail series, from the
+  queue): 25 curated NBS series drawn from the monthly bundle's tables
+  refreshed only with the daily ingest: product output (steel, cement,
+  cars, NEVs, chips), output by division and sector, electricity by
+  source, coal, oil and gas output, fixed-asset investment by industry and
+  funding, the property detail keys, retail by commodity, and working
+  hours. Each now rides the release whose NBS category holds its table,
+  checked key by key against the catalog (industry, energy, investment,
+  real estate, domestic trade; working hours sits in the surveyed
+  unemployment table, so it goes with the bundle). Port throughput is a
+  transport table no release covers and stays with the daily ingest;
+  provincial keys stay off because the portal fills provinces days later.
+  Cost: about 25 more requests per release attempt, well under the
+  400-request cap. Verified: typecheck clean, 522 tests (bundle
+  expectations updated, four new checks); the live calendar is read after
+  deploy.
 - 2026-09-30 (round: the rest of that bug class): the share-image fix
   guarded two readers, but a retracted month was still served as a null
   point to every reader, and the Home rows, theme rows and the series

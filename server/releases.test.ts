@@ -3,10 +3,10 @@ import { agendaBound, describeRelease } from "./releases";
 
 test("the national economy bundle refreshes GDP only in the months that announce a quarter", () => {
   const monthly = describeRelease("国民经济运行情况(10:00)", "2026-09-15 10:00:00");
-  expect(monthly?.keys).toEqual(["industrial_production", "retail_sales", "unemployment"]);
+  expect(monthly?.keys).toEqual(["industrial_production", "retail_sales", "unemployment", "working_hours"]);
   expect(monthly?.en).toContain("monthly bundle");
   const quarterly = describeRelease("国民经济运行情况(10:00)", "2026-10-19 10:00:00");
-  expect(quarterly?.keys).toEqual(["gdp", "industrial_production", "retail_sales", "unemployment"]);
+  expect(quarterly?.keys).toEqual(["gdp", "industrial_production", "retail_sales", "unemployment", "working_hours"]);
   expect(quarterly?.en).toContain("GDP");
 });
 
@@ -36,4 +36,9 @@ test("a release refreshes the curated series drawn from its own tables, not only
   // These two releases mapped to no series at all, so their day refreshed nothing curated.
   expect(describeRelease("工业产能利用率(10:00)")?.keys).toEqual(["capacity_utilisation"]);
   expect(describeRelease("季度主要行业增加值初步核算结果(09:30)")?.keys).toEqual(["gdp_by_industry"]);
+  // The monthly bundle's detail series ride with the release that carries their table.
+  expect(describeRelease("规模以上工业生产(10:00)")?.keys).toContain("output_nev");
+  expect(describeRelease("能源生产情况(10:00)")?.keys).toContain("fuel_output");
+  expect(describeRelease("房地产开发和销售情况(10:00)")?.keys).toContain("property_funds");
+  expect(describeRelease("社会消费品零售总额(10:00)")?.keys).toContain("retail_by_category_growth");
 });
