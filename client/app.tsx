@@ -1091,7 +1091,8 @@ function KeyListPage(props: { title: string; keys: string[]; empty: string }) {
     let cancelled = false;
     Promise.all(props.keys.map((key) => json(`/api/entry/${splitSpec(key).key}`).then((body): [string, { title: string; sub: string }] | null => {
       if (isCurated(body)) return [key, { title: body.title, sub: `${body.frequency}, ${body.agency}` }];
-      if (isNbsEntry(body)) return [key, { title: body.name, sub: `${body.frequency}, ${body.categories.join(" › ")}` }];
+      // English first, as everywhere else: the bureau's title and path were shown in Chinese here.
+      if (isNbsEntry(body)) return [key, { title: body.nameEn || body.name, sub: `${body.frequency}, ${(body.categoriesEn && body.categoriesEn.length === body.categories.length ? body.categoriesEn : body.categories).join(" › ")}` }];
       return null;
     }).catch(() => null))).then((pairs) => { if (!cancelled) setEntries(new Map(pairs.filter((pair): pair is [string, { title: string; sub: string }] => pair !== null))); });
     return () => { cancelled = true; };

@@ -40,6 +40,15 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: where else a catalog series shows its Chinese name):
+  followed the previous two rounds' fault through the rest of the client.
+  The browser tab title and the share image already use the English
+  title. The Saved Series and Recently Viewed lists did not: they showed
+  the bureau's Chinese title and its Chinese category path
+  (中型工业企业产成品 (亿元), 工业 › 按登记注册统计类别分...). They now show
+  the English title and the English path, falling back to the Chinese only
+  where no English exists. Verified: typecheck clean, 524 tests; CI, the
+  deploy and the live Saved page checked after the push.
 - 2026-09-30 (round: the series Table view): three live tables (CPI, the
   Japan partner, an NBS catalog series) render with no null, NaN or
   undefined cells and no page errors, newest first. One defect, the same
