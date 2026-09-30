@@ -40,6 +40,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the series Table view): three live tables (CPI, the
+  Japan partner, an NBS catalog series) render with no null, NaN or
+  undefined cells and no page errors, newest first. One defect, the same
+  one the CSV had: a catalog series' single line is labelled with its
+  place in Chinese (全国), and that label headed the table's value column.
+  The track for a catalog series with one line is now named by the
+  series' English title, so the table, the legend and the CSV all read
+  "Finished goods of medium-sized industrial enterprises, 2023-present
+  (100 million yuan)". Checked on a local build. Verified: typecheck
+  clean, 524 tests; CI and the deploy watched after the push.
 - 2026-09-30 (owner-directed: tidy the repository before adding a
   collaborator): an audit found no secrets in the tree or the history, no
   personal paths, the stores ignored, CI green. The top level carried

@@ -495,7 +495,10 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
       }
       const slot = colors.get(colorId) ?? 0;
       tracks.push({
-        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length === 1 ? displayTitle(result, results) : labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`) : one.label,
+        id, name: results.length > 1 ? (results.every((other) => other.key === result.key) && result.region ? regionLabel(result.region) : shaped.series.length === 1 ? displayTitle(result, results) : labelCounts.get(one.label) === 1 ? one.label : `${displayTitle(result, results)}: ${one.label}`)
+          // A catalog series' one line is labelled with its place in Chinese (全国), which headed the
+          // table column; the series' English title names it, as on the page.
+          : result.key.startsWith("nbs_") && shaped.series.length === 1 ? displayTitle(result, results) : one.label,
         // A quantity line stored under a value series' unit carries its own ("Quantity (10,000 Sets)").
         unit: lineUnit(one.label, result.unit), frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
