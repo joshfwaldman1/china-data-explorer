@@ -548,23 +548,22 @@ export interface RepeatedPeriod { period: string; previous: string; same: number
  * in the 2024 tables of industrial enterprises by registration status, every
  * line but the total carries its 2023 figure to the last digit. One line
  * repeating is ordinary (a count that did not change); most of a table
- * repeating is not. Given the stored lines of one table, returns the latest
- * period when at least `REPEAT_MIN_LINES` lines hold it and the period before,
+ * repeating is not. Given the stored lines of one table and a period, returns
+ * that period when at least `REPEAT_MIN_LINES` lines hold it and the period before,
  * and at least `REPEAT_SHARE` of those hold the same nonzero figure in both.
  */
 export const REPEAT_MIN_LINES = 5;
 export const REPEAT_SHARE = 0.8;
 
-export function repeatedTablePeriod(lines: SeriesPoint[][]): RepeatedPeriod | null {
-  const latest = lines.map((points) => points.at(-1)?.date ?? "").sort().at(-1);
-  if (!latest) return null;
+export function repeatedTablePeriod(lines: SeriesPoint[][], period: string): RepeatedPeriod | null {
   let previous = "";
   let same = 0;
   let of = 0;
   for (const points of lines) {
-    const last = points.at(-1);
-    const before = points.at(-2);
-    if (!last || !before || last.date !== latest) continue;
+    const at = points.findIndex((point) => point.date === period);
+    const last = points[at];
+    const before = at > 0 ? points[at - 1] : undefined;
+    if (!last || !before) continue;
     // Lines must agree on which period came before, or the comparison is not like for like.
     if (previous && before.date !== previous) continue;
     previous = before.date;
@@ -572,7 +571,7 @@ export function repeatedTablePeriod(lines: SeriesPoint[][]): RepeatedPeriod | nu
     if (last.value !== 0 && last.value === before.value) same++;
   }
   if (of < REPEAT_MIN_LINES || same / of < REPEAT_SHARE) return null;
-  return { period: latest, previous, same, of };
+  return { period, previous, same, of };
 }
 
 export function stitchPoints(slices: SeriesPoint[][]): SeriesPoint[] {
@@ -1952,8 +1951,8 @@ export async function getNbsCatalogSeries(options: {
   if (own && points.at(-2)?.value === own.value) {
     const snapshot = await loadSnapshot();
     const table = snapshot.entries.filter((candidate) => candidate.cid === options.entry.cid && candidate.geography === options.entry.geography).slice(0, 80);
-    const found = repeatedTablePeriod(table.map((member) => storedPoints(member, region)));
-    if (found && found.period === own.date) repeated = found;
+    // Judged at this series' own latest period: a total can already carry a newer year than its breakdown.
+    repeated = repeatedTablePeriod(table.map((member) => storedPoints(member, region)), own.date) ?? undefined;
   }
 
   // Transform over the full history, then slice, so lagged transforms keep
