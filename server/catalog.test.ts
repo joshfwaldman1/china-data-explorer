@@ -94,3 +94,24 @@ test("a title in the bureau's title case keeps its capital after the table's nam
   expect(isTitleCase("Total Current Assets of Private Industrial Enterprises")).toBe(true);
   expect(isTitleCase("Population by household registration")).toBe(false);
 });
+
+test("a title two year-range tables still share after the table is named takes each table's range", async () => {
+  const { qualifyDuplicateTitles } = await import("./nbs-catalog.ts");
+  const title = "Selling Expenses of Large and Medium-sized Industrial Enterprises, Mining of Other Ores (100 million yuan)";
+  const entry = (key: string, table: string, family?: { head: string; members: string[]; span: string }) => ({
+    key, id: key, name: "其他采矿业大中型工业企业销售费用 (亿元)", shortName: "销售费用", nameEn: title, unit: "亿元", note: "", annotation: "",
+    datasetCode: 3, dataset: "年度数据", frequency: "Annual" as const, geography: "National" as const,
+    cid: key, rootId: "r", categories: ["工业", key, "销售费用"], categoriesEn: ["Industry", table, "Selling expenses"], precision: null,
+    ...(family ? { family } : {}),
+  });
+  // NBS renamed the industry in Chinese for 2000-2002, so that slice is not in the family the later two form.
+  const family = { head: "late", members: ["mid", "late"], span: "2003 to 2022" };
+  const out = qualifyDuplicateTitles([
+    entry("early", "Main economic indicators of large and medium-sized industrial enterprises by industry (2000-2002)"),
+    entry("mid", "Main economic indicators of large and medium-sized industrial enterprises by industry (2003-2011)", family),
+    entry("late", "Main economic indicators of large and medium-sized industrial enterprises by industry (2012-2022)", family),
+  ]);
+  expect(out.find((item) => item.key === "early")?.nameEn).toBe("Selling Expenses of Large and Medium-sized Industrial Enterprises, Mining of Other Ores, 2000-2002 (100 million yuan)");
+  // The family head speaks for both of its slices.
+  expect(out.find((item) => item.key === "late")?.nameEn).toBe("Selling Expenses of Large and Medium-sized Industrial Enterprises, Mining of Other Ores, 2003-2022 (100 million yuan)");
+});

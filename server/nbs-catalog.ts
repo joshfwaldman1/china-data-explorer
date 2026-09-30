@@ -295,7 +295,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 32; // 32: a duplicate title that opens with its table's name gets the table's vintage, not the name again, and a title-case title keeps its capital after the colon. 31: "labor force", American spelling. 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 33; // 33: titles still shared after the table is named take their year range. 32: a duplicate title that opens with its table's name gets the table's vintage, not the name again, and a title-case title keeps its capital after the colon. 31: "labor force", American spelling. 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -452,7 +452,7 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
     tables.add(tableOf(entry));
     seen.set(key, tables);
   }
-  return entries.map((entry) => {
+  const qualified = entries.map((entry) => {
     const title = entry.nameEn || entry.name;
     const table = tableOf(entry);
     if (!table || (seen.get(`${title}|${entry.frequency}`)?.size ?? 0) < 2) return entry;
@@ -483,6 +483,55 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
     // word does not start a clause.
     const opens = /^[A-Z]{2,}\b/.test(short) || isTitleCase(short) ? short : `${short.charAt(0).toLocaleLowerCase()}${short.slice(1)}`;
     return { ...entry, nameEn: `${table}: ${opens}` };
+  });
+  return withVintageWhereStillShared(qualified);
+}
+
+/**
+ * The year range an entry covers, as its title can carry it: a family head speaks for every
+ * slice ("2003-2022"), another entry for the deepest level of its path that names a range.
+ */
+function vintageOf(entry: NbsCatalogEntry): string | undefined {
+  if (entry.family?.head === entry.key) {
+    const [from, to] = entry.family.span.split(" to ");
+    if (from && to && from !== "all years") return to === "present" ? `${from}-present` : `${from}-${to}`;
+  }
+  for (const level of [...(entry.categoriesEn ?? [])].reverse()) {
+    const open = level.match(/\((\d{4})-\)\s*$/);
+    if (open) return `${open[1]}-present`;
+    const range = level.match(ENGLISH_VINTAGE);
+    if (range?.[1]) return range[1];
+  }
+  return undefined;
+}
+
+/**
+ * Titles the table could not tell apart, because both tables carry the same English name
+ * under different year ranges ("Selling expenses" under the 2000-2002 and the 2012-2022
+ * tables, whose industry NBS renamed in Chinese, so they are not one family), take their
+ * year range: "..., 2000-2002 (100 million yuan)". Only when every entry sharing the title
+ * has a range and no two ranges are the same; otherwise the ranges would not settle it.
+ */
+function withVintageWhereStillShared(entries: NbsCatalogEntry[]): NbsCatalogEntry[] {
+  const shared = new Map<string, NbsCatalogEntry[]>();
+  for (const entry of entries) {
+    if (entry.family && entry.family.head !== entry.key) continue;
+    const key = `${entry.nameEn || entry.name}|${entry.frequency}|${entry.geography}`;
+    shared.set(key, [...(shared.get(key) ?? []), entry]);
+  }
+  const vintages = new Map<string, string>();
+  for (const group of shared.values()) {
+    if (new Set(group.map((entry) => entry.cid)).size < 2) continue;
+    const ranges = group.map(vintageOf);
+    if (ranges.some((range) => !range) || new Set(ranges).size !== group.length) continue;
+    group.forEach((entry, index) => { const range = ranges[index]; if (range) vintages.set(entry.key, range); });
+  }
+  return entries.map((entry) => {
+    const range = vintages.get(entry.key);
+    if (!range || !entry.nameEn) return entry;
+    const unit = entry.nameEn.match(/\s*(\([^()]*\))\s*$/);
+    const body = unit ? entry.nameEn.slice(0, unit.index).trim() : entry.nameEn;
+    return { ...entry, nameEn: `${body}, ${range}${unit?.[1] ? ` ${unit[1]}` : ""}` };
   });
 }
 
