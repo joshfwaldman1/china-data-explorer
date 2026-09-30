@@ -40,6 +40,15 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the release calendar page): the calendar's content is
+  right, and today's PMI release now lists both sub-index series. Its
+  series links ran together as plain grey text six pixels apart,
+  "Consumer Price Index Consumer Price Index by Category Price indices
+  series", so a reader could not tell where one link ended; a comma would
+  not separate them because titles carry commas ("..., Year to Date").
+  Each link now has its own underline in the 3:1 line colour and 14
+  pixels between links, on the calendar and in the release lists. Checked
+  on a local render at 1280 pixels. Verified: typecheck clean, 524 tests.
 - 2026-09-30 (round: the slow catalog test, from the queue): nothing to
   fix. On CI "every entry carries an English gloss and pinyin" takes 1.2
   to 1.5 seconds in each of the last six runs. Its one 39-second local

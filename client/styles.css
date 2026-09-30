@@ -204,8 +204,11 @@ h3 { margin: 0 0 var(--s-2); font-size: var(--fs-4); }
 .cal-date span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
 .cal-row .what { font-weight: 600; }
 .cal-row small { display: block; color: var(--muted); font-size: var(--fs-2); }
-.cal-row .links { margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; }
-.cal-row .links a { font-size: var(--fs-2); }
+/* A release links several series whose titles can hold commas; each gets its own quiet underline and
+   clear space, so "Consumer Price Index" and "Consumer Price Index by Category" read as two links. */
+.cal-row .links { margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.cal-row .links a, .release .links a { font-size: var(--fs-2); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.cal-row .links a:hover, .release .links a:hover { text-decoration-color: currentColor; }
 .browse-dataset { margin-top: var(--s-6); }
 .browse-dataset > h2 { display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; margin-bottom: var(--s-3); }
 .browse-dataset > h2 .gloss { display: inline; margin: 0; font-size: var(--fs-3); }
@@ -366,8 +369,7 @@ th:first-child { left: 0; z-index: 1; }
 .release time { color: var(--muted); font-family: var(--mono); font-size: var(--fs-2); padding-top: 2px; }
 .release .en { font-weight: 600; }
 .release .zh { color: var(--muted); font-size: var(--fs-2); }
-.release .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.release .links a { font-size: var(--fs-2); }
+.release .links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
 .month-nav { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-3) 0; }
 
 /* ── Regional ─────────────────────────────────────────────────────────────── */
