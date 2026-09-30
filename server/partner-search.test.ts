@@ -47,3 +47,15 @@ test("a city named for anything but home prices is not a house-price query", () 
   expect(city("shanghai")).toBeNull();
   expect(city("house prices")).toBeNull();
 });
+
+const { exactTitleIndex } = await import("./nbs-catalog.ts");
+
+test("an NBS title equal to the query leads only when it is national, or the query named a place", () => {
+  const provincial = { nameEn: "Consumption of major energy products: Consumption of Electricity (100 million kwh)", glossEn: "Electricity consumption", geography: "Province" as const };
+  const national = { nameEn: "Birth Rate(‰)", glossEn: "Birth rate", geography: "National" as const };
+  // A provincial table does not jump ahead of the national monthly series on a query that names no place.
+  expect(exactTitleIndex([provincial], "electricity consumption", false)).toBe(-1);
+  expect(exactTitleIndex([provincial], "electricity consumption", true)).toBe(0);
+  expect(exactTitleIndex([provincial, national], "birth rate", false)).toBe(1);
+  expect(exactTitleIndex([national], "", false)).toBe(-1);
+});

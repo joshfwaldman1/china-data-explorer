@@ -46,7 +46,7 @@ import {
   resolveTransform,
   transformLabel,
   transformPoints,
-  type NbsTransform, SEARCH_STOP_WORDS, normalizeQuery, warmSearchIndex } from "./nbs-catalog";
+  type NbsTransform, SEARCH_STOP_WORDS, exactTitleIndex, normalizeQuery, warmSearchIndex } from "./nbs-catalog";
 import { RELEASE_MAP, describeRelease, agendaBound } from "./releases";
 import { fillRegionalSeries, refreshCatalogForRelease, runCatalogCrawl, runIngest } from "./ingest";
 import { pendingSeries, releaseTargets, type ReleaseTarget } from "./release-plan";
@@ -523,10 +523,10 @@ const routes = {
       // rate first, on the strength of "births" in its synonyms, above the
       // bureau's own birth rate.
       const nbsResults = nbs.results.slice(0, remainingLimit);
-      const asked = queryText.trim().toLocaleLowerCase();
-      // The bureau's own titles end in the unit ("Birth Rate(‰)"); the words before it are the title.
-      const titleWords = (title: string) => title.toLocaleLowerCase().replace(/\s*[(（][^()（）]*[)）]\s*$/, "").trim();
-      const exactIndex = asked ? nbsResults.findIndex((entry) => titleWords(entry.nameEn ?? "") === asked || titleWords(entry.glossEn ?? "") === asked) : -1;
+      // A headline series titled exactly as asked keeps the lead: "electricity consumption" is the
+      // national monthly series, not the bureau's annual table with the same words.
+      const curatedExact = featuredResults.some((item) => item.nameEn.toLocaleLowerCase() === queryText.trim().toLocaleLowerCase());
+      const exactIndex = curatedExact ? -1 : exactTitleIndex(nbsResults, queryText, Boolean(nbs.place));
       const exact = exactIndex >= 0 ? nbsResults.splice(exactIndex, 1) : [];
       return jsonFor(req, {
         total: featured.length + nbs.total,

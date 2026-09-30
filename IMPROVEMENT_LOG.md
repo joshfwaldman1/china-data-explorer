@@ -52,11 +52,20 @@ not from scratch. Rounds are small on purpose.
   until the portal fills, so check a release morning's request count first.
   Provincial keys are left out on purpose: the portal fills provinces days
   after the national figure.
-- Search: "electricity consumption" leads with Beijing's annual table
-  above the national monthly series. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: "electricity consumption" in search, from the
+  queue): the query led with a provincial annual table opened at Beijing,
+  above the national monthly series. The rule that lets an NBS result
+  titled exactly as asked lead the headline series ("birth rate" is the
+  bureau's Birth Rate) matched that table's gloss, and took any geography.
+  It now counts a provincial or city table only when the query named a
+  place (`exactTitleIndex`), and it gives way when a headline series is
+  itself titled exactly as asked. Checked on a local server: "electricity
+  consumption" leads with the national monthly series, "birth rate" still
+  leads with the bureau's Birth Rate, "cpi" is unchanged. Verified:
+  typecheck clean, 520 tests (one new).
 - 2026-09-30 (round: house prices by city in search, from the queue): a
   city's home prices were hard to reach. "shanghai house prices" led with
   Shanghai's residential sales totals, "shanghai new home prices" with a

@@ -145,6 +145,22 @@ Object.assign(SEARCH_ALIASES, {
   yoy: ["同比"], "y/y": ["同比"], "year on year": ["同比"], "year over year": ["同比"],
 });
 // Words that carry no signal for a series: the country itself and English function words ("exports to the united states").
+/**
+ * The NBS result whose title is exactly the query, which then leads ahead of the headline
+ * series: "birth rate" is the bureau's own Birth Rate, not the World Bank's fertility rate.
+ * The bureau's titles end in the unit ("Birth Rate(‰)"); the words before it are the title.
+ * A provincial or city table only counts when the query named a place: "electricity
+ * consumption" matched the gloss of a provincial annual table, which then led, opened at
+ * Beijing, above the national monthly series.
+ */
+export function exactTitleIndex(results: Pick<NbsCatalogEntry, "nameEn" | "glossEn" | "geography">[], query: string, placeNamed: boolean): number {
+  const asked = query.trim().toLocaleLowerCase();
+  if (!asked) return -1;
+  const titleWords = (title: string) => title.toLocaleLowerCase().replace(/\s*[(（][^()（）]*[)）]\s*$/, "").trim();
+  return results.findIndex((entry) => (placeNamed || entry.geography === "National")
+    && (titleWords(entry.nameEn ?? "") === asked || titleWords(entry.glossEn ?? "") === asked));
+}
+
 export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "nbs", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from", "how", "many", "much", "does", "do", "is", "are", "was", "what", "which"]);
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
