@@ -379,7 +379,9 @@ th:first-child { left: 0; z-index: 1; }
 .ptile b { font-family: var(--mono); font-size: var(--fs-2); font-weight: 700; }
 .ptile[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
 .ptile.dark { color: #fff; }
-.ptile.light { color: var(--ink); }
+/* The ramp is fixed paper-to-red in both themes, so a light tile keeps dark ink in dark mode:
+   var(--ink) turns near-white there and the light tiles' labels vanished. */
+.ptile.light { color: #171614; }
 .ramp { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-2); }
 .ramp .steps { display: flex; }
 .ramp .steps i { width: 40px; height: 12px; display: block; }

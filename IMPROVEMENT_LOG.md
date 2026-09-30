@@ -55,6 +55,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: dark mode tokens): one hard-coded colour outside the
+  tokens, and it was a defect. The province tile map's ramp is fixed paper
+  to red in both themes, but a light tile's label took `var(--ink)`, which
+  is near-white in dark mode: at 390 or 1280 pixels in dark mode Shanxi,
+  Liaoning, Jilin, Yunnan, Hainan and the other lightest tiles showed
+  near-white text (236,235,230) on a near-white tile (244,242,236), their
+  names and values invisible. A light tile now keeps the light theme's
+  ink. The Home page, the CPI series page and the Guangdong page were
+  checked in dark mode and read correctly. Verified: typecheck clean, 515
+  tests; the live check reads the tile colours after deploy.
 - 2026-09-30 (round: mobile CSS at 390 pixels): no page overflows at 390:
   the series pages for CPI, PMI sub-indices and US trade, the release
   calendar, browse, search, and all nine theme pages (the Home page was
