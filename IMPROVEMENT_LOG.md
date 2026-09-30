@@ -55,6 +55,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: /api/status for failed fetches): nothing to fix.
+  Fifty recent failures, all checked against the series themselves. Forty
+  are one burst of NBS "socket closed" errors at 01:02Z on 29 September;
+  three sampled series from it now hold August 2026 (one is a table that
+  ended in 2017, as NBS lists it). The rest are intermittent Ministry of
+  Finance 502s on the local government bond and fiscal keys and one SAFE
+  404; every one of those keys holds its latest published period (August
+  for MOF, Q2 for the balance of payments) and was refreshed successfully
+  on 30 September. The failures list is dominated by a 32-hour-old burst
+  that has resolved, which makes it read worse than the store is.
 - 2026-09-30 (round: the release calendar and /api/schedule): twenty-one
   releases through October, all at the published times, and this
   morning's PMI refresh completed (13 attempts, the headline advanced to
