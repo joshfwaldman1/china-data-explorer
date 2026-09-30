@@ -104,6 +104,10 @@ export function measureOf(unit: string, declared: Partial<Measure> = {}): Measur
 export function isYearEarlierIndex(text: string): boolean {
   // 上年价格=100 is the annual producer price indices' base (麻类生产价格指数); the English forms are
   // the glosses gloss.ts and data.ts write ("same period last year = 100", "prior-year prices = 100").
+  // NBS's own English labels about 515 growth rates "Growth Rate (The same period last year=100) (%)": a
+  // percentage, not an index, so a text that calls itself a growth rate is never a year-earlier index.
+  // A trailing "(%)" is no sign: 121 real indexes are titled "城市居民消费价格指数 (上年同期=100) (%)".
+  if (/growth rate|增长率|同比增长/i.test(text)) return false;
   return /上年(?:同期|同月|同季|价格)?\s*[=＝]\s*100|prior[- ]year(?: (?:period|month|quarter|prices))?\s*=\s*100|year[- ](?:earlier|ago)\s*=\s*100|same (?:period|month|quarter) (?:of )?last year\s*=\s*100/i.test(text);
 }
 

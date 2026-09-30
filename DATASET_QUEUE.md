@@ -145,6 +145,44 @@ what the site does not carry).
     ten-thousandth of the figure, and the store holds no "Quantity (Ton)"
     line for that commodity.
 
+11. **Fiscal revenue's 2018 half-year and third-quarter points are single
+    months.** Found in review on 29 September 2026. In `fiscal_revenue`,
+    "General public budget revenue, year to date" and "Non-tax revenue,
+    year to date" hold single-month figures at 2018-06 and 2018-09 (general
+    revenue 17,680 and 12,963 亿元, against 50,546 for 2018-03 and 183,352
+    for 2018-12). Year-on-year growth for 2019-06 and 2019-09 therefore reads
+    510% and 1,062%, and the chart's axis stretches to 1,500. Find which MOF
+    release the parser read for those months (probably a page that reports
+    the month alone), fix the parser or its page choice, and retract the two
+    wrong points from the store the way the other one-time cleanups do.
+    *Test:* the 2018-06 and 2018-09 fixtures parse to year-to-date totals
+    between the March and December figures, and the store's year-on-year
+    for 2019-06 is a plausible single-digit rate.
+
+12. **Notes that describe the start of a rolling window go stale.** The
+    Customs notes on the Trade, Energy and Tech pages (`CUSTOMS_NOTES` in
+    `server/themes.ts`) describe January and February points from 2019,
+    2021 and 2022, checked on 29 September 2026 against each chart's 8-, 6-
+    or 5-year window. From about February 2027 those early years fall out of
+    the windows and the notes describe points the chart no longer draws. The one-year
+    `from2026` note on the chip trade charts ("The stored history starts in
+    February 2026") goes stale the same way once February 2026 leaves its
+    window.
+    Either fix each chart's start date, or add a test that the first year a
+    note names is still inside its chart's window.
+    *Test:* the theme test fails when a note names a year before its chart's
+    window opens.
+
+13. **Press-release reader: three small follow-ups** (review of 29
+    September 2026, none blocking). A refusal migrated from an older table
+    shape reads its "last listed" date from the last refusal, which each
+    retry moves forward, so it can never reach the 180-day limit (set
+    `last_listed_at` once on migration). Every deploy retries each
+    no-longer-listed refusal once, so a week of frequent deploys spends the
+    20 tries in days (count at most one deploy retry a day). A given-up
+    page's last reason is in the fetch log only, which `/api/status` shows
+    for seven days (keep the last message on the given-up line).
+
 - **The IMF's data quality assessment pages.** [parked: dsbb.imf.org serves
   the country pages from a client-rendered application — a plain request
   returns navigation only — and no JSON endpoint behind it answered

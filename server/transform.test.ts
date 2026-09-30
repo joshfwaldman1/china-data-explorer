@@ -26,9 +26,11 @@ test("only an index on a year-earlier base is read as index minus 100", () => {
   // The annual producer price indices' base, and the quarterly one.
   expect(isYearEarlierIndex("麻类生产价格指数 (上年价格=100)")).toBe(true);
   expect(isYearEarlierIndex("农产品生产价格指数 (上年同季=100)")).toBe(true);
-  // The English glosses gloss.ts and data.ts write.
-  expect(isYearEarlierIndex("Value-added of industry, Growth Rate (The same period last year=100)")).toBe(true);
+  // The gloss's English for a real index.
   expect(isYearEarlierIndex("house prices, same month last year = 100")).toBe(true);
+  // NBS's English for industrial value added, "Growth Rate (The same period last year=100)", names a base,
+  // but the series is a growth rate in percent (工业增加值同比增长 (%); data.ts stores it as percent change).
+  expect(isYearEarlierIndex("Value-added of industry, Growth Rate (The same period last year=100)")).toBe(false);
   // A level, an index on a fixed year or on the previous month, a neutral-100 diffusion index.
   expect(isYearEarlierIndex("Hundred million yuan (亿元) Deposits and Loans of Financial Institutions (RMB)")).toBe(false);
   expect(isYearEarlierIndex("Index, 2020 = 100")).toBe(false);
@@ -69,4 +71,13 @@ test("index minus 100 still applies to an index on a year-earlier base, and othe
   for (const transform of ["raw", "change", "percent_change", "yoy"] as const) {
     expect(resolveTransform(transform, "Hundred million yuan (亿元)")).toBe(transform);
   }
+});
+
+test("NBS English that calls a growth rate \"same period last year=100\" is not taken for an index", () => {
+  // 包装专用设备产量同比增长 (%): NBS's English label names a base, but the series is a percentage.
+  expect(isYearEarlierIndex("Output of Special Equipment for Packaging, Growth Rate (The same period last year=100) (%)")).toBe(false);
+  expect(isYearEarlierIndex("包装专用设备产量同比增长 (%)")).toBe(false);
+  // A real index stays one, in Chinese and in the gloss's English.
+  expect(isYearEarlierIndex("居民消费价格指数 (上年同月=100)")).toBe(true);
+  expect(isYearEarlierIndex("Sales price index of new homes (same month last year = 100)")).toBe(true);
 });

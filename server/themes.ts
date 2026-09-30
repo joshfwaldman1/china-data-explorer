@@ -472,7 +472,7 @@ const TECH: Theme = {
       charts: [
         { title: "R&D spending, total, year", key: TECH_SERIES.rdSpending, years: 30, note: "Spending on research and experimental development (研究与试验发展) by the units the bureau surveys. At current prices." },
         { title: "R&D spending, basic research, year", key: TECH_SERIES.rdBasicResearch, years: 28, note: "Research not aimed at a particular use. In 2025 it was 7% of all R&D spending. At current prices." },
-        { title: "R&D personnel, full-time equivalent, year", key: TECH_SERIES.rdPersonnelFte, years: 30, note: "In 10,000 person-years. Someone who spends half their time on R&D counts as half." },
+        { title: "R&D personnel, full-time equivalent, year", key: TECH_SERIES.rdPersonnelFte, years: 30, note: "Someone who spends half their time on R&D counts as half." },
         { title: "Technology market contract value, year", key: TECH_SERIES.technologyMarket, years: 30, note: "Contracts for technology development, transfer, consulting and services registered with the technology market. At current prices." },
       ],
     },
@@ -487,10 +487,10 @@ const TECH: Theme = {
       title: "Tech output",
       lede: "Monthly output from the bureau's table. January is never published on its own. A February point, where the table has one, is January and February combined. The Manufacturing page shows integrated circuit and new energy vehicle output as growth rates.",
       charts: [
-        { title: "Integrated circuit output, month", key: OUTPUT.ics, years: 10, note: "In 100 million units. Chips of every kind." },
-        { title: "Industrial robot output, month", key: OUTPUT.robots, years: 10, note: "In sets." },
-        { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3, note: "In 10,000 vehicles." },
-        { title: "Solar cell output, month", key: OUTPUT.solar, years: 10, note: "In 10,000 kilowatts of capacity." },
+        { title: "Integrated circuit output, month", key: OUTPUT.ics, years: 10, note: "Chips of every kind." },
+        { title: "Industrial robot output, month", key: OUTPUT.robots, years: 10 },
+        { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
+        { title: "Solar cell output, month", key: OUTPUT.solar, years: 10, note: "Measured by the generating capacity of the cells made." },
       ],
     },
     {
@@ -499,7 +499,7 @@ const TECH: Theme = {
         { title: "Value added of information transmission, software and IT services, current prices, quarter", key: TECH_SERIES.itValueAdded, years: 10, note: "The third quarter is the smallest each year, so compare a quarter with the same quarter a year earlier." },
         { title: "Value added of information transmission, software and IT services, real growth on a year earlier, quarter", key: TECH_SERIES.itValueAddedGrowth, years: 10, note: "Growth after deducting price changes." },
         { title: "Fixed-asset investment in information transmission, software and IT services, year-to-date growth", key: TECH_SERIES.itInvestmentYtd, years: 8, note: "Each year's first point covers January and February." },
-        { title: "5G mobile phone users, month-end", key: TECH_SERIES.fiveGUsers, years: 5, note: "In 10,000 subscribers, so 100,000 is one billion." },
+        { title: "5G mobile phone users, month-end", key: TECH_SERIES.fiveGUsers, years: 5, note: "户 here counts subscribers, not households. 100K on the axis is one billion subscribers." },
       ],
     },
     {
