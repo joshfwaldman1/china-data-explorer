@@ -37,9 +37,26 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
+- Search's LLM query expansion (`expandQuery`, for English queries that
+  find almost nothing) is built and cached but never runs in production:
+  Railway has no ANTHROPIC_API_KEY, so the call fails silently. Setting the
+  key is the owner's call (cost: one short call per new phrasing, cached).
+  Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: everyday English in search): "how much do chinese
+  factories earn" found nothing at all on the live site. The search maps
+  English words to the bureau's Chinese terms through SEARCH_ALIASES, which
+  knew "profits" and "industrial profits" but not the words a reader types
+  first. Added factory, factories, factory profits, earn, earnings, salary,
+  salaries, pay, workers, jobs, housing prices, property prices, consumer
+  spending and debt, each mapped to the terms NBS titles use. On a local
+  server with the LLM expansion off, that query now leads with Total
+  Profits of Industrial Enterprises; cpi, exports to japan and local
+  government debt are unchanged. The LLM expansion that would catch the
+  rest is off in production for want of an API key; queued for the owner.
+  Verified: typecheck clean, 525 tests (one new).
 - 2026-09-30 (round: the rest of the Chinese-name sweep): the search
   results, the Add Series dialog (which the Provinces page's "Map another
   series" also uses), the Browse cards and the sidebar all lead with

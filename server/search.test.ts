@@ -378,3 +378,11 @@ test("a phrase inside a longer query is still read as a phrase", async () => {
   const result = await searchNbsCatalog({ query: "new home prices", limit: 10 });
   expect(result.results.some((entry) => entry.name.includes("销售价格"))).toBe(true);
 });
+
+test("everyday words reach the bureau's terms: a question about what factories earn finds industrial profits", () => {
+  const variants = queryVariants("how much do chinese factories earn");
+  expect(variants).toContain("工业企业");
+  expect(variants).toContain("利润");
+  expect(queryVariants("factory profits")).toContain("工业企业利润");
+  expect(queryVariants("salaries")).toContain("工资");
+});

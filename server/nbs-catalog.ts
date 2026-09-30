@@ -135,6 +135,12 @@ Object.assign(SEARCH_ALIASES, {
   "aluminium output": ["原铝（电解铝）产量"], "aluminum output": ["原铝（电解铝）产量"], "primary aluminium": ["原铝"], "primary aluminum": ["原铝"],
   "air passengers": ["民航客运量"], "air travel": ["民航客运量"], "airline passengers": ["民航客运量"], airline: ["民航"], completions: ["竣工面积"], "home sales": ["商品房销售"],
   united: ["us", "美国"], states: ["us", "美国"], usa: ["us", "美国"], america: ["us", "美国"], american: ["us", "美国"],
+  // Everyday words a reader types before the bureau's own ("how much do factories earn"): each
+  // maps to the terms NBS titles use. Without them such a query found nothing at all.
+  factory: ["工业企业"], factories: ["工业企业"], "factory profits": ["工业企业利润"], earn: ["利润", "收入"], earnings: ["利润", "收入"],
+  salary: ["工资"], salaries: ["工资"], pay: ["工资"], workers: ["就业人员", "职工"], jobs: ["就业"],
+  "housing prices": ["住宅销售价格", "房价"], "property prices": ["住宅销售价格", "房价"], "consumer spending": ["社会消费品零售总额", "消费支出"],
+  debt: ["债务", "负债"],
   // Core CPI is published as "CPI excluding food and energy".
   "core inflation": ["不包括食品和能源"], "core cpi": ["不包括食品和能源"], core: ["不包括食品和能源"],
   auto: ["汽车"], autos: ["汽车"], automobile: ["汽车"], automobiles: ["汽车"], vehicle: ["汽车"], vehicles: ["汽车"],
