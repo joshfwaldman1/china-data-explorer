@@ -22,6 +22,7 @@ interface NbsCatalogEntry {
   family?: { head: string; members: string[]; span: string };
   februaryFrom?: string;
   growthSibling?: { key: string; name: string };
+  repeated?: { period: string; previous: string; same: number; of: number };
   firstPeriod?: string; lastPeriod?: string;
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
@@ -2110,6 +2111,7 @@ function SeriesPage(props: {
       {!curated?.ended && latest && isBehind(latest.date, primary.frequency) && <div className="notice"><div><b>Latest available observation is {observationLabel(latest.date, primary.frequency)}.</b>{curated?.refreshBlocked
         ? `This series is refreshed through ${curated.refreshBlocked}, which this deployment does not run, so nothing newer can appear here until it does.`
         : `The source has published nothing newer; the store was last checked ${fmtDate(primary.updatedAt) || "today"}.`}</div></div>}
+      {meta?.repeated && <div className="notice"><div><b>The {periodPretty(meta.repeated.period)} figure repeats {periodPretty(meta.repeated.previous)} exactly.</b>NBS published the same {periodPretty(meta.repeated.previous)} and {periodPretty(meta.repeated.period)} values for {meta.repeated.same} of the {meta.repeated.of} lines in this table. That is likely a publishing error at NBS, so treat {periodPretty(meta.repeated.period)} as not yet published. The site shows what NBS published.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
 
       <section className="card data-card">

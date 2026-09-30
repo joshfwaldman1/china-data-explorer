@@ -540,6 +540,41 @@ export function periodsBetween(from: string, to: string, frequency: string): num
   return parse(to) - parse(from);
 }
 
+/** A table period that repeats the one before it, line for line. */
+export interface RepeatedPeriod { period: string; previous: string; same: number; of: number }
+
+/**
+ * NBS sometimes publishes a new year by copying the previous year's column:
+ * in the 2024 tables of industrial enterprises by registration status, every
+ * line but the total carries its 2023 figure to the last digit. One line
+ * repeating is ordinary (a count that did not change); most of a table
+ * repeating is not. Given the stored lines of one table, returns the latest
+ * period when at least `REPEAT_MIN_LINES` lines hold it and the period before,
+ * and at least `REPEAT_SHARE` of those hold the same nonzero figure in both.
+ */
+export const REPEAT_MIN_LINES = 5;
+export const REPEAT_SHARE = 0.8;
+
+export function repeatedTablePeriod(lines: SeriesPoint[][]): RepeatedPeriod | null {
+  const latest = lines.map((points) => points.at(-1)?.date ?? "").sort().at(-1);
+  if (!latest) return null;
+  let previous = "";
+  let same = 0;
+  let of = 0;
+  for (const points of lines) {
+    const last = points.at(-1);
+    const before = points.at(-2);
+    if (!last || !before || last.date !== latest) continue;
+    // Lines must agree on which period came before, or the comparison is not like for like.
+    if (previous && before.date !== previous) continue;
+    previous = before.date;
+    of++;
+    if (last.value !== 0 && last.value === before.value) same++;
+  }
+  if (of < REPEAT_MIN_LINES || same / of < REPEAT_SHARE) return null;
+  return { period: latest, previous, same, of };
+}
+
 export function stitchPoints(slices: SeriesPoint[][]): SeriesPoint[] {
   const byDate = new Map<string, SeriesPoint>();
   for (const slice of slices) for (const point of slice) byDate.set(point.date, point);
@@ -1909,6 +1944,18 @@ export async function getNbsCatalogSeries(options: {
     if (found) growthSibling = { key: found.key, name: (found.nameEn || found.name).replace(/,\s*%$/, "") };
   }
 
+  // A latest period that repeats the one before across most of the table is a publishing slip at
+  // NBS, not a flat year; the page says so. Only when this line itself repeats: the total of the
+  // registration-status tables was updated while its breakdown was not.
+  let repeated: RepeatedPeriod | undefined;
+  const own = points.at(-1);
+  if (own && points.at(-2)?.value === own.value) {
+    const snapshot = await loadSnapshot();
+    const table = snapshot.entries.filter((candidate) => candidate.cid === options.entry.cid && candidate.geography === options.entry.geography).slice(0, 80);
+    const found = repeatedTablePeriod(table.map((member) => storedPoints(member, region)));
+    if (found && found.period === own.date) repeated = found;
+  }
+
   // Transform over the full history, then slice, so lagged transforms keep
   // their first year instead of losing it to the limit.
   const transformed = transformPoints(points, transform, options.entry.frequency).slice(-limit);
@@ -1916,7 +1963,7 @@ export async function getNbsCatalogSeries(options: {
   return {
     ...rawResult(options.entry, region, transformed),
     unit,
-    metadata: { ...options.entry, ...(februaryFrom ? { februaryFrom } : {}), ...(growthSibling ? { growthSibling } : {}) },
+    metadata: { ...options.entry, ...(februaryFrom ? { februaryFrom } : {}), ...(growthSibling ? { growthSibling } : {}), ...(repeated ? { repeated } : {}) },
     region,
     transform,
     source,
