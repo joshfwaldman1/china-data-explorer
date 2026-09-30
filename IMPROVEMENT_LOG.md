@@ -32,15 +32,33 @@ not from scratch. Rounds are small on purpose.
   (1,193 lines) into loading, families, search and glossing; reflow the
   JSX lines over 200 characters. Mechanical, one page per round (owner's
   call, raised 2026-09-11).
-- Catalog titles that repeat their category before the line name:
-  "Finished goods (2023-present): finished goods of medium-sized industrial
-  enterprises", "Total losses of loss-making enterprises: total Losses of
-  Loss-making State-holding Industrial Enterprises" (with a stray capital
-  after the colon). Two of ten in the 2026-09-30 sample. Drop the prefix
-  when the line name already starts with it.
+- 3,755 catalog titles are still shared across tables after qualification,
+  mostly because both tables carry the same English name under different
+  parents ("Total losses of loss-making enterprises: Total Losses of
+  Loss-making State-holding Industrial Enterprises, Production and Supply of
+  Gas" twice). Qualifying by the first parent level that differs would
+  separate them; measure the count before and after as the 2026-09-30 round
+  did. Titles whose table name only partly leads the title ("Total losses
+  of loss-making enterprises: Total Losses of Loss-making ...") still read
+  the words twice.
 
 ## Log
 
+- 2026-09-30 (round: shared titles that said their table twice): a title
+  shared by two tables was prefixed with its table, and 7,329 titles read
+  the table's words twice or broke the bureau's capitals: "Finished goods
+  (2023-present): finished goods of medium-sized industrial enterprises",
+  "Inventories: inventory of Private Industrial Enterprises". A title that
+  already opens with its table's name now takes only the table's vintage,
+  the part that tells the two apart ("Finished goods of medium-sized
+  industrial enterprises, 2023-present (100 million yuan)", and its twin
+  "..., to 2022"); a title in the bureau's title case keeps its capital
+  after the colon. GLOSS_FORMAT 32. Measured on the real catalog before
+  and after: 7,329 of 79,836 titles change, and the titles shared across
+  tables stay at 3,755, so none became less distinct. Verified: typecheck
+  clean, 512 tests (two new); live API and page heading show the new
+  title, search for "finished goods medium-sized" leads with the monthly
+  finished-goods series.
 - 2026-09-30 (round: ten random catalog series): nine of ten were sound
   on the live site (English titles, units, ranges, store-served; one
   discontinued indicator answers 502 as NBS lists it with no data, which is
