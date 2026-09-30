@@ -37,14 +37,22 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
-- Search in Chinese naming a place: 上海房价 now leads with the 70-city
-  series but does not open it at Shanghai, and 进出口 日本 leads with NBS's
-  annual country table rather than Customs' Japan series. The partner and
-  city matchers read English names only; the regions carry the Chinese
-  name (`text`) to match on. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: places named in Chinese, from the queue): 上海房价
+  reached the 70-city series but not Shanghai, and 进出口 日本 led with
+  NBS's annual country table. The partner and city matchers read English
+  words split on spaces. A Chinese path now finds the place inside the
+  unspaced query and requires the rest to be made only of the topic's
+  Chinese words (trade: 出口, 进口, 进出口, 贸易, 顺差, 逆差 and the joining
+  characters; homes: 房价, 住宅, 商品房, 新房, 二手房, 价格 and the like),
+  longest place name first so 南非 is not 非洲. The 70 cities already carry
+  their Chinese names; Customs names its partners only in English, so the
+  partners gain a Chinese name map (29 names). Checked on a local server:
+  上海房价 opens Shanghai, 进出口 日本 and 对美国出口 open the partner, 上海GDP
+  and 居民消费价格指数 are unchanged. Verified: typecheck clean, 524 tests
+  (one new).
 - 2026-09-30 (round: search in Chinese): eight queries. 工业增加值 and 出口
   led well. The rest did not: 居民消费价格指数 led with a Beijing annual
   table and the national CPI was not in the top three, 社会融资规模 and

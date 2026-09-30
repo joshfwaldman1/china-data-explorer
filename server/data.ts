@@ -2296,6 +2296,24 @@ function namedRegionInQuery(terms: string[], regions: NbsRegion[], aliases: Reco
   return null;
 }
 
+/**
+ * The Chinese form of the same question: the query has no spaces, so the place is found
+ * inside it ("上海房价", "对日本出口") and what is left must be made only of `words`, at
+ * least one of them a `required` one. Longer place names are tried first, so 南非 is not 非洲.
+ */
+function namedRegionInChineseQuery(terms: string[], names: [string, string][], words: string[], required: string[]): string | null {
+  const joined = terms.join("");
+  if (!/[\u3400-\u9fff]/.test(joined)) return null;
+  for (const [name, value] of [...names].sort((a, b) => b[0].length - a[0].length)) {
+    if (!joined.includes(name)) continue;
+    let rest = joined.replace(name, "");
+    if (!required.some((word) => rest.includes(word))) continue;
+    for (const word of [...words].sort((a, b) => b.length - a.length)) rest = rest.split(word).join("");
+    if (rest.length === 0) return value;
+  }
+  return null;
+}
+
 /** Words that, beside a partner's name, ask for trade with it: "exports to japan", "trade with the us". */
 const TRADE_REQUIRED = new Set(["export", "exports", "import", "imports", "trade", "balance", "surplus", "deficit", "bilateral"]);
 const TRADE_TOPIC = new Set([...TRADE_REQUIRED, "with", "to", "from", "the", "china", "chinese", "china's"]);
@@ -2307,8 +2325,22 @@ const PARTNER_ALIASES: Record<string, string> = {
 
 /** The Customs trade partner a query asks about ("exports to japan"). Total is never a partner. */
 export function customsPartnerInQuery(terms: string[]): NbsRegion | null {
-  return namedRegionInQuery(terms, CUSTOMS_PARTNERS.filter((partner) => partner.value !== "total"), PARTNER_ALIASES, TRADE_TOPIC, TRADE_REQUIRED);
+  const english = namedRegionInQuery(terms, CUSTOMS_PARTNERS.filter((partner) => partner.value !== "total"), PARTNER_ALIASES, TRADE_TOPIC, TRADE_REQUIRED);
+  if (english) return english;
+  const value = namedRegionInChineseQuery(terms, Object.entries(PARTNER_NAMES_ZH), TRADE_WORDS_ZH, TRADE_REQUIRED_ZH);
+  return CUSTOMS_PARTNERS.find((partner) => partner.value === value) ?? null;
 }
+
+/** Customs names its partners in English on the site it publishes; readers search in Chinese too. */
+const PARTNER_NAMES_ZH: Record<string, string> = {
+  "美国": "united-states", "欧盟": "european-union", "德国": "germany", "荷兰": "netherlands", "法国": "france", "意大利": "italy",
+  "东盟": "asean", "越南": "vietnam", "马来西亚": "malaysia", "泰国": "thailand", "新加坡": "singapore", "印度尼西亚": "indonesia", "印尼": "indonesia",
+  "菲律宾": "philippines", "日本": "japan", "香港": "hong-kong-china", "韩国": "r-o-korea", "台湾": "taiwan-china", "澳大利亚": "australia",
+  "俄罗斯": "russian-federation", "印度": "india", "英国": "united-kingdom", "加拿大": "canada", "新西兰": "new-zealand",
+  "拉丁美洲": "latin-america", "拉美": "latin-america", "巴西": "brazil", "非洲": "africa", "南非": "south-africa",
+};
+const TRADE_REQUIRED_ZH = ["出口", "进口", "贸易", "顺差", "逆差"];
+const TRADE_WORDS_ZH = [...TRADE_REQUIRED_ZH, "进出口", "中国", "对", "与", "自", "从", "向", "的", "额", "总额"];
 
 /** Words that, beside a city's name, ask for its home prices: "shanghai house prices", "new home prices in shenzhen". */
 const HOUSING_REQUIRED = new Set(["price", "prices", "house", "houses", "home", "homes", "housing", "property", "residential"]);
@@ -2317,8 +2349,14 @@ const CITY_ALIASES: Record<string, string> = { "xian": "xian", "canton": "guangz
 
 /** The city of the 70-city home price table a query asks about. */
 export function houseCityInQuery(terms: string[]): NbsRegion | null {
-  return namedRegionInQuery(terms, CITIES_70, CITY_ALIASES, HOUSING_TOPIC, HOUSING_REQUIRED);
+  const english = namedRegionInQuery(terms, CITIES_70, CITY_ALIASES, HOUSING_TOPIC, HOUSING_REQUIRED);
+  if (english) return english;
+  const value = namedRegionInChineseQuery(terms, CITIES_70.map((city) => [city.text, city.value]), HOUSING_WORDS_ZH, HOUSING_REQUIRED_ZH);
+  return CITIES_70.find((city) => city.value === value) ?? null;
 }
+
+const HOUSING_REQUIRED_ZH = ["房价", "房屋", "住宅", "商品房", "新房", "二手房"];
+const HOUSING_WORDS_ZH = [...HOUSING_REQUIRED_ZH, "新建", "二手", "销售", "价格", "指数", "市", "的"];
 
 /**
  * The headline series a query names: every term must start a word of the

@@ -59,3 +59,19 @@ test("an NBS title equal to the query leads only when it is national, or the que
   expect(exactTitleIndex([provincial, national], "birth rate", false)).toBe(1);
   expect(exactTitleIndex([national], "", false)).toBe(-1);
 });
+
+test("a place named in Chinese opens the partner or city, when the rest of the query is its trade or home-price words", () => {
+  const zhPartner = (query: string) => customsPartnerInQuery(query.split(" "))?.value ?? null;
+  const zhCity = (query: string) => houseCityInQuery(query.split(" "))?.value ?? null;
+  expect(zhPartner("进出口 日本")).toBe("japan");
+  expect(zhPartner("对美国出口")).toBe("united-states");
+  expect(zhPartner("中国与东盟贸易")).toBe("asean");
+  expect(zhPartner("南非进口")).toBe("south-africa");
+  expect(zhCity("上海房价")).toBe("shanghai");
+  expect(zhCity("北京新建住宅价格")).toBe("beijing");
+  // A place with other words, or trade words with no place, is not claimed.
+  expect(zhPartner("日本GDP")).toBeNull();
+  expect(zhPartner("出口")).toBeNull();
+  expect(zhCity("上海GDP")).toBeNull();
+  expect(zhCity("房价")).toBeNull();
+});
