@@ -29,3 +29,21 @@ test("a country named for anything but trade, or trade named without a partner, 
   expect(partner("trade with")).toBeNull();
   expect(partner("total exports")).toBeNull();
 });
+
+const { houseCityInQuery } = await import("./data.ts");
+const city = (query: string) => houseCityInQuery(query.split(" "))?.value ?? null;
+
+test("home-price words beside one of the 70 cities find that city", () => {
+  expect(city("shanghai house prices")).toBe("shanghai");
+  expect(city("new home prices shanghai")).toBe("shanghai");
+  expect(city("house prices in shenzhen")).toBe("shenzhen");
+  expect(city("xi an home prices")).toBe("xian");
+  expect(city("xian housing")).toBe("xian");
+});
+
+test("a city named for anything but home prices is not a house-price query", () => {
+  expect(city("shanghai gdp")).toBeNull();
+  expect(city("housing starts beijing")).toBeNull();
+  expect(city("shanghai")).toBeNull();
+  expect(city("house prices")).toBeNull();
+});

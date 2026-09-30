@@ -12,7 +12,7 @@
 import index from "../client/index.html";
 import { timingSafeEqual } from "node:crypto";
 import { regionCoverage } from "./regions";
-import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, customsPartnerInQuery, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
+import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, customsPartnerInQuery, houseCityInQuery, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
 
@@ -487,18 +487,23 @@ const routes = {
           categories: [entry.group],
         }))
         : [];
-      // A query naming a trade partner ("exports to japan") leads with Customs' monthly series for
-      // that partner, opened at it; NBS carries only annual country tables, and the partner's name
-      // is nowhere in the curated entry's text for the matcher to find.
-      const partner = queryText && datasetCode === undefined && (!frequency || frequency === "Monthly") && (!geography || geography === "National") ? customsPartnerInQuery(allTerms) : null;
-      const partnerEntry = partner ? catalogList().find((entry) => entry.key === "trade_partners") : undefined;
-      if (partner && partnerEntry) {
-        const at = featured.findIndex((item) => item.key === partnerEntry.key);
+      // A query naming a trade partner ("exports to japan") or one of the 70 cities with home-price
+      // words ("shanghai house prices") leads with that curated series opened at the partner or
+      // city: the name is nowhere in the curated entry's text, and NBS's own tables for these are
+      // annual (trade) or keyed by province, which the city list does not use (house prices).
+      const namedRegionAllowed = queryText && datasetCode === undefined && (!frequency || frequency === "Monthly") && (!geography || geography === "National");
+      const named = namedRegionAllowed
+        ? [{ key: "trade_partners", region: customsPartnerInQuery(allTerms) }, { key: "house_prices", region: houseCityInQuery(allTerms) }].find((item) => item.region !== null)
+        : undefined;
+      const namedEntry = named ? catalogList().find((entry) => entry.key === named.key) : undefined;
+      if (named?.region && namedEntry) {
+        const place = named.region;
+        const at = featured.findIndex((item) => item.key === namedEntry.key);
         if (at >= 0) featured.splice(at, 1);
         featured.unshift({
-          key: partnerEntry.key, id: partnerEntry.key, name: partnerEntry.title, nameEn: `${partnerEntry.title}: ${partner.en ?? partner.text}`, shortName: partnerEntry.title,
-          unit: partnerEntry.unit, note: "", annotation: "", datasetCode: 0, dataset: partnerEntry.agency, frequency: partnerEntry.frequency,
-          geography: "National", categories: [partnerEntry.group], region: { text: partner.text, value: partner.value, en: partner.en ?? partner.text },
+          key: namedEntry.key, id: namedEntry.key, name: namedEntry.title, nameEn: `${namedEntry.title}: ${place.en ?? place.text}`, shortName: namedEntry.title,
+          unit: namedEntry.unit, note: "", annotation: "", datasetCode: 0, dataset: namedEntry.agency, frequency: namedEntry.frequency,
+          geography: "National", categories: [namedEntry.group], region: { text: place.text, value: place.value, en: place.en ?? place.text },
         });
       }
       const featuredResults = featured.slice(requestedOffset, requestedOffset + requestedLimit);

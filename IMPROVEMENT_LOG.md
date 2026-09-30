@@ -52,14 +52,25 @@ not from scratch. Rounds are small on purpose.
   until the portal fills, so check a release morning's request count first.
   Provincial keys are left out on purpose: the portal fills provinces days
   after the national figure.
-- Search: "house prices shanghai" leads with Shanghai's residential sales
-  totals, not the 70-city price index for Shanghai ("shenzhen new home
-  prices" works; "house prices" and "shanghai new home prices" do not).
-  And "electricity consumption" leads with Beijing's annual table above
-  the national monthly series. Found 2026-09-30.
+- Search: "electricity consumption" leads with Beijing's annual table
+  above the national monthly series. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: house prices by city in search, from the queue): a
+  city's home prices were hard to reach. "shanghai house prices" led with
+  Shanghai's residential sales totals, "shanghai new home prices" with a
+  second-hand index for no city, and even "shenzhen new home prices", the
+  case that worked, led with the second-hand table. The place resolver
+  reads Shanghai as the province, which the 70-city table does not use,
+  and the curated 70-city series carries no city names in its text. The
+  partner matcher from the previous round is now one helper,
+  `namedRegionInQuery`, used twice: a query naming one of the 70 cities
+  with only home-price words leads with New Home Prices, 70 Cities opened
+  at that city. "shanghai gdp", "housing starts beijing" and "house
+  prices" alone are left as they were. Verified: typecheck clean, 519
+  tests (two new); on a local server both Shanghai phrasings lead with
+  the Shanghai series and the partner case still works.
 - 2026-09-30 (round: search, twelve researcher queries): eight led well
   (m2, local government debt, capacity utilization, the yuan, the 10-year
   yield, birth rate, real estate investment, core inflation). The clearest
