@@ -37,9 +37,25 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
+- search.test.ts "every entry carries an English gloss and pinyin" builds
+  the whole catalog and took 39 s once on a busy local machine and failed
+  (it passed alone and on rerun, and passes on CI so far). Check its
+  timeout against CI's durations before it turns CI red. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: the CSV download): downloaded three CSVs from the
+  live site (a partner, a two-series comparison, an NBS catalog series).
+  The partner and comparison files were right (CPI's blank rows before
+  2008 are where its source begins). The catalog series file was not in
+  the site's language: its "# Series" line was the bureau's Chinese title,
+  its unit 亿元, and its one column was named 全国, because the export took
+  the raw title and the line label where the page uses the English title.
+  The export now writes the page's English title with the Chinese in
+  brackets, the unit as the page shows it ("100 million yuan (亿元)"), and
+  names a single-line series' column by that title. Verified: typecheck
+  clean, 524 tests; the file from a local build reads in English; the live
+  file follows the deploy.
 - 2026-09-30 (round: CI and every headline series' latest period): CI is
   green on c4b19b1 and the nightly backup workflow is 5 for 5. Of the 153
   headline series, 20 sit behind their usual period and none is a defect:

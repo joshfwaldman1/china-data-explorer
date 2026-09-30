@@ -1992,7 +1992,15 @@ function SeriesPage(props: {
   const downloadItems = [
     {
       label: "Download CSV",
-      onSelect: () => downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(results.map((result) => ({ title: result.title, unit: result.unit, agency: result.agency, region: result.region && result.region.value !== "000000000000" ? regionLabel(result.region) : undefined })), tracks, built.notes)], { type: "text/csv;charset=utf-8" })),
+      // English first with the Chinese alongside, as the page heading reads: a catalog series' raw
+      // title is the bureau's Chinese, and its one line is labelled 全国, which named the CSV column.
+      onSelect: () => downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(
+        results.map((result) => {
+          const english = displayTitle(result, results);
+          return { title: english !== result.title && /[\u3400-\u9fff]/.test(result.title) ? `${english} (${result.title})` : english, unit: unitLabel(result.unit), agency: result.agency, region: result.region && result.region.value !== "000000000000" ? regionLabel(result.region) : undefined };
+        }),
+        results.length === 1 && tracks.length === 1 ? tracks.map((track) => ({ ...track, name: results[0] ? displayTitle(results[0], results) : track.name })) : tracks,
+        built.notes)], { type: "text/csv;charset=utf-8" })),
     },
     {
       label: "Download JSON",
