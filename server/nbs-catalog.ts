@@ -295,7 +295,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 31; // 31: "labor force", American spelling. 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 32; // 32: a duplicate title that opens with its table's name gets the table's vintage, not the name again, and a title-case title keeps its capital after the colon. 31: "labor force", American spelling. 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -408,6 +408,16 @@ export function tableQualifiedTitle(entry: Pick<NbsCatalogEntry, "categories" | 
   return `${table}: ${title.charAt(0).toLocaleLowerCase()}${title.slice(1)}`;
 }
 
+/** The vintage an English table name ends with: "(2023-present)", "(to 2022)", "(before 2023)", "(from 2023)", "(2012-2017)". */
+const ENGLISH_VINTAGE = /\s*\(((?:\d{4}-(?:present|\d{4}))|(?:(?:to|before|from|since) \d{4}))\)\s*$/;
+
+/** Whether most of a title's longer words are capitalised, as the bureau's own English often is. */
+export function isTitleCase(title: string): boolean {
+  const words = title.replace(/\([^()]*\)/g, " ").split(/\s+/).filter((word) => /^[A-Za-z]{4,}/.test(word));
+  if (words.length < 2) return false;
+  return words.filter((word) => /^[A-Z]/.test(word)).length / words.length >= 0.6;
+}
+
 /**
  * Tell apart series the bureau gives the same name.
  *
@@ -457,8 +467,21 @@ export function qualifyDuplicateTitles(entries: NbsCatalogEntry[]): NbsCatalogEn
     const short = parenthetical && parenthetical[1] && table.includes(parenthetical[1])
       ? title.slice(0, parenthetical.index).trim()
       : title;
-    // "CPI" keeps its capitals; an ordinary word does not start a clause.
-    const opens = /^[A-Z]{2,}\b/.test(short) ? short : `${short.charAt(0).toLocaleLowerCase()}${short.slice(1)}`;
+    // A title that already opens with the table's name ("Finished goods of medium-sized
+    // enterprises" under "Finished goods (2023-present)") needs only what tells the tables
+    // apart, the vintage, and not the name said twice.
+    const vintage = table.match(ENGLISH_VINTAGE);
+    const tableName = vintage ? table.slice(0, vintage.index).trim() : table;
+    if (tableName && short.toLocaleLowerCase().startsWith(tableName.toLocaleLowerCase())) {
+      if (!vintage?.[1]) return entry;
+      const unit = short.match(/\s*(\([^()]*\))\s*$/);
+      const body = unit ? short.slice(0, unit.index).trim() : short;
+      return { ...entry, nameEn: `${body}, ${vintage[1]}${unit?.[1] ? ` ${unit[1]}` : ""}` };
+    }
+    // "CPI" keeps its capitals, and so does a title in the bureau's title case ("Total Current
+    // Assets of ..."), where lowering one letter leaves "total Current Assets"; an ordinary
+    // word does not start a clause.
+    const opens = /^[A-Z]{2,}\b/.test(short) || isTitleCase(short) ? short : `${short.charAt(0).toLocaleLowerCase()}${short.slice(1)}`;
     return { ...entry, nameEn: `${table}: ${opens}` };
   });
 }

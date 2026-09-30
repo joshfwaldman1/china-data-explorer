@@ -64,3 +64,33 @@ test("the same title in the same table is one series published for several place
   const out = qualifyDuplicateTitles([entry("a"), entry("b")]);
   expect(out[0]?.nameEn).toBe("Gross regional product");
 });
+
+test("a shared title that opens with its table's name takes the table's vintage, not the name again", async () => {
+  const { qualifyDuplicateTitles } = await import("./nbs-catalog.ts");
+  const entry = (key: string, nameEn: string, categoriesEn: string[]) => ({
+    key, id: key, name: "中型工业企业产成品 (亿元)", shortName: "产成品", nameEn, unit: "亿元", note: "", annotation: "",
+    datasetCode: 3, dataset: "年度数据", frequency: "Annual" as const, geography: "National" as const,
+    cid: key, rootId: "r", categories: ["工业", key], categoriesEn, precision: null,
+  });
+  // The bureau's two registration-status tables, before and after its 2023 reclassification.
+  const title = "Finished goods of medium-sized industrial enterprises (100 million yuan)";
+  const out = qualifyDuplicateTitles([
+    entry("a", title, ["Industry", "Economic indicators by registration status category (2023-present)", "Finished goods (2023-present)"]),
+    entry("b", title, ["Industry", "Economic indicators by type of registration (to 2022)", "Finished goods (to 2022)"]),
+  ]);
+  expect(out[0]?.nameEn).toBe("Finished goods of medium-sized industrial enterprises, 2023-present (100 million yuan)");
+  expect(out[1]?.nameEn).toBe("Finished goods of medium-sized industrial enterprises, to 2022 (100 million yuan)");
+});
+
+test("a title in the bureau's title case keeps its capital after the table's name", async () => {
+  const { qualifyDuplicateTitles, isTitleCase } = await import("./nbs-catalog.ts");
+  const entry = (key: string, table: string) => ({
+    key, id: key, name: "流动资产合计", shortName: "流动资产合计", nameEn: "Total Current Assets of Private Industrial Enterprises (100 million yuan)",
+    unit: "亿元", note: "", annotation: "", datasetCode: 3, dataset: "年度数据", frequency: "Annual" as const,
+    geography: "National" as const, cid: key, rootId: "r", categories: ["工业", key], categoriesEn: ["Industry", table], precision: null,
+  });
+  const out = qualifyDuplicateTitles([entry("a", "Main indicators of private enterprises"), entry("b", "Assets of private enterprises by industry")]);
+  expect(out[0]?.nameEn).toBe("Main indicators of private enterprises: Total Current Assets of Private Industrial Enterprises (100 million yuan)");
+  expect(isTitleCase("Total Current Assets of Private Industrial Enterprises")).toBe(true);
+  expect(isTitleCase("Population by household registration")).toBe(false);
+});
