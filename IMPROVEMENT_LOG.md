@@ -37,13 +37,6 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
-- The post-boot ingest holds the worker for tens of minutes, and each
-  deploy restarts it: at 08:41Z on 2026-09-30 a release refresh and the
-  press-release check (both priority 0) had waited 3 and 12 minutes
-  behind the scheduled ingest (priority 1). The crawl yields between
-  table requests; the ingest does not. Worth checking whether a waiting
-  priority-0 job should interrupt the ingest between keys, especially on
-  a release morning after a deploy.
 - The monthly bundle's detail series still refresh only with the daily
   ingest: the industrial output products and divisions, energy by source
   and fuel output, fixed-asset investment by industry and funding, the
@@ -55,6 +48,23 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: release checks wait for the scheduled ingest, from
+  the queue): at 08:41Z a release refresh and the press-release check
+  (priority 0) had waited 3 and 12 minutes behind the scheduled ingest
+  (priority 1), which runs every curated key and never looked at the
+  queue. The crawl yields by stopping and resuming later, which works
+  because it skips what is stored; the ingest cannot stop without
+  dropping the keys it has not reached. The worker gains `runWaiting`: a
+  long job that cannot stop calls it between units of work, and every
+  queued job more urgent than it runs there, inside the caller's slot, so
+  it is still one job at a time against the portals. `runIngest` takes a
+  `between` hook, called between keys and between a key's regions, and
+  the scheduled ingest passes `runWaiting(catchUp)`. A release check now
+  waits at most one key (or one province) of the ingest. Verified:
+  typecheck clean, 522 tests (two new: a release queued on the first key
+  runs before the second, and lower-priority work stays queued with the
+  ingest shown as running again). The live check reads `/api/schedule`'s
+  worker state on the next release morning.
 - 2026-09-30 (round: ten random monthly and quarterly catalog series):
   nothing to fix. Sampled from current frequencies this time (the morning
   sample was mostly ended annual tables). All ten served from the store

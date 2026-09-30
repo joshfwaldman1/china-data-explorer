@@ -87,3 +87,37 @@ test("the state names what is running and what is waiting", async () => {
   expect(worker.state().running).toBeNull();
   expect(worker.state().queued).toEqual([]);
 });
+
+test("a release queued behind the ingest runs between the ingest's keys, not after all of them", async () => {
+  const worker = createWorker();
+  const order: string[] = [];
+  let release: Promise<void> | undefined;
+  await worker.run("Scheduled ingest", PRIORITY.catchUp, async () => {
+    for (const key of ["gdp", "cpi", "ppi"]) {
+      order.push(key);
+      // The release arrives while the ingest is on its first key.
+      if (key === "gdp") release = worker.run("Release refresh", PRIORITY.release, async () => { order.push("release"); });
+      // Nothing else runs beside the ingest: the slot is the release's while it runs.
+      await worker.runWaiting(PRIORITY.catchUp);
+    }
+  });
+  await release;
+  expect(order).toEqual(["gdp", "release", "cpi", "ppi"]);
+});
+
+test("runWaiting leaves equal and lower priority work queued, and reports the job it runs", async () => {
+  const worker = createWorker();
+  const seen: (string | undefined)[] = [];
+  let backfill: Promise<void> | undefined;
+  await worker.run("Scheduled ingest", PRIORITY.catchUp, async () => {
+    backfill = worker.run("Catalog crawl", PRIORITY.backfill, async () => { seen.push("crawl"); });
+    const release = worker.run("Release refresh", PRIORITY.release, async () => { seen.push(worker.state().running?.label); });
+    await worker.runWaiting(PRIORITY.catchUp);
+    await release;
+    // The crawl waits for the ingest to finish; the ingest is the running job again.
+    expect(seen).toEqual(["Release refresh"]);
+    expect(worker.state().running?.label).toBe("Scheduled ingest");
+  });
+  await backfill;
+  expect(seen).toEqual(["Release refresh", "crawl"]);
+});

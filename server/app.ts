@@ -715,7 +715,8 @@ if (ingestEveryHours > 0) {
     const started = Date.now();
     try {
       await worker.run("Scheduled ingest", PRIORITY.catchUp, async () => {
-        const tally = await runIngest();
+        // A release check queued meanwhile runs between keys, not after the whole sweep.
+        const tally = await runIngest([], { between: () => worker.runWaiting(PRIORITY.catchUp) });
         console.log(`  Scheduled ingest: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty in ${Math.round((Date.now() - started) / 1000)}s`);
       });
       recordRun("ingest");

@@ -504,7 +504,12 @@ export function orderForIngest(keys: string[], hasStored: (key: string) => boole
   return [...fresh, ...keys.filter((key) => !fresh.includes(key))];
 }
 
-export async function runIngest(requested: string[] = []): Promise<{ ok: number; error: number; empty: number }> {
+/**
+ * `between` runs between one curated key (or one region of it) and the next: the scheduled
+ * ingest passes the worker's `runWaiting`, so a release check queued behind a long ingest
+ * runs within one key's time instead of after every key.
+ */
+export async function runIngest(requested: string[] = [], options: { between?: () => Promise<void> } = {}): Promise<{ ok: number; error: number; empty: number }> {
   let curatedKeys = requested.length > 0
     ? requested.filter((spec) => !spec.startsWith("nbs_"))
     : Object.keys(CATALOG);
@@ -551,12 +556,12 @@ export async function runIngest(requested: string[] = []): Promise<{ ok: number;
         const oldest = new Map(storedLatest(key).filter((row) => row.key === key).map((row) => [row.region, row.firstPeriod]));
         for (const [regionIndex, region] of regions.entries()) {
           tally[await ingestRegion(key, region, oldest.get(region.value) ?? null)] += 1;
-          if (regionIndex < regions.length - 1) await sleep(PAUSE_MS);
+          if (regionIndex < regions.length - 1) { await options.between?.(); await sleep(PAUSE_MS); }
         }
       } else {
         tally[await ingestOne(key)] += 1;
       }
-      if (index < curatedKeys.length - 1) await sleep(PAUSE_MS);
+      if (index < curatedKeys.length - 1) { await options.between?.(); await sleep(PAUSE_MS); }
     }
   }
 

@@ -43,6 +43,13 @@ export interface Worker {
   run(label: string, priority: Priority, job: () => Promise<void>): Promise<void>;
   /** For a long job: is something more urgent than `priority` waiting? */
   shouldYield(priority: Priority): boolean;
+  /**
+   * For a long job that cannot stop early and pick up later (the scheduled ingest refreshes
+   * every key, so stopping would drop the rest): run every queued job more urgent than
+   * `priority` now, inside the caller's slot, then return so the caller carries on. Still one
+   * job at a time: the caller is waiting on this while they run.
+   */
+  runWaiting(priority: Priority): Promise<void>;
   /** Whether anything is running or queued, for the status route. */
   state(): WorkerState;
 }
@@ -81,6 +88,20 @@ export function createWorker(now: () => number = Date.now): Worker {
     },
     shouldYield(priority) {
       return queue.some((item) => item.priority < priority);
+    },
+    async runWaiting(priority) {
+      for (;;) {
+        queue.sort((a, b) => a.priority - b.priority || a.queuedAt - b.queuedAt);
+        const at = queue.findIndex((item) => item.priority < priority);
+        if (at < 0) return;
+        const [next] = queue.splice(at, 1);
+        if (!next) return;
+        const outer = active;
+        active = { label: next.label, priority: next.priority, startedAt: now() };
+        try { await next.job(); next.resolve(); }
+        catch (error) { next.reject(error); }
+        finally { active = outer; }
+      }
     },
     state() {
       return {
