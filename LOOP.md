@@ -63,7 +63,11 @@ until he stops the loop. Read this whole file before doing anything.
 6. Append a dated entry to the Log in `IMPROVEMENT_LOG.md`
    (what was wrong, what changed, how it was verified), remove the item from
    the queue if it was one, add anything the round surfaced to the queue,
-   and commit and push that too.
+   and commit it locally. Do not push it on its own: every push to main
+   deploys, and each deploy swaps the container on the shared volume and
+   restarts the post-boot ingest, which holds release refreshes behind it.
+   The log commit rides with the next round's code push. (On 2026-09-30
+   five log-only pushes made five extra deploys in ninety minutes.)
 7. Finish with a five-line summary: what changed, how it was verified,
    what is queued next.
 
