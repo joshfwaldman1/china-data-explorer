@@ -37,9 +37,30 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
+- Search in Chinese naming a place: 上海房价 now leads with the 70-city
+  series but does not open it at Shanghai, and 进出口 日本 leads with NBS's
+  annual country table rather than Customs' Japan series. The partner and
+  city matchers read English names only; the regions carry the Chinese
+  name (`text`) to match on. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: search in Chinese): eight queries. 工业增加值 and 出口
+  led well. The rest did not: 居民消费价格指数 led with a Beijing annual
+  table and the national CPI was not in the top three, 社会融资规模 and
+  房地产开发投资 led with annual tables, and 青年失业率 and 上海房价 found
+  nothing at all. Two causes. A Chinese term matched a curated entry only
+  when the entry's text contained the whole term, and Chinese queries run
+  longer than the synonyms (the query 居民消费价格指数 holds the synonym
+  居民消费价格, not the other way round). And total social financing,
+  fixed-asset investment and property investment and sales had no Chinese
+  names at all. A Chinese term now also matches when it contains one of
+  the entry's Chinese names, and the longest name found ranks the entry,
+  so CPI (居民消费价格) leads retail sales (消费); the five keys gained
+  Chinese and English synonyms. Checked on a local server: all six lead
+  with the headline series, English queries unchanged. Queued: opening
+  those results at a place named in Chinese. Verified: typecheck clean,
+  523 tests (one new, against the real catalog).
 - 2026-09-30 (round: all 31 province pages): nothing to fix. Every
   province page (`/api/province/<code>`, Guangdong checked in the earlier
   round) carries the same nine rows at the same latest periods: real GDP

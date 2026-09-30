@@ -62,6 +62,11 @@ export interface SeriesResult {
  * reach the English-titled series too.
  */
 export const CURATED_SYNONYMS: Record<string, string[]> = {
+  tsf_flow: ["total social financing", "aggregate financing", "tsf", "社会融资规模", "社融"],
+  tsf_stock_growth: ["social financing stock", "tsf stock", "社会融资规模存量", "社融存量"],
+  fai: ["fixed asset investment", "fixed-asset investment", "investment", "固定资产投资"],
+  property_investment: ["property investment", "real estate investment", "房地产开发投资", "房地产投资"],
+  property_sales: ["property sales", "home sales", "floor space sold", "商品房销售面积", "商品房销售"],
   cgb_yields: ["bond yields", "government bond yield", "10-year yield", "10y", "treasury yield", "yield curve", "cgb", "国债收益率", "十年期国债"],
   trade_partners: ["trade by country", "exports by country", "imports by country", "trade partners", "bilateral trade", "分国别", "国别贸易"],
   major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品", "car exports", "vehicle exports", "auto exports", "ship exports", "phone exports", "mobile phone exports", "chip exports", "integrated circuit exports", "hi-tech exports"],
@@ -2327,9 +2332,20 @@ export function matchCurated(entries: CatalogEntry[], allTerms: string[], queryT
   const phrase = allTerms.join(" ");
   const matched = entries.flatMap((entry) => {
     const haystack = `${entry.title} ${entry.group} ${entry.agency} ${entry.unit} ${entry.key} ${(CURATED_SYNONYMS[entry.key] ?? []).join(" | ")}`.toLocaleLowerCase();
-    const hit = queryTerms.every((term) => /[\u3400-\u9fff]/.test(term)
-      ? haystack.includes(term)
-      : new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack));
+    // Chinese has no spaces, so a query is often a name with more around it: 居民消费价格指数 holds
+    // the synonym 居民消费价格 but is not inside the entry's text. A Chinese term matches when the
+    // text contains it or it contains one of the entry's Chinese names; the longest name found
+    // ranks the entry, so CPI (居民消费价格) leads retail sales (消费) on that query.
+    const chineseNames = (CURATED_SYNONYMS[entry.key] ?? []).filter((name) => /[\u3400-\u9fff]/.test(name) && name.length >= 2);
+    let longestName = 0;
+    const hit = queryTerms.every((term) => {
+      if (!/[\u3400-\u9fff]/.test(term)) return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack);
+      if (haystack.includes(term)) { longestName = Math.max(longestName, term.length); return true; }
+      const inside = chineseNames.filter((name) => term.includes(name)).map((name) => name.length);
+      if (inside.length === 0) return false;
+      longestName = Math.max(longestName, ...inside);
+      return true;
+    });
     if (!hit) return [];
     const wholePhrase = phrase.length > 0 && new RegExp(`(^|[^a-z0-9])${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`).test(haystack);
     // "cpi" is a synonym of the national CPI and a word inside "provincial cpi": the whole
@@ -2338,9 +2354,9 @@ export function matchCurated(entries: CatalogEntry[], allTerms: string[], queryT
     // contains it, and a national series outranks a provincial one on the same score.
     const exact = entry.title.toLocaleLowerCase() === phrase || (CURATED_SYNONYMS[entry.key] ?? []).some((name) => name.toLocaleLowerCase() === phrase);
     const regional = entry.key.startsWith("provincial_") || /^provincial /i.test(entry.title);
-    return [{ entry, score: (exact ? 2 : 0) + (wholePhrase ? 1 : 0), regional }];
+    return [{ entry, score: (exact ? 2 : 0) + (wholePhrase ? 1 : 0), regional, longestName }];
   });
-  return matched.sort((a, b) => b.score - a.score || Number(a.regional) - Number(b.regional)).map((item) => item.entry);
+  return matched.sort((a, b) => b.score - a.score || b.longestName - a.longestName || Number(a.regional) - Number(b.regional)).map((item) => item.entry);
 }
 
 export interface CatalogEntry {

@@ -74,3 +74,19 @@ test("a query that is a series' own name beats one that only contains it, and th
   expect(real("coal imports")[0]).toBe("major_imports");
   expect(real("car exports")[0]).toBe("major_exports");
 });
+
+test("a Chinese query that holds a series' Chinese name finds it, the longest name first", async () => {
+  const { catalogList } = await import("./data.ts");
+  const real = (query: string) => {
+    const allTerms = normalizeQuery(query).split(/\s+/).filter(Boolean);
+    const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
+    return matchCurated(catalogList(), allTerms, meaningful.length > 0 ? meaningful : allTerms).map((entry) => entry.key);
+  };
+  // The query is the bureau's full name; the synonym is its stem. Retail sales (消费) is inside it too, and ranks after.
+  expect(real("居民消费价格指数").slice(0, 2)).toEqual(["cpi", "retail_sales"]);
+  expect(real("青年失业率")[0]).toBe("unemployment");
+  expect(real("社会融资规模")[0]).toBe("tsf_flow");
+  expect(real("房地产开发投资")[0]).toBe("property_investment");
+  // A Chinese query no name is inside still finds nothing curated.
+  expect(real("铁路机车")).toEqual([]);
+});
