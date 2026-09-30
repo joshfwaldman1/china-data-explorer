@@ -683,7 +683,8 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
           <div className="group-label">Categories</div>
           {props.stats?.categories.map((category) => (
             <a key={category.name} className="nav-row" href={`#/category/${encodeURIComponent(category.name)}`} aria-current={activeCat === category.name ? "page" : undefined}>
-              <span className="label"><span className="nav-title"><Zh>{category.name}</Zh></span>{categoryEn(category.name) && <small>{categoryEn(category.name)}</small>}</span>
+              {/* English first with the Chinese beside it, as on the Browse page; a category with no gloss shows its Chinese name alone. */}
+              <span className="label"><span className="nav-title">{categoryEn(category.name) || <Zh>{category.name}</Zh>}</span>{categoryEn(category.name) && <small><Zh>{category.name}</Zh></small>}</span>
               <span className="count">{category.count.toLocaleString("en-US")}</span>
             </a>
           ))}

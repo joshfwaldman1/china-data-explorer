@@ -55,6 +55,18 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: keyboard and screen-reader labels): scanned Home,
+  a series page, Provinces, Releases, Browse, a theme page and search for
+  controls without an accessible name, images without alt text, and the
+  h1 count. Every visible control is named and each page has one h1. Two
+  apparent findings were not defects: the sidebar's category links sit in
+  a closed section (named once it opens), and the charts' focusable SVG
+  is named by the `<title>` Recharts renders from the `title` prop. One
+  convention slip found on the way: the sidebar's category rows led with
+  the Chinese name and put the English under it ("工业 / Industry"), the
+  reverse of the Browse page and of the rule (English first, Chinese
+  alongside). They now lead with the English. Verified: typecheck clean,
+  515 tests; the live check reads the sidebar after deploy.
 - 2026-09-30 (round: dark mode tokens): one hard-coded colour outside the
   tokens, and it was a defect. The province tile map's ramp is fixed paper
   to red in both themes, but a light tile's label took `var(--ink)`, which
