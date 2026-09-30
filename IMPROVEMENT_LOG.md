@@ -45,6 +45,25 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: plain questions in search, and the finance
+  ministry's 502s): two fixes in one push. (1) Of 25 plain-English
+  questions probed on the live site, four found nothing ("are prices
+  rising", "how many people live in china", "unemployment rate for young
+  people", "rice harvest") and "how fast is china growing" led with
+  fast-growing timber. Words of direction are now stop words; people,
+  young people, rice, harvest, economy and growing map to the bureau's
+  terms. "People" also matched "People's Bank of China" in the agency, so
+  a curated entry reached only through its agency now ranks below one
+  named by its title or synonyms; population gains "people". Checked on a
+  local server: population, CPI, the youth rate, rice output and GDP now
+  lead; cpi, youth unemployment, exports to japan and population are
+  unchanged. (2) While answering the owner's question about blocked
+  sources: the finance ministry's http listing answers 502 on every try
+  from outside China while https answers, which is where the fetch log's
+  repeated "MOF -> HTTP 502" failures came from. The adapter now reads
+  https; fetched live through it, August's revenue matches the store.
+  Verified: typecheck clean, 526 tests (one new); CI and the deploy
+  watched after the push.
 - 2026-09-30 (round: everyday English in search): "how much do chinese
   factories earn" found nothing at all on the live site. The search maps
   English words to the bureau's Chinese terms through SEARCH_ALIASES, which

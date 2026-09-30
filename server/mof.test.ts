@@ -26,7 +26,7 @@ test("a release title names its period, cumulative for the year", () => {
 test("the listing pages yield the releases newest first, with absolute URLs and dates", async () => {
   const first = parseListing(await fixture("listing-index.htm"));
   expect(first.length).toBe(8);
-  expect(first[0]).toEqual({ title: "2026年1-7月财政收支情况", url: "http://gks.mof.gov.cn/tongjishuju/202608/t20260814_3995497.htm", publishedAt: "2026-08-21", period: "2026-07" });
+  expect(first[0]).toEqual({ title: "2026年1-7月财政收支情况", url: "https://gks.mof.gov.cn/tongjishuju/202608/t20260814_3995497.htm", publishedAt: "2026-08-21", period: "2026-07" });
   expect(first.map((release) => release.period)).toEqual(["2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2025-12", "2025-11"]);
   const second = parseListing(await fixture("listing-index_1.htm"));
   expect(second[0]?.period).toBe("2025-10");
@@ -65,12 +65,12 @@ test("the full year says 比上年 rather than 同比, and January-February read
 
 test("the adapter walks the listing and builds level and growth lines by period", async () => {
   const pages: Record<string, string> = {
-    "http://gks.mof.gov.cn/tongjishuju/index.htm": await fixture("listing-index.htm"),
-    "http://gks.mof.gov.cn/tongjishuju/index_1.htm": await fixture("listing-index_1.htm"),
-    "http://gks.mof.gov.cn/tongjishuju/202608/t20260814_3995497.htm": await fixture("release-2026-07.html"),
-    "http://gks.mof.gov.cn/tongjishuju/202607/t20260722_3993943.htm": await fixture("release-2026-06-h1.html"),
-    "http://gks.mof.gov.cn/tongjishuju/202603/t20260319_3985695.htm": await fixture("release-2026-02.html"),
-    "http://gks.mof.gov.cn/tongjishuju/202601/t20260130_3982923.htm": await fixture("release-2025-annual.html"),
+    "https://gks.mof.gov.cn/tongjishuju/index.htm": await fixture("listing-index.htm"),
+    "https://gks.mof.gov.cn/tongjishuju/index_1.htm": await fixture("listing-index_1.htm"),
+    "https://gks.mof.gov.cn/tongjishuju/202608/t20260814_3995497.htm": await fixture("release-2026-07.html"),
+    "https://gks.mof.gov.cn/tongjishuju/202607/t20260722_3993943.htm": await fixture("release-2026-06-h1.html"),
+    "https://gks.mof.gov.cn/tongjishuju/202603/t20260319_3985695.htm": await fixture("release-2026-02.html"),
+    "https://gks.mof.gov.cn/tongjishuju/202601/t20260130_3982923.htm": await fixture("release-2025-annual.html"),
   };
   const read = async (url: string) => pages[url] ?? "<html></html>";
   const base = { kind: "mof" as const, group: "Public Finance", title: "t", agency: "Ministry of Finance", frequency: "Monthly", unit: "u" };
@@ -84,7 +84,7 @@ test("the adapter walks the listing and builds level and growth lines by period"
 
 test("the September 2026 listing names the January-August release first, and the release gives August's year to date", async () => {
   const releases = parseListing(await Bun.file(resolve(import.meta.dir, "fixtures/mof/listing-index-2026-09.htm")).text());
-  expect(releases[0]).toEqual({ title: "2026年1—8月财政收支情况", url: "http://gks.mof.gov.cn/tongjishuju/202609/t20260918_3997709.htm", publishedAt: "2026-09-18", period: "2026-08" });
+  expect(releases[0]).toEqual({ title: "2026年1—8月财政收支情况", url: "https://gks.mof.gov.cn/tongjishuju/202609/t20260918_3997709.htm", publishedAt: "2026-09-18", period: "2026-08" });
   expect(releases.map((release) => release.period)).toEqual(["2026-08", "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2025-12"]);
   const figures = parseFiscalRelease(await Bun.file(resolve(import.meta.dir, "fixtures/mof/release-2026-08.html")).text());
   expect(figures?.level.landSales).toBe(13753);

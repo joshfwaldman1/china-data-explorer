@@ -19,7 +19,9 @@
 import type { SeriesPoint, SeriesResult } from "./data";
 import { upstreamFetch } from "./upstream";
 
-const SITE = "http://gks.mof.gov.cn";
+// https: the plain-http listing answers 502 on every try (30 September 2026), which is where the
+// repeated "MOF -> HTTP 502" failures came from; the https site and its release pages answer.
+const SITE = "https://gks.mof.gov.cn";
 const LISTING = `${SITE}/tongjishuju/`;
 /** The Debt Management Department's statistics listing: the monthly 地方政府债券发行和债务余额情况 releases (from 2026; the budget department's page holds the years before). */
 const BONDS_LISTING = "https://zwgls.mof.gov.cn/tjsj/";
