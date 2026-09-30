@@ -32,9 +32,35 @@ not from scratch. Rounds are small on purpose.
   (1,193 lines) into loading, families, search and glossing; reflow the
   JSX lines over 200 characters. Mechanical, one page per round (owner's
   call, raised 2026-09-11).
+- Catalog titles that repeat their category before the line name:
+  "Finished goods (2023-present): finished goods of medium-sized industrial
+  enterprises", "Total losses of loss-making enterprises: total Losses of
+  Loss-making State-holding Industrial Enterprises" (with a stray capital
+  after the colon). Two of ten in the 2026-09-30 sample. Drop the prefix
+  when the line name already starts with it.
 
 ## Log
 
+- 2026-09-30 (round: ten random catalog series): nine of ten were sound
+  on the live site (English titles, units, ranges, store-served; one
+  discontinued indicator answers 502 as NBS lists it with no data, which is
+  known). The tenth, medium-sized industrial enterprises' finished goods,
+  read 15,982.87 in both 2023 and 2024. NBS's own portal serves it that
+  way: in all seventeen 2024 tables of industrial enterprises by
+  registration status, every line but the total carries its 2023 figure to
+  the last digit (the total moved from 62,372.91 to 65,657.60). About 400
+  series showed a copied year as a flat one. A scan of 40 other random
+  annual tables found no other case. `repeatedTablePeriod` now checks, for
+  a series whose latest point equals the one before, the table's stored
+  lines at that period; with at least five lines and 80 percent repeating a
+  nonzero figure, the series page shows an amber notice naming both years
+  and the share of lines, and says the values are as NBS published them.
+  Stored values are untouched. First deploy judged the table's newest
+  period anywhere, and the total's 2025 point hid the repeat; fixed in the
+  next commit to judge the series' own period. Verified: typecheck clean,
+  510 tests (four new, holding the real table); live API returns
+  `repeated: 2024/2023, 24 of 25`, the page renders with the notice, the
+  total line and a monthly CPI series carry no flag.
 - 2026-09-26 (round: exports and imports as levels): the owner asked for
   exports and imports as levels rather than growth. The site held the
   levels (`trade_values`: exports, imports, total and balance in 100
