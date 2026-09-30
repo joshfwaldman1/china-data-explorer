@@ -44,9 +44,33 @@ not from scratch. Rounds are small on purpose.
   table requests; the ingest does not. Worth checking whether a waiting
   priority-0 job should interrupt the ingest between keys, especially on
   a release morning after a deploy.
+- The monthly bundle's detail series still refresh only with the daily
+  ingest: the industrial output products and divisions, energy by source
+  and fuel output, fixed-asset investment by industry and funding, the
+  property detail keys, retail by commodity, working hours. Each belongs to
+  a release in `RELEASE_MAP`; adding them lengthens the release retries
+  until the portal fills, so check a release morning's request count first.
+  Provincial keys are left out on purpose: the portal fills provinces days
+  after the national figure.
 
 ## Log
 
+- 2026-09-30 (round: the release calendar and /api/schedule): twenty-one
+  releases through October, all at the published times, and this
+  morning's PMI refresh completed (13 attempts, the headline advanced to
+  September). Two defects. The release-day refresh fetches exactly the
+  keys `RELEASE_MAP` names, and about fifty curated NBS series were named
+  by none, so they wait for the daily ingest, up to a day. Two releases,
+  industrial capacity utilisation and the preliminary value added by
+  industry, named no series at all, so their days refreshed nothing
+  curated. Each release now names the curated series drawn from its own
+  NBS tables, checked against the catalog's category for each table: CPI
+  and PPI detail, the NBS 70-city table, the PMI sub-indices, household
+  income and spending levels, capacity utilisation, GDP by industry. The
+  bundle's detail keys are queued. Also seen: NBS's portal still had
+  September blank in the PMI sub-index table at 09:00Z, so the portal,
+  not the mapping, is the lag today. Verified: typecheck clean, 515 tests
+  (one new); the live calendar shows the new keys after deploy.
 - 2026-09-30 (round: the Provinces page and provincial GDP): all 31
   provinces carry first-half 2026 real GDP growth with 86 periods back to
   2005; the tile map, ranking and Guangdong page render at 1280 and 390
