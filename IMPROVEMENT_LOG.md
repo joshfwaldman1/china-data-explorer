@@ -48,6 +48,21 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the share image): downloaded the image from the live
+  site for a single series (CPI), a comparison (CPI and PPI) and a partner
+  (Japan). Layout, legend, end labels, source and URL were right. The
+  partner image was not: exports, imports and balance each dropped to
+  exactly zero every February from 2022 to 2025. Those Februaries were
+  retracted on 2026-09-24 (misread from a table with no month column),
+  and a retraction is served as a null point by design, so the store keeps
+  the trail (`retraction.test.ts` holds that contract). The page chart
+  treats null as no value; the share image's arithmetic and the Home
+  sparkline's `Math.min` read it as 0, so the US, EU and ASEAN partner
+  rows on Home dipped to the floor every February too. `buildTracks` and
+  `Sparkline` now skip a null point. The page chart now joins across such
+  a month, as it already does across any missing month. Verified:
+  typecheck clean, 522 tests; the live image is re-downloaded after
+  deploy.
 - 2026-09-30 (round: release checks wait for the scheduled ingest, from
   the queue): at 08:41Z a release refresh and the press-release check
   (priority 0) had waited 3 and 12 minutes behind the scheduled ingest

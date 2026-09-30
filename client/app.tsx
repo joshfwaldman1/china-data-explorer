@@ -499,7 +499,9 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
         // A quantity line stored under a value series' unit carries its own ("Quantity (10,000 Sets)").
         unit: lineUnit(one.label, result.unit), frequency: result.frequency,
         color: chartColor(slot), dash: one.dashed ? "6 3" : one.dashed === false ? "" : (DASHES[slot % DASHES.length] ?? ""),
-        points: one.points.map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
+        // A retracted month is served as null (the store keeps the trail); it is no value, and the
+        // share image's arithmetic read null as 0, so each misread February drew a drop to zero.
+        points: one.points.filter((point) => typeof point.value === "number" && Number.isFinite(point.value)).map((point) => ({ t: periodTime(point.date), v: point.value, p: point.date })).filter((point) => Number.isFinite(point.t)),
         // februaryFrom marks a February taken from the year-to-date sibling, which is the combined
         // January-February figure; only such a series has a whole quarter in two monthly readings.
         combinedFebruary: result.metadata?.februaryFrom !== undefined,
@@ -753,12 +755,14 @@ function periodYear(period: string): string {
  * claim more than the picture shows.
  */
 function Sparkline(props: { points: SeriesPoint[]; alarm?: boolean; years?: boolean }) {
-  const values = props.points.map((point) => point.value);
+  // A retracted month comes as null; Math.min read it as 0 and the line dropped to the floor.
+  const shown = props.points.filter((point) => typeof point.value === "number" && Number.isFinite(point.value));
+  const values = shown.map((point) => point.value);
   if (values.length < 2) return <svg viewBox="0 0 160 28" aria-hidden="true" />;
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || 1;
   const path = values.map((value, index) => `${(index / (values.length - 1)) * 160},${26 - ((value - min) / span) * 24}`).join(" ");
-  const from = periodYear(props.points[0]?.date ?? ""), to = periodYear(props.points[props.points.length - 1]?.date ?? "");
+  const from = periodYear(shown[0]?.date ?? ""), to = periodYear(shown[shown.length - 1]?.date ?? "");
   const chart = <svg viewBox="0 0 160 28" preserveAspectRatio="none" aria-hidden="true"><polyline points={path} fill="none" stroke={props.alarm ? "var(--red)" : "var(--chart-1)"} strokeWidth="1.8" strokeLinejoin="round" /><circle cx="160" cy={26 - ((values[values.length - 1] ?? 0) - min) / span * 24} r="2.5" fill={props.alarm ? "var(--red)" : "var(--chart-1)"} /></svg>;
   if (!props.years || !from || !to) return chart;
   return (
