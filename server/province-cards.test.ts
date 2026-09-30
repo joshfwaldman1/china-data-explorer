@@ -16,11 +16,17 @@ const { writeSeries } = await import("./db.ts");
 const { PROVINCE_PLACES } = await import("../shared/places.ts");
 const { provinceCards } = await import("./province.ts");
 
+// bun test runs every file in one process against one scratch store, and the province page's
+// test writes Guangdong's figures into it. Which file runs first differs between machines (CI ran
+// that one first and failed here from 29 September), so these tests leave Guangdong out of any
+// claim about an empty store and compare only the provinces they write themselves.
+const WRITTEN_ELSEWHERE = new Set(["440000000000"]);
+
 test("an empty store gives one card per province with nothing invented", () => {
   const cards = provinceCards();
   expect(cards.length).toBe(PROVINCE_PLACES.length);
   expect(new Set(cards.map((card) => card.code)).size).toBe(PROVINCE_PLACES.length);
-  for (const card of cards) {
+  for (const card of cards.filter((item) => !WRITTEN_ELSEWHERE.has(item.code))) {
     expect(card.en.length).toBeGreaterThan(0);
     expect(card.gdpGrowth).toBeNull();
     expect(card.grp).toBeNull();
@@ -43,9 +49,9 @@ test("a stored growth figure reaches its province's card and the largest economy
   // Jiangsu and Zhejiang, not Guangdong: the province test writes Guangdong's structure into the same scratch store.
   growth("320000000000", 5.2); grp("320000000000", 142352);
   growth("330000000000", 5.7); grp("330000000000", 95000);
-  const cards = provinceCards();
+  const cards = provinceCards().filter((card) => !WRITTEN_ELSEWHERE.has(card.code));
   expect(cards[0]).toMatchObject({ en: "Jiangsu", gdpGrowth: { period: "2026-Q2", value: 5.2 }, grp: { year: "2025", value: 142352 } });
   expect(cards[1]).toMatchObject({ en: "Zhejiang", gdpGrowth: { period: "2026-Q2", value: 5.7 } });
   // A province with nothing stored is still on the page, after the ones with figures.
-  expect(cards.slice(2).filter((card) => card.en !== "Guangdong").every((card) => card.grp === null)).toBe(true);
+  expect(cards.slice(2).every((card) => card.grp === null)).toBe(true);
 });

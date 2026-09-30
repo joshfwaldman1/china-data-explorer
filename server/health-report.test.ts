@@ -203,7 +203,10 @@ test("the report stays cheap on a log the size production actually keeps", () =>
   // that it does not grow with the log. A regression here means the server
   // blocks, not that the page is slow.
   expect(took).toBeLessThan(2_000);
-});
+  // The budget above is the report's. Writing the 20,000 log rows first is the slow part and is
+  // not what this test measures: on GitHub's runners it took up to 12.5 seconds and tripped the
+  // default 5-second test timeout on four runs in thirty, with the report itself well inside 2.
+}, 60_000);
 
 test("the catalog crawl's failures are counted, not listed beside the curated ones", () => {
   // The crawl walks 66,000 NBS series and a good many are entries the bureau

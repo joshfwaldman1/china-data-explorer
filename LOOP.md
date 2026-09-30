@@ -56,11 +56,18 @@ until he stops the loop. Read this whole file before doing anything.
    one, and the page goes blank once it loads (round 103). After any
    client change, the live check must confirm the page renders (its
    heading is present) before reading the detail that changed.
-5. Commit with a message that states the defect and the fix in plain words
+5. After the push, watch the GitHub Actions CI run for that commit to the end
+   (`gh run list --workflow CI --limit 1`, then `gh run watch <id>`). A green
+   local suite is not a green CI: bun runs every test file in one process
+   and the file order differs on GitHub's runners. A round is not shipped
+   until CI is green; if it goes red, fixing it is the next round. (On
+   2026-09-30 CI had been red since the 29th and 24 pushes went out without
+   anyone looking.)
+6. Commit with a message that states the defect and the fix in plain words
    (see `git log` for the voice), and push to `china-data-explorer`.
    Pushing deploys the live site if the Railway service is linked to GitHub;
    if it is not, say so in the log so the owner can deploy.
-6. Append a dated entry to the Log in `IMPROVEMENT_LOG.md`
+7. Append a dated entry to the Log in `IMPROVEMENT_LOG.md`
    (what was wrong, what changed, how it was verified), remove the item from
    the queue if it was one, add anything the round surfaced to the queue,
    and commit it locally. Do not push it on its own: every push to main
@@ -68,7 +75,7 @@ until he stops the loop. Read this whole file before doing anything.
    restarts the post-boot ingest, which holds release refreshes behind it.
    The log commit rides with the next round's code push. (On 2026-09-30
    five log-only pushes made five extra deploys in ninety minutes.)
-7. Finish with a five-line summary: what changed, how it was verified,
+8. Finish with a five-line summary: what changed, how it was verified,
    what is queued next.
 
 ## Things that look like bugs but are not

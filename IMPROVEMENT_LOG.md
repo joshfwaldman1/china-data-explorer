@@ -40,6 +40,22 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (owner-directed: CI red on every push): GitHub's CI had failed
+  on every push since 29 September (last green 22 September), and this
+  session's loop pushed 24 more without looking at it: each round checked
+  the local gates and the Railway deploy, never the Actions run. Two
+  causes, both in the tests, neither in the site. (1) province-cards: bun
+  runs every test file in one process against one scratch store, and on
+  GitHub's file order the province page's test writes Guangdong's figures
+  first, so "an empty store" found Guangdong's GRP and Guangdong sorted
+  ahead of Jiangsu. Reproduced locally by filling a store with the
+  province test and running the card tests on it (old: 2 fail, new: 2
+  pass); the tests now leave out the province written elsewhere. (2)
+  health-report "stays cheap": its 5-second default timeout was spent
+  writing 20,000 log rows (12.5 s on the runners, 4 failures in 30 runs);
+  the report's own 2-second budget is unchanged and the test's timeout is
+  60 seconds. LOOP.md gains a step: after a push, the CI run must finish
+  green before the round counts as shipped.
 - 2026-09-30 (round: places named in Chinese, from the queue): 上海房价
   reached the 70-city series but not Shanghai, and 进出口 日本 led with
   NBS's annual country table. The partner and city matchers read English
