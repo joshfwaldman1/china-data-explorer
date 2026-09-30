@@ -37,13 +37,16 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
-- search.test.ts "every entry carries an English gloss and pinyin" builds
-  the whole catalog and took 39 s once on a busy local machine and failed
-  (it passed alone and on rerun, and passes on CI so far). Check its
-  timeout against CI's durations before it turns CI red. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: the slow catalog test, from the queue): nothing to
+  fix. On CI "every entry carries an English gloss and pinyin" takes 1.2
+  to 1.5 seconds in each of the last six runs. Its one 39-second local
+  failure was the local catalog.db going stale when GLOSS_FORMAT moved to
+  33 earlier in the day, so the next local run rebuilt all 79,836 entries
+  inside the test; later local runs are quick. CI builds from a fresh
+  checkout each time and is unaffected.
 - 2026-09-30 (round: the CSV download): downloaded three CSVs from the
   live site (a partner, a two-series comparison, an NBS catalog series).
   The partner and comparison files were right (CPI's blank rows before
