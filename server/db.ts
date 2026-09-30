@@ -594,6 +594,10 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
         SELECT MAX(fetched_at) FROM observations
         WHERE key = o.key AND region = o.region AND label = o.label AND period = o.period
       )
+      -- A period whose latest revision is a retraction (a null row) has no value to serve.
+      -- It was served as a null point, and every reader that did arithmetic on it (the share
+      -- image, the Home sparkline, a latest-value tile) read it as 0. The trail keeps it.
+      AND value IS NOT NULL
     ORDER BY period DESC
     LIMIT $limit
   `);

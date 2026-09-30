@@ -34,9 +34,10 @@ test("the misread Februaries are retracted as null revisions and the months arou
   expect(retractMisreadFebruaries(db(), new Date("2026-09-24T00:00:00.000Z"))).toBe(3);
   const stored = readSeries("trade_partners", 12, "japan");
   const at = (label: string, date: string) => stored?.series.find((line) => line.label === label)?.points.find((point) => point.date === date)?.value;
-  expect(at("Exports", "2025-02")).toBeNull();
-  expect(at("Imports", "2025-02")).toBeNull();
-  expect(at("Balance", "2025-02")).toBeNull();
+  // A retracted month is not served at all: no point, rather than a null every reader must guard.
+  expect(at("Exports", "2025-02")).toBeUndefined();
+  expect(at("Imports", "2025-02")).toBeUndefined();
+  expect(at("Balance", "2025-02")).toBeUndefined();
   expect(at("Exports", "2024-12")).toBe(12528.2);
   expect(at("Exports", "2025-03")).toBe(13910.6);
   // 2026's release carries a February column and its figure is real.
@@ -85,8 +86,8 @@ test("a period the source publishes no figure for is retracted as a null revisio
   expect(retractUnpublished("major_exports", "mobile-phones", unpublished, "2026-09-26T00:00:00.000Z")).toBe(2);
   const stored = readSeries("major_exports", 12, "mobile-phones");
   const at = (label: string, date: string) => stored?.series.find((line) => line.label === label)?.points.find((point) => point.date === date)?.value;
-  expect(at("Value", "2025-02")).toBeNull();
-  expect(at("Quantity (10,000 Sets)", "2025-02")).toBeNull();
+  expect(at("Value", "2025-02")).toBeUndefined();
+  expect(at("Quantity (10,000 Sets)", "2025-02")).toBeUndefined();
   expect(at("Value", "2025-03")).toBe(9288.1);
   expect(readRevisionHistory("major_exports", "mobile-phones").find((row) => row.label === "Value" && row.period === "2025-02")?.vintages.map((vintage) => vintage.value)).toEqual([18654.8, null]);
   expect(retractUnpublished("major_exports", "mobile-phones", unpublished, "2026-09-27T00:00:00.000Z")).toBe(0);

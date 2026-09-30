@@ -48,6 +48,21 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the rest of that bug class): the share-image fix
+  guarded two readers, but a retracted month was still served as a null
+  point to every reader, and the Home rows, theme rows and the series
+  page's headline read `latest`, `previous` and the year-earlier point
+  straight from the points. The generic `retractUnpublished` in the ingest
+  can retract any month, including the latest, which would have put a
+  broken figure in a tile. Guarding six client call sites was the wrong
+  place: `readSeries` is the one read every route shares, and live fetches
+  never carry nulls. It now omits a period whose latest revision is a
+  retraction; `readRevisionHistory` still shows the trail. The retraction
+  tests now hold that the month is not served (they held that it was
+  served as null). The ingest's write-if-changed compares a new figure
+  against no value either way, so a real figure for such a month is still
+  written. Verified: typecheck clean, 522 tests; the live API is checked
+  after deploy for Japan's February 2023.
 - 2026-09-30 (round: the share image): downloaded the image from the live
   site for a single series (CPI), a comparison (CPI and PPI) and a partner
   (Japan). Layout, legend, end labels, source and URL were right. The
