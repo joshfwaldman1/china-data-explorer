@@ -40,6 +40,13 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: all 31 province pages): nothing to fix. Every
+  province page (`/api/province/<code>`, Guangdong checked in the earlier
+  round) carries the same nine rows at the same latest periods: real GDP
+  growth Q1 to Q2 2026, industrial output and consumer prices August 2026,
+  gross regional product, GRP per person, population and exports 2025,
+  disposable income Q1 to Q2 2026, and the registered unemployment rate
+  ended 2021 with its note. No province has a missing or lagging row.
 - 2026-09-30 (round: every theme card's data): nothing to fix. The nine
   theme payloads carry 318 cards (a card and its detail pair counted
   twice); none is empty. The only cards ending before 2025 are annual and
