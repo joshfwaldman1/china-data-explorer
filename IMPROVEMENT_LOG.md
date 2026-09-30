@@ -40,6 +40,11 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: a mixed-frequency comparison): nothing to fix. CPI
+  compared with GDP on the live site converts CPI to quarterly averages,
+  says so in a notice and in the chart note, leaves out Q3 2026 (only two
+  of its months are published), draws GDP's quarter and year-to-date lines
+  with their own legend, and throws no page errors.
 - 2026-09-30 (round: Browse and a category page): nothing to fix. CI green
   on 7d9669e. Browse at 1280 pixels leads every card with English and the
   Chinese beneath, groups by dataset (national monthly 8,776 series,
