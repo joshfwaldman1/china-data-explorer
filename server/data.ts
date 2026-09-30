@@ -2267,6 +2267,36 @@ export const CATALOG: Record<string, Indicator> = {
   gini: { kind: "fred", group: "Demographics", home: false, title: "Gini Index", agency: "World Bank", frequency: "Annual", unit: "Index, 0 to 100", seriesId: "SIPOVGINICHN", label: "Gini index" },
 };
 
+/** Words that, beside a partner's name, ask for trade with it: "exports to japan", "trade with the us". */
+const PARTNER_TRADE_WORDS = new Set(["export", "exports", "import", "imports", "trade", "balance", "surplus", "deficit", "bilateral", "with", "to", "from", "the", "china", "chinese", "china's"]);
+/** Short names readers type for partners Customs names in full. */
+const PARTNER_ALIASES: Record<string, string> = {
+  "us": "united-states", "usa": "united-states", "america": "united-states", "eu": "european-union", "europe": "european-union", "uk": "united-kingdom", "britain": "united-kingdom",
+  "korea": "r-o-korea", "south korea": "r-o-korea", "hong kong": "hong-kong-china", "taiwan": "taiwan-china", "russia": "russian-federation", "rcep": "regional-comprehensive-economic-partnership", "belt and road": "jointly-build-the-countries-along-belt-and-road-routes",
+};
+
+/**
+ * The Customs trade partner a query asks about, when every other word is a trade word:
+ * "exports to japan" is Japan, "japan gdp" is not. The partner's name is matched as whole
+ * words in order, so "south africa" is not "africa". Total is never a partner.
+ */
+export function customsPartnerInQuery(terms: string[]): NbsRegion | null {
+  const words = terms.map((term) => term.toLocaleLowerCase());
+  for (const partner of CUSTOMS_PARTNERS) {
+    if (partner.value === "total") continue;
+    // "Hong Kong, China" and "R. O. Korea" are matched without their punctuation; the aliases cover what readers type.
+    const official = (partner.en ?? partner.text).toLocaleLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+    const names = [official, ...Object.entries(PARTNER_ALIASES).filter(([, value]) => value === partner.value).map(([alias]) => alias.split(" "))];
+    for (const name of names) {
+      const at = words.findIndex((_, index) => name.every((part, offset) => words[index + offset] === part));
+      if (at < 0) continue;
+      const rest = [...words.slice(0, at), ...words.slice(at + name.length)];
+      if (rest.length > 0 && rest.every((word) => PARTNER_TRADE_WORDS.has(word)) && rest.some((word) => word !== "with" && word !== "to" && word !== "from" && word !== "the" && !word.startsWith("china"))) return partner;
+    }
+  }
+  return null;
+}
+
 /**
  * The headline series a query names: every term must start a word of the
  * title, group, agency, unit, key or synonyms (Chinese terms match anywhere).

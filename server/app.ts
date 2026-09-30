@@ -12,7 +12,7 @@
 import index from "../client/index.html";
 import { timingSafeEqual } from "node:crypto";
 import { regionCoverage } from "./regions";
-import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
+import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, customsPartnerInQuery, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
 
@@ -102,6 +102,12 @@ function applyTransform(result: SeriesResult, requested: NbsTransform | null): S
   };
 }
 
+/** A curated series shown at the head of search results, in the catalog entry's shape; `region` opens it at a place or partner. */
+interface FeaturedResult {
+  key: string; id: string; name: string; nameEn: string; shortName: string; unit: string; note: string; annotation: string;
+  datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
+  region?: { text: string; value: string; en: string };
+}
 interface AgendaItem { _id: string; fb_time: string; content: string; en: string; keys: string[]; categories: string[]; }
 
 /**
@@ -463,9 +469,9 @@ const routes = {
       // Function words and the country drop out ("exports to the united states"), unless that would leave nothing.
       const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
       const queryTerms = meaningful.length > 0 ? meaningful : allTerms;
-      const featured = queryText && datasetCode === undefined && (!geography || geography === "National")
+      const featured: FeaturedResult[] = queryText && datasetCode === undefined && (!geography || geography === "National")
         // Latin terms match at a word start ("unemp" finds unemployment, "ppi" no longer finds shopping); Chinese anywhere.
-        ? matchCurated(catalogList().filter((entry) => (!frequency || entry.frequency === frequency) && (!category || entry.group === category)), allTerms, queryTerms).map((entry) => ({
+        ? matchCurated(catalogList().filter((entry) => (!frequency || entry.frequency === frequency) && (!category || entry.group === category)), allTerms, queryTerms).map((entry): FeaturedResult => ({
           key: entry.key,
           id: entry.key,
           name: entry.title,
@@ -481,6 +487,20 @@ const routes = {
           categories: [entry.group],
         }))
         : [];
+      // A query naming a trade partner ("exports to japan") leads with Customs' monthly series for
+      // that partner, opened at it; NBS carries only annual country tables, and the partner's name
+      // is nowhere in the curated entry's text for the matcher to find.
+      const partner = queryText && datasetCode === undefined && (!frequency || frequency === "Monthly") && (!geography || geography === "National") ? customsPartnerInQuery(allTerms) : null;
+      const partnerEntry = partner ? catalogList().find((entry) => entry.key === "trade_partners") : undefined;
+      if (partner && partnerEntry) {
+        const at = featured.findIndex((item) => item.key === partnerEntry.key);
+        if (at >= 0) featured.splice(at, 1);
+        featured.unshift({
+          key: partnerEntry.key, id: partnerEntry.key, name: partnerEntry.title, nameEn: `${partnerEntry.title}: ${partner.en ?? partner.text}`, shortName: partnerEntry.title,
+          unit: partnerEntry.unit, note: "", annotation: "", datasetCode: 0, dataset: partnerEntry.agency, frequency: partnerEntry.frequency,
+          geography: "National", categories: [partnerEntry.group], region: { text: partner.text, value: partner.value, en: partner.en ?? partner.text },
+        });
+      }
       const featuredResults = featured.slice(requestedOffset, requestedOffset + requestedLimit);
       const nbsOffset = Math.max(0, requestedOffset - featured.length);
       const remainingLimit = requestedLimit - featuredResults.length;

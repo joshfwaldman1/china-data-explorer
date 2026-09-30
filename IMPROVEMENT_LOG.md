@@ -52,9 +52,29 @@ not from scratch. Rounds are small on purpose.
   until the portal fills, so check a release morning's request count first.
   Provincial keys are left out on purpose: the portal fills provinces days
   after the national figure.
+- Search: "house prices shanghai" leads with Shanghai's residential sales
+  totals, not the 70-city price index for Shanghai ("shenzhen new home
+  prices" works; "house prices" and "shanghai new home prices" do not).
+  And "electricity consumption" leads with Beijing's annual table above
+  the national monthly series. Found 2026-09-30.
 
 ## Log
 
+- 2026-09-30 (round: search, twelve researcher queries): eight led well
+  (m2, local government debt, capacity utilization, the yuan, the 10-year
+  yield, birth rate, real estate investment, core inflation). The clearest
+  miss: no query naming a trade partner ever reached Customs' monthly
+  Trade by Partner series. "exports to japan" led with NBS's annual
+  country table, "trade with japan" with national export growth, because
+  the partner's name is nowhere in the curated entry's text. A query that
+  names a Customs partner (by its name without punctuation, or a common
+  short name: us, eu, uk, korea, hong kong, taiwan, russia) and otherwise
+  uses only trade words now leads with Trade by Partner opened at that
+  partner. "japan gdp", "japan" and "total exports" are left alone. Two
+  other misses queued (house prices by city, electricity consumption).
+  Verified: typecheck clean, 517 tests (two new); on a local server
+  "exports to japan" and "trade with the us" lead with the partner series
+  and "cpi" is unchanged; the live check follows the deploy.
 - 2026-09-30 (round: the docs against the code): every `bun run` command
   the docs name exists in package.json. The README's figures had drifted:
   149 headline series (153 in `CATALOG`; the four Shanghai Stock Exchange
