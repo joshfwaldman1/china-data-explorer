@@ -37,9 +37,30 @@ not from scratch. Rounds are small on purpose.
   whose table name only partly leads the title ("Total losses of
   loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
+- The post-boot ingest holds the worker for tens of minutes, and each
+  deploy restarts it: at 08:41Z on 2026-09-30 a release refresh and the
+  press-release check (both priority 0) had waited 3 and 12 minutes
+  behind the scheduled ingest (priority 1). The crawl yields between
+  table requests; the ingest does not. Worth checking whether a waiting
+  priority-0 job should interrupt the ingest between keys, especially on
+  a release morning after a deploy.
 
 ## Log
 
+- 2026-09-30 (round: the Provinces page and provincial GDP): all 31
+  provinces carry first-half 2026 real GDP growth with 86 periods back to
+  2005; the tile map, ranking and Guangdong page render at 1280 and 390
+  pixels with no overflow. One defect, found on the Guangdong page: its
+  consumer-price sparkline started in 2026. The provincial CPI table
+  restarts every five years and `provincial_cpi` lists the 2016-2020 and
+  2021-2025 tables as slices behind the current one, but the per-province
+  read (`fetchLiveRegion`) called the single-table fetch, so every
+  province's CPI began in January 2026 and no earlier month was ever
+  stored. It now reads through `fetchNbsWithSlices`, as the national read
+  does. A new test fakes the portal for all three tables and fails on the
+  old path. Verified after the post-deploy ingest: Guangdong and Beijing
+  hold 128 months, 2016-01 to 2026-08 with no gap, and Guangdong's
+  December 2025 reads 0.4, matching NBS's 100.4 on the 2021-2025 table.
 - 2026-09-30 (round: the home page and the four hero tiles): every Home
   series is at its latest published period (August for the monthly NBS,
   PBOC, SAFE, MOF and Customs rows, September for PMI and the CFETS
