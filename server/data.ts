@@ -101,7 +101,7 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   household_spending_growth: ["consumption expenditure", "household spending", "消费支出"],
   household_spending: ["consumption expenditure per capita", "居民人均消费支出"],
   employment: ["employment", "employed persons", "jobs", "就业人员"],
-  population_nbs: ["population", "urban population", "人口", "总人口"],
+  population_nbs: ["population", "people", "urban population", "人口", "总人口"],
   population_rates: ["birth rate", "death rate", "natural growth", "出生率", "死亡率"],
   population_age: ["ageing", "aging", "elderly", "working age", "老龄化", "65岁"],
   migrant_workers_income: ["migrant income", "migrant wages", "务工收入"],
@@ -2391,8 +2391,13 @@ export function matchCurated(entries: CatalogEntry[], allTerms: string[], queryT
     // table first. A query that is one of an entry's names outranks one that only
     // contains it, and a national series outranks a provincial one on the same score.
     const exact = entry.title.toLocaleLowerCase() === phrase || (CURATED_SYNONYMS[entry.key] ?? []).some((name) => name.toLocaleLowerCase() === phrase);
+    // The agency is weak evidence: "people" is a word of "People's Bank of China", and "how many
+    // people live in china" led with money supply. An entry named by its title or synonyms ranks
+    // above one reached only through who publishes it.
+    const named = `${entry.title} ${entry.key} ${(CURATED_SYNONYMS[entry.key] ?? []).join(" | ")}`.toLocaleLowerCase();
+    const byName = queryTerms.every((term) => /[\u3400-\u9fff]/.test(term) ? named.includes(term) || chineseNames.some((name) => term.includes(name)) : new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(named));
     const regional = entry.key.startsWith("provincial_") || /^provincial /i.test(entry.title);
-    return [{ entry, score: (exact ? 2 : 0) + (wholePhrase ? 1 : 0), regional, longestName }];
+    return [{ entry, score: (exact ? 2 : 0) + (wholePhrase ? 1 : 0) + (byName ? 0.5 : 0), regional, longestName }];
   });
   return matched.sort((a, b) => b.score - a.score || b.longestName - a.longestName || Number(a.regional) - Number(b.regional)).map((item) => item.entry);
 }

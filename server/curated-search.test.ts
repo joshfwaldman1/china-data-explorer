@@ -90,3 +90,17 @@ test("a Chinese query that holds a series' Chinese name finds it, the longest na
   // A Chinese query no name is inside still finds nothing curated.
   expect(real("铁路机车")).toEqual([]);
 });
+
+test("a word that only names a publisher does not lead, and words of direction are not searched for", async () => {
+  const { catalogList } = await import("./data.ts");
+  const real = (query: string) => {
+    const allTerms = normalizeQuery(query).split(/\s+/).filter(Boolean);
+    const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
+    return matchCurated(catalogList(), allTerms, meaningful.length > 0 ? meaningful : allTerms).map((entry) => entry.key);
+  };
+  // "people" is a word of "People's Bank of China"; the population series is named by it.
+  expect(real("how many people live in china")[0]).toBe("population_nbs");
+  // "rising" says nothing about which series; prices does.
+  expect(real("are prices rising")[0]).toBe("cpi");
+  expect(SEARCH_STOP_WORDS.has("rising")).toBe(true);
+});

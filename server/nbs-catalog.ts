@@ -141,6 +141,8 @@ Object.assign(SEARCH_ALIASES, {
   salary: ["工资"], salaries: ["工资"], pay: ["工资"], workers: ["就业人员", "职工"], jobs: ["就业"],
   "housing prices": ["住宅销售价格", "房价"], "property prices": ["住宅销售价格", "房价"], "consumer spending": ["社会消费品零售总额", "消费支出"],
   debt: ["债务", "负债"],
+  people: ["人口"], "young people": ["16—24岁", "16-24岁", "青年"], young: ["16—24岁", "16-24岁", "青年"],
+  rice: ["稻谷"], harvest: ["产量"], economy: ["国内生产总值"], "economic growth": ["国内生产总值"], growing: ["国内生产总值"],
   // Core CPI is published as "CPI excluding food and energy".
   "core inflation": ["不包括食品和能源"], "core cpi": ["不包括食品和能源"], core: ["不包括食品和能源"],
   auto: ["汽车"], autos: ["汽车"], automobile: ["汽车"], automobiles: ["汽车"], vehicle: ["汽车"], vehicles: ["汽车"],
@@ -167,7 +169,9 @@ export function exactTitleIndex(results: Pick<NbsCatalogEntry, "nameEn" | "gloss
     && (titleWords(entry.nameEn ?? "") === asked || titleWords(entry.glossEn ?? "") === asked));
 }
 
-export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "nbs", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from", "how", "many", "much", "does", "do", "is", "are", "was", "what", "which"]);
+export const SEARCH_STOP_WORDS = new Set(["china", "chinese", "national", "nbs", "data", "series", "the", "of", "to", "in", "for", "and", "a", "an", "by", "from", "how", "many", "much", "does", "do", "is", "are", "was", "what", "which",
+  // Words of direction and pace ("are prices rising", "how fast is china growing") say nothing about which series.
+  "rising", "falling", "shrinking", "increasing", "decreasing", "fast", "live"]);
 
 export type NbsTransform = "raw" | "change" | "percent_change" | "yoy" | "index_growth";
 
