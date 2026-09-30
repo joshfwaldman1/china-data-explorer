@@ -16,11 +16,11 @@ figures to the publishing agency, never to this site.
 | | |
 | --- | --- |
 | NBS catalog | 66,302 browsable series across 12 datasets (79,836 rows in the crawl, since the bureau splits a long series into year-range slices that are grouped back into one): national monthly, quarterly and annual; provincial (31 provinces); city; Hong Kong, Macao and Taiwan; three international tables. 64,509 are stored; the rest are fetched on first view. |
-| Headline series | 149, curated by hand in `server/data.ts`: 60 from NBS's own tables, 17 from the Eastmoney mirror of NBS/PBOC releases, 9 MOF, 8 Customs, 8 CFETS, 7 PBOC, 7 SAFE, 4 MOFCOM, 2 NEA, 3 AkShare (not refreshable on this deployment), 24 international series via FRED. |
+| Headline series | 153, curated by hand in `server/data.ts`: 60 from NBS's own tables, 17 from the Eastmoney mirror of NBS/PBOC releases, 9 MOF, 8 Customs, 8 CFETS, 7 PBOC, 7 SAFE, 4 MOFCOM, 4 Shanghai Stock Exchange, 2 NEA, 3 AkShare (not refreshable on this deployment), 24 international series via FRED. |
 | Store | 6.8 million observations in one SQLite file, append-only, so revisions are kept from the day a series was first stored. Every period also records how it arrived: with a release, as a restatement, or in a backfill. |
-| Cross-checks | 54 pairs of series that should agree, compared nightly (`bun run audit`), including identities: generating sources sum to total electricity, the three expenditure contributions to GDP growth sum to 100 percent. Every domestic headline is paired or carries a written reason why it cannot be. |
+| Cross-checks | 55 pairs of series that should agree, compared nightly (`bun run audit`), including identities: generating sources sum to total electricity, the three expenditure contributions to GDP growth sum to 100 percent. Every domestic headline is paired or carries a written reason why it cannot be. |
 | English | NBS's own English titles where its portal's English mode has them (`scripts/sync-nbs-english.ts`); generated translations elsewhere, marked as such. |
-| Tests | 371 in 67 files: parser fixtures for every publisher, the store, the audit, a headless-Chrome render of the Home and ranking pages. |
+| Tests | 515 in 85 files: parser fixtures for every publisher, the store, the audit, a headless-Chrome render of the Home and ranking pages. |
 
 ## Quick start
 

@@ -14,7 +14,7 @@ node or npm: `bun run dev`, `bun test`, `bun install`.
 
 ```sh
 bun run typecheck    # must report nothing
-bun test             # must be green (287 tests; the render test needs Chrome)
+bun test             # must be green (the render test needs Chrome)
 ```
 
 And the store must be clean: no test rows in `china.db`. A test that touches

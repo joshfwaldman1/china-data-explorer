@@ -55,6 +55,14 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the docs against the code): every `bun run` command
+  the docs name exists in package.json. The README's figures had drifted:
+  149 headline series (153 in `CATALOG`; the four Shanghai Stock Exchange
+  series were missing from the list), 54 cross-check pairs (55), 371 tests
+  in 67 files (515 in 85). Corrected. AGENTS.md and CLAUDE.md said "287
+  tests"; a count there goes stale every round, so they now say only that
+  the suite must be green. Committed locally, not pushed on its own: docs
+  ride with the next code change.
 - 2026-09-30 (round: keyboard and screen-reader labels): scanned Home,
   a series page, Provinces, Releases, Browse, a theme page and search for
   controls without an accessible name, images without alt text, and the
