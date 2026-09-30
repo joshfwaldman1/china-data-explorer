@@ -74,7 +74,7 @@ const CUSTOMS_NOTES = {
   /** Trade by partner. */
   partners: "2019 has separate January and February points. There is no January or February point for 2020 to 2025. 2026 has a February point alone and no January.",
   /** Lines the site began storing in 2026, such as integrated circuits. */
-  from2026: "The stored history starts in February 2026. January 2026 is not stored.",
+  from2026: "The stored history starts in February 2026. Customs published no January 2026 figure on its own.",
   hiTechOverlap: "Hi-tech products overlap other commodity lines.",
   december2019Missing: "December 2019 is missing.",
 } as const;
@@ -523,7 +523,7 @@ export const THEMES: Record<string, Theme> = {
       {
         title: "Totals and where growth comes from",
         charts: [
-          { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank. February 2026 is a single month. January 2026 is not stored." },
+          { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank. For 2026 Customs published February on its own and no January." },
           { title: "Exports and imports, growth on a year earlier, month", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 8, note: "Customs' own rates in USD terms. January and February were published only as a combined figure for 2020 to 2025. February 2026's 39.6% reflects the late Lunar New Year." },
           { title: "Exports and imports, growth on a year earlier, three-month average", key: "trade", derive: "trade_3m", years: 8, note: "Customs' rates in US dollar terms, averaged over the latest three months. January and February both take the combined two-month rate, as Customs publishes it." },
           { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank." },

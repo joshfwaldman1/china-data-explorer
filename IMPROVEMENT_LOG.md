@@ -55,6 +55,21 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: mobile CSS at 390 pixels): no page overflows at 390:
+  the series pages for CPI, PMI sub-indices and US trade, the release
+  calendar, browse, search, and all nine theme pages (the Home page was
+  fixed in the earlier round). Two copy defects the screenshots showed.
+  The Trade page's value card said "January 2026 is not stored", which
+  reads as a gap in the site. It is not one: Customs' English listing
+  runs December 2025 then February 2026, and the February table carries
+  February and January-February only, so January exists only as a
+  difference, which the owner declined to derive on 2026-09-13. The card
+  and the shared integrated-circuit note now say Customs published no
+  January 2026 figure on its own. And seven reading notes on series pages
+  (CPI, GDP, provincial GDP, trade, PMI, the not-seasonally-adjusted note)
+  joined two ideas with a semicolon, against the copy rule; each is now
+  two sentences. Verified: typecheck clean, 515 tests; the live check
+  follows the deploy.
 - 2026-09-30 (round: /api/status for failed fetches): nothing to fix.
   Fifty recent failures, all checked against the series themselves. Forty
   are one burst of NBS "socket closed" errors at 01:02Z on 29 September;

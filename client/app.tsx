@@ -322,13 +322,13 @@ const READING: Record<string, string[]> = {
   unemployment: [
     "The youth rate rises every summer as graduates enter the labor market, so compare July with July, not with June.",
     "The urban survey excludes most rural migrant workers who return home when work ends, so it understates slack relative to a total-labor-force measure.",
-    "Figures are not seasonally adjusted; Lunar New Year shifts between January and February and distorts both months.",
+    "Figures are not seasonally adjusted. Lunar New Year shifts between January and February and distorts both months.",
   ],
-  cpi: ["Food is roughly a fifth of the basket; pork alone can swing the headline by a few tenths.", "Core CPI (excluding food and energy) is published alongside and is usually the steadier read."],
-  gdp: ["The 不变价 (constant-price) level series is at prior-year prices, so arithmetic year-over-year on it is not the headline growth rate; use the growth series NBS publishes.", "Quarterly GDP is revised after the annual figure and again after economic censuses; the store keeps every vintage."],
-  provincial_gdp: ["Provincial GDP figures have historically summed to more than the national total; treat cross-province ranking as indicative.", "The series is cumulative year-to-date: Q4 equals the full year."],
-  trade: ["Customs reports in US dollars and in yuan; the two growth rates diverge when the exchange rate moves.", "Front-loading ahead of tariff changes shows up as spikes that reverse within a quarter."],
-  pmi: ["Diffusion indices measure breadth, not magnitude: 49 with a large firm base can coincide with rising output.", "The official PMI leans to large state firms; the Caixin PMI to smaller private exporters."],
+  cpi: ["Food is roughly a fifth of the basket. Pork alone can swing the headline by a few tenths.", "Core CPI (excluding food and energy) is published alongside and is usually the steadier read."],
+  gdp: ["The 不变价 (constant-price) level series is at prior-year prices, so arithmetic year-over-year on it is not the headline growth rate. Use the growth series NBS publishes.", "Quarterly GDP is revised after the annual figure and again after economic censuses. The store keeps every vintage."],
+  provincial_gdp: ["Provincial GDP figures have historically summed to more than the national total, so treat the ranking of provinces as indicative.", "The series is cumulative year-to-date: Q4 equals the full year."],
+  trade: ["Customs reports in US dollars and in yuan. The two growth rates diverge when the exchange rate moves.", "Front-loading ahead of tariff changes shows up as spikes that reverse within a quarter."],
+  pmi: ["Diffusion indices measure breadth, not magnitude: 49 with a large firm base can coincide with rising output.", "The official PMI leans to large state firms. The Caixin PMI leans to smaller private exporters."],
 };
 const BREAKS: { key: string; match: RegExp; from: string; to: string; before: string; after: string; note: string }[] = [
   {
