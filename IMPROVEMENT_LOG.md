@@ -40,6 +40,14 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: every theme card's data): nothing to fix. The nine
+  theme payloads carry 318 cards (a card and its detail pair counted
+  twice); none is empty. The only cards ending before 2025 are annual and
+  current as published: utility-model and design patent applications and
+  doctoral graduates end at 2024 because NBS's portal still has 2025 blank
+  (checked by esData), the World Bank's fertility and life expectancy end
+  at 2024 and its Gini index at 2022, their usual lags. `/api/theme/macro`
+  answers an error because Macro is the Home page, not a theme route.
 - 2026-09-30 (round: the monthly bundle's detail series, from the
   queue): 25 curated NBS series drawn from the monthly bundle's tables
   refreshed only with the daily ingest: product output (steel, cement,
