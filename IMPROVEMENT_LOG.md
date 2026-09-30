@@ -40,6 +40,22 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the home page and the four hero tiles): every Home
+  series is at its latest published period (August for the monthly NBS,
+  PBOC, SAFE, MOF and Customs rows, September for PMI and the CFETS
+  rates, Q2 for GDP). One apparent gap is not a defect: the headline PMI
+  shows September 50.1 from Eastmoney, while the NBS PMI sub-index
+  series stop at August, because NBS's own portal still has September
+  blank seven hours after the release (esData 202609 cell empty; the
+  release check had made 11 attempts). The press-release reader in shadow
+  mode is the path that would close that gap. One defect: at 390 pixels
+  the Home page scrolled 23 pixels sideways. A level's change on a year
+  earlier carries its unit ("+2,246 100M yuan y/y") and the change
+  column did not wrap, so three trade rows ran 52 pixels past a 70-pixel
+  column (34 pixels into the period column at desktop width). The cell
+  now wraps between words. Verified on the live site after deploy: page
+  scroll width 390 at 390, no change cell wider than its column at 390 or
+  1280, the trade rows read on two or three lines.
 - 2026-09-30 (round: titles two year-range tables still shared): after a
   shared title is prefixed with its table, 3,755 were still identical,
   because the tables carry the same English name under different year
