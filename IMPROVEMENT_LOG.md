@@ -32,18 +32,27 @@ not from scratch. Rounds are small on purpose.
   (1,193 lines) into loading, families, search and glossing; reflow the
   JSX lines over 200 characters. Mechanical, one page per round (owner's
   call, raised 2026-09-11).
-- 3,755 catalog titles are still shared across tables after qualification,
-  mostly because both tables carry the same English name under different
-  parents ("Total losses of loss-making enterprises: Total Losses of
-  Loss-making State-holding Industrial Enterprises, Production and Supply of
-  Gas" twice). Qualifying by the first parent level that differs would
-  separate them; measure the count before and after as the 2026-09-30 round
-  did. Titles whose table name only partly leads the title ("Total losses
-  of loss-making enterprises: Total Losses of Loss-making ...") still read
+- 258 catalog titles are still shared across tables after the year-range
+  pass (2026-09-30): those whose tables lack a range, or share one. Titles
+  whose table name only partly leads the title ("Total losses of
+  loss-making enterprises: Total Losses of Loss-making ...") still read
   the words twice.
 
 ## Log
 
+- 2026-09-30 (round: titles two year-range tables still shared): after a
+  shared title is prefixed with its table, 3,755 were still identical,
+  because the tables carry the same English name under different year
+  ranges. Example: selling expenses of large and medium-sized enterprises
+  in other mining, under the 2000-2002 table and the 2003-2022 family,
+  which NBS keeps apart by renaming the industry in Chinese (其他矿采选业
+  then 其他采矿业). Search showed them as identical rows. Where every entry
+  sharing a title has a year range and the ranges differ, each now carries
+  it, a family head its whole span ("..., Mining of Other Ores, 2000-2002
+  (100 million yuan)"). GLOSS_FORMAT 33. Measured on the real catalog:
+  shared titles fall from 3,755 to 258. Verified: typecheck clean, 513
+  tests (one new); live API returns the 2000-2002 title and the family
+  head's page heading reads "..., 2003-2022".
 - 2026-09-30 (round: shared titles that said their table twice): a title
   shared by two tables was prefixed with its table, and 7,329 titles read
   the table's words twice or broke the bureau's capitals: "Finished goods
