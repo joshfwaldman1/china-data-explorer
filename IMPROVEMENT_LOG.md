@@ -40,6 +40,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: CI and every headline series' latest period): CI is
+  green on c4b19b1 and the nightly backup workflow is 5 for 5. Of the 153
+  headline series, 20 sit behind their usual period and none is a defect:
+  three ended on purpose (Caixin manufacturing and services PMI, MOFCOM's
+  USD FDI), the Real Estate Climate Index stops at December 2025 as
+  flagged, and the rest are FRED-carried international series on their
+  publishers' lags (BIS credit and property prices quarterly to Q4 2025 or
+  Q1 2026, US trade and Treasury holdings to July, World Bank annual to
+  2024, Gini to 2022). The quarterly Eastmoney keys (enterprise boom, tax
+  revenue) are at Q2 2026, dated by month.
 - 2026-09-30 (owner-directed: CI red on every push): GitHub's CI had failed
   on every push since 29 September (last green 22 September), and this
   session's loop pushed 24 more without looking at it: each round checked
