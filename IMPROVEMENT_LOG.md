@@ -40,6 +40,14 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the rest of the Chinese-name sweep): the search
+  results, the Add Series dialog (which the Provinces page's "Map another
+  series" also uses), the Browse cards and the sidebar all lead with
+  English, and switch to Chinese first only for a Chinese query, on
+  purpose. One slip left: a search result's "Add to chart" button told a
+  screen reader "Add 中型工业企业产成品 (亿元) to the chart", from the raw
+  name; it now reads the English title. Verified: typecheck clean, 524
+  tests; CI and the deploy watched after the push.
 - 2026-09-30 (round: where else a catalog series shows its Chinese name):
   followed the previous two rounds' fault through the rest of the client.
   The browser tab title and the share image already use the English

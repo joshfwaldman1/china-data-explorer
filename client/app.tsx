@@ -1038,7 +1038,7 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
                   <span className="meta">{entry.frequency}, {curated ? entry.dataset : (DATASET_EN[entry.datasetCode] ?? "NBS")}, {unitLabel(entry.unit)}{entry.firstPeriod && entry.lastPeriod ? <>, {observationLabel(entry.firstPeriod, entry.frequency)} to {observationLabel(entry.lastPeriod, entry.frequency)}{isEndedPeriod(entry.lastPeriod) && <span className="ended"> ended</span>}</> : !curated ? <>, <span className="ended">not fetched yet</span></> : null}</span>
                 </a>
                 {props.chartKeys.length > 0 && props.chartKeys.length < 4 && !props.chartKeys.includes(entry.key)
-                  && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.name} to the chart`}>Add to chart</a>}
+                  && <a className="button" href={seriesHash([...props.chartKeys, entry.key])} aria-label={`Add ${entry.nameEn || entry.name} to the chart`}>Add to chart</a>}
               </article>
             );
           })}
