@@ -55,6 +55,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: ten random monthly and quarterly catalog series):
+  nothing to fix. Sampled from current frequencies this time (the morning
+  sample was mostly ended annual tables). All ten served from the store
+  with units, ranges and English titles that match the bureau's: ferroalloy
+  and locomotive output back to 1989 and current to August 2026, grain CPI
+  on the previous-month base shown as an index, Beijing's floor space
+  completed. The one that looked wrong, waste recycling's total liabilities
+  "growth rate" running to 109.1, is genuine: its title is 增减 (%), the
+  industry was new in 2003, and the rate settles to 8-24 by 2011. NBS's
+  own English spells "Administrative Expensess"; it is shown as published.
 - 2026-09-30 (round: "electricity consumption" in search, from the
   queue): the query led with a provincial annual table opened at Beijing,
   above the national monthly series. The rule that lets an NBS result
