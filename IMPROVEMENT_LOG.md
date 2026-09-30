@@ -45,6 +45,12 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: the other plain-http sources): nothing to fix. After
+  the finance ministry's http listing turned out to answer 502, the only
+  other plain-http publisher address in the adapters is Customs' English
+  site, and there the reverse holds: http answers 200 (ColumnId 1 and 4,
+  twice each) and https fails to connect. No Customs fetch has failed in
+  the recent log. The remaining http address is the local relay.
 - 2026-09-30 (round: plain questions in search, and the finance
   ministry's 502s): two fixes in one push. (1) Of 25 plain-English
   questions probed on the live site, four found nothing ("are prices
