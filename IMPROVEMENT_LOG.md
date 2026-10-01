@@ -45,6 +45,10 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: the first day of a month on Home): nothing to fix.
+  None of the 71 Home payload series carries an October point on 1
+  October (Golden Week; no CFETS fixing or exchange session yet), so no
+  row shows a running month as if it were a figure.
 - 2026-10-01 (round: September PMI sub-indices): nothing to fix, one
   fact worth keeping. Twenty-seven hours after the 30 September PMI
   release, NBS's own portal still has September blank in the
