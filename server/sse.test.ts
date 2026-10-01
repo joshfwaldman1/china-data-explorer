@@ -54,3 +54,12 @@ test("a close key and a turnover key each serve one line from the same request, 
   expect(turnover.series.map((line) => line.label)).toEqual([LABELS.turnover]);
   expect(turnover.series[0]!.points.at(-1)!.value).toBeGreaterThan(10000);
 });
+
+test("the month ends on the exchange's clock: a fetch at 23:23 UTC on 30 September is already 1 October in Shanghai", async () => {
+  const rows = parseKline(await fixture());
+  // The 30 September 2026 fetch that stored August only, eight hours after Shanghai's month ended.
+  expect(monthEnds(rows, new Date("2026-09-30T23:23:00Z")).at(-1)?.date).toBe("2026-09");
+  expect(monthTurnover(rows, new Date("2026-09-30T23:23:00Z")).at(-1)?.date).toBe("2026-09");
+  // Before 16:00 UTC on the 30th it is still September in Shanghai, and September is still running.
+  expect(monthEnds(rows, new Date("2026-09-30T15:00:00Z")).at(-1)?.date).toBe("2026-08");
+});

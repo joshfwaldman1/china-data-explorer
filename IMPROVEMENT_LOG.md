@@ -45,6 +45,18 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: the exchange's month ends on Shanghai's clock): the
+  Shanghai exchange series stored August only at their 23:23Z fetch on
+  30 September, Beijing 07:23 on 1 October, with September's close on the
+  feed. The adapter took the running month from the UTC date, so for the
+  eight hours from 16:00 UTC on a month's last day a finished month was
+  still "running" and left out. `monthEnds` and `monthTurnover` now read
+  the running month in Shanghai time (UTC+8, no daylight saving).
+  Verified: typecheck clean, 529 tests (one new, at the 30 September fetch
+  time and at 15:00Z the same day). Also seen: one local `bun test` run
+  stalled for twelve minutes with little CPU and was stopped before its
+  unconditional commit chain could push; the reruns finish in about 40
+  seconds. Rounds now gate the commit on the test output explicitly.
 - 2026-10-01 (round: "behind" on the first of the month): right after the
   previous deploy the report's headline read "4 series behind": the four
   Shanghai exchange series, due on the 1st (releaseDay 1), with September

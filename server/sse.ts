@@ -63,8 +63,18 @@ export function parseKline(body: unknown): KlineRow[] {
  * ended yet is the running month, not a month end, and is left out; the
  * exchange writes the last trading day so far as its date.
  */
+/**
+ * The running month on the exchange's calendar. Shanghai is UTC+8 all year, so its month ends at
+ * 16:00 UTC; reading the month in UTC kept a finished month out for those eight hours (the 23:23Z
+ * fetch on 30 September 2026, Beijing 07:23 on 1 October, stored August only).
+ */
+function runningMonth(now: Date): string {
+  const shanghai = new Date(now.getTime() + 8 * 3_600_000);
+  return `${shanghai.getUTCFullYear()}-${String(shanghai.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export function monthEnds(rows: KlineRow[], now = new Date()): SeriesPoint[] {
-  const running = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const running = runningMonth(now);
   return rows
     .map((row) => ({ date: row.date.slice(0, 7), value: row.close }))
     .filter((point) => point.date < running)
@@ -73,7 +83,7 @@ export function monthEnds(rows: KlineRow[], now = new Date()): SeriesPoint[] {
 
 /** Monthly turnover in 100 million yuan from the exchange's yuan figure, same month rule. */
 export function monthTurnover(rows: KlineRow[], now = new Date()): SeriesPoint[] {
-  const running = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const running = runningMonth(now);
   return rows
     .map((row) => ({ date: row.date.slice(0, 7), value: Math.round(row.turnover / 1e8 * 10) / 10 }))
     .filter((point) => point.date < running)
