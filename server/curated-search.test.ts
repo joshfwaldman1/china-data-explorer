@@ -104,3 +104,18 @@ test("a word that only names a publisher does not lead, and words of direction a
   expect(real("are prices rising")[0]).toBe("cpi");
   expect(SEARCH_STOP_WORDS.has("rising")).toBe(true);
 });
+
+test("the phrases researchers use for fiscal, land and commodity trade reach the curated series", async () => {
+  const { catalogList } = await import("./data.ts");
+  const real = (query: string) => {
+    const allTerms = normalizeQuery(query).split(/\s+/).filter(Boolean);
+    const meaningful = allTerms.filter((term) => !SEARCH_STOP_WORDS.has(term));
+    return matchCurated(catalogList(), allTerms, meaningful.length > 0 ? meaningful : allTerms).map((entry) => entry.key);
+  };
+  expect(real("land sales")[0]).toBe("land_sale_revenue");
+  expect(real("fiscal deficit")).toContain("fiscal_revenue");
+  expect(real("fiscal deficit")).toContain("fiscal_expenditure");
+  expect(real("chip imports")[0]).toBe("major_imports");
+  expect(real("rare earth exports")[0]).toBe("major_exports");
+  expect(real("trade surplus")[0]).toBe("trade");
+});

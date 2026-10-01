@@ -12,7 +12,7 @@
 import index from "../client/index.html";
 import { timingSafeEqual } from "node:crypto";
 import { regionCoverage } from "./regions";
-import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, customsPartnerInQuery, houseCityInQuery, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
+import { CATALOG, HERO_KEYS, catalogList, fetchLiveRegion, getSeries, seriesGeography, seriesRegions, matchCurated, customsPartnerInQuery, houseCityInQuery, CURATED_SYNONYMS, type CatalogEntry, type Series, type SeriesResult, seriesRegion, configuredLabels } from "./data";
 
 /** A stored result with only the labels the key is configured to serve (a dropped label stays in the append-only store). */
 
@@ -525,7 +525,10 @@ const routes = {
       const nbsResults = nbs.results.slice(0, remainingLimit);
       // A headline series titled exactly as asked keeps the lead: "electricity consumption" is the
       // national monthly series, not the bureau's annual table with the same words.
-      const curatedExact = featuredResults.some((item) => item.nameEn.toLocaleLowerCase() === queryText.trim().toLocaleLowerCase());
+      // A synonym counts too: "crude oil imports" is a name of Customs' monthly commodity table, and
+      // an annual NBS balance sheet whose gloss reads the same led above it.
+      const askedLower = queryText.trim().toLocaleLowerCase();
+      const curatedExact = featuredResults.some((item) => item.nameEn.toLocaleLowerCase() === askedLower || (CURATED_SYNONYMS[item.key] ?? []).some((name) => name.toLocaleLowerCase() === askedLower));
       const exactIndex = curatedExact ? -1 : exactTitleIndex(nbsResults, queryText, Boolean(nbs.place));
       const exact = exactIndex >= 0 ? nbsResults.splice(exactIndex, 1) : [];
       return jsonFor(req, {

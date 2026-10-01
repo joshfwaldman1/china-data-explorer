@@ -45,6 +45,21 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: 25 more researcher queries): "land sales" and
+  "fiscal deficit" found nothing; "trade surplus" led with export growth;
+  "chip imports" led with polyester chips; "rare earth exports" with an
+  annual chapter table; "crude oil imports" with an annual NBS balance
+  sheet although it is a synonym of Customs' monthly commodity table,
+  because the exact-title promotion only gave way to a curated title, not
+  a synonym. Added the phrases (land sales, fiscal and budget deficit,
+  trade surplus and deficit, chip and semiconductor imports, rare earth
+  exports) and the promotion now gives way to a curated synonym too. Left
+  out on purpose: "electric car exports", since Customs' monthly table has
+  motor vehicles only. Side effect noted: "birth rate" now leads with the
+  bureau's Birth, Death and Natural Growth Rates (which names it) rather
+  than its Birth Rate table; both are the bureau's own figure, and the
+  World Bank fertility rate still does not lead. Verified: typecheck
+  clean, 530 tests (one new); CI and the deploy watched after the push.
 - 2026-10-01 (round: the first day of a month on Home): nothing to fix.
   None of the 71 Home payload series carries an October point on 1
   October (Golden Week; no CFETS fixing or exchange session yet), so no

@@ -62,6 +62,9 @@ export interface SeriesResult {
  * reach the English-titled series too.
  */
 export const CURATED_SYNONYMS: Record<string, string[]> = {
+  land_sale_revenue: ["land sales", "land sale", "land revenue", "land sale revenue", "土地出让收入", "土地出让"],
+  fiscal_revenue: ["fiscal revenue", "budget revenue", "fiscal deficit", "budget deficit", "财政收入"],
+  fiscal_expenditure: ["fiscal expenditure", "fiscal spending", "government spending", "fiscal deficit", "budget deficit", "财政支出"],
   tsf_flow: ["total social financing", "aggregate financing", "tsf", "社会融资规模", "社融"],
   tsf_stock_growth: ["social financing stock", "tsf stock", "社会融资规模存量", "社融存量"],
   fai: ["fixed asset investment", "fixed-asset investment", "investment", "固定资产投资"],
@@ -69,8 +72,8 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   property_sales: ["property sales", "home sales", "floor space sold", "商品房销售面积", "商品房销售"],
   cgb_yields: ["bond yields", "government bond yield", "10-year yield", "10y", "treasury yield", "yield curve", "cgb", "国债收益率", "十年期国债"],
   trade_partners: ["trade by country", "exports by country", "imports by country", "trade partners", "bilateral trade", "分国别", "国别贸易"],
-  major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品", "car exports", "vehicle exports", "auto exports", "ship exports", "phone exports", "mobile phone exports", "chip exports", "integrated circuit exports", "hi-tech exports"],
-  major_imports: ["imports by commodity", "major imports", "import commodities", "主要进口商品", "crude oil imports", "oil imports", "soybean imports", "iron ore imports", "coal imports", "natural gas imports", "gas imports", "energy imports", "copper imports"],
+  major_exports: ["exports by commodity", "major exports", "export commodities", "主要出口商品", "car exports", "vehicle exports", "auto exports", "ship exports", "phone exports", "mobile phone exports", "chip exports", "integrated circuit exports", "hi-tech exports", "rare earth exports", "rare earths exports"],
+  major_imports: ["imports by commodity", "major imports", "import commodities", "主要进口商品", "crude oil imports", "oil imports", "soybean imports", "iron ore imports", "coal imports", "natural gas imports", "gas imports", "energy imports", "copper imports", "chip imports", "semiconductor imports", "integrated circuit imports"],
   consumer_confidence: ["consumer confidence", "sentiment", "消费者信心指数", "消费者信心"],
   enterprise_boom: ["business confidence", "enterprise boom", "企业景气指数", "景气"],
   tax_revenue: ["tax revenue", "taxes", "fiscal revenue", "税收收入", "税收"],
@@ -112,7 +115,7 @@ export const CURATED_SYNONYMS: Record<string, string[]> = {
   retail_sales: ["retail sales", "consumption", "consumer spending", "shopping", "社会消费品零售", "社零", "消费"],
   money_supply: ["money supply", "m1", "m2", "liquidity", "broad money", "货币供应量", "广义货币"],
   new_loans: ["new loans", "credit", "bank lending", "yuan loans", "新增贷款", "人民币贷款", "信贷"],
-  trade: ["trade", "exports", "imports", "trade balance", "customs", "进出口", "出口", "进口", "贸易"],
+  trade: ["trade", "exports", "imports", "trade balance", "trade surplus", "trade deficit", "customs", "进出口", "出口", "进口", "贸易"],
   forex_reserves: ["forex reserves", "foreign exchange reserves", "fx reserves", "外汇储备"],
   gold_reserves: ["gold reserves", "gold", "pboc gold", "黄金储备", "黄金"],
   real_estate: ["real estate", "property", "housing", "real estate climate", "房地产", "国房景气指数", "楼市"],
