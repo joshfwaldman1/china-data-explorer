@@ -45,6 +45,15 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: other UTC calendar logic, after the exchange fix):
+  nothing to fix. September's exchange closes arrived after the fix
+  (Composite 3,842.19, matching the feed). Every other UTC month or day
+  computation in the adapters was read: CFETS keeps the running month's
+  latest fixing rather than dropping it; the release plan works from
+  release instants at 09:30 or 10:00 Beijing, the same calendar day in
+  UTC; the due rules compare whole days with a release day (and the
+  report now has a day's grace); FRED is American. The exchange adapter
+  was the only one that dropped a running month by China's calendar.
 - 2026-10-01 (round: the exchange's month ends on Shanghai's clock): the
   Shanghai exchange series stored August only at their 23:23Z fetch on
   30 September, Beijing 07:23 on 1 October, with September's close on the
