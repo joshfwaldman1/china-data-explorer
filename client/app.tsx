@@ -1312,7 +1312,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
 // ── Data health ───────────────────────────────────────────────────────────────
 
 interface Finding { name: string; kind: string; note?: string; latest?: { period: string; left: number; right: number }; disagreements: { period: string; left: number; right: number }[] }
-interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string; recoveredAt?: string }
+interface FailingSource { key: string; title: string; agency: string; failures: number; since: string; latest: string; message: string; recoveredAt?: string; lastSuccess?: string }
 interface BehindSeries { key: string; title: string; agency: string; frequency: string; lastPeriod: string | null; expected: string; blocked?: string; ended?: string }
 interface CrawlFailures { series: number; attempts: number; reasons: { reason: string; series: number }[] }
 interface SinglePointSeries { key: string; title: string; region: string; regionName?: string; label: string; period: string | null; reviewed?: string }
@@ -1328,7 +1328,7 @@ interface Health {
   headline: string; ranAt: string;
   pressReleases?: PressReleaseHealth;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
-  sources: { failing: FailingSource[]; recovered?: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
+  sources: { failing: FailingSource[]; intermittent?: FailingSource[]; recovered?: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
   // Optional so a page served before the server knew the check still renders.
   singlePoint?: SinglePointSeries[];
@@ -1399,6 +1399,22 @@ function HealthPage() {
                     <div className="health-message">{source.message}</div>
                   </li>
                 ))}</ul>}
+            {data.sources.intermittent && data.sources.intermittent.length > 0 && (
+              <>
+                <h3>Intermittent</h3>
+                <p className="quiet">
+                  The publisher refused the latest try but answered another within the day, and the series holds its
+                  latest published period. Kept out of the count above: the data is current.
+                </p>
+                <ul className="health-list">{data.sources.intermittent.map((source) => (
+                  <li key={source.key}>
+                    <b><a href={seriesHash([source.key])}>{source.title}</a></b> <span className="quiet">{source.agency}</span>
+                    <div className="quiet">Failed {source.failures} time{source.failures === 1 ? "" : "s"}, most recently {day(source.latest)}; last read cleanly {day(source.lastSuccess ?? null)}.</div>
+                    <div className="health-message">{source.message}</div>
+                  </li>
+                ))}</ul>
+              </>
+            )}
             {data.sources.recovered && data.sources.recovered.length > 0 && (
               <>
                 <h3>Recovered</h3>

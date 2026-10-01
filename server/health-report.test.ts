@@ -302,3 +302,30 @@ test("a series is behind by its own release day, not by a day picked for everyth
   const fiscal = catalogList().find((entry) => entry.key === "fiscal_revenue");
   expect(fiscal?.releaseDay).toBe(25);
 });
+
+test("a publisher that refuses some tries but was read within the day, with current data, is intermittent, not failing", () => {
+  // The finance ministry answers some tries with HTTP 502 and others cleanly: on 30 September 2026
+  // its series held August, the latest published, yet the report listed all seven as not reading.
+  const month = (back: number) => { const at = new Date(); at.setUTCDate(1); at.setUTCMonth(at.getUTCMonth() - back); return at.toISOString().slice(0, 7); };
+  const store = (key: string, period: string) => writeSeries({
+    key, title: key, agency: "Ministry of Finance", unit: "Hundred million yuan (亿元)", frequency: "Monthly", sourceUrl: "",
+    series: [{ label: "Total", points: [{ date: period, value: 1 }] }],
+  } as never, "", daysAgo(0.1));
+  const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
+  // Current, read two hours ago, refused an hour ago: intermittent.
+  store("land_sale_revenue", month(1));
+  const readAt = hoursAgo(2);
+  logFetch({ key: "land_sale_revenue", startedAt: readAt, finishedAt: readAt, status: "ok", points: 1, changed: 0, message: "" });
+  logFetch({ key: "land_sale_revenue", startedAt: hoursAgo(1), finishedAt: hoursAgo(1), status: "error", points: 0, changed: 0, message: "MOF -> HTTP 502" });
+  // The same pattern on a series months behind its publisher stays failing: the refusals are costing data.
+  store("fiscal_expenditure", month(6));
+  logFetch({ key: "fiscal_expenditure", startedAt: hoursAgo(2), finishedAt: hoursAgo(2), status: "ok", points: 1, changed: 0, message: "" });
+  logFetch({ key: "fiscal_expenditure", startedAt: hoursAgo(1), finishedAt: hoursAgo(1), status: "error", points: 0, changed: 0, message: "MOF -> HTTP 502" });
+
+  const report = healthReport([agreeing]);
+  const land = report.sources.intermittent.find((source) => source.key === "land_sale_revenue");
+  expect(land?.lastSuccess).toBe(readAt);
+  expect(report.sources.failing.some((source) => source.key === "land_sale_revenue")).toBe(false);
+  expect(report.sources.failing.some((source) => source.key === "fiscal_expenditure")).toBe(true);
+  expect(report.sources.intermittent.some((source) => source.key === "fiscal_expenditure")).toBe(false);
+});

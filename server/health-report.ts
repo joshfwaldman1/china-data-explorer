@@ -60,6 +60,8 @@ export interface FailingSource {
   message: string;
   /** Set when a successful fetch has happened since the last failure: the source has recovered. */
   recoveredAt?: string;
+  /** The newest successful fetch, set for an intermittent source: its last try failed, but it read within the day. */
+  lastSuccess?: string;
 }
 
 /** A curated series whose newest figure is older than it should be. */
@@ -127,7 +129,7 @@ export function reviewedReason(line: { key: string; region: string; label: strin
 export interface HealthReport {
   ranAt: string;
   checks: { total: number; ok: number; findings: Finding[]; missing: string[] };
-  sources: { failing: FailingSource[]; recovered: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
+  sources: { failing: FailingSource[]; intermittent: FailingSource[]; recovered: FailingSource[]; crawl: CrawlFailures; consideredSince: string };
   behind: { publisher: BehindSeries[]; blocked: BehindSeries[]; ended: BehindSeries[] };
   /** Curated lines with one point, from the per-line count the write path keeps. */
   singlePoint: SinglePointSeries[];
@@ -278,6 +280,15 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
       return { ...line, title: CATALOG[line.key]?.title ?? line.key, regionName: place ? (place.en ?? place.text) : line.region, ...(reviewed ? { reviewed } : {}) };
     });
 
+  // Intermittent: the last try failed, but a try within the day succeeded and the series is not
+  // behind its publisher. Anything behind, or silent for a day, stays failing.
+  const behindKeys = new Set(publisher.map((row) => row.key));
+  const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+  const isIntermittent = (source: FailingSource) => {
+    const ok = successes.get(source.key);
+    return ok !== undefined && ok >= dayAgo && !behindKeys.has(source.key);
+  };
+
   const byAge = (left: BehindSeries, right: BehindSeries) => (left.lastPeriod ?? "").localeCompare(right.lastPeriod ?? "");
 
   return {
@@ -292,7 +303,11 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
       // A failure is news only while it is the latest thing that happened to
       // the source. One whose newest failure is older than its newest success
       // has recovered, and is listed apart so it neither alarms nor is lost.
-      failing: curatedFailures.filter((source) => !source.recoveredAt),
+      failing: curatedFailures.filter((source) => !source.recoveredAt && !isIntermittent(source)),
+      // The finance ministry refuses some tries and answers others: its series failed on the
+      // latest try while holding the latest published month, read hours before. That is a
+      // flaky publisher, not a source the site cannot read, and the count above should say so.
+      intermittent: curatedFailures.filter((source) => !source.recoveredAt && isIntermittent(source)).map((source) => ({ ...source, lastSuccess: successes.get(source.key) })),
       recovered: curatedFailures.filter((source) => source.recoveredAt),
       crawl: crawlFailures(failures.filter((row) => isCrawlKey(row.key))),
       // The window the failures were counted over, floored at the oldest row

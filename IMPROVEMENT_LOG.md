@@ -45,6 +45,18 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-09-30 (round: intermittent sources on Data Health): the report put
+  all seven finance ministry series under "sources the site could not
+  read" and the headline said "7 sources not reading", while each held
+  August, the latest published, read cleanly hours before. A failure was
+  failing unless a success came after it. Now a source whose last try
+  failed but which read cleanly within the day, and is not behind its
+  publisher, is listed as intermittent, apart from the count; anything
+  behind, or silent for a day, stays failing. Data Health shows the new
+  list with the last clean read. Verified: typecheck clean, 527 tests (one
+  new, dated relative to today: current and read two hours ago is
+  intermittent, six months behind with the same pattern stays failing);
+  the live report is read after deploy.
 - 2026-09-30 (round: the nightly cross-checks, and a correction): all 55
   cross-check pairs agree and the press-release reader shows no
   disagreement. The health report's seven failing sources are all the
