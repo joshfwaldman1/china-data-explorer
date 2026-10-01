@@ -329,3 +329,11 @@ test("a publisher that refuses some tries but was read within the day, with curr
   expect(report.sources.failing.some((source) => source.key === "fiscal_expenditure")).toBe(true);
   expect(report.sources.intermittent.some((source) => source.key === "fiscal_expenditure")).toBe(false);
 });
+
+test("a month-end series is not behind on the first day of the next month, and is on the second", async () => {
+  const { overdue } = await import("./health-report.ts");
+  // The exchange's September close exists from 30 September; the ingest reaches it some hours into the 1st.
+  expect(overdue("Monthly", "2026-08", 1, new Date("2026-10-01T06:00:00Z")).late).toBe(false);
+  expect(overdue("Monthly", "2026-08", 1, new Date("2026-10-02T06:00:00Z")).late).toBe(true);
+  expect(overdue("Monthly", "2026-09", 1, new Date("2026-10-02T06:00:00Z")).late).toBe(false);
+});

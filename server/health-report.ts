@@ -157,8 +157,17 @@ export interface HealthReport {
  */
 const WHEN_UNSTATED = 31;
 
-function overdue(frequency: string, lastPeriod: string | null, releaseDay: number | undefined): { expected: string; late: boolean } {
-  const expected = expectedPeriod(frequency, new Date(), releaseDay ?? WHEN_UNSTATED);
+/**
+ * A day's grace past the release day before a series counts as behind. The fetch side keeps the
+ * release day itself, so a new period is still asked for the moment it is due; the report waits a
+ * day because the scheduled ingest takes hours to reach every key. Without it, the four Shanghai
+ * exchange series read "behind" from midnight on the 1st of every month (1 October 2026) while the
+ * exchange already had the month's close and the ingest had not yet reached them.
+ */
+export const BEHIND_GRACE_MS = 86_400_000;
+
+export function overdue(frequency: string, lastPeriod: string | null, releaseDay: number | undefined, now = new Date()): { expected: string; late: boolean } {
+  const expected = expectedPeriod(frequency, new Date(now.getTime() - BEHIND_GRACE_MS), releaseDay ?? WHEN_UNSTATED);
   if (!lastPeriod) return { expected, late: true };
   return { expected, late: comparablePeriod(lastPeriod) < comparablePeriod(expected) };
 }

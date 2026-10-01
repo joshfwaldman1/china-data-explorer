@@ -45,6 +45,18 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: "behind" on the first of the month): right after the
+  previous deploy the report's headline read "4 series behind": the four
+  Shanghai exchange series, due on the 1st (releaseDay 1), with September
+  not yet stored. The exchange's feed had the 30 September close (Composite
+  3,842.19) and nothing had failed; the scheduled ingest, started at
+  00:16Z, was still running an hour later and reaches those keys late in
+  its order. The report now gives a day's grace past the release day
+  before calling a series behind (`overdue` takes `now` and subtracts
+  BEHIND_GRACE_MS); the fetch side keeps the release day itself, so a new
+  period is still asked for the moment it is due. Verified: typecheck
+  clean, 528 tests (one new: behind on the 2nd, not on the 1st); CI and
+  the deploy watched after the push.
 - 2026-09-30 (round: intermittent sources on Data Health): the report put
   all seven finance ministry series under "sources the site could not
   read" and the headline said "7 sources not reading", while each held
