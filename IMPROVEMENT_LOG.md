@@ -45,6 +45,13 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: 25 Chinese queries): nothing to fix. Twenty-four
+  led with the right series (the curated headline where one exists; for
+  工业企业利润, 粗钢产量 and 新能源汽车产量 the bureau's own monthly table,
+  which is a fair answer). The first, 国内生产总值, returned a body that was
+  not JSON once, about half an hour after a deploy; three retries
+  answered 200 in under 0.1 s leading with GDP, so it is recorded as a
+  transient, not chased.
 - 2026-10-01 (round: 25 more researcher queries): "land sales" and
   "fiscal deficit" found nothing; "trade surplus" led with export growth;
   "chip imports" led with polyester chips; "rare earth exports" with an
