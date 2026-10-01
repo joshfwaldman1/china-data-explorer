@@ -45,6 +45,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (round: September PMI sub-indices): nothing to fix, one
+  fact worth keeping. Twenty-seven hours after the 30 September PMI
+  release, NBS's own portal still has September blank in the
+  manufacturing PMI table (esData), so the sub-index series stay at
+  August. The release refresh is doing its job: 37 attempts, the
+  sub-index keys (mapped to the release on 30 September) re-checked about
+  hourly, last at 04:00Z, and the headline PMI current from Eastmoney.
+  The portal's lag behind the press release is the gap the shadow-mode
+  press-release reader would close; that is larger than a round and
+  already in the plan.
 - 2026-10-01 (round: other UTC calendar logic, after the exchange fix):
   nothing to fix. September's exchange closes arrived after the fix
   (Composite 3,842.19, matching the feed). Every other UTC month or day
