@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix } from "./lib";
+import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix, longGapsOf, powersOfTen } from "./lib";
 import { isYearEarlierIndex, measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -550,6 +550,8 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string; 
   const first = props.payload[0];
   // Every item is a column of the one row under the cursor, so the period is the row's.
   const period = str(obj(first, "payload"), "p");
+  // The empty row that breaks a line across a long hole has no period and nothing to show.
+  if (!period) return null;
   return (
     <div className="chart-tip" role="presentation">
       <b>{periodPretty(period)}</b>
@@ -594,6 +596,8 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   const hasZero = isRate(props.unit) && !props.logScale;
   const shownValues = shown.flatMap((track) => track.points.map((point) => point.v));
   const yScale = niceTicks(Math.min(...shownValues), Math.max(...shownValues), 5);
+  // On a log axis the ticks are powers of ten, so each step up is ten times the one below.
+  const logTicks = props.logScale ? powersOfTen(Math.min(...shownValues), Math.max(...shownValues)) : [];
   // A count's axis reads in its natural unit, one scale word for the whole axis, named above
   // it: "30" under "Trillions of yuan" where the stored 300,000 亿元 printed as "300K".
   const valueAxis = valueAxisFor(shown, props.unit, props.logScale);
@@ -614,6 +618,12 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
   // and one tooltip naming one of them. A line without a value at a row is joined
   // across it, as its own array drew it before.
   const rows = [...new Map(shown.flatMap((track) => track.points.map((point) => [point.t, { t: point.t, p: point.p }] as const))).values()].sort((a, b) => a.t - b.t);
+  // A monthly or quarterly line with more than a year missing is broken there, not joined by a
+  // straight line across years nobody published (industrial profits have no December for 2007
+  // to 2010, so no twelve-month sum for 2008 to 2011). An empty row inside the hole makes the break.
+  const longGaps = new Map(shown.filter((track) => track.frequency !== "Annual").map((track) => [track.id, longGapsOf(track.points.map((point) => point.t))]));
+  for (const holes of longGaps.values()) for (const hole of holes) rows.push({ t: hole, p: "" });
+  rows.sort((a, b) => a.t - b.t);
   const byTime = new Map(rows.map((row) => [row.t, row as Record<string, number | string>]));
   for (const track of shown) for (const point of track.points) { const row = byTime.get(point.t); if (row) row[track.id] = point.v; }
   return (
@@ -623,7 +633,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
         <LineChart data={rows} margin={props.compact ? { top: topMargin, right: 12, bottom: 0, left: 0 } : { top: topMargin, right: 24, bottom: 4, left: 4 }} title={props.title} desc={description}>
           <CartesianGrid stroke="var(--line)" vertical={false} />
           <XAxis type="number" dataKey="t" domain={[min, max]} scale="time" ticks={ticks} tickFormatter={tick} minTickGap={props.compact ? 40 : 48} tickMargin={8} tick={{ fontSize: 11, fill: "var(--muted)" }} stroke="var(--line)" tickLine={false} />
-          <YAxis width={props.compact ? 44 : 64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? ["auto", "auto"] : [yScale.lo, yScale.hi]} ticks={props.logScale ? undefined : yScale.ticks} tickFormatter={valueAxis ? valueAxis.format : fmtTick}tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
+          <YAxis width={props.compact ? 44 : 64} scale={props.logScale ? "log" : "auto"} domain={props.logScale ? (logTicks.length > 1 ? [logTicks[0] ?? "auto", logTicks[logTicks.length - 1] ?? "auto"] : ["auto", "auto"]) : [yScale.lo, yScale.hi]} ticks={props.logScale ? (logTicks.length > 1 ? logTicks : undefined) : yScale.ticks} tickFormatter={valueAxis ? valueAxis.format : fmtTick}tick={{ fontSize: 11, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
           {hasZero && <ReferenceLine y={0} stroke="var(--line-strong)" />}
           {indexBase !== null && !props.logScale && <ReferenceLine y={indexBase} stroke="var(--line-strong)" />}
           {lunar.map((band) => <ReferenceArea key={`lny-${band.year}`} x1={Math.max(band.x1, min)} x2={Math.min(band.x2, max)} fill="var(--ink)" fillOpacity={0.035} stroke="none" />)}
@@ -632,7 +642,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
           ))}
           <Tooltip content={<ChartTip unit={props.unit} units={trackUnits} />} cursor={{ stroke: "var(--line-strong)" }} isAnimationActive={false} />
           {shown.map((track) => (
-            <Line key={track.id} dataKey={track.id} name={track.name} type="linear" stroke={track.color} strokeWidth={props.compact ? 1.5 : 2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls />
+            <Line key={track.id} dataKey={track.id} name={track.name} type="linear" stroke={track.color} strokeWidth={props.compact ? 1.5 : 2} strokeDasharray={track.dash || undefined} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--panel)" }} isAnimationActive={false} connectNulls={(longGaps.get(track.id) ?? []).length === 0} />
           ))}
         </LineChart>
       </ResponsiveContainer>
@@ -1142,7 +1152,7 @@ function PageStrip(props: { route: Route }) {
   );
 }
 
-interface ThemeChartData { title?: string; key: string; region?: string; labels?: string[]; years?: number; note?: string; result: SeriesResult | null; place?: Region }
+interface ThemeChartData { title?: string; key: string; region?: string; labels?: string[]; years?: number; note?: string; logScale?: boolean; compare?: string[]; result: SeriesResult | null; place?: Region }
 interface ThemeData { name: string; title: string; lede: string; sections: { title: string; lede?: string; charts: ThemeChartData[] }[] }
 
 /**
@@ -1184,15 +1194,18 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                   const built = result ? (() => { const made = buildTracks([result], new Map()); return { ...made, tracks: withoutSharedSuffix(made.tracks) }; })() : null;
                   const hasPoints = built ? built.tracks.some((track) => track.points.length > 1) : false;
                   const title = chart.title ?? result?.title ?? chart.key;
+                  // A log axis only where every value is above zero, as the series page allows it.
+                  const logScale = chart.logScale === true && built !== null && built.tracks.every((track) => track.points.every((point) => point.v > 0));
                   // The axis the card's chart draws, asked here for the footnote and legend.
-                  const cardAxis = built && hasPoints && result ? valueAxisFor(visibleTracks(built.tracks, chart.years ?? 10), result.unit, false) : null;
+                  const cardAxis = built && hasPoints && result ? valueAxisFor(visibleTracks(built.tracks, chart.years ?? 10), result.unit, logScale) : null;
+                  const href = chart.compare ? seriesHash(chart.compare) : chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key]);
                   return (
                     <article key={`${chart.key}|${chart.region ?? ""}|${title}`} className="theme-card">
                       {/* The heading is the link to the series; nothing else on the card says "open". */}
-                      <h3 className="theme-card-title"><a href={chart.region ? seriesHash([chart.key], { region: chart.region }) : seriesHash([chart.key])}>{title}</a></h3>
+                      <h3 className="theme-card-title"><a href={href}>{title}</a></h3>
                       {hasPoints && built && result
                         ? <>
-                            <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={false} lunar={false} unit={result.unit} title={title} height={250} compact />
+                            <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={logScale} lunar={false} unit={result.unit} title={title} height={250} compact />
                             {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{cardAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
                           </>
                         : <div className="state small"><b>Nothing stored yet</b></div>}

@@ -594,3 +594,28 @@ export function yearOnYearText(latest: SeriesPoint | undefined, yearAgo: SeriesP
   if (/^0(\.0+)?$/.test(text)) return "0.0% y/y";
   return `${change > 0 ? "+" : "-"}${text}% y/y`;
 }
+
+/** More than a year between two readings: a hole in the series, not a step of it. */
+const LONG_GAP_MS = 400 * 86_400_000;
+
+/**
+ * The midpoint of every hole of more than a year between consecutive
+ * readings, given as times in milliseconds, ascending. The chart puts an
+ * empty row there so the line breaks instead of drawing a straight line
+ * across the years with no figure.
+ */
+export function longGapsOf(times: number[]): number[] {
+  const holes: number[] = [];
+  for (let index = 1; index < times.length; index += 1) {
+    const before = times[index - 1], after = times[index];
+    if (before !== undefined && after !== undefined && after - before > LONG_GAP_MS) holes.push(Math.round((before + after) / 2));
+  }
+  return holes;
+}
+
+/** Every power of ten from the one at or below `lo` to the one at or above `hi`; empty unless both are above zero. */
+export function powersOfTen(lo: number, hi: number): number[] {
+  if (!(lo > 0) || !(hi > 0) || !Number.isFinite(lo) || !Number.isFinite(hi)) return [];
+  const from = Math.floor(Math.log10(lo)), to = Math.ceil(Math.log10(hi));
+  return Array.from({ length: to - from + 1 }, (_, index) => Number((10 ** (from + index)).toPrecision(1)));
+}

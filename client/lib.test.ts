@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, fmtDate, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track } from "./lib.ts";
+import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, fmtDate, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track, longGapsOf, powersOfTen } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -401,4 +401,17 @@ test("a date-only string is the calendar day it names, wherever the reader is", 
   }
   expect(fmtDate("")).toBe("");
   expect(fmtDate("not a date")).toBe("");
+});
+
+test("a line breaks only across a hole of more than a year", () => {
+  const month = (year: number, mon: number) => Date.UTC(year, mon - 1, 1);
+  // A missing January is a step of the series; four missing years are a hole.
+  expect(longGapsOf([month(2024, 12), month(2025, 2), month(2025, 3)])).toEqual([]);
+  expect(longGapsOf([month(2007, 11), month(2012, 2), month(2012, 3)])).toEqual([Math.round((month(2007, 11) + month(2012, 2)) / 2)]);
+});
+
+test("log axis ticks are the powers of ten around the values, and none for a value at or below zero", () => {
+  expect(powersOfTen(33.5, 75734)).toEqual([10, 100, 1000, 10000, 100000]);
+  expect(powersOfTen(0.004, 0.9)).toEqual([0.001, 0.01, 0.1, 1]);
+  expect(powersOfTen(0, 10)).toEqual([]);
 });

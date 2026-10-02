@@ -15,7 +15,7 @@
  * not have fails the build rather than drawing an empty panel.
  */
 
-import { CATALOG, configuredLabels, seriesRegion, seriesRegions, type NbsRegion, type SeriesResult } from "./data";
+import { CATALOG, configuredLabels, seriesRegion, seriesRegions, type NbsRegion, type SeriesPoint, type SeriesResult } from "./data";
 import { readSeries } from "./db";
 import { getNbsCatalogEntry, getNbsCatalogSeries } from "./nbs-catalog";
 
@@ -37,7 +37,28 @@ export interface ThemeChart {
    * both from the bureau's annual tables; the card links to `key`.
    */
   derive?: "share_65" | "trade_3m";
+  /**
+   * Lines read from several bureau catalog series and drawn on one chart,
+   * each under its own label; `key` stays the series the heading opens. The
+   * steps below apply in the order they are listed here.
+   */
+  lines?: ThemeLine[];
+  /** Turn each line's year-to-date running total into a trailing twelve-month sum. */
+  ttm?: boolean;
+  /** Divide each line by this catalog series at the same date (also summed over twelve months under `ttm`) and show a percentage. */
+  per?: string;
+  /** Show each line as a percentage of the lines' sum at each date every line has. */
+  shareOfLines?: boolean;
+  /** Index each line to its own value at this period, which becomes 100. */
+  indexTo?: string;
+  /** The unit of the computed lines; the first line's published unit when omitted. */
+  unit?: string;
+  /** Draw the value axis on a log scale, for a series that grew by orders of magnitude. */
+  logScale?: boolean;
 }
+
+/** One line of a chart drawn from several series: a national bureau catalog series and the label it is drawn under. */
+export interface ThemeLine { key: string; label: string }
 
 export interface ThemeSection { title: string; lede?: string; charts: ThemeChart[] }
 /** A theme's lede may be empty: a page that needs no introduction gets none. */
@@ -427,28 +448,46 @@ const INVESTMENT: Theme = {
 /**
  * Bureau catalog series the tech and innovation page draws. All are national
  * tables in datasets 1 to 3, none of them sliced into a family, so each id is
- * the whole series. The annual science and technology tables carry both the
- * domestic and foreign applicant counts; the page keeps invention, utility
- * model and design patents on separate charts because the three are examined
- * differently and are never summed here.
+ * the whole series. Patents granted carry domestic and foreign applicants
+ * together. The IPC sections count invention and utility model applications.
  */
 const TECH_SERIES = {
-  inventionApplications: "nbs_0657dcd8475e427eb3118d1e75ab6003",
   inventionGrants: "nbs_50f8cbced82e4c6e948ff3843abde5a0",
-  inventionApplicationsDomestic: "nbs_98cb0a74cf4d4413874450b17f5a7447",
+  utilityModelGrants: "nbs_0c2340c1e2bf41038114e776e7a56f9c",
+  designGrants: "nbs_0395f8b16e7845a8a7619e5f407a44a1",
   inventionApplicationsForeign: "nbs_2bb2441b1123461a905f1ecfd5fc1d5d",
-  utilityModelApplications: "nbs_7356847f658c42c48a7bf331dcb83184",
-  designApplications: "nbs_37017d3c4dd54628ac79d8d5c9cb0f08",
+  ipcA: "nbs_aa7984c08c4645a2a608263520fd3d4e",
+  ipcB: "nbs_cfcb93e8defd4df1954b917862819788",
+  ipcC: "nbs_a1df7c66e8e34a8cb5c20d12a3cdbc2f",
+  ipcD: "nbs_b7dc710131d246b1bb3ba42f0e6edd5f",
+  ipcE: "nbs_ff67118a7f414139961d6fe4c32abaad",
+  ipcF: "nbs_e6ce1bf83b1f481e8a08a043ea2d9ae0",
+  ipcG: "nbs_ad41aeeb78fd4d0a876d55eab3fda3cc",
+  ipcH: "nbs_7b1bf0fe72a64113ad138f930b840926",
+  gdpNominal: "nbs_7dc6a2ee6c614960b7059991e0cc4d96",
   rdSpending: "nbs_3a5061e303e546c9be5e1962fe13548d",
   rdBasicResearch: "nbs_ea75287271a5427f8e2fb3724354fa58",
   rdPersonnelFte: "nbs_bfadf37642ca44b0a45d2e26041bd040",
-  doctoralGraduates: "nbs_fb87c9bbe7c44203917e49678f838fbd",
-  postgraduateGraduates: "nbs_7f07420225924c389d51dd6db5e7cb56",
-  itValueAdded: "nbs_b46978955565481eb801c97029bbc779",
+  technologyMarket: "nbs_fe4358b6030c41bc8414b60354f947d5",
+  icOutputYtd: "nbs_4f1b8371309d4c25afff8ca3ebaebdfa",
+  solarOutputYtd: "nbs_3c643cafa6c8430f9e609521eae4b7d0",
+  nevOutputYtd: "nbs_bf1176ebc395416f895e6b2e67129452",
+  robotOutputYtd: "nbs_7da4bd448d754c4781cb1bdbec9c0124",
+  phoneOutputYtd: "nbs_20750676e0ed412aa812d25f7749557b",
+  industrialProfitsYtd: "nbs_5d98d24036dd4dbebf7f5c0a80753df6",
+  stateHoldingProfitsYtd: "nbs_250d21a150f04b45a01db275a4baed35",
+  privateProfitsYtd: "nbs_10eea0a51dd147dcb80c68820811d35b",
+  mobileDataTraffic: "nbs_9493d2b8150c4d66b807274d359d7c89",
+  softwareRevenueYtd: "nbs_98ac6018e336405298169ada03273113",
+  fiveGUsers: "nbs_d704a40c23344e2bbaf680e3c177c0fb",
   itValueAddedGrowth: "nbs_060c7617bdd846ae917d1b8738ff6a70",
   itInvestmentYtd: "nbs_36a00c88e1924fd38df593bb043bebb1",
-  fiveGUsers: "nbs_d704a40c23344e2bbaf680e3c177c0fb",
-  technologyMarket: "nbs_fe4358b6030c41bc8414b60354f947d5",
+  postgraduatesEnrolled: "nbs_31d5bcefd3434fc6820a9b5e76586dd6",
+  engineeringPostgraduatesEnrolled: "nbs_b07333207e2c40b5b9b362b1c4f0990d",
+  sciencePostgraduatesEnrolled: "nbs_f5cd8973fd6b40b9a6f3de9c90e7b8c1",
+  doctoralGraduates: "nbs_fb87c9bbe7c44203917e49678f838fbd",
+  hiTechExports: "nbs_d98e9ceff57d4486b3e5c4563f1a9365",
+  hiTechImports: "nbs_c264834b5fee40d485a044ed3de711a3",
 } as const;
 
 const TECH: Theme = {
@@ -456,60 +495,131 @@ const TECH: Theme = {
   lede: "",
   sections: [
     {
-      title: "Patents",
-      lede: "Invention patents are examined for novelty and inventiveness. Utility model and design patents get only a preliminary examination and are shown separately.",
-      charts: [
-        { title: "Invention patent applications, year", key: TECH_SERIES.inventionApplications, years: 30, note: "Applications received from domestic and foreign applicants. The 2024 and 2025 figures are rounded to the thousand." },
-        { title: "Invention patent grants, year", key: TECH_SERIES.inventionGrants, years: 30, note: "Patents granted to domestic and foreign applicants. The 2024 and 2025 figures are rounded to the thousand." },
-        { title: "Invention patent applications, domestic applicants, year", key: TECH_SERIES.inventionApplicationsDomestic, years: 30, note: "The 2024 and 2025 figures are rounded to the thousand." },
-        { title: "Invention patent applications, foreign applicants, year", key: TECH_SERIES.inventionApplicationsForeign, years: 30, note: "The 2024 and 2025 figures are rounded to the thousand." },
-        { title: "Utility model patent applications, year", key: TECH_SERIES.utilityModelApplications, years: 30, note: "Latest reading 2024." },
-        { title: "Design patent applications, year", key: TECH_SERIES.designApplications, years: 30, note: "Latest reading 2024." },
-      ],
-    },
-    {
       title: "Research and development",
       charts: [
+        { title: "R&D spending as a share of GDP, year", key: TECH_SERIES.rdSpending, lines: [{ key: TECH_SERIES.rdSpending, label: "R&D spending, share of GDP" }], per: TECH_SERIES.gdpNominal, unit: "Percent of GDP", years: 31, note: "Spending on research and experimental development divided by nominal GDP. Both are the bureau's figures at current prices." },
+        { title: "Technology market contract value, year, log scale", key: TECH_SERIES.technologyMarket, years: 39, logScale: true, note: "Contracts for technology development, transfer, consulting and services registered with the technology market. At current prices. On a log scale, equal steps are equal rates of growth." },
         { title: "R&D spending, total, year", key: TECH_SERIES.rdSpending, years: 30, note: "Spending on research and experimental development (研究与试验发展) by the units the bureau surveys. At current prices." },
         { title: "R&D spending, basic research, year", key: TECH_SERIES.rdBasicResearch, years: 28, note: "Research not aimed at a particular use. In 2025 it was 7% of all R&D spending. At current prices." },
         { title: "R&D personnel, full-time equivalent, year", key: TECH_SERIES.rdPersonnelFte, years: 30, note: "Someone who spends half their time on R&D counts as half." },
-        { title: "Technology market contract value, year", key: TECH_SERIES.technologyMarket, years: 30, note: "Contracts for technology development, transfer, consulting and services registered with the technology market. At current prices." },
-      ],
-    },
-    {
-      title: "Research workforce",
-      charts: [
-        { title: "Doctoral graduates, year", key: TECH_SERIES.doctoralGraduates, years: 20, note: "Latest reading 2024." },
-        { title: "Postgraduate graduates, doctoral and master's combined, year", key: TECH_SERIES.postgraduateGraduates, years: 30, note: "Master's graduates are about nine in ten." },
       ],
     },
     {
       title: "Tech output",
-      lede: "Monthly output from the bureau's table. January is never published on its own. A February point, where the table has one, is January and February combined. The Manufacturing page shows integrated circuit and new energy vehicle output as growth rates.",
       charts: [
-        { title: "Integrated circuit output, month", key: OUTPUT.ics, years: 10, note: "Chips of every kind." },
-        { title: "Industrial robot output, month", key: OUTPUT.robots, years: 10 },
-        { title: "New energy vehicle output, month", key: OUTPUT.nev, years: 3 },
-        { title: "Solar cell output, month", key: OUTPUT.solar, years: 10, note: "Measured by the generating capacity of the cells made." },
+        {
+          title: "Output of chips, solar cells, new energy vehicles, industrial robots and mobile phones, latest twelve months, index 2023 = 100",
+          key: TECH_SERIES.icOutputYtd,
+          lines: [
+            { key: TECH_SERIES.icOutputYtd, label: "Integrated circuits" },
+            { key: TECH_SERIES.solarOutputYtd, label: "Solar cells" },
+            { key: TECH_SERIES.nevOutputYtd, label: "New energy vehicles" },
+            { key: TECH_SERIES.robotOutputYtd, label: "Industrial robots" },
+            { key: TECH_SERIES.phoneOutputYtd, label: "Mobile phones" },
+          ],
+          ttm: true, indexTo: "2023-12", unit: "Index, 2023 = 100", years: 8,
+          note: "Output in the latest twelve months against output in 2023, worked out from the bureau's year-to-date totals. New energy vehicles enter the bureau's table in 2023, so that line starts in 2024. Solar cells are measured by generating capacity. Mobile phones include feature phones.",
+        },
+      ],
+    },
+    {
+      title: "Patents",
+      charts: [
+        {
+          title: "Patents granted by type: invention, utility model and design, year",
+          key: TECH_SERIES.inventionGrants,
+          lines: [
+            { key: TECH_SERIES.inventionGrants, label: "Invention" },
+            { key: TECH_SERIES.utilityModelGrants, label: "Utility model" },
+            { key: TECH_SERIES.designGrants, label: "Design" },
+          ],
+          years: 30,
+          note: "Granted to domestic and foreign applicants. Invention patents are examined for novelty and inventiveness. Utility model and design patents get only a preliminary examination. Utility model and design grants end in 2024. The 2024 and 2025 invention figures are rounded to the thousand.",
+        },
+        {
+          title: "Patent applications by IPC section, share of all eight sections, year",
+          key: TECH_SERIES.ipcG,
+          lines: [
+            { key: TECH_SERIES.ipcA, label: "A: Human necessities" },
+            { key: TECH_SERIES.ipcB, label: "B: Operations and transport" },
+            { key: TECH_SERIES.ipcC, label: "C: Chemistry and metallurgy" },
+            { key: TECH_SERIES.ipcD, label: "D: Textiles and paper" },
+            { key: TECH_SERIES.ipcE, label: "E: Fixed constructions" },
+            { key: TECH_SERIES.ipcF, label: "F: Mechanical engineering" },
+            { key: TECH_SERIES.ipcG, label: "G: Physics" },
+            { key: TECH_SERIES.ipcH, label: "H: Electricity" },
+          ],
+          shareOfLines: true, unit: "Percent of applications in all eight sections", years: 30,
+          note: "Invention and utility model applications received, by section of the International Patent Classification. Design patents are not classified this way. Physics covers computing and measurement. Electricity covers semiconductors and communications.",
+        },
+        { title: "Invention patent applications, foreign applicants, year", key: TECH_SERIES.inventionApplicationsForeign, years: 30, note: "The 2024 and 2025 figures are rounded to the thousand." },
+      ],
+    },
+    {
+      title: "Ownership",
+      charts: [
+        {
+          title: "Share of industrial profits, state-holding and private firms, latest twelve months",
+          key: TECH_SERIES.privateProfitsYtd,
+          lines: [
+            { key: TECH_SERIES.stateHoldingProfitsYtd, label: "State-holding firms" },
+            { key: TECH_SERIES.privateProfitsYtd, label: "Private firms" },
+          ],
+          ttm: true, per: TECH_SERIES.industrialProfitsYtd, unit: "Percent of total industrial profits", years: 24,
+          note: "Profits of industrial firms above the bureau's size threshold, summed over the latest twelve months from its year-to-date totals. The threshold has been annual revenue of 20 million yuan since 2011. Foreign-invested and other firms make up the rest. The bureau published no December figures for 2007 to 2010, so there are no twelve-month sums for 2008 to 2011.",
+        },
       ],
     },
     {
       title: "Digital economy",
       charts: [
-        { title: "Value added of information transmission, software and IT services, current prices, quarter", key: TECH_SERIES.itValueAdded, years: 10, note: "The third quarter is the smallest each year, so compare a quarter with the same quarter a year earlier." },
+        { title: "Mobile internet data traffic, month", key: TECH_SERIES.mobileDataTraffic, years: 10, note: "Compiled by the Ministry of Industry and Information Technology." },
+        {
+          title: "Software business revenue, latest twelve months",
+          key: TECH_SERIES.softwareRevenueYtd,
+          lines: [{ key: TECH_SERIES.softwareRevenueYtd, label: "Software business revenue" }],
+          ttm: true, years: 9,
+          note: "Revenue of software and information technology service firms, summed over the latest twelve months from the year-to-date figures. Compiled by the Ministry of Industry and Information Technology. At current prices. The ministry's own growth rates compare the same firms in both years and run higher than these levels imply.",
+        },
+        { title: "5G mobile phone users, month-end", key: TECH_SERIES.fiveGUsers, years: 5, note: "户 here counts subscribers, not households. 100K on the axis is one billion subscribers." },
         { title: "Value added of information transmission, software and IT services, real growth on a year earlier, quarter", key: TECH_SERIES.itValueAddedGrowth, years: 10, note: "Growth after deducting price changes." },
         { title: "Fixed-asset investment in information transmission, software and IT services, year-to-date growth", key: TECH_SERIES.itInvestmentYtd, years: 8, note: "Each year's first point covers January and February." },
-        { title: "5G mobile phone users, month-end", key: TECH_SERIES.fiveGUsers, years: 5, note: "户 here counts subscribers, not households. 100K on the axis is one billion subscribers." },
+      ],
+    },
+    {
+      title: "Research workforce",
+      charts: [
+        {
+          title: "Postgraduate students enrolled, engineering, science and all fields, year",
+          key: TECH_SERIES.postgraduatesEnrolled,
+          lines: [
+            { key: TECH_SERIES.engineeringPostgraduatesEnrolled, label: "Engineering" },
+            { key: TECH_SERIES.sciencePostgraduatesEnrolled, label: "Science" },
+            { key: TECH_SERIES.postgraduatesEnrolled, label: "All fields" },
+          ],
+          years: 26,
+          note: "Doctoral and master's students enrolled at year end. The bureau's table by field stops at 2015. That year engineering and science were 46% of all postgraduates. The jump in 2017 is part-time students counted for the first time.",
+        },
+        { title: "Doctoral graduates, year", key: TECH_SERIES.doctoralGraduates, years: 20, note: "Latest reading 2024." },
       ],
     },
     {
       title: "Technology trade",
-      lede: "Customs' major exports and imports tables, value in million US dollars.",
       charts: [
+        {
+          title: "High-tech product exports and imports, year",
+          key: TECH_SERIES.hiTechExports,
+          lines: [
+            { key: TECH_SERIES.hiTechExports, label: "Exports" },
+            { key: TECH_SERIES.hiTechImports, label: "Imports" },
+          ],
+          years: 30,
+          note: "Customs figures in the bureau's science and technology tables. Latest reading 2024.",
+        },
         { title: "Hi-tech product exports, value, month", key: "major_exports", region: "hi-tech-products", labels: ["Value"], years: 8, note: `${CUSTOMS_NOTES.commodityFrom2019} ${CUSTOMS_NOTES.hiTechOverlap}` },
         { title: "Hi-tech product imports, value, month", key: "major_imports", region: "hi-tech-products", labels: ["Value"], years: 8, note: `${CUSTOMS_NOTES.commodityFrom2019} ${CUSTOMS_NOTES.december2019Missing} ${CUSTOMS_NOTES.hiTechOverlap}` },
-        { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: CUSTOMS_NOTES.from2026 },
-        { title: "Integrated circuit imports, value, month", key: "major_imports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: CUSTOMS_NOTES.from2026 },
+        { title: "Integrated circuit exports, value, month", key: "major_exports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: `${CUSTOMS_NOTES.from2026}` },
+        { title: "Integrated circuit imports, value, month", key: "major_imports", region: "electronic-integrated-circuits", labels: ["Value"], years: 1, note: `${CUSTOMS_NOTES.from2026}` },
       ],
     },
   ],
@@ -604,6 +714,8 @@ export interface ThemeChartData extends ThemeChart {
   result: SeriesResult | null;
   /** The place or partner drawn, named for the page. */
   place?: NbsRegion;
+  /** The series a chart of several published lines opens as one comparison. */
+  compare?: string[];
 }
 
 export interface ThemeData { name: string; title: string; lede: string; sections: { title: string; lede?: string; charts: ThemeChartData[] }[] }
@@ -681,9 +793,104 @@ function trade3m(): SeriesResult | null {
   };
 }
 
+const round = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places;
+
+/**
+ * A year-to-date running total turned into the sum of the latest twelve
+ * months: this year's total so far, plus last year's full total, less last
+ * year's total to the same month. December is the year's own total. A month
+ * missing any of the three is skipped, and so is one where any of them is
+ * zero: the bureau's tables carry zeros as placeholders for months they never
+ * filled (solar cells, February 2013), and one would put a year's output into
+ * a single month.
+ */
+export function trailingTwelveMonths(ytd: SeriesPoint[]): SeriesPoint[] {
+  const at = new Map(ytd.map((point) => [point.date, point.value]));
+  return ytd.flatMap((point) => {
+    const [year, month] = point.date.split("-");
+    if (!year || !month) return [];
+    if (month === "12") return [point];
+    const lastYearTotal = at.get(`${Number(year) - 1}-12`);
+    const lastYearToDate = at.get(`${Number(year) - 1}-${month}`);
+    if (lastYearTotal === undefined || lastYearToDate === undefined) return [];
+    if (point.value === 0 || lastYearTotal === 0 || lastYearToDate === 0) return [];
+    return [{ date: point.date, value: round(point.value + lastYearTotal - lastYearToDate, 2) }];
+  });
+}
+
+/** Each point as a percentage of the denominator at the same date; dates the denominator lacks are dropped. */
+export function percentOf(points: SeriesPoint[], denominator: SeriesPoint[]): SeriesPoint[] {
+  const below = new Map(denominator.map((point) => [point.date, point.value]));
+  return points.flatMap((point) => {
+    const whole = below.get(point.date);
+    return whole ? [{ date: point.date, value: round((point.value / whole) * 100, 2) }] : [];
+  });
+}
+
+/** Each line as a percentage of the lines' sum, at the dates every line has, so the shares always add to 100. */
+export function sharesOfSum(lines: SeriesPoint[][]): SeriesPoint[][] {
+  const maps = lines.map((points) => new Map(points.map((point) => [point.date, point.value])));
+  const dates = [...(maps[0]?.keys() ?? [])].filter((date) => maps.every((map) => map.has(date))).sort();
+  const totals = new Map(dates.map((date) => [date, maps.reduce((sum, map) => sum + (map.get(date) ?? 0), 0)]));
+  return maps.map((map) => dates.flatMap((date) => {
+    const total = totals.get(date) ?? 0;
+    return total > 0 ? [{ date, value: round(((map.get(date) ?? 0) / total) * 100, 2) }] : [];
+  }));
+}
+
+/** A line indexed to its own value at `base` = 100; a line without a value there has no index and draws nothing. */
+export function indexedTo(points: SeriesPoint[], base: string): SeriesPoint[] {
+  const at = points.find((point) => point.date === base)?.value;
+  if (!at) return [];
+  return points.map((point) => ({ date: point.date, value: round((point.value / at) * 100, 1) }));
+}
+
+/** A catalog series' national line as stored, raw, or null when it is not in the store. */
+async function storedNational(key: string, limit: number): Promise<{ result: SeriesResult; points: SeriesPoint[] } | null> {
+  const entry = await getNbsCatalogEntry(key);
+  if (!entry) return null;
+  try {
+    const result = await getNbsCatalogSeries({ entry, limit, transform: "raw", storeOnly: true });
+    return { result, points: result.series[0]?.points ?? [] };
+  } catch { return null; }
+}
+
+/**
+ * A chart whose lines come from several catalog series, each run through the
+ * chart's steps: twelve-month sums, a ratio to another series, shares of the
+ * lines' sum, an index. All of it is arithmetic on stored points, so the card
+ * draws what the series pages would give a reader with a calculator.
+ */
+async function composedSeries(chart: ThemeChart, lines: ThemeLine[]): Promise<SeriesResult | null> {
+  // Twelve-month sums need the year before the window too.
+  const limitOf = (key: string) => limitFor(key, (chart.years ?? 10) + (chart.ttm ? 2 : 0));
+  const read = await Promise.all(lines.map((line) => storedNational(line.key, limitOf(line.key))));
+  const first = read.find((item) => item !== null);
+  if (!first) return null;
+  let computed = read.map((item) => {
+    const points = item?.points ?? [];
+    return chart.ttm ? trailingTwelveMonths(points) : points;
+  });
+  if (chart.per) {
+    const denominator = await storedNational(chart.per, limitOf(chart.per));
+    if (!denominator) return null;
+    const below = chart.ttm ? trailingTwelveMonths(denominator.points) : denominator.points;
+    computed = computed.map((points) => percentOf(points, below));
+  }
+  if (chart.shareOfLines) computed = sharesOfSum(computed);
+  if (chart.indexTo) { const base = chart.indexTo; computed = computed.map((points) => indexedTo(points, base)); }
+  if (computed.every((points) => points.length === 0)) return null;
+  return {
+    key: chart.key, title: chart.title ?? first.result.title, agency: first.result.agency, sourceUrl: first.result.sourceUrl,
+    frequency: first.result.frequency, unit: chart.unit ?? first.result.unit,
+    series: lines.map((line, index) => ({ label: line.label, points: computed[index] ?? [] })),
+  };
+}
+
 async function chartSeries(chart: ThemeChart, region: string | undefined): Promise<SeriesResult | null> {
   if (chart.derive === "share_65") return share65();
   if (chart.derive === "trade_3m") return trade3m();
+  if (chart.lines) return composedSeries(chart, chart.lines);
   if (chart.key.startsWith("nbs_")) {
     const entry = await getNbsCatalogEntry(chart.key);
     if (!entry) return null;
@@ -709,12 +916,15 @@ export async function themeData(name: string): Promise<ThemeData | null> {
         const place = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
         const stored = await chartSeries(chart, place?.value);
         const configured = configuredLabels(chart.key);
-        // A derived line is not among the series' configured lines; it is drawn as computed.
-        const wanted = chart.derive ? undefined : (chart.labels ?? configured);
+        // A derived or composed line is not among the series' configured lines; it is drawn as computed.
+        const wanted = chart.derive || chart.lines ? undefined : (chart.labels ?? configured);
         const result = stored
           ? { ...stored, title: chart.title ?? stored.title, series: wanted ? stored.series.filter((line) => wanted.includes(line.label)) : stored.series }
           : null;
-        return { ...chart, result, ...(place ? { place } : {}) };
+        // Lines drawn as published open together as a comparison; a computed line opens the series it starts from.
+        const plain = chart.lines && !chart.ttm && !chart.per && !chart.shareOfLines && !chart.indexTo;
+        const compare = plain ? [...new Set((chart.lines ?? []).map((line) => line.key))] : undefined;
+        return { ...chart, result, ...(place ? { place } : {}), ...(compare && compare.length > 1 ? { compare } : {}) };
       })),
     }))),
   };

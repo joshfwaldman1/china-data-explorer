@@ -45,6 +45,36 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (owner's request: Tech and innovation page from a list of
+  ten indicators). The page is rebuilt around them. R&D spending as a
+  share of GDP, 1995 to 2025 (2.80% in 2025). Output of chips, solar cells,
+  new energy vehicles, industrial robots and mobile phones as twelve-month
+  sums indexed to 2023 = 100 (NEVs enter the bureau's table in 2023, so
+  2023 is the base). Patents granted by type on one chart. Invention and
+  utility model applications by IPC section as shares of the eight.
+  Technology market contract value since 1987 on a log axis. State-holding
+  and private firms' shares of industrial profits over twelve months.
+  Mobile data traffic. Postgraduate enrolment in engineering, science and
+  all fields. High-tech exports and imports, 1995 to 2024. Software
+  revenue over twelve months. Charts the new ones replace are gone (the
+  single-type patent charts, the four product level charts, nominal IT
+  value added, postgraduate graduates). The rest of the page stays.
+  A theme chart can now read lines from several catalog series (`lines`)
+  and run them through twelve-month sums from year-to-date totals, a ratio
+  to another series, shares of the lines' sum, or an index to a period.
+  A card can draw a log axis, with ticks at powers of ten. A test holds
+  every line and denominator to the national catalog. What the data
+  showed. The bureau's postgraduate table by field stops at 2015, though
+  the candidate list said 2024 (checked against esData directly). The
+  later years are the Ministry of Education's, a new source. Industrial
+  profits have no December for 2007 to 2010, so the twelve-month shares
+  have a hole for 2008 to 2011. A monthly or quarterly line now breaks
+  across any hole of more than a year instead of joining it with a
+  straight line, on series pages too. Software revenue levels as
+  published fell slightly from June 2025 to June 2026 while the ministry's
+  same-firm growth rate was 9.5%, and the note says so. Verified on a
+  scratch store loaded from the bureau: every card draws, no page errors.
+
 - 2026-10-01 (round: 25 Chinese queries): nothing to fix. Twenty-four
   led with the right series (the curated headline where one exists; for
   工业企业利润, 粗钢产量 and 新能源汽车产量 the bureau's own monthly table,

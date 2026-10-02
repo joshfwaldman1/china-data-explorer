@@ -14,7 +14,7 @@ process.env.CHINA_SEED = "off";
 const { CATALOG, configuredLabels, seriesRegion, seriesRegions } = await import("./data.ts");
 const { writeSeries } = await import("./db.ts");
 const { readCatalogSnapshot } = await import("./catalog-file.ts");
-const { THEMES, allThemeCharts, themeData } = await import("./themes.ts");
+const { THEMES, allThemeCharts, themeData, trailingTwelveMonths, percentOf, sharesOfSum, indexedTo } = await import("./themes.ts");
 
 interface Entry { id: string; datasetCode: number; geography: string }
 const isEntry = (value: unknown): value is Entry =>
@@ -31,6 +31,43 @@ test("every chart names a curated key or a national series in the bureau's catal
     // National datasets only: 1 monthly, 2 quarterly, 3 annual. A provincial id drawn without a region would show one province under a national title.
     expect([1, 2, 3], `${theme}: ${chart.key} is in dataset ${entry?.datasetCode}`).toContain(entry?.datasetCode ?? -1);
   }
+});
+
+test("every line a composed chart reads, and every series it divides by, is a national series in the bureau's catalog", () => {
+  for (const { theme, chart } of allThemeCharts()) {
+    const keys = [...(chart.lines ?? []).map((line) => line.key), ...(chart.per ? [chart.per] : [])];
+    for (const key of keys) {
+      const entry = byId.get(key.replace(/^nbs_/, ""));
+      expect(entry, `${theme}: ${chart.title ?? chart.key} reads ${key}`).toBeDefined();
+      expect([1, 2, 3], `${theme}: ${key} is in dataset ${entry?.datasetCode}`).toContain(entry?.datasetCode ?? -1);
+    }
+    // Steps that only make sense on composed lines are never set on a single stored series.
+    if (!chart.lines) expect(Boolean(chart.ttm || chart.per || chart.shareOfLines || chart.indexTo), `${theme}: ${chart.title ?? chart.key}`).toBe(false);
+  }
+});
+
+test("a twelve-month sum is this year to date plus last year's total less last year to the same month, with no January the table lacks", () => {
+  const ytd = [
+    { date: "2024-02", value: 20 }, { date: "2024-03", value: 35 }, { date: "2024-12", value: 150 },
+    { date: "2025-02", value: 30 }, { date: "2025-03", value: 50 }, { date: "2025-12", value: 200 },
+    { date: "2026-02", value: 0 }, { date: "2026-03", value: 60 },
+  ];
+  expect(trailingTwelveMonths(ytd)).toEqual([
+    { date: "2024-12", value: 150 },
+    { date: "2025-02", value: 160 },
+    { date: "2025-03", value: 165 },
+    { date: "2025-12", value: 200 },
+    // A placeholder zero is skipped rather than read as a month with no output.
+    { date: "2026-03", value: 210 },
+  ]);
+});
+
+test("a ratio, shares of a sum and an index are worked out at matching dates only", () => {
+  // R&D spending and nominal GDP for 2025, in 100 million yuan: 2.80% of GDP.
+  expect(percentOf([{ date: "2024", value: 36326.76 }, { date: "2025", value: 39262 }], [{ date: "2025", value: 1401879.2 }])).toEqual([{ date: "2025", value: 2.8 }]);
+  expect(sharesOfSum([[{ date: "2024", value: 1 }, { date: "2023", value: 1 }], [{ date: "2024", value: 3 }]])).toEqual([[{ date: "2024", value: 25 }], [{ date: "2024", value: 75 }]]);
+  expect(indexedTo([{ date: "2023-12", value: 80 }, { date: "2024-06", value: 100 }], "2023-12")).toEqual([{ date: "2023-12", value: 100 }, { date: "2024-06", value: 125 }]);
+  expect(indexedTo([{ date: "2024-06", value: 100 }], "2023-12")).toEqual([]);
 });
 
 test("every region a chart names is one the series has, and every line is one the series draws", () => {
