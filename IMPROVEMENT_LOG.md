@@ -95,6 +95,21 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-02 (fetch_log prune cursor kept in the store; a correction): the
+  prune's cursor lived in memory and went back to id 0 five minutes after
+  every boot. Nine deploys today meant no sweep got past its first tenth,
+  so the earlier entry's "the log is mostly one row per target, little is
+  prunable" was inferred from the first ~150K ids, not measured over the
+  log. The row count kept growing (1,561,825 -> 1,570,103) with nothing
+  pruned. The cursor, the running total and the sweep's start are now a
+  `progress:fetch-log-prune` row in scheduled_jobs, written each slice; a
+  finished sweep settles it, logs a `fetch_log_prune` fetch_log row with
+  the total (visible in /api/status recentRuns) and rests six hours, which
+  also survive a boot. A full sweep is ~315 slices at one a minute, about
+  five hours. Whether fetch_state (one row per target) is worth building
+  waits on that first sweep's total. No new test: the wiring is in app.ts
+  and the slice logic is covered by fetch-log-prune.test.ts.
+
 - 2026-10-02 (audit 2: releasing a held figure): a hold had no way out, so
   a genuine revision to zero or a deliberate 10,000x rescale by a parser
   fix would sit held for good. `releaseHeld` in db.ts writes the held value

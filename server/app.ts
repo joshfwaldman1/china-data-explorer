@@ -61,7 +61,7 @@ import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 import { upstreamFetch, upstreamStats } from "./upstream";
-import { beginIngestProgress, delayUntilDue, finishIngestProgress, lastRun, markIngestKeyDone, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
+import { beginIngestProgress, delayUntilDue, finishIngestProgress, getJob, lastRun, markIngestKeyDone, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
 import { checkPressReleases, recentPressReleases } from "./nbs-releases";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
@@ -880,19 +880,34 @@ if (ingestEveryHours > 0) {
   // The fetch log is pruned a slice of ids at a time, on this thread: one
   // 5,000-id slice a minute until a sweep reaches rows younger than the
   // shortest window, then six hours before the next sweep. A 20,000-id slice
-  // once took 1.6 s live on Railway's volume; a slow one logs.
-  let pruneCursor = 0;
-  let pruneRemoved = 0;
+  // once took 1.6 s live on Railway's volume; a slow one logs. The cursor is
+  // kept in the store: held in memory it went back to the first row five
+  // minutes after every boot, and on a day of nine deploys no sweep got past
+  // its first tenth.
+  type PruneProgress = { cursor: number; removed: number; startedAt: string };
+  const PRUNE_JOB = "progress:fetch-log-prune";
+  const PRUNE_REST_MS = 6 * 60 * 60 * 1000;
   const pruneLog = () => {
+    const saved = getJob<PruneProgress>(PRUNE_JOB);
+    // A sweep that finished recently rests out its six hours across a boot too.
+    const restLeft = saved && saved.state === "done" ? Date.parse(saved.updatedAt) + PRUNE_REST_MS - Date.now() : 0;
+    if (restLeft > 0) { setTimeout(pruneLog, restLeft); return; }
+    const progress: PruneProgress = saved && saved.state === "pending" ? saved.payload : { cursor: 0, removed: 0, startedAt: new Date().toISOString() };
     const startedAt = performance.now();
-    const slice = pruneFetchLog(pruneCursor);
-    pruneCursor = slice.nextId;
-    pruneRemoved += slice.removed;
+    const slice = pruneFetchLog(progress.cursor);
     const ms = Math.round(performance.now() - startedAt);
     if (ms > 500) console.log(`  Fetch log: a prune slice took ${ms} ms`);
-    if (slice.wrapped) console.log(`  Fetch log: sweep done, pruned ${pruneRemoved} superseded rows`);
-    if (slice.wrapped) pruneRemoved = 0;
-    setTimeout(pruneLog, slice.wrapped ? 6 * 60 * 60 * 1000 : 60 * 1000);
+    progress.removed += slice.removed;
+    if (slice.wrapped) {
+      console.log(`  Fetch log: sweep from ${progress.startedAt} done, pruned ${progress.removed} superseded rows`);
+      logFetch({ key: "fetch_log_prune", region: "", startedAt: progress.startedAt, finishedAt: new Date().toISOString(), status: "ok", points: progress.removed, changed: 0, message: `sweep pruned ${progress.removed} superseded rows` });
+      settleJob(PRUNE_JOB, "done");
+      setTimeout(pruneLog, PRUNE_REST_MS);
+      return;
+    }
+    progress.cursor = slice.nextId;
+    scheduleJob({ id: PRUNE_JOB, kind: "progress", payload: progress, attempt: 1, nextAt: 0 });
+    setTimeout(pruneLog, 60 * 1000);
   };
   setTimeout(pruneLog, 5 * 60 * 1000);
   setTimeout(() => { void planReleases(); }, 60 * 1000);
