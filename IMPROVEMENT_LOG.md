@@ -23,10 +23,9 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (audit 1) fetch_log is never pruned: ~62K rows a day, backups 91.8 MB
-  (09-20) -> 133.8 MB (10-01) with observations flat. Batched retention
-  prune (ok/unchanged after 30 days, empty/error after 45; health reads 14
-  and `recentlyEmptyTargets` 30). Later a per-(key, region) `fetch_state`.
+- (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
+  the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
+  COUNT(*) over fetch_log on every /api/status; read it from a counter.
 - (audit 2) Catalog writes have no guard: `isZeroedFetch` covers curated
   keys only; esData's zero grid for a wrong place is stored as data.
   Quarantine in `writeSeries` (nonzero -> 0, mass restatement, ~10^4 unit
@@ -95,6 +94,24 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 1: fetch_log retention): nothing ever deleted from
+  fetch_log (1,561,825 rows since 09-07, ~62K a day, most of them the crawl
+  re-asking catalog series that have no values), and it is what grew the
+  nightly backup from 91.8 MB to 133.8 MB while observations stayed flat.
+  `pruneFetchLog` deletes a row only when a newer row of the same (key,
+  region, status) exists and it is past its kind's window: empty 14 days,
+  ok-with-no-change 31, error 45. The newest of each kind always stays, and
+  successes that changed values stay as the record of a revision's arrival.
+  Windows chosen over the readers: health report 14 days, crawl's empty
+  targets 30, lastSuccessByKey (newest kept). New index
+  `fetch_log_target_status (key, region, status, id)` makes the "newer row?"
+  check a seek. Runs 5,000 rows a minute until caught up, then hourly; the
+  log line prints each batch's ms. Benchmark on a 1.6M-row synthetic copy:
+  index build 0.7 s, batches 80-260 ms, caught-up pass 105 ms (laptop).
+  Tests: server/fetch-log-prune.test.ts. The file itself will not shrink
+  (no VACUUM, it blocks the healthcheck), but freed pages are reused and
+  the backup (VACUUM INTO) shrinks.
 
 - 2026-10-02 (audit 3: whole-store scans off the scheduler paths): the
   hourly publisher-window check, every release-refresh attempt and the boot

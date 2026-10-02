@@ -377,6 +377,9 @@ export function db(): Database {
   if (!fetchLogColumns.some((column) => column.name === "region")) {
     database.exec("ALTER TABLE fetch_log ADD COLUMN region TEXT NOT NULL DEFAULT ''");
   }
+  // pruneFetchLog keeps the newest row of each (key, region, status); this is
+  // what lets it ask "is there a newer one?" with a seek instead of a scan.
+  database.exec("CREATE INDEX IF NOT EXISTS fetch_log_target_status ON fetch_log (key, region, status, id)");
 
   // The catalog briefly lived in this file; it belongs in catalog.db (a
   // rebuildable cache), not beside the observations that get backed up.
@@ -935,6 +938,45 @@ export function lastSuccessByKey(keys: string[]): Map<string, string> {
   );
   for (const key of keys) { const latest = statement.get({ $key: key })?.latest; if (latest) out.set(key, latest); }
   return out;
+}
+
+/**
+ * How long each kind of fetch_log row is kept once a newer row of the same
+ * (key, region, status) exists. Each is longer than the longest window that
+ * reads that kind: the health report's fortnight (failures, crawl attempts),
+ * the crawl's thirty days of empty targets, a month of successes.
+ */
+export const FETCH_LOG_RETENTION_DAYS = { empty: 14, ok: 31, error: 45 } as const;
+
+/**
+ * Deletes up to `batch` superseded fetch_log rows and returns how many went.
+ *
+ * The log grew by about 62,000 rows a day, nearly all of them the crawl
+ * re-asking for catalog series the bureau lists with no values, and it was
+ * never pruned: it, not the observations, was what made each backup larger.
+ * A row goes only when a newer row of the same (key, region, status) exists
+ * and it is older than its kind's retention. So the newest success, the newest
+ * empty answer and the newest error of every target stay, whatever their age,
+ * and every reader's window is still whole. Successes that changed values are
+ * kept: they are the record of when a revision arrived. Run in batches so one
+ * call never holds the thread that serves HTTP for long.
+ */
+export function pruneFetchLog(now = Date.now(), batch = 10_000): number {
+  const before = (days: number) => new Date(now - days * 86_400_000).toISOString();
+  const statement = db().query<never, { $empty: string; $ok: string; $error: string; $batch: number }>(`
+    DELETE FROM fetch_log WHERE id IN (
+      SELECT f.id FROM fetch_log f
+      WHERE ((f.status = 'empty' AND f.finished_at < $empty)
+          OR (f.status = 'ok' AND f.changed_count = 0 AND f.finished_at < $ok)
+          OR (f.status NOT IN ('ok', 'empty') AND f.finished_at < $error))
+        AND EXISTS (SELECT 1 FROM fetch_log n WHERE n.key = f.key AND n.region = f.region AND n.status = f.status AND n.id > f.id)
+      LIMIT $batch
+    )
+  `);
+  return statement.run({
+    $empty: before(FETCH_LOG_RETENTION_DAYS.empty), $ok: before(FETCH_LOG_RETENTION_DAYS.ok),
+    $error: before(FETCH_LOG_RETENTION_DAYS.error), $batch: batch,
+  }).changes;
 }
 
 /** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */
