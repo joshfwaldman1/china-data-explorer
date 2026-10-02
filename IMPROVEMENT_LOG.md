@@ -23,9 +23,6 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (audit 3) Whole-store `storedLatest("")` scans run on the HTTP thread:
-  app.ts hourly publisher-window check (twice), every release attempt, boot.
-  db.ts says it is the wrong tool. Use `db.latestPeriods(keys)`. ~20 lines.
 - (audit 1) fetch_log is never pruned: ~62K rows a day, backups 91.8 MB
   (09-20) -> 133.8 MB (10-01) with observations flat. Batched retention
   prune (ok/unchanged after 30 days, empty/error after 45; health reads 14
@@ -98,6 +95,18 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 3: whole-store scans off the scheduler paths): the
+  hourly publisher-window check, every release-refresh attempt and the boot
+  catch-up each called `storedLatest("")`, a three-table join grouped over
+  all ~194,000 stored (key, region) pairs, to ask about a few named keys.
+  New `latestByRegion(keys)` reads `series_range` on its primary key; the
+  window check, the release `covered()` and the boot catch-up use it or
+  `latestPeriods`. The app's own shadowing `latestPeriods` helper is gone.
+  One behaviour change: a curated key with a `series` row but no stored
+  period now counts as unstored at boot and gets the catch-up fetch (it
+  used to be skipped). Test: server/latest-by-region.test.ts. Verified
+  live: /ready 200 after the deploy, release checks still logged.
 
 - 2026-10-02 (owner's review of Tech and innovation: units): cards drawn
   straight from the bureau's catalog showed its bare Chinese unit (亿元,

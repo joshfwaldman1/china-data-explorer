@@ -887,6 +887,19 @@ export function singlePointLines(keys: string[]): SinglePointLine[] {
 }
 
 /**
+ * The newest stored period of each place of the named keys, one row per
+ * (key, region) that holds anything. Reads the summary on its primary key, so
+ * the cost follows the keys asked about rather than the whole store.
+ */
+export function latestByRegion(keys: string[]): { key: string; region: string; lastPeriod: string | null }[] {
+  if (keys.length === 0) return [];
+  const statement = db().query<{ key: string; region: string; lastPeriod: string | null }, { $key: string }>(
+    "SELECT key, region, last_period AS lastPeriod FROM series_range WHERE key = $key",
+  );
+  return [...new Set(keys)].flatMap((key) => statement.all({ $key: key }));
+}
+
+/**
  * The newest stored period for each of the named keys, at whichever region
  * reaches furthest. Reads the summary the write path keeps.
  *

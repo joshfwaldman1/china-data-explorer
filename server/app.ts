@@ -34,7 +34,7 @@ function onlyConfigured(key: string, stored: SeriesResult | null): SeriesResult 
   const kept = stored.series.filter((series) => labels.includes(series.label));
   return kept.length > 0 ? { ...stored, series: kept } : stored;
 }
-import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, storedLatest, lastReleaseRefresh, logFetch, dbStatusWithSeries, recentReleaseChecks } from "./db";
+import { readSeries, readRevisions, readRevisionHistory, dbHealth, dbStatus, latestByRegion, latestPeriods, lastReleaseRefresh, logFetch, dbStatusWithSeries, recentReleaseChecks } from "./db";
 import { PUBLISHER_WINDOWS, activeWindows, keysAwaitingRelease } from "./release-windows";
 import {
   getNbsCatalogSeries,
@@ -743,8 +743,9 @@ if (ingestEveryHours > 0) {
   scheduleIngest(firstIngestMs);
   console.log(`  Ingest scheduled every ${ingestEveryHours}h (next full run in ${Math.round(firstIngestMs / 60000)} minutes)`);
   setTimeout(() => {
-    const stored = new Set(storedLatest("").map((row) => row.key));
-    const unstored = catalogList().map((entry) => entry.key).filter((key) => !stored.has(key));
+    const catalogKeys = catalogList().map((entry) => entry.key);
+    const stored = latestPeriods(catalogKeys);
+    const unstored = catalogKeys.filter((key) => !stored.get(key));
     if (unstored.length === 0) return;
     void worker.run("New series", PRIORITY.catchUp, async () => {
       const tally = await runIngest(unstored);
@@ -778,7 +779,7 @@ if (ingestEveryHours > 0) {
     const startedAt = new Date().toISOString();
     const at = cstToDate(item.fb_time) ?? new Date();
     const targets = releaseTargets({ title: item.content, keys: item.keys, categories: item.categories }, at);
-    const covered = () => storedLatest("").filter((row) => item.keys.includes(row.key))
+    const covered = () => latestByRegion(item.keys)
       .map((row) => ({ key: row.key, region: row.region, frequency: frequencyOfKey(row.key), lastPeriod: row.lastPeriod }));
     await runWhenFree(async () => {
       if (item.keys.length > 0) await runIngest(item.keys);
@@ -910,14 +911,9 @@ if (ingestEveryHours > 0) {
   // one's usual stretch of the month, an hourly check of the series still
   // one month behind. See release-windows.ts.
   const windowStatus = { lastCheck: null as null | { at: string; checked: string[]; arrived: string[] } };
-  const latestPeriods = (keys: string[]) => {
-    const latest = new Map<string, string>();
-    for (const row of storedLatest("")) if (keys.includes(row.key) && row.lastPeriod && row.lastPeriod > (latest.get(row.key) ?? "")) latest.set(row.key, row.lastPeriod);
-    return latest;
-  };
   const checkPublisherWindows = async () => {
     const series = catalogList().map((entry) => ({ key: entry.key, agency: entry.agency, frequency: entry.frequency, ...(entry.ended ? { ended: entry.ended } : {}) }));
-    const keys = keysAwaitingRelease(series, storedLatest("").map((row) => ({ key: row.key, lastPeriod: row.lastPeriod })), new Date());
+    const keys = keysAwaitingRelease(series, latestByRegion(series.map((entry) => entry.key)), new Date());
     if (keys.length === 0) return;
     await runWhenFree(async () => {
       const startedAt = new Date().toISOString();
