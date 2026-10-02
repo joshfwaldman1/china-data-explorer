@@ -95,6 +95,20 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-02 (audit 1, fix to the fix): the first live prune deleted 108
+  rows and held the HTTP thread 3.7 s. "Up to 5,000 deletable rows anywhere"
+  with an OR across statuses was answered by scanning the whole log, and
+  most of the log is still inside its windows (the bulk is under 14 days
+  old), so the scan found little and would have repeated hourly. Work is now
+  bounded by an id slice: `pruneFetchLog(fromId, span)` checks 20,000 ids
+  through the primary key, a cursor walks the log one slice a minute, and a
+  sweep that reaches the end waits six hours. Benchmark (laptop, 1.6M-row
+  synthetic log): slice 5 ms with nothing to delete, worst 285 ms at 50,000
+  ids deleting heavily, hence 20,000. Slices over 500 ms log a line; each
+  sweep logs its total. A read of the production log's age/status breakdown
+  over `railway ssh` was refused by the permission classifier, so the
+  composition is inferred from the 108-row result, not measured.
+
 - 2026-10-02 (audit 1: fetch_log retention): nothing ever deleted from
   fetch_log (1,561,825 rows since 09-07, ~62K a day, most of them the crawl
   re-asking catalog series that have no values), and it is what grew the

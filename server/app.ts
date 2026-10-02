@@ -870,15 +870,22 @@ if (ingestEveryHours > 0) {
   }
   if (resumed.length > 0) console.log(`  Release refresh: resumed ${resumed.length} release${resumed.length === 1 ? "" : "s"} from the store`);
   pruneSettledJobs();
-  // The fetch log is pruned a batch at a time, on this thread: every minute
-  // while a batch finds rows (the first pass after this shipped had about a
-  // million), hourly once it has caught up. A batch of 5,000 took 80-260 ms on
-  // a laptop over a 1.6M-row copy; the log line carries the live cost.
+  // The fetch log is pruned a slice of ids at a time, on this thread: one
+  // 20,000-id slice a minute until a sweep reaches the end, then six hours
+  // before the next sweep. On a laptop over a 1.6M-row copy a slice took 5 ms
+  // with nothing to delete and about 115 ms deleting heavily; a slow one logs.
+  let pruneCursor = 0;
+  let pruneRemoved = 0;
   const pruneLog = () => {
     const startedAt = performance.now();
-    const removed = pruneFetchLog(Date.now(), 5_000);
-    if (removed > 0) console.log(`  Fetch log: pruned ${removed} superseded rows in ${Math.round(performance.now() - startedAt)} ms`);
-    setTimeout(pruneLog, removed > 0 ? 60 * 1000 : 60 * 60 * 1000);
+    const slice = pruneFetchLog(pruneCursor);
+    pruneCursor = slice.nextId;
+    pruneRemoved += slice.removed;
+    const ms = Math.round(performance.now() - startedAt);
+    if (ms > 500) console.log(`  Fetch log: a prune slice took ${ms} ms`);
+    if (slice.wrapped) console.log(`  Fetch log: sweep done, pruned ${pruneRemoved} superseded rows`);
+    if (slice.wrapped) pruneRemoved = 0;
+    setTimeout(pruneLog, slice.wrapped ? 6 * 60 * 60 * 1000 : 60 * 1000);
   };
   setTimeout(pruneLog, 5 * 60 * 1000);
   setTimeout(() => { void planReleases(); }, 60 * 1000);

@@ -949,34 +949,43 @@ export function lastSuccessByKey(keys: string[]): Map<string, string> {
 export const FETCH_LOG_RETENTION_DAYS = { empty: 14, ok: 31, error: 45 } as const;
 
 /**
- * Deletes up to `batch` superseded fetch_log rows and returns how many went.
+ * Deletes the superseded fetch_log rows among ids [fromId, fromId + span) and
+ * returns how many went and where the next slice starts (back to the first
+ * row once the slice passes the end, with `wrapped` set).
  *
- * The log grew by about 62,000 rows a day, nearly all of them the crawl
- * re-asking for catalog series the bureau lists with no values, and it was
- * never pruned: it, not the observations, was what made each backup larger.
- * A row goes only when a newer row of the same (key, region, status) exists
- * and it is older than its kind's retention. So the newest success, the newest
- * empty answer and the newest error of every target stay, whatever their age,
- * and every reader's window is still whole. Successes that changed values are
- * kept: they are the record of when a revision arrived. Run in batches so one
- * call never holds the thread that serves HTTP for long.
+ * The log grew by about 62,000 rows a day and was never pruned: it, not the
+ * observations, was what made each backup larger. A row goes only when a
+ * newer row of the same (key, region, status) exists and it is older than its
+ * kind's retention, so the newest success, the newest empty answer and the
+ * newest error of every target stay, whatever their age, and every reader's
+ * window is still whole. Successes that changed values are kept: they are the
+ * record of when a revision arrived.
+ *
+ * Work per call is bounded by the id slice, not by what is deletable. The
+ * first version asked for "up to N deletable rows anywhere", which SQLite
+ * answered by scanning the whole log: 3.7 s on the thread serving HTTP, to
+ * find 108 rows, because most of the log was still inside its windows.
  */
-export function pruneFetchLog(now = Date.now(), batch = 10_000): number {
+export function pruneFetchLog(fromId: number, span = 20_000, now = Date.now()): { removed: number; nextId: number; wrapped: boolean } {
   const before = (days: number) => new Date(now - days * 86_400_000).toISOString();
-  const statement = db().query<never, { $empty: string; $ok: string; $error: string; $batch: number }>(`
+  const removed = db().query<never, Record<string, string | number>>(`
     DELETE FROM fetch_log WHERE id IN (
       SELECT f.id FROM fetch_log f
-      WHERE ((f.status = 'empty' AND f.finished_at < $empty)
+      WHERE f.id >= $from AND f.id < $to
+        AND ((f.status = 'empty' AND f.finished_at < $empty)
           OR (f.status = 'ok' AND f.changed_count = 0 AND f.finished_at < $ok)
           OR (f.status NOT IN ('ok', 'empty') AND f.finished_at < $error))
         AND EXISTS (SELECT 1 FROM fetch_log n WHERE n.key = f.key AND n.region = f.region AND n.status = f.status AND n.id > f.id)
-      LIMIT $batch
     )
-  `);
-  return statement.run({
-    $empty: before(FETCH_LOG_RETENTION_DAYS.empty), $ok: before(FETCH_LOG_RETENTION_DAYS.ok),
-    $error: before(FETCH_LOG_RETENTION_DAYS.error), $batch: batch,
+  `).run({
+    $from: fromId, $to: fromId + span,
+    $empty: before(FETCH_LOG_RETENTION_DAYS.empty), $ok: before(FETCH_LOG_RETENTION_DAYS.ok), $error: before(FETCH_LOG_RETENTION_DAYS.error),
   }).changes;
+  const last = db().query<{ id: number | null }, []>("SELECT MAX(id) AS id FROM fetch_log").get()?.id ?? 0;
+  const next = fromId + span;
+  if (next <= last) return { removed, nextId: next, wrapped: false };
+  const first = db().query<{ id: number | null }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? 0;
+  return { removed, nextId: first, wrapped: true };
 }
 
 /** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */
