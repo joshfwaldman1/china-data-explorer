@@ -45,6 +45,16 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-02 (owner's review of Tech and innovation: units): cards drawn
+  straight from the bureau's catalog showed its bare Chinese unit (亿元,
+  万GB, 亿美元, 万人, 万辆, 套), while curated series read "Hundred million
+  yuan (亿元)". Twelve cards on Manufacturing, Energy and Tech did this.
+  Theme cards now pass the unit through `englishUnit` (gloss.ts): English
+  first from the UNITS table, the Chinese alongside; a unit already in
+  English or not in the table is left as it is. 万GB added to UNITS. The
+  patents card says "Patents granted (项)" rather than "Items". Test in
+  gloss.test.ts. Verified live on /api/theme/tech, manufacturing, energy.
+
 - 2026-10-01 (owner's correction): the Tech and innovation page is the
   ten requested charts and nothing else. The twelve older charts that had
   been kept below them are removed (R&D spending total, basic research and

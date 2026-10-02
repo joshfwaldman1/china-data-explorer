@@ -18,6 +18,7 @@
 import { CATALOG, configuredLabels, seriesRegion, seriesRegions, type NbsRegion, type SeriesPoint, type SeriesResult } from "./data";
 import { readSeries } from "./db";
 import { getNbsCatalogEntry, getNbsCatalogSeries } from "./nbs-catalog";
+import { englishUnit } from "./gloss";
 
 export interface ThemeChart {
   /** The panel's heading; the series title when omitted. */
@@ -523,7 +524,7 @@ const TECH: Theme = {
             { key: TECH_SERIES.utilityModelGrants, label: "Utility model" },
             { key: TECH_SERIES.designGrants, label: "Design" },
           ],
-          years: 30,
+          unit: "Patents granted (项)", years: 30,
           note: "Granted to domestic and foreign applicants. Invention patents are examined for novelty and inventiveness. Utility model and design patents get only a preliminary examination. Utility model and design grants end in 2024. The 2024 and 2025 invention figures are rounded to the thousand.",
         },
         {
@@ -900,7 +901,7 @@ export async function themeData(name: string): Promise<ThemeData | null> {
         // A derived or composed line is not among the series' configured lines; it is drawn as computed.
         const wanted = chart.derive || chart.lines ? undefined : (chart.labels ?? configured);
         const result = stored
-          ? { ...stored, title: chart.title ?? stored.title, series: wanted ? stored.series.filter((line) => wanted.includes(line.label)) : stored.series }
+          ? { ...stored, title: chart.title ?? stored.title, unit: englishUnit(stored.unit), series: wanted ? stored.series.filter((line) => wanted.includes(line.label)) : stored.series }
           : null;
         // Lines drawn as published open together as a comparison; a computed line opens the series it starts from.
         const plain = chart.lines && !chart.ttm && !chart.per && !chart.shareOfLines && !chart.indexTo;

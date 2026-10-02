@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { splitTitle, glossTitle, glossTitleDetailed, segmentGloss, toPinyin, baseConcepts, normalizeIndexPrefix, warmGloss, plainRanges } from "./gloss.ts";
+import { splitTitle, glossTitle, glossTitleDetailed, segmentGloss, toPinyin, baseConcepts, normalizeIndexPrefix, warmGloss, plainRanges, englishUnit } from "./gloss.ts";
 
 test("titles split into base, measure and unit", () => {
   expect(splitTitle("粗钢产量累计增长 (%)")).toEqual({ base: "粗钢产量", measure: "累计增长", unit: "%" });
@@ -81,4 +81,14 @@ test("a gloss that had to romanise part of the name says so, and one from the ta
   // The 23 titles that used to carry pinyin are translated in the table.
   expect(glossTitleDetailed("国际市场能源价格指数 (2010=100) (%)")).toEqual({ text: "International commodity price index: energy, 2010 = 100", romanised: false });
   expect(glossTitle("总和生育率")).toBe("Total fertility rate");
+});
+
+test("a card's unit reads in English first, with the bureau's Chinese alongside", () => {
+  expect(englishUnit("亿元")).toBe("100 million yuan (亿元)");
+  expect(englishUnit("万GB")).toBe("10,000 GB (万GB)");
+  expect(englishUnit("亿美元")).toBe("100 million US dollars (亿美元)");
+  // Already English, or not in the table: left alone.
+  expect(englishUnit("Hundred million yuan (亿元)")).toBe("Hundred million yuan (亿元)");
+  expect(englishUnit("Percent of GDP")).toBe("Percent of GDP");
+  expect(englishUnit("某单位")).toBe("某单位");
 });
