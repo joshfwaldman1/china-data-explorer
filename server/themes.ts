@@ -541,7 +541,7 @@ const TECH: Theme = {
             { key: TECH_SERIES.ipcH, label: "H: Electricity" },
           ],
           shareOfLines: true, unit: "Percent of applications in all eight sections", years: 30,
-          note: "Invention and utility model applications received, by section of the International Patent Classification. Design patents are not classified this way. Physics covers computing and measurement. Electricity covers semiconductors and communications.",
+          note: "Invention and utility model applications received, by section of the International Patent Classification. Design patents are not classified this way. Physics covers computing and measurement. Electricity covers semiconductors and communications. Operations and transport (B) is the largest because of utility models: in 2023 it had 1,228,074 utility model applications and 277,881 invention applications, by the patent office's own table. Among invention applications alone, physics (G) leads.",
         },
       ],
     },

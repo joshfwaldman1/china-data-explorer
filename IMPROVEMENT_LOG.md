@@ -63,9 +63,6 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 - (audit 12) Separate ingest from web: a Railway volume attaches to one
   service, so only a child process. Do 3, add `PRAGMA busy_timeout` to the
   main handle, measure; only then a single-writer child (~300 lines).
-- Tech page: check IPC section B share (31.7% of 2024 applications) against
-  CNIPA's own figures.
-
 - Home rows and hero tiles whose title names a level for a growth figure
   ("Gross Domestic Product" 4.3%, "Consumer Price Index" 0.8%, "Producer
   Price Index" 3.8%), and monthly rows that do not say "month on a year
@@ -94,6 +91,14 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (owner's question: IPC section B at 31.7% of 2024
+  applications): correct. CNIPA's 2023 annual table 5-1
+  (cnipa.gov.cn/tjxx/jianbao/year2023/e/e1.html) matches the bureau's
+  series to the unit: B 1,505,955 of 4,679,215 invention plus utility model
+  applications. B is utility-model-driven (1,228,074 utility, 277,881
+  invention); among inventions G (physics) leads with 527,025. The card's
+  note now says so. No code change beyond the note.
 
 - 2026-10-02 (audit 1, fix to the fix): the first live prune deleted 108
   rows and held the HTTP thread 3.7 s. "Up to 5,000 deletable rows anywhere"
