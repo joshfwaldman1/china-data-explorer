@@ -26,8 +26,8 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
-- (audit 2, next steps) Quarantine is live for nonzero -> 0. Still to do:
-  show held values on Health (a section listing them), a release step for
+- (audit 2, next steps) Quarantine is live for nonzero -> 0 and listed on
+  Health. Still to do: a release step for
   a genuine revision to zero, then the other two rules (more than X% of a
   table's old periods restated in one fetch; a ratio near 10^4 between new
   and stored values, the 万/亿 unit shift). The 10 Sep money_supply zero
@@ -53,8 +53,7 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   outstanding), so this waits. Check the first resumed ingest in the
   Railway log ("Resuming an interrupted run") after a deploy lands during
   one.
-- (audit 8, follow-ups) Show recent unit/title changes on Health (a unit
-  change is the shape of a 万/亿 shift and wants a person's look); as-of
+- (audit 8, follow-ups) As-of
   reads (`fetched_at <= D`) on the observations key for "what did the site
   show on date D". Expect a one-off burst of history rows the first time
   each stored series is rewritten after 2026-10-02 wherever its stored
@@ -98,6 +97,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (held figures and unit changes on Health): the zero
+  quarantine (round 4) and the meta trail (round 9) wrote to tables only
+  /api/status showed. The health report gains `held` (latest 50, with the
+  series title) and `metaChanges` (inside the report's fortnight); the
+  Health page has two sections, "Figures held back" and "Changes to units
+  and titles", and the headline counts held figures ("N figures held back
+  as a read of 0"), which also keep the page from reading clean. Test in
+  health-report.test.ts. Verified live: the page renders both sections.
 
 - 2026-10-02 (audit 8: a trail for descriptive changes): the `series`
   upsert overwrote unit, title, frequency and agency in place at every

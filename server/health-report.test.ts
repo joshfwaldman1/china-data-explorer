@@ -337,3 +337,23 @@ test("a month-end series is not behind on the first day of the next month, and i
   expect(overdue("Monthly", "2026-08", 1, new Date("2026-10-02T06:00:00Z")).late).toBe(true);
   expect(overdue("Monthly", "2026-09", 1, new Date("2026-10-02T06:00:00Z")).late).toBe(false);
 });
+
+test("a figure held back as a zero and a changed unit both reach the report, and the held one reaches the headline", () => {
+  const now = Date.now();
+  const at = (minutesAgo: number) => new Date(now - minutesAgo * 60_000).toISOString();
+  const result = (unit: string, value: number) => ({
+    key: "nbs_health_held_test", title: "Crude steel output", agency: "National Bureau of Statistics",
+    sourceUrl: "https://data.stats.gov.cn/", frequency: "Monthly", unit,
+    series: [{ label: "全国", points: [{ date: "2026-08", value }] }],
+  });
+  writeSeries(result("万吨", 9000), "", at(30));
+  writeSeries(result("亿吨", 0), "", at(20));
+  const report = healthReport([]);
+  const held = report.held.filter((row) => row.key === "nbs_health_held_test");
+  expect(held.map(({ title, period, value, previous }) => ({ title, period, value, previous }))).toEqual([
+    { title: "Crude steel output", period: "2026-08", value: 0, previous: 9000 },
+  ]);
+  const changes = report.metaChanges.filter((row) => row.key === "nbs_health_held_test");
+  expect(changes.map(({ field, oldValue, newValue }) => ({ field, oldValue, newValue }))).toEqual([{ field: "unit", oldValue: "万吨", newValue: "亿吨" }]);
+  expect(healthHeadline(report)).toContain("held back as a read of 0");
+});

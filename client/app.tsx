@@ -1346,6 +1346,8 @@ interface Health {
   // Optional so a page served before the server knew the check still renders.
   singlePoint?: SinglePointSeries[];
   store: { observations: number; keys: number; lastFetch: string | null };
+  held?: { key: string; region: string; label: string; title: string | null; period: string; value: number | null; previous: number | null; fetchedAt: string }[];
+  metaChanges?: { key: string; region: string; label: string; title: string | null; field: string; oldValue: string | null; newValue: string | null; changedAt: string }[];
 }
 
 /**
@@ -1373,7 +1375,8 @@ function HealthPage() {
   const day = (iso: string | null) => iso ? fmtDate(iso.slice(0, 10)) : "—";
   const clean = data && data.checks.findings.length === 0 && data.sources.failing.length === 0 && data.behind.publisher.length === 0
     && (data.singlePoint ?? []).every((line) => line.reviewed)
-    && (data.pressReleases?.disagreements.length ?? 0) === 0 && (data.pressReleases?.refused.length ?? 0) === 0;
+    && (data.pressReleases?.disagreements.length ?? 0) === 0 && (data.pressReleases?.refused.length ?? 0) === 0
+    && (data.held ?? []).length === 0;
   return (
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Data health</span></div>
@@ -1555,6 +1558,30 @@ function HealthPage() {
                 ))}</ul>
               </>
             )}
+          </section>
+
+          <section>
+            <h2>Figures held back</h2>
+            <p>A stored figure that a fetch would have replaced with exactly 0. The bureau's portal answers some failing requests with a table of zeros, so the zero is kept aside and the stored figure stays. A genuine revision to zero would also land here.</p>
+            {(data.held ?? []).length === 0
+              ? <p className="quiet">Nothing held.</p>
+              : <ul className="health-list">{(data.held ?? []).map((row) => (
+                  <li key={`${row.key}|${row.region}|${row.label}|${row.period}|${row.fetchedAt}`}>
+                    <b><a href={seriesHash([row.key], { region: row.region })}>{row.title ?? row.key}</a></b> <span className="quiet">{row.label}, {periodPretty(row.period)}: stored {row.previous ?? "none"}, fetch read {row.value ?? "none"} on {day(row.fetchedAt)}.</span>
+                  </li>
+                ))}</ul>}
+          </section>
+
+          <section>
+            <h2>Changes to units and titles</h2>
+            <p>A series whose unit, title, frequency or agency changed when it was fetched, in the same window as the failures above. A unit change can mean the publisher switched between 万 and 亿, which moves every figure by a factor of 10,000.</p>
+            {(data.metaChanges ?? []).length === 0
+              ? <p className="quiet">No changes.</p>
+              : <ul className="health-list">{(data.metaChanges ?? []).map((row) => (
+                  <li key={`${row.key}|${row.region}|${row.label}|${row.field}|${row.changedAt}`}>
+                    <b><a href={seriesHash([row.key], { region: row.region })}>{row.title ?? row.key}</a></b> <span className="quiet">{row.label}: {row.field} changed from "{row.oldValue ?? ""}" to "{row.newValue ?? ""}" on {day(row.changedAt)}.</span>
+                  </li>
+                ))}</ul>}
           </section>
 
           <section>

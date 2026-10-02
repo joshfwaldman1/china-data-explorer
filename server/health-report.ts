@@ -32,7 +32,7 @@
 
 import { CATALOG, catalogList, seriesRegions } from "./data";
 import { CONCORDANCE_PAIRS, runConcordance, type ConcordanceResult } from "./concordance";
-import { dbHealth, fetchFailures, fetchLogOldest, lastSuccessByKey, latestPeriods, singlePointLines } from "./db";
+import { dbHealth, fetchFailures, fetchLogOldest, heldObservations, lastSuccessByKey, latestPeriods, recentMetaChanges, singlePointLines } from "./db";
 import { comparablePeriod, expectedPeriod } from "./due";
 import { pressReleaseHealth, type PressReleaseHealth } from "./nbs-releases";
 
@@ -141,6 +141,14 @@ export interface HealthReport {
    * reported apart from the curated sources.
    */
   pressReleases: PressReleaseHealth;
+  /**
+   * Figures the write path held back instead of storing: a stored value a
+   * fetch would have overwritten with exactly 0, the shape of the portal's
+   * zero grid. Each wants a look; a genuine revision to zero is among them.
+   */
+  held: ReturnType<typeof heldObservations>;
+  /** Changes to a series' unit, title, frequency or agency in the window. A unit change is the shape of a 万/亿 shift. */
+  metaChanges: ReturnType<typeof recentMetaChanges>;
 }
 
 /**
@@ -327,6 +335,8 @@ export function healthReport(results: ConcordanceResult[] = runConcordance(CONCO
     singlePoint,
     store: { observations: health.observations, keys: latestByKey.size, lastFetch: health.lastFetch },
     pressReleases: pressReleaseHealth(),
+    held: heldObservations(50),
+    metaChanges: recentMetaChanges(50).filter((change) => change.changedAt >= since),
   };
 }
 
@@ -345,6 +355,8 @@ export function healthHeadline(report: HealthReport): string {
   const pressRefused = report.pressReleases?.refused.length ?? 0;
   if (pressDisagreements > 0) parts.push(`${pressDisagreements} press-release figure${pressDisagreements === 1 ? "" : "s"} disagreeing with the database`);
   if (pressRefused > 0) parts.push(`${pressRefused} press release${pressRefused === 1 ? "" : "s"} the parser refused`);
+  const held = report.held?.length ?? 0;
+  if (held > 0) parts.push(`${held} figure${held === 1 ? "" : "s"} held back as a read of 0`);
   if (parts.length === 0) return `All ${report.checks.total} cross-checks agree, every source read cleanly, nothing overdue.`;
   return `${parts.join("; ")}.`;
 }

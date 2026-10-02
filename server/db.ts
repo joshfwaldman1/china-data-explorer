@@ -469,14 +469,24 @@ export const MIGRATIONS: Migration[] = [
   },
 ];
 
+/** Values held in observations_quarantine, newest first, with the series title for display. */
+export function heldObservations(limit = 50): { key: string; region: string; label: string; title: string | null; period: string; value: number | null; previous: number | null; fetchedAt: string; reason: string }[] {
+  return db().query<{ key: string; region: string; label: string; title: string | null; period: string; value: number | null; previous: number | null; fetchedAt: string; reason: string }, { $limit: number }>(`
+    SELECT q.key, q.region, q.label, s.title, q.period, q.value, q.previous, q.fetched_at AS fetchedAt, q.reason
+    FROM observations_quarantine q LEFT JOIN series s ON s.key = q.key AND s.region = q.region AND s.label = q.label
+    ORDER BY q.fetched_at DESC LIMIT $limit
+  `).all({ $limit: limit });
+}
+
 /** The descriptive fields of a series row whose changes are kept. The source URL is not one: page-based publishers move it every release. */
 export const TRACKED_META_FIELDS = ["unit", "title", "frequency", "agency"] as const;
 
 /** Recent changes to a series' unit, title, frequency or agency, newest first. */
-export function recentMetaChanges(limit = 50): { key: string; region: string; label: string; field: string; oldValue: string | null; newValue: string | null; changedAt: string }[] {
-  return db().query<{ key: string; region: string; label: string; field: string; oldValue: string | null; newValue: string | null; changedAt: string }, { $limit: number }>(`
-    SELECT key, region, label, field, old_value AS oldValue, new_value AS newValue, changed_at AS changedAt
-    FROM series_meta_history ORDER BY changed_at DESC LIMIT $limit
+export function recentMetaChanges(limit = 50): { key: string; region: string; label: string; title: string | null; field: string; oldValue: string | null; newValue: string | null; changedAt: string }[] {
+  return db().query<{ key: string; region: string; label: string; title: string | null; field: string; oldValue: string | null; newValue: string | null; changedAt: string }, { $limit: number }>(`
+    SELECT h.key, h.region, h.label, s.title, h.field, h.old_value AS oldValue, h.new_value AS newValue, h.changed_at AS changedAt
+    FROM series_meta_history h LEFT JOIN series s ON s.key = h.key AND s.region = h.region AND s.label = h.label
+    ORDER BY h.changed_at DESC LIMIT $limit
   `).all({ $limit: limit });
 }
 
