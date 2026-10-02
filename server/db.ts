@@ -328,6 +328,26 @@ export function db(): Database {
     ) WITHOUT ROWID
   `);
 
+  // A stored nonzero value that a fetch would overwrite with exactly 0 is held
+  // here instead of written. The bureau's portal answers a wrong or failing
+  // request with a grid of zeros, and observations are append-only, so a zero
+  // written once stays in a period's vintages for good (money supply, July
+  // 2026: 4, then 0, then 4 again ten minutes later). Nothing held is lost:
+  // a genuine revision to zero can be released from here.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS observations_quarantine (
+      key        TEXT NOT NULL,
+      region     TEXT NOT NULL DEFAULT '',
+      label      TEXT NOT NULL,
+      period     TEXT NOT NULL,
+      value      REAL,
+      previous   REAL,
+      fetched_at TEXT NOT NULL,
+      reason     TEXT NOT NULL,
+      PRIMARY KEY (key, region, label, period, fetched_at)
+    ) WITHOUT ROWID
+  `);
+
   // A running count of stored observations, kept by the write path. The
   // healthcheck needs a number without walking a table of millions of rows,
   // and a WITHOUT ROWID table has no rowid to take the maximum of.
@@ -439,6 +459,8 @@ export function catalogDb(): Database {
 export interface WriteSummary {
   points: number;
   changed: number;
+  /** Values held in observations_quarantine instead of written. */
+  held: number;
 }
 
 /**
@@ -483,8 +505,14 @@ export function writeSeries(
     ) WHERE key = $key AND region = $region AND label = $label
   `);
 
+  const hold = database.prepare(`
+    INSERT OR IGNORE INTO observations_quarantine (key, region, label, period, value, previous, fetched_at, reason)
+    VALUES ($key, $region, $label, $period, $value, $previous, $fetchedAt, $reason)
+  `);
+
   let points = 0;
   let changed = 0;
+  let held = 0;
 
   const write = database.transaction((series: Series[]) => {
     for (const [position, one] of series.entries()) {
@@ -505,6 +533,17 @@ export function writeSeries(
         // Unchanged values are not re-stored; only first sightings and
         // revisions become rows.
         if (previous !== null && previous.value === point.value) continue;
+        // A stored figure overwritten by exactly 0 is the shape of the portal's
+        // zero grid, not of a revision: held, not written. A first sighting of
+        // 0 (the bureau's placeholder months) is written as before.
+        if (previous !== null && previous.value !== null && previous.value !== 0 && point.value === 0) {
+          hold.run({
+            $key: result.key, $region: region, $label: one.label, $period: point.date,
+            $value: point.value, $previous: previous.value, $fetchedAt: fetchedAt, $reason: "nonzero overwritten by 0",
+          });
+          held += 1;
+          continue;
+        }
 
         insertObservation.run({
           $key: result.key, $region: region, $label: one.label,
@@ -546,7 +585,7 @@ export function writeSeries(
   });
 
   write(result.series);
-  return { points, changed };
+  return { points, changed, held };
 }
 
 export function logFetch(entry: {
@@ -1078,8 +1117,13 @@ function computeStatus() {
     LIMIT 50
   `).all({ $weekAgo: weekAgo });
 
+  // Values held instead of written (see observations_quarantine): few, so counted outright.
+  const quarantine = database.query<{ rows: number; latest: string | null }, []>(
+    "SELECT COUNT(*) AS rows, MAX(fetched_at) AS latest FROM observations_quarantine",
+  ).get() ?? { rows: 0, latest: null };
+
   return { sizeBytes,
-    path: DB_PATH, totals, fetchLog, recentRuns, recentFailures };
+    path: DB_PATH, totals, fetchLog, quarantine, recentRuns, recentFailures };
 }
 
 /**

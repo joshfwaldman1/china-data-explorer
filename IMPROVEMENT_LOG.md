@@ -26,12 +26,12 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
-- (audit 2) Catalog writes have no guard: `isZeroedFetch` covers curated
-  keys only; esData's zero grid for a wrong place is stored as data.
-  Quarantine in `writeSeries` (nonzero -> 0, mass restatement, ~10^4 unit
-  shift) into `observations_quarantine`, status `held`, shown on Health.
-  First round: the zero-overwrite check generalised, with a test. Then a
-  release step for genuine benchmark restatements.
+- (audit 2, next steps) Quarantine is live for nonzero -> 0. Still to do:
+  show held values on Health (a section listing them), a release step for
+  a genuine revision to zero, then the other two rules (more than X% of a
+  table's old periods restated in one fetch; a ratio near 10^4 between new
+  and stored values, the 万/亿 unit shift). The 10 Sep money_supply zero
+  vintages are already stored and not touched.
 - (audit 5) `readRevisionHistory` groups by label+period only, so a series
   with regions merges places' vintages; the client's effect depends on keys
   only, so switching partner/province leaves the old place's revisions.
@@ -91,6 +91,22 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 2, first step: zero-overwrite quarantine): the only
+  guard against the portal's zero grid was `isZeroedFetch` on curated
+  keys, and only when every line's newest point read 0; the catalog paths
+  (`storeNbsPoints`, `refreshNbsCatalogSeries`) stored whatever came back,
+  and append-only means a stored zero stays in the vintages (money_supply
+  July 2026 still reads 4 -> 0 -> 4 from 10 Sep). `writeSeries` now holds
+  any stored nonzero value that a fetch would overwrite with exactly 0 in
+  `observations_quarantine` (key, region, label, period, value, previous,
+  fetched_at, reason) instead of writing it. First sightings of 0 (NBS's
+  placeholder months) are written as before. `WriteSummary.held` counts
+  them, catalog fetch_log rows say "N values held", and /api/status shows
+  `quarantine: { rows, latest }`. A genuine revision to exactly zero is
+  held too; none is expected often, and it is visible, not lost. Tests:
+  server/quarantine.test.ts (the 10 Sep sequence replayed: the zero is
+  held, the recovery writes nothing, vintages stay [7.7]).
 
 - 2026-10-02 (audit 1, third pass, measured live): with 20,000-id slices
   one slice took 1,567 ms on Railway and the row count did not move. Why

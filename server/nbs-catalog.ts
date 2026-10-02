@@ -1876,7 +1876,7 @@ export async function refreshNbsCatalogSeries(entry: NbsCatalogEntry, regionValu
   }
   const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt, { historyWindow: "full" });
   logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok",
-    points: summary.points, changed: summary.changed });
+    points: summary.points, changed: summary.changed, ...(summary.held > 0 ? { message: `${summary.held} values held: a stored figure would have become 0` } : {}) });
   return { region, points, changed: summary.changed };
 }
 
@@ -1922,7 +1922,7 @@ export function storeNbsPoints(entry: NbsCatalogEntry, region: NbsRegionOption, 
     return "empty";
   }
   const summary = writeSeries(rawResult(entry, region, points), region.value, finishedAt, { historyWindow: window });
-  logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed });
+  logFetch({ key: entry.key, region: region.value, startedAt, finishedAt, status: "ok", points: summary.points, changed: summary.changed, ...(summary.held > 0 ? { message: `${summary.held} values held: a stored figure would have become 0` } : {}) });
   return "ok";
 }
 
