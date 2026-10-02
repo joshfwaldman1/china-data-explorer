@@ -446,7 +446,39 @@ export const MIGRATIONS: Migration[] = [
   // both are no-ops on a store they have already repaired.
   { name: "2026-09-23 retract misread February partner figures", run: (database) => { retractMisreadFebruaries(database); } },
   { name: "2026-09-25 remove commodity quantity lines named for a misread number", run: (database) => { removeMisparsedQuantityLines(database); } },
+  {
+    // The series row's unit, title, frequency and agency are overwritten in
+    // place at each write, so a publisher changing a unit (万 to 亿) or
+    // renaming a table left no trace. Each change is kept here instead.
+    name: "2026-10-02 create series_meta_history",
+    run: (database) => {
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS series_meta_history (
+          key        TEXT NOT NULL,
+          region     TEXT NOT NULL DEFAULT '',
+          label      TEXT NOT NULL,
+          field      TEXT NOT NULL,
+          old_value  TEXT,
+          new_value  TEXT,
+          changed_at TEXT NOT NULL,
+          PRIMARY KEY (key, region, label, field, changed_at)
+        ) WITHOUT ROWID
+      `);
+      database.exec("CREATE INDEX IF NOT EXISTS series_meta_history_time ON series_meta_history (changed_at)");
+    },
+  },
 ];
+
+/** The descriptive fields of a series row whose changes are kept. The source URL is not one: page-based publishers move it every release. */
+export const TRACKED_META_FIELDS = ["unit", "title", "frequency", "agency"] as const;
+
+/** Recent changes to a series' unit, title, frequency or agency, newest first. */
+export function recentMetaChanges(limit = 50): { key: string; region: string; label: string; field: string; oldValue: string | null; newValue: string | null; changedAt: string }[] {
+  return db().query<{ key: string; region: string; label: string; field: string; oldValue: string | null; newValue: string | null; changedAt: string }, { $limit: number }>(`
+    SELECT key, region, label, field, old_value AS oldValue, new_value AS newValue, changed_at AS changedAt
+    FROM series_meta_history ORDER BY changed_at DESC LIMIT $limit
+  `).all({ $limit: limit });
+}
 
 /**
  * Applies each migration not yet recorded, in list order, each in its own
@@ -561,6 +593,15 @@ export function writeSeries(
     ) WHERE key = $key AND region = $region AND label = $label
   `);
 
+  // The row as it stands before this write, to keep a trail when a descriptive field changes.
+  const currentMeta = database.query<Record<(typeof TRACKED_META_FIELDS)[number], string | null>, { $key: string; $region: string; $label: string }>(`
+    SELECT unit, title, frequency, agency FROM series WHERE key = $key AND region = $region AND label = $label
+  `);
+  const recordMeta = database.prepare(`
+    INSERT OR IGNORE INTO series_meta_history (key, region, label, field, old_value, new_value, changed_at)
+    VALUES ($key, $region, $label, $field, $old, $new, $at)
+  `);
+
   const hold = database.prepare(`
     INSERT OR IGNORE INTO observations_quarantine (key, region, label, period, value, previous, fetched_at, reason)
     VALUES ($key, $region, $label, $period, $value, $previous, $fetchedAt, $reason)
@@ -573,6 +614,14 @@ export function writeSeries(
   const write = database.transaction((series: Series[]) => {
     for (const [position, one] of series.entries()) {
       const changedBeforeThisLine = changed;
+      const before = currentMeta.get({ $key: result.key, $region: region, $label: one.label });
+      if (before) {
+        const after: Record<(typeof TRACKED_META_FIELDS)[number], string> = { unit: result.unit, title: result.title, frequency: result.frequency, agency: result.agency };
+        for (const field of TRACKED_META_FIELDS) {
+          if (before[field] === after[field]) continue;
+          recordMeta.run({ $key: result.key, $region: region, $label: one.label, $field: field, $old: before[field], $new: after[field], $at: fetchedAt });
+        }
+      }
       upsertSeries.run({
         $key: result.key, $region: region, $label: one.label,
         $title: result.title, $agency: result.agency,
@@ -1182,7 +1231,7 @@ function computeStatus() {
   ).get() ?? { rows: 0, latest: null };
 
   return { sizeBytes,
-    path: DB_PATH, totals, fetchLog, quarantine, migrations: appliedMigrations(), recentRuns, recentFailures };
+    path: DB_PATH, totals, fetchLog, quarantine, migrations: appliedMigrations(), metaChanges: recentMetaChanges(20), recentRuns, recentFailures };
 }
 
 /**

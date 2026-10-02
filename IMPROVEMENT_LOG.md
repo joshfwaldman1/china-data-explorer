@@ -53,9 +53,13 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   outstanding), so this waits. Check the first resumed ingest in the
   Railway log ("Resuming an interrupted run") after a deploy lands during
   one.
-- (audit 8) `series` upsert overwrites unit/title/source_url with no trail:
-  `series_meta_history` on change, flagged on Health (format-change
-  detector). As-of reads (`fetched_at <= D`) on the existing key.
+- (audit 8, follow-ups) Show recent unit/title changes on Health (a unit
+  change is the shape of a 万/亿 shift and wants a person's look); as-of
+  reads (`fetched_at <= D`) on the observations key for "what did the site
+  show on date D". Expect a one-off burst of history rows the first time
+  each stored series is rewritten after 2026-10-02 wherever its stored
+  title predates a rename in code; check /api/status `metaChanges` a day
+  later and say so in the log.
 - (audit 11) "Behind" uses a fixed day 20; for NBS keys use the stored
   release agenda (release_log) plus 3 working days.
 - (audit 14) Backups only as GitHub artifacts (~134 MB each, check quota);
@@ -94,6 +98,19 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 8: a trail for descriptive changes): the `series`
+  upsert overwrote unit, title, frequency and agency in place at every
+  write, so a publisher switching a unit (万 to 亿) or renaming a table
+  left no record. Migration "2026-10-02 create series_meta_history" (the
+  ledger's first schema change) adds `series_meta_history (key, region,
+  label, field, old_value, new_value, changed_at)`; `writeSeries` reads
+  the row before its upsert (a primary-key read per line) and records each
+  tracked field that differs. The source URL is deliberately not tracked:
+  Customs and MOF move it with every release. Only one code path writes
+  each kind of series (adapters for curated keys, `rawResult` for catalog
+  tables), so a field cannot flip between two spellings. /api/status
+  shows `metaChanges` (latest 20). Test: server/meta-history.test.ts.
 
 - 2026-10-02 (audit 10: ingest resumes after a deploy): the scheduled full
   ingest recorded only its finish, so a deploy mid-run (a run takes over
