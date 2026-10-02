@@ -154,6 +154,23 @@ Due dates request work; source outages and available worker capacity can delay
 completion. Requests remain paced, and failed release batches spend their
 configured request budget just like successful ones.
 
+## Figures held back
+
+The write path holds a fetched value instead of storing it when it would
+replace a stored figure with exactly 0 (the bureau portal's zero grid) or
+with one about 10,000 times larger or smaller (a 万/亿 unit shift). Nothing
+is lost: each sits in `observations_quarantine` and is listed on the Health
+page under "Figures held back".
+
+If a held figure is genuine (checked against the publisher: a real revision
+to zero, or a deliberate rescale by a parser fix), release it into the
+store as the vintage it was:
+
+```sh
+railway ssh -- bun run china:release-held      # list, numbered
+railway ssh -- bun run china:release-held 3    # release row 3
+```
+
 ## Remaining scaling work
 
 This hardening pass does not make the service horizontally scalable. Next:

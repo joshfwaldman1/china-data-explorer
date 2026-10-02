@@ -27,9 +27,8 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
 - (audit 2, next steps) Quarantine holds nonzero -> 0 and ~10^4 shifts,
-  listed on Health. Still to do: a release step (a held value that is a
-  genuine revision, or a deliberate rescale by our own parser fix, is
-  written with its original fetched_at); the mass-restatement rule (more
+  listed on Health, releasable with `china:release-held`. Still to do:
+  the mass-restatement rule (more
   than X% of a table's old periods changed in one fetch). The 10 Sep
   money_supply zero vintages are already stored and not touched.
 - (audit 4, owner) Backup would archive a regressed store: verify-backup
@@ -95,6 +94,17 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 2: releasing a held figure): a hold had no way out, so
+  a genuine revision to zero or a deliberate 10,000x rescale by a parser
+  fix would sit held for good. `releaseHeld` in db.ts writes the held value
+  as the vintage it was (its own fetched_at, so the trail stays in time
+  order), deletes it from the quarantine, and moves store_stats,
+  series_range and the line's period count in the same transaction.
+  `bun run china:release-held` lists holds, numbered; with a number it
+  releases that row. OPERATIONS.md says how to run it on Railway. Test in
+  quarantine.test.ts (vintages [2.5, 0] in order, count +1, a second
+  release a no-op). Tried the CLI on a scratch store ("Nothing held.").
 
 - 2026-10-02 (audit 2, second rule: unit shifts held; audit 11 and
   busy_timeout closed without code): `holdReason(previous, next)` in db.ts

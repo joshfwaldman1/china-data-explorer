@@ -478,6 +478,41 @@ export function heldObservations(limit = 50): { key: string; region: string; lab
   `).all({ $limit: limit });
 }
 
+/**
+ * Writes a held value into the observations as the vintage it was, with its
+ * original fetched_at, and removes it from the quarantine: for a hold that
+ * turns out to be a genuine revision (a figure revised to zero) or a
+ * deliberate rescale by a parser fix. The summaries the write path keeps
+ * (store_stats, series_range, the line's period count) move with it, in the
+ * same transaction. Returns false when no such held row exists.
+ */
+export function releaseHeld(target: { key: string; region: string; label: string; period: string; fetchedAt: string }): boolean {
+  const database = db();
+  const params = { $key: target.key, $region: target.region, $label: target.label, $period: target.period, $fetchedAt: target.fetchedAt };
+  const row = database.query<{ value: number | null }, typeof params>(`
+    SELECT value FROM observations_quarantine
+    WHERE key = $key AND region = $region AND label = $label AND period = $period AND fetched_at = $fetchedAt
+  `).get(params);
+  if (!row) return false;
+  database.transaction(() => {
+    const written = database.query("INSERT OR IGNORE INTO observations (key, region, label, period, value, fetched_at) VALUES ($key, $region, $label, $period, $value, $fetchedAt)")
+      .run({ ...params, $value: row.value }).changes;
+    database.query("DELETE FROM observations_quarantine WHERE key = $key AND region = $region AND label = $label AND period = $period AND fetched_at = $fetchedAt").run(params);
+    if (written === 0) return;
+    database.query("INSERT INTO store_stats (id, observations) VALUES (1, 1) ON CONFLICT (id) DO UPDATE SET observations = observations + 1").run();
+    database.query(`
+      INSERT OR REPLACE INTO series_range (key, region, first_period, first_real_period, last_period, periods, last_fetch)
+      SELECT key, region, MIN(period), MIN(CASE WHEN value <> 0 THEN period END), MAX(period), COUNT(DISTINCT period), MAX(fetched_at)
+      FROM observations WHERE key = $key AND region = $region
+    `).run({ $key: target.key, $region: target.region });
+    database.query(`
+      UPDATE series SET periods = (SELECT COUNT(DISTINCT period) FROM observations WHERE key = $key AND region = $region AND label = $label)
+      WHERE key = $key AND region = $region AND label = $label
+    `).run({ $key: target.key, $region: target.region, $label: target.label });
+  })();
+  return true;
+}
+
 /** The descriptive fields of a series row whose changes are kept. The source URL is not one: page-based publishers move it every release. */
 export const TRACKED_META_FIELDS = ["unit", "title", "frequency", "agency"] as const;
 

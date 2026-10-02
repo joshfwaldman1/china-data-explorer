@@ -62,3 +62,19 @@ test("a figure about 10,000 times the stored one, either way, is held as a unit 
   expect(shifted.held).toBe(1);
   expect(vintages("2026-05")).toEqual([36_898]);
 });
+
+test("a released hold is written as the vintage it was, at its own time, and the counts move with it", async () => {
+  const { releaseHeld } = await import("./db.ts");
+  const count = () => db().query<{ observations: number }, []>("SELECT observations FROM store_stats WHERE id = 1").get()?.observations ?? 0;
+  writeSeries(result([{ date: "2026-04", value: 2.5 }]), "", "2026-09-25T00:00:00.000Z");
+  writeSeries(result([{ date: "2026-04", value: 0 }]), "", "2026-09-26T00:00:00.000Z");
+  const before = count();
+  const target = { key: "nbs_quarantine_test", region: "", label: "M2 (YoY %)", period: "2026-04", fetchedAt: "2026-09-26T00:00:00.000Z" };
+  expect(releaseHeld(target)).toBe(true);
+  expect(vintages("2026-04")).toEqual([2.5, 0]);
+  expect(count()).toBe(before + 1);
+  expect(db().query<{ n: number }, []>("SELECT COUNT(*) AS n FROM observations_quarantine WHERE period = '2026-04'").get()?.n).toBe(0);
+  // Released once; a second call finds nothing.
+  expect(releaseHeld(target)).toBe(false);
+  expect(count()).toBe(before + 1);
+});

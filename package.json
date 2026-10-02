@@ -30,7 +30,8 @@
     "china:translate": "bun run scripts/translate-catalog.ts",
     "china:translate-notes": "bun run scripts/translate-notes.ts",
     "china:official-en": "bun run scripts/import-nbs-official-en.ts",
-    "china:seed": "bun run server/seed.ts"
+    "china:seed": "bun run server/seed.ts",
+    "china:release-held": "bun run server/release-held.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
