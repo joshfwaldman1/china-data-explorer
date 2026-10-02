@@ -45,6 +45,15 @@ not from scratch. Rounds are small on purpose.
 
 ## Log
 
+- 2026-10-01 (owner's correction): the Tech and innovation page is the
+  ten requested charts and nothing else. The twelve older charts that had
+  been kept below them are removed (R&D spending total, basic research and
+  personnel, foreign invention applications, 5G users, IT value added and
+  investment, doctoral graduates, and the four Customs hi-tech and chip
+  trade charts). Every series stays on its own page. Trade and flows
+  still draws hi-tech and chip exports. The two import charts are on no
+  theme page now.
+
 - 2026-10-01 (owner's request: Tech and innovation page from a list of
   ten indicators). The page is rebuilt around them. R&D spending as a
   share of GDP, 1995 to 2025 (2.80% in 2025). Output of chips, solar cells,
