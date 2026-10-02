@@ -16,6 +16,60 @@ not from scratch. Rounds are small on purpose.
 
 ## Queue (highest value first)
 
+Owner's priorities (2026-10-02): database management first, then how data
+is acquired, then reliability, then catching glitches. Items 1-14 below come
+from a read-only architecture audit that day; evidence was checked against
+the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
+2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
+3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
+
+- (audit 3) Whole-store `storedLatest("")` scans run on the HTTP thread:
+  app.ts hourly publisher-window check (twice), every release attempt, boot.
+  db.ts says it is the wrong tool. Use `db.latestPeriods(keys)`. ~20 lines.
+- (audit 1) fetch_log is never pruned: ~62K rows a day, backups 91.8 MB
+  (09-20) -> 133.8 MB (10-01) with observations flat. Batched retention
+  prune (ok/unchanged after 30 days, empty/error after 45; health reads 14
+  and `recentlyEmptyTargets` 30). Later a per-(key, region) `fetch_state`.
+- (audit 2) Catalog writes have no guard: `isZeroedFetch` covers curated
+  keys only; esData's zero grid for a wrong place is stored as data.
+  Quarantine in `writeSeries` (nonzero -> 0, mass restatement, ~10^4 unit
+  shift) into `observations_quarantine`, status `held`, shown on Health.
+  First round: the zero-overwrite check generalised, with a test. Then a
+  release step for genuine benchmark restatements.
+- (audit 5) `readRevisionHistory` groups by label+period only, so a series
+  with regions merges places' vintages; the client's effect depends on keys
+  only, so switching partner/province leaves the old place's revisions.
+- (audit 4, owner) Backup would archive a regressed store: verify-backup
+  rejects only an empty one, and a missing /data/china.db is reseeded from
+  the 1.9 MB seed. Set CHINA_SEED=off on Railway; compare each manifest to
+  the previous (fail on >1% fewer observations or latestPeriod going back).
+- (audit 6, owner) No alerting: problems surface only on #/health. A 30-min
+  GitHub Action that fails (emails) on /ready, health findings, behind
+  series, abandoned release jobs, backup older than 36h. Turn on Railway
+  "wait for CI".
+- (audit 7) No migration ledger: schema across five files as CREATE IF NOT
+  EXISTS + table_info probes; data repairs (db.ts:192-243) re-detect every
+  boot. `schema_migrations` + ordered named migrations in transactions.
+- (audit 9) Per-host circuit breaker: MOF 502s 08:33-09:20 on 10-02 were
+  retried per key (lgb_issuance 54 failures). Persist `upstreamStats`.
+- (audit 10) Daily ingest restarts from the top on every deploy; save the
+  last finished key in `scheduled_jobs` and resume. Same for crawl/audit.
+- (audit 8) `series` upsert overwrites unit/title/source_url with no trail:
+  `series_meta_history` on change, flagged on Health (format-change
+  detector). As-of reads (`fetched_at <= D`) on the existing key.
+- (audit 11) "Behind" uses a fixed day 20; for NBS keys use the stored
+  release agenda (release_log) plus 3 working days.
+- (audit 14) Backups only as GitHub artifacts (~134 MB each, check quota);
+  restore onto the volume is undocumented. Copy to R2/B2, boot-time swap of
+  a checksum-verified file behind an env var, timed drill.
+- (audit 13) Archive raw responses: sha256, length, parser version per
+  fetch; raw bodies for curated publishers. First round: the columns.
+- (audit 12) Separate ingest from web: a Railway volume attaches to one
+  service, so only a child process. Do 3, add `PRAGMA busy_timeout` to the
+  main handle, measure; only then a single-writer child (~300 lines).
+- Tech page: check IPC section B share (31.7% of 2024 applications) against
+  CNIPA's own figures.
+
 - Home rows and hero tiles whose title names a level for a growth figure
   ("Gross Domestic Product" 4.3%, "Consumer Price Index" 0.8%, "Producer
   Price Index" 3.8%), and monthly rows that do not say "month on a year
