@@ -41,6 +41,10 @@ process.
 - Attribute a figure to the publishing agency, never to a mirror. Say "year
   to date" when a series is cumulative. Never derive a January figure NBS
   did not publish.
+- A change to the store's schema or to stored data is a named entry in
+  `MIGRATIONS` (`server/db.ts`), dated, never renamed once shipped. It runs
+  once, in its own transaction, and `/api/status` lists what has been
+  applied. Don't add more `PRAGMA table_info` probes or boot-time repairs.
 - A Home row is named for exactly what it shows (`HOME_ROWS` in
   `server/data.ts`).
 

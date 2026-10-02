@@ -40,9 +40,10 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   GitHub Action that fails (emails) on /ready, health findings, behind
   series, abandoned release jobs, backup older than 36h. Turn on Railway
   "wait for CI".
-- (audit 7) No migration ledger: schema across five files as CREATE IF NOT
-  EXISTS + table_info probes; data repairs (db.ts:192-243) re-detect every
-  boot. `schema_migrations` + ordered named migrations in transactions.
+- (audit 7, follow-up) Migrations live only for store changes made after
+  2026-10-02; the earlier CREATE IF NOT EXISTS + table_info probes stay as
+  the baseline. Schema in jobs.ts, arrivals.ts, nbs-releases.ts and
+  nbs-catalog.ts (catalog.db, rebuildable) is outside the ledger.
 - (audit 9) Per-host circuit breaker: MOF 502s 08:33-09:20 on 10-02 were
   retried per key (lgb_issuance 54 failures). Persist `upstreamStats`.
 - (audit 10) Daily ingest restarts from the top on every deploy; save the
@@ -88,6 +89,19 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 7: migration ledger): the store had no record of what
+  had been applied to it. Schema lived as CREATE IF NOT EXISTS plus
+  PRAGMA table_info probes, and two one-off data repairs (the misread
+  Customs Februaries, 23 Sep; the misparsed quantity lines, 25 Sep) re-ran
+  their detection queries at every boot. New `MIGRATIONS` list and
+  `runMigrations` in db.ts: a `schema_migrations (name, applied_at)`
+  table, each migration in its own transaction with its record, run once in
+  list order, a failure throws and stops the boot. The two repairs are its
+  first entries (no-ops on the live store, which they already repaired).
+  /api/status lists `migrations`. AGENTS.md says new store changes go here.
+  Tests: server/migrations.test.ts (order, once, rollback on failure,
+  shipped names recorded and unique); retraction.test.ts unchanged.
 
 - 2026-10-02 (audit 5: revisions merged places): `/api/revisions/
   trade_partners` with no region showed "Balance, Feb 2025" with 60

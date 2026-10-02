@@ -367,8 +367,6 @@ export function db(): Database {
   }
   backfillSeriesRanges(database);
   migrateFullHistoryChecks(database);
-  retractMisreadFebruaries(database);
-  removeMisparsedQuantityLines(database);
 
   // Every ingest attempt, successful or not. A source going dark should be
   // visible as a run that failed, not as a chart that quietly goes stale.
@@ -423,8 +421,66 @@ export function db(): Database {
     database.exec("ALTER TABLE series ADD COLUMN periods INTEGER");
   }
 
+  runMigrations(database, MIGRATIONS);
+
   handle = database;
   return handle;
+}
+
+/**
+ * A change to the store that should happen once, in order, with a record of
+ * when it did. The tables above are created with IF NOT EXISTS and their later
+ * columns are probed with PRAGMA table_info: that baseline stays as it is. A
+ * change made from here on, to the schema or to stored data, is a named
+ * migration instead, so the store says what has been applied to it and a
+ * repair does not run its detection query again at every boot.
+ */
+export interface Migration {
+  /** Never renamed once shipped: the name is the record. Dated, then what it does. */
+  name: string;
+  run: (database: Database) => void;
+}
+
+export const MIGRATIONS: Migration[] = [
+  // These two ran at every boot from 23 and 25 September until this ledger;
+  // both are no-ops on a store they have already repaired.
+  { name: "2026-09-23 retract misread February partner figures", run: (database) => { retractMisreadFebruaries(database); } },
+  { name: "2026-09-25 remove commodity quantity lines named for a misread number", run: (database) => { removeMisparsedQuantityLines(database); } },
+];
+
+/**
+ * Applies each migration not yet recorded, in list order, each in its own
+ * transaction with its record, so a failure leaves neither half-applied
+ * changes nor a record claiming it ran. A failed migration stops the boot:
+ * the store must not be served in a state no migration list describes.
+ */
+export function runMigrations(database: Database, migrations: Migration[]): string[] {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      name       TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    )
+  `);
+  const applied = new Set(database.query<{ name: string }, []>("SELECT name FROM schema_migrations").all().map((row) => row.name));
+  const record = database.prepare("INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)");
+  const ran: string[] = [];
+  for (const migration of migrations) {
+    if (applied.has(migration.name)) continue;
+    database.transaction(() => {
+      migration.run(database);
+      record.run(migration.name, new Date().toISOString());
+    })();
+    console.log(`  Store: applied migration "${migration.name}"`);
+    ran.push(migration.name);
+  }
+  return ran;
+}
+
+/** The migrations this store has applied, oldest first, for /api/status. */
+export function appliedMigrations(): { name: string; appliedAt: string }[] {
+  return db().query<{ name: string; appliedAt: string }, []>(
+    "SELECT name, applied_at AS appliedAt FROM schema_migrations ORDER BY applied_at, name",
+  ).all();
 }
 
 const CATALOG_DB_PATH = process.env.CHINA_CATALOG_DB_PATH ?? `${import.meta.dir}/../catalog.db`;
@@ -1126,7 +1182,7 @@ function computeStatus() {
   ).get() ?? { rows: 0, latest: null };
 
   return { sizeBytes,
-    path: DB_PATH, totals, fetchLog, quarantine, recentRuns, recentFailures };
+    path: DB_PATH, totals, fetchLog, quarantine, migrations: appliedMigrations(), recentRuns, recentFailures };
 }
 
 /**
