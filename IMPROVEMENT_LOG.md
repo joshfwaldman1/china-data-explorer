@@ -32,9 +32,6 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   table's old periods restated in one fetch; a ratio near 10^4 between new
   and stored values, the 万/亿 unit shift). The 10 Sep money_supply zero
   vintages are already stored and not touched.
-- (audit 5) `readRevisionHistory` groups by label+period only, so a series
-  with regions merges places' vintages; the client's effect depends on keys
-  only, so switching partner/province leaves the old place's revisions.
 - (audit 4, owner) Backup would archive a regressed store: verify-backup
   rejects only an empty one, and a missing /data/china.db is reseeded from
   the 1.9 MB seed. Set CHINA_SEED=off on Railway; compare each manifest to
@@ -91,6 +88,17 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 5: revisions merged places): `/api/revisions/
+  trade_partners` with no region showed "Balance, Feb 2025" with 60
+  vintages (369,423.3, 36,898, 13,303.5...): thirty partners' figures read
+  as restatements of one number. `readRevisionHistory` now groups by
+  region as well and returns it on each entry. The series page refetched
+  revisions only when keys changed, so switching partner or province kept
+  the previous place's list; it now refetches on key@region and ignores a
+  late answer for a place already left. Test:
+  server/revisions-by-place.test.ts (fails on the old grouping). Verified
+  live on the API.
 
 - 2026-10-02 (audit 2, first step: zero-overwrite quarantine): the only
   guard against the portal's zero grid was `isZeroedFetch` on curated

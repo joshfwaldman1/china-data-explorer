@@ -1903,12 +1903,17 @@ function SeriesPage(props: {
     if (!primary) return;
     const query = new URLSearchParams();
     if (primary.region?.value) query.set("region", primary.region.value);
+    // A slower answer for the place just left must not land over this one's.
+    let cancelled = false;
     json(`/api/revisions/${primary.key}?${query}`).then((body) => {
+      if (cancelled) return;
       const list = obj(body, "revised");
       if (!Array.isArray(list)) { setRevised([]); return; }
       setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: listOf(item, "vintages").map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
-    }).catch(() => setRevised([]));
-  }, [results.map((result) => result.key).join(",")]);
+    }).catch(() => { if (!cancelled) setRevised([]); });
+    return () => { cancelled = true; };
+    // The place is part of what is shown: switching partner or province must refetch.
+  }, [results.map((result) => `${result.key}@${result.region?.value ?? ""}`).join(",")]);
 
   useEffect(() => {
     // Siblings in the same NBS category, for a single catalog series: the cheapest way to browse a table.

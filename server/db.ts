@@ -678,8 +678,8 @@ export function readRevisions(key: string, label: string, period: string, region
  * actually revises something.
  */
 export function readRevisionHistory(key: string, region?: string) {
-  const rows = db().query<{ label: string; period: string; value: number | null; fetchedAt: string }, Record<string, string | null>>(`
-    SELECT o.label, o.period, o.value, o.fetched_at AS fetchedAt
+  const rows = db().query<{ region: string; label: string; period: string; value: number | null; fetchedAt: string }, Record<string, string | null>>(`
+    SELECT o.region, o.label, o.period, o.value, o.fetched_at AS fetchedAt
     FROM observations o
     JOIN (
       SELECT key, region, label, period FROM observations
@@ -687,12 +687,15 @@ export function readRevisionHistory(key: string, region?: string) {
       GROUP BY key, region, label, period HAVING COUNT(*) > 1
     ) r ON r.key = o.key AND r.region = o.region AND r.label = o.label AND r.period = o.period
     WHERE o.key = $key AND ($region IS NULL OR o.region = $region)
-    ORDER BY o.period DESC, o.label, o.fetched_at ASC
+    ORDER BY o.period DESC, o.label, o.region, o.fetched_at ASC
   `).all({ $key: key, $region: region ?? null });
-  const grouped = new Map<string, { label: string; period: string; vintages: { value: number | null; fetchedAt: string }[] }>();
+  // Grouped by place as well: asked without a region, a series published for
+  // thirty partners used to come back as one period with sixty "vintages",
+  // each partner's figure read as a revision of the last.
+  const grouped = new Map<string, { region: string; label: string; period: string; vintages: { value: number | null; fetchedAt: string }[] }>();
   for (const row of rows) {
-    const id = `${row.label}\u0000${row.period}`;
-    const entry = grouped.get(id) ?? { label: row.label, period: row.period, vintages: [] };
+    const id = `${row.region}\u0000${row.label}\u0000${row.period}`;
+    const entry = grouped.get(id) ?? { region: row.region, label: row.label, period: row.period, vintages: [] };
     entry.vintages.push({ value: row.value, fetchedAt: row.fetchedAt });
     grouped.set(id, entry);
   }
