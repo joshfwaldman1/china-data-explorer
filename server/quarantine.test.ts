@@ -47,3 +47,18 @@ test("an ordinary revision, including one away from zero, is written as before",
   expect(vintages("2026-08")).toEqual([8.0, 8.1]);
   expect(vintages("2026-06")).toEqual([0, 0.3]);
 });
+
+test("a figure about 10,000 times the stored one, either way, is held as a unit shift; ordinary moves are not", async () => {
+  const { holdReason } = await import("./db.ts");
+  expect(holdReason(36_898, 369_000_000)).toContain("10,000 times");
+  expect(holdReason(369_000_000, 36_900)).toContain("1/10,000");
+  expect(holdReason(-120, -1_200_000)).toContain("10,000 times");
+  expect(holdReason(4.1, 4.3)).toBeNull();
+  expect(holdReason(0.1, 120)).toBeNull(); // 1,200 times: large, but not the unit's factor
+  expect(holdReason(100, 1_000)).toBeNull();
+  expect(holdReason(0, 5)).toBeNull();
+  writeSeries(result([{ date: "2026-05", value: 36_898 }]), "", "2026-09-20T00:00:00.000Z");
+  const shifted = writeSeries(result([{ date: "2026-05", value: 368_980_000 }]), "", "2026-09-21T00:00:00.000Z");
+  expect(shifted.held).toBe(1);
+  expect(vintages("2026-05")).toEqual([36_898]);
+});

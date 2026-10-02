@@ -554,6 +554,25 @@ export function catalogDb(): Database {
   return catalogHandle;
 }
 
+/**
+ * Why a fetched value should be held instead of replacing a stored one, or
+ * null to write it. Two shapes no genuine revision takes:
+ * - exactly 0 over a nonzero figure: the portal's zero grid for a wrong or
+ *   failing request (money supply, July 2026: 4, then 0, then 4);
+ * - a figure 5,000 to 20,000 times the stored one, or that fraction of it:
+ *   a table switching between 万 and 亿 (10,000), read with the old unit.
+ * The bureau rounds to a tenth, so a rate cannot move by that factor
+ * without a broken read either.
+ */
+export function holdReason(previous: number, next: number): string | null {
+  if (previous === 0) return null;
+  if (next === 0) return "nonzero overwritten by 0";
+  const ratio = Math.abs(next / previous);
+  if (ratio >= 5_000 && ratio <= 20_000) return "about 10,000 times the stored figure (万/亿 unit shift?)";
+  if (ratio >= 1 / 20_000 && ratio <= 1 / 5_000) return "about 1/10,000 of the stored figure (万/亿 unit shift?)";
+  return null;
+}
+
 export interface WriteSummary {
   points: number;
   changed: number;
@@ -648,13 +667,15 @@ export function writeSeries(
         // Unchanged values are not re-stored; only first sightings and
         // revisions become rows.
         if (previous !== null && previous.value === point.value) continue;
-        // A stored figure overwritten by exactly 0 is the shape of the portal's
-        // zero grid, not of a revision: held, not written. A first sighting of
-        // 0 (the bureau's placeholder months) is written as before.
-        if (previous !== null && previous.value !== null && previous.value !== 0 && point.value === 0) {
+        // A stored figure overwritten by exactly 0, or by one about 10,000
+        // times larger or smaller, is the shape of a bad response, not of a
+        // revision: held, not written (holdReason). A first sighting of
+        // anything, 0 included (the bureau's placeholder months), is written.
+        const heldFor = previous === null || previous.value === null ? null : holdReason(previous.value, point.value);
+        if (previous !== null && heldFor) {
           hold.run({
             $key: result.key, $region: region, $label: one.label, $period: point.date,
-            $value: point.value, $previous: previous.value, $fetchedAt: fetchedAt, $reason: "nonzero overwritten by 0",
+            $value: point.value, $previous: previous.value, $fetchedAt: fetchedAt, $reason: heldFor,
           });
           held += 1;
           continue;

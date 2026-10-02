@@ -26,12 +26,12 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
-- (audit 2, next steps) Quarantine is live for nonzero -> 0 and listed on
-  Health. Still to do: a release step for
-  a genuine revision to zero, then the other two rules (more than X% of a
-  table's old periods restated in one fetch; a ratio near 10^4 between new
-  and stored values, the 万/亿 unit shift). The 10 Sep money_supply zero
-  vintages are already stored and not touched.
+- (audit 2, next steps) Quarantine holds nonzero -> 0 and ~10^4 shifts,
+  listed on Health. Still to do: a release step (a held value that is a
+  genuine revision, or a deliberate rescale by our own parser fix, is
+  written with its original fetched_at); the mass-restatement rule (more
+  than X% of a table's old periods changed in one fetch). The 10 Sep
+  money_supply zero vintages are already stored and not touched.
 - (audit 4, owner) Backup would archive a regressed store: verify-backup
   rejects only an empty one, and a missing /data/china.db is reseeded from
   the 1.9 MB seed. Set CHINA_SEED=off on Railway; compare each manifest to
@@ -59,8 +59,6 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   each stored series is rewritten after 2026-10-02 wherever its stored
   title predates a rename in code; check /api/status `metaChanges` a day
   later and say so in the log.
-- (audit 11) "Behind" uses a fixed day 20; for NBS keys use the stored
-  release agenda (release_log) plus 3 working days.
 - (audit 14) Backups only as GitHub artifacts (~134 MB each, check quota);
   restore onto the volume is undocumented. Copy to R2/B2, boot-time swap of
   a checksum-verified file behind an env var, timed drill.
@@ -97,6 +95,20 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 2, second rule: unit shifts held; audit 11 and
+  busy_timeout closed without code): `holdReason(previous, next)` in db.ts
+  now decides holds for `writeSeries`: exactly 0 over a nonzero figure
+  (as before), and a figure 5,000 to 20,000 times the stored one or that
+  fraction of it, the 万/亿 factor read with the old unit. The bureau
+  rounds to a tenth, so no rate can move by that factor without a broken
+  read. Tests in quarantine.test.ts (both directions, negatives, a 1,200x
+  move and 10x not held). Closed on inspection: audit 11 (health's
+  "behind" already uses each curated key's release day; release-day
+  fetching already follows NBS's agenda in release-plan.ts; due.ts's 20th
+  is only the backstop for catalog tables) and audit 12's busy_timeout
+  (one connection, WAL, a read-only backup reader, no "database is locked"
+  anywhere in the log: nothing for it to fix).
 
 - 2026-10-02 (held figures and unit changes on Health): the zero
   quarantine (round 4) and the meta trail (round 9) wrote to tables only
