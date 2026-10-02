@@ -961,13 +961,31 @@ export const FETCH_LOG_RETENTION_DAYS = { empty: 14, ok: 31, error: 45 } as cons
  * window is still whole. Successes that changed values are kept: they are the
  * record of when a revision arrived.
  *
- * Work per call is bounded by the id slice, not by what is deletable. The
+ * Most of the log is one row per target, not repeats: the crawl does not
+ * re-ask an empty target for thirty days. So little is deletable at any time
+ * and this is a guard against regrowth; it must stay cheap. Work per call is
+ * bounded by the id slice, not by what is deletable. The
  * first version asked for "up to N deletable rows anywhere", which SQLite
  * answered by scanning the whole log: 3.7 s on the thread serving HTTP, to
  * find 108 rows, because most of the log was still inside its windows.
  */
-export function pruneFetchLog(fromId: number, span = 20_000, now = Date.now()): { removed: number; nextId: number; wrapped: boolean } {
+export function pruneFetchLog(fromId: number, span = 5_000, now = Date.now()): { removed: number; nextId: number; wrapped: boolean } {
   const before = (days: number) => new Date(now - days * 86_400_000).toISOString();
+  const restart = () => db().query<{ id: number | null }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? 0;
+  // Ids rise with time, so once a whole slice is younger than the shortest
+  // window nothing from there on can be deleted yet: the sweep is done. The
+  // whole slice, not its first row, so one row logged out of order cannot
+  // end every sweep early. A slice with no rows (ids freed by earlier
+  // prunes) skips to the next row that exists.
+  const slice = db().query<{ oldest: string | null }, { $from: number; $to: number }>(
+    "SELECT MIN(finished_at) AS oldest FROM fetch_log WHERE id >= $from AND id < $to",
+  ).get({ $from: fromId, $to: fromId + span });
+  if (!slice?.oldest) {
+    const next = db().query<{ id: number }, { $from: number }>("SELECT id FROM fetch_log WHERE id >= $from ORDER BY id LIMIT 1").get({ $from: fromId + span });
+    return next ? { removed: 0, nextId: next.id, wrapped: false } : { removed: 0, nextId: restart(), wrapped: true };
+  }
+  const shortest = before(Math.min(...Object.values(FETCH_LOG_RETENTION_DAYS)));
+  if (slice.oldest >= shortest) return { removed: 0, nextId: restart(), wrapped: true };
   const removed = db().query<never, Record<string, string | number>>(`
     DELETE FROM fetch_log WHERE id IN (
       SELECT f.id FROM fetch_log f
@@ -981,11 +999,7 @@ export function pruneFetchLog(fromId: number, span = 20_000, now = Date.now()): 
     $from: fromId, $to: fromId + span,
     $empty: before(FETCH_LOG_RETENTION_DAYS.empty), $ok: before(FETCH_LOG_RETENTION_DAYS.ok), $error: before(FETCH_LOG_RETENTION_DAYS.error),
   }).changes;
-  const last = db().query<{ id: number | null }, []>("SELECT MAX(id) AS id FROM fetch_log").get()?.id ?? 0;
-  const next = fromId + span;
-  if (next <= last) return { removed, nextId: next, wrapped: false };
-  const first = db().query<{ id: number | null }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? 0;
-  return { removed, nextId: first, wrapped: true };
+  return { removed, nextId: fromId + span, wrapped: false };
 }
 
 /** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */

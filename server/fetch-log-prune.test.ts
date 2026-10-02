@@ -14,13 +14,15 @@ process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-prune-")), 
 process.env.CHINA_SEED = "off";
 const { db, logFetch, pruneFetchLog } = await import("./db.ts");
 
+const firstOwnId = (db().query<{ id: number | null }, []>("SELECT MAX(id) AS id FROM fetch_log").get()?.id ?? 0) + 1;
 const now = Date.parse("2026-10-02T00:00:00.000Z");
 const daysAgo = (days: number) => new Date(now - days * 86_400_000).toISOString();
 const log = (key: string, region: string, status: "ok" | "error" | "empty", days: number, changed = 0) =>
   logFetch({ key, region, startedAt: daysAgo(days), finishedAt: daysAgo(days), status, points: 0, changed, message: `${status} ${days}` });
 /** One full sweep from the first id, in small slices, as the scheduler runs it. */
 const sweep = () => {
-  let cursor = 0, removed = 0;
+  // From this file's first row: other test files share the store, and their rows are young.
+  let cursor = firstOwnId, removed = 0;
   for (;;) { const slice = pruneFetchLog(cursor, 3, now); removed += slice.removed; cursor = slice.nextId; if (slice.wrapped) return removed; }
 };
 const remaining = (key: string) => db()
@@ -28,24 +30,23 @@ const remaining = (key: string) => db()
   .all({ $key: key }).map((row) => `${row.region}:${row.message}`);
 
 test("superseded rows past their window go; the newest of each kind and anything inside its window stay", () => {
-  // Empty answers: 14 days. The crawl re-asks the same empty target daily.
-  log("prune_empty", "beijing", "empty", 40);
-  log("prune_empty", "beijing", "empty", 20);
-  log("prune_empty", "beijing", "empty", 10);
-  log("prune_empty", "shanghai", "empty", 40); // newest for its place: kept
-  // Successes: 31 days, and only those that changed nothing.
+  // Rows are written as fetches finish, so ids rise with time; written oldest first here too.
+  // Empty answers: 14 days. Successes: 31, only those that changed nothing. Errors: 45.
+  log("prune_lone", "", "error", 200); // the only error of its key: kept
+  log("prune_error", "", "error", 90);
   log("prune_ok", "", "ok", 60);
   log("prune_ok", "", "ok", 50, 3); // carried a revision: kept
-  log("prune_ok", "", "ok", 20);
-  log("prune_ok", "", "ok", 1);
-  // Errors: 45 days. An old error is the newest of its status, so it stays.
-  log("prune_error", "", "error", 90);
   log("prune_error", "", "error", 50);
+  log("prune_empty", "beijing", "empty", 40);
+  log("prune_empty", "shanghai", "empty", 40); // newest for its place: kept
   log("prune_error", "", "error", 30);
-  log("prune_lone", "", "error", 200);
+  log("prune_empty", "beijing", "empty", 20);
+  log("prune_ok", "", "ok", 20);
+  log("prune_empty", "beijing", "empty", 10);
+  log("prune_ok", "", "ok", 1);
 
   expect(sweep()).toBe(5);
-  expect(remaining("prune_empty")).toEqual(["beijing:empty 10", "shanghai:empty 40"]);
+  expect(remaining("prune_empty")).toEqual(["shanghai:empty 40", "beijing:empty 10"]);
   expect(remaining("prune_ok")).toEqual([":ok 50", ":ok 20", ":ok 1"]);
   expect(remaining("prune_error")).toEqual([":error 30"]);
   expect(remaining("prune_lone")).toEqual([":error 200"]);
@@ -53,13 +54,24 @@ test("superseded rows past their window go; the newest of each kind and anything
   expect(sweep()).toBe(0);
 });
 
-test("a slice looks only at its own ids, and the cursor wraps to the first row after the last", () => {
+test("a slice looks only at its own ids, and a sweep ends at the first row younger than the shortest window", () => {
   const firstId = db().query<{ id: number }, []>("SELECT MAX(id) + 1 AS id FROM fetch_log").get()?.id ?? 1;
   for (let day = 100; day > 20; day -= 1) log("prune_slice", "", "empty", day);
-  // The first ten of the eighty are all superseded and past the window.
+  log("prune_slice", "", "empty", 5); // young: the sweep stops here
+  // The first ten of the eighty old rows are all superseded and past the window.
   expect(pruneFetchLog(firstId, 10, now)).toEqual({ removed: 10, nextId: firstId + 10, wrapped: false });
-  const rest = pruneFetchLog(firstId + 10, 1_000, now);
-  expect(rest.removed).toBe(80 - 10 - 1); // all but the newest
-  expect(rest.wrapped).toBe(true);
-  expect(rest.nextId).toBe(db().query<{ id: number }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? -1);
+  let cursor = firstId + 10, removed = 0;
+  for (;;) { const slice = pruneFetchLog(cursor, 20, now); removed += slice.removed; cursor = slice.nextId; if (slice.wrapped) break; }
+  expect(removed).toBe(80 - 10); // every old row: the young one supersedes the last of them
+  expect(cursor).toBe(db().query<{ id: number }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? -1);
+});
+
+test("one young row logged out of order does not end the sweep", () => {
+  const start = (db().query<{ id: number | null }, []>("SELECT MAX(id) AS id FROM fetch_log").get()?.id ?? 0) + 1;
+  log("prune_stray", "", "empty", 2); // young, but first
+  for (let day = 60; day > 40; day -= 1) log("prune_stray", "", "empty", day);
+  log("prune_stray", "", "empty", 1);
+  let cursor = start, removed = 0;
+  for (;;) { const slice = pruneFetchLog(cursor, 5, now); removed += slice.removed; cursor = slice.nextId; if (slice.wrapped) break; }
+  expect(removed).toBe(20);
 });

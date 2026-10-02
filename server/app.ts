@@ -871,9 +871,9 @@ if (ingestEveryHours > 0) {
   if (resumed.length > 0) console.log(`  Release refresh: resumed ${resumed.length} release${resumed.length === 1 ? "" : "s"} from the store`);
   pruneSettledJobs();
   // The fetch log is pruned a slice of ids at a time, on this thread: one
-  // 20,000-id slice a minute until a sweep reaches the end, then six hours
-  // before the next sweep. On a laptop over a 1.6M-row copy a slice took 5 ms
-  // with nothing to delete and about 115 ms deleting heavily; a slow one logs.
+  // 5,000-id slice a minute until a sweep reaches rows younger than the
+  // shortest window, then six hours before the next sweep. A 20,000-id slice
+  // once took 1.6 s live on Railway's volume; a slow one logs.
   let pruneCursor = 0;
   let pruneRemoved = 0;
   const pruneLog = () => {

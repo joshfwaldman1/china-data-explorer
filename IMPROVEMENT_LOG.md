@@ -92,6 +92,21 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-02 (audit 1, third pass, measured live): with 20,000-id slices
+  one slice took 1,567 ms on Railway and the row count did not move. Why
+  nothing goes: the crawl does not re-ask an empty target for 30 days
+  (`recentlyEmptyTargets(..., 30)`), so the log is mostly one row per
+  target, not repeats; the ~62K rows a day were the crawl reaching new
+  targets, and the count has been flat today with the crawl at 0
+  outstanding. So the prune is a guard against regrowth and must stay
+  cheap: slices are 5,000 ids, and a sweep ends at the first slice whose
+  rows are all younger than the shortest window (checked over the slice,
+  not one row, so a row logged out of order cannot stop every sweep; test).
+  The audit's "62K a day" was right for the crawl weeks, not for now; the
+  backup's size comes from rows that are each still the newest of their
+  target. Shrinking it means the `fetch_state` follow-up (one row per
+  target, updated in place), still queued.
+
 - 2026-10-02 (owner's question: IPC section B at 31.7% of 2024
   applications): correct. CNIPA's 2023 annual table 5-1
   (cnipa.gov.cn/tjxx/jianbao/year2023/e/e1.html) matches the bureau's
