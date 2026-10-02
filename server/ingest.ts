@@ -509,7 +509,13 @@ export function orderForIngest(keys: string[], hasStored: (key: string) => boole
  * ingest passes the worker's `runWaiting`, so a release check queued behind a long ingest
  * runs within one key's time instead of after every key.
  */
-export async function runIngest(requested: string[] = [], options: { between?: () => Promise<void> } = {}): Promise<{ ok: number; error: number; empty: number }> {
+export async function runIngest(requested: string[] = [], options: {
+  between?: () => Promise<void>;
+  /** Curated keys a resumed run already finished; skipped. */
+  skip?: ReadonlySet<string>;
+  /** Called after each curated key, whatever its outcome, so the run's progress can be kept. */
+  onKeyDone?: (key: string) => void;
+} = {}): Promise<{ ok: number; error: number; empty: number }> {
   let curatedKeys = requested.length > 0
     ? requested.filter((spec) => !spec.startsWith("nbs_"))
     : Object.keys(CATALOG);
@@ -543,6 +549,12 @@ export async function runIngest(requested: string[] = [], options: { between?: (
   // reaches the Home page within minutes, not after every older key has been
   // refreshed (and not never, when a restart cuts the run short).
   if (requested.length === 0) curatedKeys = orderForIngest(curatedKeys, (key) => storedLatest(key).some((row) => row.key === key && row.lastPeriod !== null));
+  const skip = options.skip;
+  if (skip && skip.size > 0) {
+    const before = curatedKeys.length;
+    curatedKeys = curatedKeys.filter((key) => !skip.has(key));
+    console.log(`Resuming an interrupted run: ${before - curatedKeys.length} curated series already done`);
+  }
 
   if (curatedKeys.length > 0) {
     console.log(`Ingesting ${curatedKeys.length} curated series\n`);
@@ -561,6 +573,7 @@ export async function runIngest(requested: string[] = [], options: { between?: (
       } else {
         tally[await ingestOne(key)] += 1;
       }
+      options.onKeyDone?.(key);
       if (index < curatedKeys.length - 1) { await options.between?.(); await sleep(PAUSE_MS); }
     }
   }

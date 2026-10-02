@@ -48,8 +48,11 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   reset at each deploy; persist them (a small table, or `scheduled_jobs`)
   so a host that was down before a deploy is not hammered after it. Show
   open breakers on Health.
-- (audit 10) Daily ingest restarts from the top on every deploy; save the
-  last finished key in `scheduled_jobs` and resume. Same for crawl/audit.
+- (audit 10, follow-up) The catalog crawl and the concordance audit still
+  restart on every boot (app.ts schedulers); the crawl is idle now (0
+  outstanding), so this waits. Check the first resumed ingest in the
+  Railway log ("Resuming an interrupted run") after a deploy lands during
+  one.
 - (audit 8) `series` upsert overwrites unit/title/source_url with no trail:
   `series_meta_history` on change, flagged on Health (format-change
   detector). As-of reads (`fetched_at <= D`) on the existing key.
@@ -91,6 +94,19 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 10: ingest resumes after a deploy): the scheduled full
+  ingest recorded only its finish, so a deploy mid-run (a run takes over
+  an hour; 33 pushes on 30 Sep) started it again from the first key at the
+  next boot, and keys late in the order could go a day unrefreshed. Its
+  progress is now a `progress:ingest` row in scheduled_jobs: each curated
+  key is recorded as it finishes, a boot within the same 24-hour cycle
+  skips the keys already done ("Resuming an interrupted run: N curated
+  series already done"), and a finished run settles the row. A progress
+  older than one period is ignored. Catalog targets need nothing: they are
+  chosen by what is due, and a refreshed one is no longer due. Test in
+  jobs.test.ts. Live: deploy healthy; the resume path itself waits on the
+  next scheduled run meeting a deploy.
 
 - 2026-10-02 (audit 9: per-host circuit breaker): the gate paced requests
   but kept sending to a host that was down. MOF answered 502 from 08:33 to

@@ -112,3 +112,36 @@ export function delayUntilDue(last: number | null, periodMs: number, minimumMs: 
   if (last === null) return minimumMs;
   return Math.max(minimumMs, last + periodMs - now);
 }
+
+/**
+ * How far the scheduled full ingest got, so a run cut off by a deploy picks
+ * up where it stopped instead of starting again from the first key. Each
+ * deploy used to restart it from the top (33 pushes on 30 September, and a
+ * run takes over an hour), so the keys at the end of the order could go a
+ * day without a refresh. A progress older than one ingest period is a run
+ * from an earlier cycle and is ignored.
+ */
+export interface IngestProgress { startedAt: number; done: string[] }
+
+const INGEST_PROGRESS_ID = "progress:ingest";
+
+/** The interrupted run to resume, or a fresh one started now. */
+export function beginIngestProgress(periodMs: number, now = Date.now()): IngestProgress {
+  const job = getJob<IngestProgress>(INGEST_PROGRESS_ID);
+  if (job && job.state === "pending" && now - job.payload.startedAt < periodMs) return job.payload;
+  const fresh: IngestProgress = { startedAt: now, done: [] };
+  scheduleJob({ id: INGEST_PROGRESS_ID, kind: "progress", payload: fresh, attempt: 1, nextAt: 0 });
+  return fresh;
+}
+
+/** One more key finished in this run; written at once, so a deploy a second later still counts it. */
+export function markIngestKeyDone(progress: IngestProgress, key: string): void {
+  if (progress.done.includes(key)) return;
+  progress.done.push(key);
+  scheduleJob({ id: INGEST_PROGRESS_ID, kind: "progress", payload: progress, attempt: 1, nextAt: 0 });
+}
+
+/** The run finished: the next one starts from the first key. */
+export function finishIngestProgress(): void {
+  settleJob(INGEST_PROGRESS_ID, "done");
+}

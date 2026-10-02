@@ -61,7 +61,7 @@ import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
 import { upstreamFetch, upstreamStats } from "./upstream";
-import { delayUntilDue, lastRun, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
+import { beginIngestProgress, delayUntilDue, finishIngestProgress, lastRun, markIngestKeyDone, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
 import { checkPressReleases, recentPressReleases } from "./nbs-releases";
 
 // Serve the stored copy when we have one. Falling through to a live fetch
@@ -719,7 +719,14 @@ if (ingestEveryHours > 0) {
     try {
       await worker.run("Scheduled ingest", PRIORITY.catchUp, async () => {
         // A release check queued meanwhile runs between keys, not after the whole sweep.
-        const tally = await runIngest([], { between: () => worker.runWaiting(PRIORITY.catchUp) });
+        // A run a deploy cut off resumes from the keys it had not reached.
+        const progress = beginIngestProgress(ingestPeriodMs);
+        const tally = await runIngest([], {
+          between: () => worker.runWaiting(PRIORITY.catchUp),
+          skip: new Set(progress.done),
+          onKeyDone: (key) => markIngestKeyDone(progress, key),
+        });
+        finishIngestProgress();
         console.log(`  Scheduled ingest: ${tally.ok} ok, ${tally.error} failed, ${tally.empty} empty in ${Math.round((Date.now() - started) / 1000)}s`);
       });
       recordRun("ingest");

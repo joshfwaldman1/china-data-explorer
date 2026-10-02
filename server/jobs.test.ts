@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 process.env.CHINA_DB_PATH ??= join(mkdtempSync(join(tmpdir(), "china-jobs-")), "test.db");
 process.env.CHINA_SEED = "off";
-const { scheduleJob, settleJob, getJob, pendingJobs, lastRun, recordRun, delayUntilDue, pruneSettledJobs } = await import("./jobs.ts");
+const { scheduleJob, settleJob, getJob, pendingJobs, lastRun, recordRun, delayUntilDue, pruneSettledJobs, beginIngestProgress, markIngestKeyDone, finishIngestProgress } = await import("./jobs.ts");
 
 const HOUR = 60 * 60 * 1000;
 
@@ -55,4 +55,22 @@ test("pruning removes settled jobs past the cut-off and never a pending one", ()
   pruneSettledJobs(0, Date.now() + 60_000);
   expect(getJob("release:still-waiting")?.state).toBe("pending");
   expect(getJob("release:agenda-42")).toBeNull();
+});
+
+test("an ingest cut off mid-run resumes with the keys it finished; a finished or stale run starts afresh", () => {
+  const start = Date.UTC(2026, 9, 2, 6);
+  const first = beginIngestProgress(24 * HOUR, start);
+  expect(first).toEqual({ startedAt: start, done: [] });
+  markIngestKeyDone(first, "gdp");
+  markIngestKeyDone(first, "cpi");
+  markIngestKeyDone(first, "cpi");
+  // A deploy: the next process reads the progress back from the store.
+  expect(beginIngestProgress(24 * HOUR, start + HOUR)).toEqual({ startedAt: start, done: ["gdp", "cpi"] });
+  // A day later the cut-off run belongs to an earlier cycle.
+  expect(beginIngestProgress(24 * HOUR, start + 25 * HOUR)).toEqual({ startedAt: start + 25 * HOUR, done: [] });
+  // Finished: the next run begins at the first key.
+  const second = beginIngestProgress(24 * HOUR, start + 26 * HOUR);
+  markIngestKeyDone(second, "gdp");
+  finishIngestProgress();
+  expect(beginIngestProgress(24 * HOUR, start + 27 * HOUR)).toEqual({ startedAt: start + 27 * HOUR, done: [] });
 });
