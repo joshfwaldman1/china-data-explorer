@@ -39,6 +39,29 @@ export interface UpstreamHostStats {
   meanMs: number;
   /** Total time requests waited at the gate for the host to be free. */
   waitedMs: number;
+  /** Requests in a row that threw or were answered 5xx; reset by any other answer. */
+  consecutiveDown: number;
+  /** While set and in the future, requests to the host fail at once without being sent. */
+  openUntil: string | null;
+  /** Requests refused at the gate because the host was down. */
+  shortCircuited: number;
+}
+
+/**
+ * A host is treated as down after this many requests in a row threw or were
+ * answered 5xx, and is left alone for a cooldown that doubles while it stays
+ * down. On 2 October the finance ministry answered 502 for most of an hour
+ * and every series was still asked three times over (54 failures for one).
+ * A 4xx is a refusal of that request, not an outage, and does not count.
+ */
+export const BREAKER = { threshold: 5, firstCooldownMs: 15 * 60 * 1000, maxCooldownMs: 60 * 60 * 1000 } as const;
+
+/** Thrown, without a request, for a host whose breaker is open. */
+export class UpstreamDownError extends Error {
+  constructor(host: string, until: string) {
+    super(`${host} is treated as down until ${until} after ${BREAKER.threshold} failed requests in a row; not asked`);
+    this.name = "UpstreamDownError";
+  }
 }
 
 export interface UpstreamInit extends RequestInit {
@@ -80,6 +103,25 @@ export interface UpstreamDeps {
 export function createUpstream(deps: UpstreamDeps) {
   const gates = new Map<string, HostGate>();
   const stats = new Map<string, UpstreamHostStats>();
+  /** The cooldown the next opening of each host's breaker will use. */
+  const cooldowns = new Map<string, number>();
+
+  /** Record one answered or failed request against the host's breaker. */
+  function noteOutcome(host: string, entry: UpstreamHostStats, down: boolean): void {
+    if (!down) {
+      entry.consecutiveDown = 0;
+      entry.openUntil = null;
+      cooldowns.delete(host);
+      return;
+    }
+    entry.consecutiveDown += 1;
+    // A failed trial after a cooldown reopens at once; otherwise the threshold opens it.
+    const trialFailed = cooldowns.has(host);
+    if (!trialFailed && entry.consecutiveDown < BREAKER.threshold) return;
+    const cooldown = cooldowns.get(host) ?? BREAKER.firstCooldownMs;
+    entry.openUntil = new Date(deps.now() + cooldown).toISOString();
+    cooldowns.set(host, Math.min(cooldown * 2, BREAKER.maxCooldownMs));
+  }
 
   function relayConfig(): Relay | null {
     const url = deps.env.CHINA_RELAY_URL?.trim();
@@ -97,7 +139,7 @@ export function createUpstream(deps: UpstreamDeps) {
   function statsFor(host: string, channel: UpstreamChannel): UpstreamHostStats {
     let entry = stats.get(host);
     if (!entry) {
-      entry = { host, channel, requests: 0, failures: 0, refused: 0, lastStatus: null, lastError: null, lastAt: null, meanMs: 0, waitedMs: 0 };
+      entry = { host, channel, requests: 0, failures: 0, refused: 0, lastStatus: null, lastError: null, lastAt: null, meanMs: 0, waitedMs: 0, consecutiveDown: 0, openUntil: null, shortCircuited: 0 };
       stats.set(host, entry);
     }
     entry.channel = channel;
@@ -156,6 +198,11 @@ export function createUpstream(deps: UpstreamDeps) {
     const entry = statsFor(host, channel);
     const { timeoutMs = 45_000, ...rest } = init;
     const { value, waitedMs } = await throughGate(host, async () => {
+      // Checked inside the gate, so requests queued behind the one that opened it fail at once too.
+      if (entry.openUntil && Date.parse(entry.openUntil) > deps.now()) {
+        entry.shortCircuited += 1;
+        throw new UpstreamDownError(host, entry.openUntil);
+      }
       const started = deps.now();
       entry.requests += 1;
       entry.lastAt = new Date(started).toISOString();
@@ -167,9 +214,11 @@ export function createUpstream(deps: UpstreamDeps) {
         entry.lastStatus = response.status;
         entry.lastError = null;
         if (response.status >= 400) entry.refused += 1;
+        noteOutcome(host, entry, response.status >= 500);
         return response;
       } catch (error) {
         entry.failures += 1;
+        noteOutcome(host, entry, true);
         entry.lastStatus = null;
         entry.lastError = error instanceof Error ? error.message : String(error);
         throw error;

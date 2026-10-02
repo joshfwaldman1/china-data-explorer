@@ -44,8 +44,10 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   2026-10-02; the earlier CREATE IF NOT EXISTS + table_info probes stay as
   the baseline. Schema in jobs.ts, arrivals.ts, nbs-releases.ts and
   nbs-catalog.ts (catalog.db, rebuildable) is outside the ledger.
-- (audit 9) Per-host circuit breaker: MOF 502s 08:33-09:20 on 10-02 were
-  retried per key (lgb_issuance 54 failures). Persist `upstreamStats`.
+- (audit 9, follow-up) Breaker state and host stats live in memory and
+  reset at each deploy; persist them (a small table, or `scheduled_jobs`)
+  so a host that was down before a deploy is not hammered after it. Show
+  open breakers on Health.
 - (audit 10) Daily ingest restarts from the top on every deploy; save the
   last finished key in `scheduled_jobs` and resume. Same for crawl/audit.
 - (audit 8) `series` upsert overwrites unit/title/source_url with no trail:
@@ -89,6 +91,21 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 9: per-host circuit breaker): the gate paced requests
+  but kept sending to a host that was down. MOF answered 502 from 08:33 to
+  09:20 on 2 Oct and each key was still asked three times (lgb_issuance 54
+  failures, fiscal_revenue 40). `upstream.ts` now counts requests in a row
+  that threw or were answered 5xx; at 5 the host is left alone for 15
+  minutes, doubling to at most 60 while it stays down. Requests in that
+  time fail at the gate with `UpstreamDownError` (nothing sent), so callers
+  log a fast error as before. After the cooldown one request is let
+  through: a success closes the breaker, a failure reopens it. 4xx answers
+  (Customs' 412, NBS's UrlACL 403) are refusals of a request, not outages,
+  and do not count. Host stats gained `consecutiveDown`, `openUntil`,
+  `shortCircuited` (on /api/schedule's upstream list). Tests: three in
+  upstream.test.ts (open, short-circuit, 4xx ignored; trial reopens at
+  double, success closes; thrown errors count).
 
 - 2026-10-02 (audit 7: migration ledger): the store had no record of what
   had been applied to it. Schema lived as CREATE IF NOT EXISTS plus

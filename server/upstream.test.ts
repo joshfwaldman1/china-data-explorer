@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from "bun:test";
-import { createUpstream, type UpstreamDeps } from "./upstream";
+import { createUpstream, BREAKER, UpstreamDownError, type UpstreamDeps } from "./upstream";
 
 /** A fake clock that sleeping advances, and a fetch that records when each request started and ended. */
 function harness(options: { env?: Record<string, string>; gaps?: Record<string, number>; took?: number; respond?: (url: string, init: RequestInit) => Response } = {}) {
@@ -105,4 +105,52 @@ test("the relay's own refusal is passed on as the relay's status", async () => {
   const { upstream } = harness({ env, respond: () => new Response("unauthorised", { status: 401 }) });
   const response = await upstream.upstreamFetch("https://stats.customs.gov.cn/q");
   expect(response.status).toBe(401);
+});
+
+test("a host failing five times in a row is left alone for a cooldown, then tried once; a success closes it", async () => {
+  let status = 502;
+  const { upstream, log } = harness({ respond: () => new Response("bad gateway", { status }) });
+  for (let n = 0; n < BREAKER.threshold; n += 1) await upstream.upstreamFetch("https://down.example/a");
+  expect(log).toHaveLength(BREAKER.threshold);
+  // Open: refused at the gate, nothing sent.
+  await expect(upstream.upstreamFetch("https://down.example/b")).rejects.toBeInstanceOf(UpstreamDownError);
+  expect(log).toHaveLength(BREAKER.threshold);
+  const stats = upstream.upstreamStats().find((entry) => entry.host === "down.example");
+  expect(stats?.shortCircuited).toBe(1);
+  expect(stats?.openUntil).not.toBeNull();
+  // A 4xx elsewhere is a refusal, not an outage, and opens nothing.
+  status = 412;
+  for (let n = 0; n < BREAKER.threshold + 2; n += 1) await upstream.upstreamFetch("https://refusing.example/x");
+  expect(upstream.upstreamStats().find((entry) => entry.host === "refusing.example")?.openUntil).toBeNull();
+});
+
+test("after the cooldown a failed trial reopens at once for twice as long, and a successful one closes the breaker", async () => {
+  let clock = 0;
+  let status = 503;
+  const sent: string[] = [];
+  const upstream = createUpstream({
+    now: () => clock,
+    sleep: async (ms) => { clock += ms; },
+    fetchImpl: async (url) => { sent.push(url); clock += 10; return new Response("", { status }); },
+    env: {}, gaps: {}, defaultGapMs: 0,
+  });
+  const host = () => upstream.upstreamStats().find((entry) => entry.host === "flaky.example");
+  for (let n = 0; n < BREAKER.threshold; n += 1) await upstream.upstreamFetch("https://flaky.example/");
+  const firstOpen = Date.parse(host()?.openUntil ?? "") - clock;
+  expect(firstOpen).toBe(BREAKER.firstCooldownMs);
+  clock += BREAKER.firstCooldownMs;
+  await upstream.upstreamFetch("https://flaky.example/"); // the trial, still failing
+  expect(Date.parse(host()?.openUntil ?? "") - clock).toBe(BREAKER.firstCooldownMs * 2);
+  clock += BREAKER.firstCooldownMs * 2;
+  status = 200;
+  await upstream.upstreamFetch("https://flaky.example/");
+  expect(host()?.openUntil).toBeNull();
+  expect(host()?.consecutiveDown).toBe(0);
+  expect(sent).toHaveLength(BREAKER.threshold + 2);
+});
+
+test("a request that throws counts towards the breaker like a 5xx", async () => {
+  const { upstream } = harness({ respond: () => { throw new Error("socket connection was closed"); } });
+  for (let n = 0; n < BREAKER.threshold; n += 1) await expect(upstream.upstreamFetch("https://gone.example/")).rejects.toThrow("socket");
+  await expect(upstream.upstreamFetch("https://gone.example/")).rejects.toBeInstanceOf(UpstreamDownError);
 });
