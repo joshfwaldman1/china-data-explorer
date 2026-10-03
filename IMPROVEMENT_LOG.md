@@ -52,7 +52,7 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   outstanding), so this waits. Check the first resumed ingest in the
   Railway log ("Resuming an interrupted run") after a deploy lands during
   one.
-- (audit 8, follow-ups) As-of
+- (audit 8, follow-ups) As-of reads for catalog series still to do (curated done 2026-10-02). As-of
   reads (`fetched_at <= D`) on the observations key for "what did the site
   show on date D". Expect a one-off burst of history rows the first time
   each stored series is rewritten after 2026-10-02 wherever its stored
@@ -94,6 +94,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 8: as-of reads, curated series): the store keeps every
+  vintage but nothing read them as of a date. `readSeries` takes an
+  optional `asOf` timestamp: each period at the latest value fetched at or
+  before it, periods first seen later absent, a retraction honoured only
+  from when it was written. `/api/series/<curated key>?asOf=YYYY-MM-DD`
+  serves the series as the site held it at the end of that day (UTC),
+  store only, 400 on a malformed date. README documents it. Catalog
+  series are a follow-up. Test: server/as-of.test.ts.
 
 - 2026-10-02 (fetch_log prune cursor kept in the store; a correction): the
   prune's cursor lived in memory and went back to id 0 five minutes after

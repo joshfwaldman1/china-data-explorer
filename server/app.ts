@@ -646,6 +646,18 @@ const routes = {
         // 70-city average for home prices), not whichever region happens to be listed first.
         const requested = params.get("region") ?? seriesRegion(key);
         const region = regions.length > 0 ? (regions.find((item) => item.value === requested) ?? regions[0]) : undefined;
+        // ?asOf=YYYY-MM-DD: the series as the site held it at the end of that day (UTC), from the
+        // stored vintages. Store only: a live fetch answers for today, not for that date.
+        const asOfParam = params.get("asOf");
+        if (asOfParam !== null) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfParam) || Number.isNaN(Date.parse(asOfParam))) {
+            return Response.json({ error: "asOf must be a date, YYYY-MM-DD" }, { status: 400 });
+          }
+          const asOf = `${asOfParam}T23:59:59.999Z`;
+          const held = onlyConfigured(key, readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value, asOf));
+          if (!held) return Response.json({ error: "Unknown series" }, { status: 404 });
+          return Response.json({ ...applyTransform(held, transform), region, source: "store", asOf: asOfParam });
+        }
         const stored = onlyConfigured(key, readSeries(key, Number.isFinite(limit) ? limit : 120, region?.value));
         if (stored && stored.series.some((s) => s.points.length > 0)) {
           return Response.json({ ...applyTransform(stored, transform), region, source: "store" });

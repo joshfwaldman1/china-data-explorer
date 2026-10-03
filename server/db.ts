@@ -783,7 +783,13 @@ export function logFetch(entry: {
  * Read a series back out as the current best view: for each period, the value
  * from the most recent fetch that recorded one.
  */
-export function readSeries(key: string, limit = 120, region?: string): SeriesResult | null {
+/**
+ * A stored series, each period at its latest value. With `asOf` (an ISO
+ * timestamp), each period at the latest value fetched at or before then:
+ * the series as the site held it on that date, read from the vintages the
+ * append-only store keeps. A period first seen later is absent.
+ */
+export function readSeries(key: string, limit = 120, region?: string, asOf?: string): SeriesResult | null {
   const database = db();
 
   const meta = database.prepare(`
@@ -803,9 +809,10 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
     SELECT period AS date, value
     FROM observations o
     WHERE key = $key AND region = $region AND label = $label
+      AND fetched_at <= $asOf
       AND fetched_at = (
         SELECT MAX(fetched_at) FROM observations
-        WHERE key = o.key AND region = o.region AND label = o.label AND period = o.period
+        WHERE key = o.key AND region = o.region AND label = o.label AND period = o.period AND fetched_at <= $asOf
       )
       -- A period whose latest revision is a retraction (a null row) has no value to serve.
       -- It was served as a null point, and every reader that did arithmetic on it (the share
@@ -818,6 +825,8 @@ export function readSeries(key: string, limit = 120, region?: string): SeriesRes
   const series: Series[] = meta.map((row) => {
     const points = latestPoints.all({
       $key: key, $region: row.region, $label: row.label, $limit: limit,
+      // ISO timestamps sort as text; "9" is after every one of them.
+      $asOf: asOf ?? "9",
     }) as { date: string; value: number }[];
     points.sort((a, b) => a.date.localeCompare(b.date));
     return { label: row.label, points };

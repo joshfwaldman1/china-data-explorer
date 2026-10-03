@@ -196,6 +196,8 @@ recovery steps, readiness semantics and the remaining scaling work.
 - `GET /api/entry/:key` — one headline or catalog entry by key.
 - `GET /api/dimensions/:key` — valid geographic selections for an NBS series.
 - `GET /api/series/:key?region=&transform=&limit=` — observations and metadata.
+  `&asOf=YYYY-MM-DD` (curated series) serves the series as the site held it at
+  the end of that day (UTC), from the stored vintages.
 - `GET /api/regional/:key?period=&label=` — every region's value for one period.
 - `GET /api/releases?start=&end=` — the publication calendar mapped to series.
 - `GET /api/release-map` — the title-to-series mapping behind it.
