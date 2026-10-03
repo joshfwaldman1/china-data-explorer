@@ -23,9 +23,7 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (follow-up to the release rotation) A release whose pending count has
-  not moved across a full rotation could stop early instead of running to
-  attempt 66. Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
+- (follow-up to the release rotation) Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
   in /api/release-checks: its "9995 pending" should finally move.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
@@ -97,6 +95,20 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (round: health and the queue, nothing to ship): the live
+  health report is clean (55/55 cross-checks agree; no failing,
+  intermittent or behind sources; no unreviewed single-point lines; press
+  releases agree, none refused). Dropped on inspection: stopping a release
+  early when a full rotation advances nothing. The bureau takes up to three
+  working days to load a release, so a quiet lap is normal early on, and
+  the retry schedule already ends at attempt 66, just past that window;
+  the saving would be the tail only. Waiting on measurements before the
+  next structural step: the first full fetch_log prune sweep (its total
+  decides whether `fetch_state` is worth building) and the profits
+  release's attempt 65 (does rotation move "9995 pending"). The rest of
+  the database/acquisition queue is owner's calls (alerting, off-GitHub
+  backups, CHINA_SEED=off, Railway "wait for CI").
 
 - 2026-10-02 (release refresh reads only its own keys): every release
   attempt began with `storedLatest("nbs_")`, a three-table join grouped over
