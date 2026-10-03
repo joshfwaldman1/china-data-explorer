@@ -149,3 +149,18 @@ test("failed table calls spend the release request budget and leave all missing 
   expect(calls).toBe(1);
   expect(result).toEqual({ advanced: 0, checked: 3, requests: 1, pending: 3 });
 });
+
+test("release attempts take turns through the tables still behind instead of asking the same ones every time", async () => {
+  const tables = ["a", "b", "c"].map((name) => ({ ...entry(`nbs_rotation_${name}`, "Monthly", "National"), cid: `rotation-table-${name}` }));
+  for (const table of tables) stored(table.key, "000000000000", "全国", "2026-07", 1);
+  const targets = releaseTargets({ title: "国民经济运行情况", keys: [], categories: ["工业"] }, new Date("2026-09-15T02:00:00Z"));
+  const asked: string[] = [];
+  // Nothing ever advances: the bureau has not loaded the month.
+  const fetchBatch = async (entries: { cid: string }[]) => { asked.push(entries[0]?.cid ?? ""); return new Map(); };
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const result = await refreshCatalogForRelease(["工业"], targets, { entries: tables, fetchBatch, pauseMs: 0, maxRequests: 1, attempt });
+    expect(result.requests).toBe(1);
+    expect(result.pending).toBe(3);
+  }
+  expect(asked).toEqual(["rotation-table-a", "rotation-table-b", "rotation-table-c", "rotation-table-a"]);
+});

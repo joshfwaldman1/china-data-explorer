@@ -373,7 +373,11 @@ export async function fillRegionalSeries(key: string, limit = 40): Promise<{ fet
 export async function refreshCatalogForRelease(
   categories: string[],
   targets: ReleaseTarget[],
-  options: { fetchBatch?: typeof fetchNbsTableBatch; pauseMs?: number; entries?: NbsCatalogEntry[]; maxRequests?: number } = {},
+  options: {
+    fetchBatch?: typeof fetchNbsTableBatch; pauseMs?: number; entries?: NbsCatalogEntry[]; maxRequests?: number;
+    /** The release's attempt number, from 1: each attempt starts its slice where the previous one stopped. */
+    attempt?: number;
+  } = {},
 ): Promise<{ advanced: number; checked: number; requests: number; pending: number }> {
   db();
   const fetchBatch = options.fetchBatch ?? fetchNbsTableBatch;
@@ -411,31 +415,41 @@ export async function refreshCatalogForRelease(
   // one attempt running for hours.
   const maxRequests = options.maxRequests ?? Number(process.env.RELEASE_MAX_REQUESTS ?? 400);
   const result = { advanced: 0, checked: wanted.length, requests: 0, pending: 0 };
+  // Every attempt used to start from the first table, so a release whose
+  // first 400 tables never advance (the industrial profits release of 27
+  // September: provincial tables, 9,995 series pending through attempt 64)
+  // asked for the same tables every time and never reached the rest. The
+  // requests are laid out in order and each attempt starts where the one
+  // before it stopped, wrapping round; the attempt number is kept with the
+  // release's job, so this holds across a deploy.
+  const chunks: { entry: NbsCatalogEntry; region: { text: string; value: string } }[][] = [];
   for (const group of tables.values()) {
-    for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) {
-      const chunk = group.slice(at, at + NBS_BATCH_SIZE);
-      if (result.requests >= maxRequests) { result.pending += chunk.length; continue; }
-      const region = chunk[0]?.region ?? NATIONAL_REGION;
-      const startedAt = new Date().toISOString();
-      // A failed table call spends the same request budget as a successful
-      // one; otherwise an outage turns a bounded release job into a full sweep.
-      result.requests += 1;
-      try {
-        const points = await fetchBatch(chunk.map((item) => item.entry), region, "recent");
-        for (const item of chunk) {
-          const fetched = points.get(item.entry.id) ?? [];
-          storeNbsPoints(item.entry, region, fetched, startedAt, "recent");
-          const target = targetFor(item.entry.frequency);
-          if (target && comparablePeriod(fetched.at(-1)?.date ?? "") >= target.period) result.advanced += 1;
-          else result.pending += 1;
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        for (const item of chunk) logFetch({ key: item.entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
-        result.pending += chunk.length;
+    for (let at = 0; at < group.length; at += NBS_BATCH_SIZE) chunks.push(group.slice(at, at + NBS_BATCH_SIZE));
+  }
+  const offset = chunks.length > 0 ? (((options.attempt ?? 1) - 1) * maxRequests) % chunks.length : 0;
+  const ordered = [...chunks.slice(offset), ...chunks.slice(0, offset)];
+  for (const chunk of ordered) {
+    if (result.requests >= maxRequests) { result.pending += chunk.length; continue; }
+    const region = chunk[0]?.region ?? NATIONAL_REGION;
+    const startedAt = new Date().toISOString();
+    // A failed table call spends the same request budget as a successful
+    // one; otherwise an outage turns a bounded release job into a full sweep.
+    result.requests += 1;
+    try {
+      const points = await fetchBatch(chunk.map((item) => item.entry), region, "recent");
+      for (const item of chunk) {
+        const fetched = points.get(item.entry.id) ?? [];
+        storeNbsPoints(item.entry, region, fetched, startedAt, "recent");
+        const target = targetFor(item.entry.frequency);
+        if (target && comparablePeriod(fetched.at(-1)?.date ?? "") >= target.period) result.advanced += 1;
+        else result.pending += 1;
       }
-      await sleep(pauseMs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      for (const item of chunk) logFetch({ key: item.entry.key, region: region.value, startedAt, finishedAt: new Date().toISOString(), status: "error", points: 0, changed: 0, message });
+      result.pending += chunk.length;
     }
+    await sleep(pauseMs);
   }
   return result;
 }

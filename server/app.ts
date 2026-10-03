@@ -803,7 +803,7 @@ if (ingestEveryHours > 0) {
     await runWhenFree(async () => {
       if (item.keys.length > 0) await runIngest(item.keys);
       const catalog = item.categories.length > 0
-        ? await refreshCatalogForRelease(item.categories, targets)
+        ? await refreshCatalogForRelease(item.categories, targets, { attempt })
         : { advanced: 0, checked: 0, requests: 0, pending: 0 };
       const after = covered();
       const behind = pendingSeries(targets, after);

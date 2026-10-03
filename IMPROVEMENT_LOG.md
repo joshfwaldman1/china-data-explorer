@@ -23,15 +23,11 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (found 2026-10-02 evening) Release retries re-fetch whole releases for a
-  few stuck series: the 30 Sep PMI release is on attempt 56+ with "behind
-  none; 27 catalog series pending", and each attempt refreshes the
-  release's catalog tables and logs a row per series. fetch_log grew
-  1,570,103 -> 1,578,490 in 100 minutes on a holiday (~120K/day), all ok
-  rows with nothing changed. Retry only the pending (key, region) targets,
-  not the release's whole set, and/or stop when the same pending set has
-  not moved for N attempts (it waits on the NBS portal; see the 30 Sep
-  "PMI sub-indices" round). Data acquisition and log growth both.
+- (follow-up to the release rotation) `refreshCatalogForRelease` still
+  calls `storedLatest("nbs_")`, a join over all ~194K stored places, on
+  every attempt; scope it to the release's categories' keys. And a
+  release whose pending count has not moved across a full rotation could
+  stop early instead of running to attempt 66.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
@@ -102,6 +98,20 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (release retries rotate through their tables): /api/release-
+  checks showed the 27 Sep industrial profits release on attempt 64 with
+  "9995 catalog series pending" at every attempt, and PMI (30 Sep) on 58
+  with 27. Each attempt spends a 400-request budget and rebuilt its list in
+  the same order, so it asked the same 400 tables (ones the bureau has not
+  updated) every time and never reached the rest, logging a row per
+  series each time: fetch_log grew ~8,400 rows in 100 minutes on a
+  holiday. Requests are now laid out in order and attempt N starts where
+  N-1 stopped, wrapping round (`attempt` option, passed from the release
+  job, so it holds across deploys). Rotating by "least recently fetched"
+  was rejected: an empty answer never touches updated_at. Test in
+  release-refresh.test.ts (three stuck tables, one request per attempt:
+  a, b, c, a; the old code asks a every time).
 
 - 2026-10-02 (audit 9 follow-up: breakers survive a deploy): a host's
   breaker lived in memory, so a deploy forgot that a publisher was down and
