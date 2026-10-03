@@ -372,8 +372,8 @@ function categoryPath(entry: { categories: string[]; categoriesEn?: string[]; fa
 
 function chartColor(index: number): string { return `var(${CHART_TOKENS[index % CHART_TOKENS.length]})`; }
 
-async function json(url: string): Promise<unknown> {
-  const response = await fetch(url);
+async function json(url: string, signal?: AbortSignal): Promise<unknown> {
+  const response = await fetch(url, { signal });
   const body: unknown = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(str(body, "error") || `Request failed (${response.status})`);
   return body;
@@ -722,6 +722,8 @@ function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; r
 // ── Home ──────────────────────────────────────────────────────────────────────
 
 const HERO_KEYS = ["gdp", "cpi", "unemployment", "pmi"];
+// The tiles name the actual first line, which can be a growth rate rather than a level.
+const HERO_LABELS: Record<string, string> = { gdp: "Real GDP growth", cpi: "Consumer price inflation", unemployment: "Urban unemployment", pmi: "Manufacturing PMI" };
 // Briefing order: activity, then prices and labor, property, money and rates, the yuan, the external accounts, the budget, sentiment, the provinces.
 const GROUP_ORDER = ["Growth & Output", "Consumption", "Prices", "Labor", "Property", "Money & Credit", "Interest Rates", "Exchange Rates", "Trade & External", "Public Finance", "Sentiment", "Markets", "Demographics", "Regional"];
 const homeRank = (entry: CuratedEntry) => entry.homeRank ?? Number.MAX_SAFE_INTEGER;
@@ -802,42 +804,41 @@ function staleNote(entry: CuratedEntry, latest: SeriesPoint | undefined): string
   return entry.refreshBlocked ? `, not refreshed here (needs ${entry.refreshBlocked})` : ", nothing newer published";
 }
 
-function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; releases: Release[]; releaseError: string; onSearch: (q: string) => void }) {
+function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok" | "error"; curated: CuratedEntry[]; catalogStatus: "loading" | "ok" | "error"; onRetryCatalog: () => void; releases: Release[]; releasesLoading: boolean; releaseError: string; onSearch: (q: string) => void }) {
   const [headline, setHeadline] = useState<Map<string, SeriesResult>>(new Map());
   const [homeFailed, setHomeFailed] = useState(false);
+  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeAttempt, setHomeAttempt] = useState(0);
   const [draft, setDraft] = useState("");
-  const headlineEntries = props.curated.filter((entry) => entry.home !== false);
+  const [indicatorQuery, setIndicatorQuery] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState("");
   // The curated series from publishers other than the bureau and FRED, counted whether or not they sit on this page.
   const domesticEntries = props.curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics"));
   // Every Home row, paired with the entry it comes from; a row may sit in another group.
   const homeRows = props.curated.flatMap((entry) => (entry.homeRows ?? []).map((row) => ({ entry, row })));
   const publisherCounts = [...new Set(domesticEntries.map((entry) => entry.agency))].map((agency) => ({ agency, count: domesticEntries.filter((entry) => entry.agency === agency).length })).sort((a, b) => b.count - a.count);
+  const groups = [...new Set(homeRows.map(({ entry, row }) => row.group ?? entry.group))].sort((a, b) => groupRank(a) - groupRank(b));
+  const filteredRows = homeRows.map(({ entry, row }) => ({ entry, row, regions: (entry.homeRegions ?? [""]).filter(region => {
+    if (selectedGroup && (row.group ?? entry.group) !== selectedGroup) return false;
+    const place = headline.get(region ? `${entry.key}@${region}` : entry.key)?.region;
+    return `${row.title ?? ""} ${row.line ?? ""} ${entry.title} ${entry.homeTitle ?? ""} ${entry.agency} ${entry.group} ${region} ${place ? regionLabel(place) : ""}`.toLocaleLowerCase().includes(indicatorQuery.trim().toLocaleLowerCase());
+  }) })).filter(item => item.regions.length > 0);
+  const visibleGroups = groups.filter(group => filteredRows.some(({ entry, row }) => (row.group ?? entry.group) === group));
   useEffect(() => {
-    let cancelled = false;
-    // Each indicator lands as it arrives; one slow source must not hold the whole page blank.
-    // One request for every headline series, sent once on mount rather than after the catalog
-    // arrives. Only if it fails does the page fall back to one request per indicator.
-    json("/api/home").then((body) => {
-      if (cancelled) return;
+    const controller = new AbortController();
+    setHomeLoading(true);
+    setHomeFailed(false);
+    json("/api/home", controller.signal).then((body) => {
+      if (controller.signal.aborted) return;
       if (typeof body !== "object" || body === null) throw new Error("no home payload");
       const next = new Map<string, SeriesResult>();
       for (const [key, value] of Object.entries(body)) if (isSeriesResult(value)) next.set(key, value);
       if (next.size === 0) throw new Error("empty home payload");
       setHeadline(next);
-    }).catch(() => { if (!cancelled) setHomeFailed(true); });
-    return () => { cancelled = true; };
-  }, []);
-  useEffect(() => {
-    if (!homeFailed) return;
-    let cancelled = false;
-    for (const entry of props.curated.filter((entry) => entry.home !== false)) {
-      json(`/api/series/${entry.key}?limit=24`).then((body) => {
-        if (cancelled || !isSeriesResult(body)) return;
-        setHeadline((current) => new Map(current).set(entry.key, body));
-      }).catch(() => undefined);
-    }
-    return () => { cancelled = true; };
-  }, [homeFailed, props.curated.map((entry) => entry.key).join(",")]);
+    }).catch(() => { if (!controller.signal.aborted) setHomeFailed(true); })
+      .finally(() => { if (!controller.signal.aborted) setHomeLoading(false); });
+    return () => controller.abort();
+  }, [homeAttempt]);
   const upcoming = props.releases.filter((release) => isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
   // The datasets the catalog actually holds, largest first, so this list stays
   // true as families are added rather than naming two of them by hand.
@@ -847,15 +848,21 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
         <h1>China Economic Data</h1>
-        <p className="lede">{(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} series from the National Bureau of Statistics, searchable in English and Chinese, plus {domesticEntries.length} indicators from {publisherList(domesticEntries)}, and {props.curated.filter((entry) => entry.source === "fred").length} international series on China from the World Bank, BIS, OECD, IMF and US agencies, via FRED.</p>
+        <p className="lede">Explore China's economy. Find a series, compare the evidence, and take the data with you.</p>
+        <div className="coverage-summary">{props.stats ? <span><b>{props.stats.seriesCount.toLocaleString("en-US")}</b> NBS series</span> : <span>Official economic statistics</span>}{props.curated.length > 0 && <span><b>{props.curated.length}</b> curated indicators</span>}<span>English &amp; Chinese search</span></div>
         <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
-          <div className="global-search"><SearchIcon /><input id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} placeholder='Try "youth unemployment", "steel output", or 居民消费价格' /></div>
+          <div className="global-search"><SearchIcon /><input type="search" id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Search GDP, youth unemployment, 居民消费价格…" /><button className="search-submit" type="submit">Search</button></div>
         </form>
+        <div className="search-examples"><span>Start with</span>{["GDP", "CPI", "Exports", "Property"].map(q => <button key={q} onClick={() => props.onSearch(q)}>{q}</button>)}</div>
+        <nav className="research-links" aria-label="Research tools"><a href="#/browse">Browse the catalog <span aria-hidden="true">→</span></a><a href="#/saved">Saved series</a><a href="#/methodology">Sources &amp; methodology</a></nav>
       </section>
 
+      {props.catalogStatus === "error" && <div className="notice" role="alert"><div><b>The indicator catalog could not load.</b>Try again to restore the overview.</div><button className="button" onClick={props.onRetryCatalog}>Retry catalog</button></div>}
       <section className="section" aria-labelledby="h-headline">
-        <div className="section-head"><h2 id="h-headline">Headline Indicators</h2></div>
-        <div className="hero-tiles">
+        <div className="section-head"><h2 id="h-headline">The economy at a glance</h2><span>Latest available observations</span></div>
+        {homeFailed && <div className="notice" role="alert"><div><b>Some data is unavailable.</b>{headline.size ? "Showing the last overview loaded in this session." : "The overview did not load. You can retry or open an individual series."}</div><button className="button" onClick={() => setHomeAttempt(n => n + 1)}>Retry overview</button></div>}
+        <div className="hero-tiles" aria-busy={homeLoading || props.catalogStatus === "loading"}>
+          {props.catalogStatus === "loading" && props.curated.length === 0 && HERO_KEYS.map(key => <div key={key} className="tile skeleton-tile" aria-hidden="true"><span className="skeleton" /><span className="skeleton" /><span className="skeleton" /></div>)}
           {HERO_KEYS.map((key) => props.curated.find((entry) => entry.key === key)).filter((entry): entry is CuratedEntry => entry !== undefined).map((entry) => {
             const result = headline.get(entry.key);
             const first = result?.series[0];
@@ -864,25 +871,32 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
             const previous = first?.points[first.points.length - 2];
             return (
               <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
-                <span className="label">{entry.title}</span>
-                <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{measure.suffix}</span></span>
+                <span className="label">{HERO_LABELS[entry.key] ?? entry.title}</span>
+                <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{latest ? measure.suffix : ""}</span></span>
+                <span className="tile-period">{latest ? observationLabel(latest.date, entry.frequency) : homeLoading ? "Loading…" : "Not available"}</span>
                 {first && <Sparkline points={first.points} years />}
                 <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
             );
           })}
         </div>
+        <div className="indicator-toolbar">
+          <div><h2>Key indicators</h2><p>Levels, changes, and the period each figure describes.</p></div>
+          <div className="indicator-filters"><label><span className="visually-hidden">Filter key indicators</span><input type="search" placeholder="Find an indicator…" value={indicatorQuery} onChange={event => setIndicatorQuery(event.target.value)} /></label><label><span className="visually-hidden">Indicator topic</span><select value={selectedGroup} onChange={event => setSelectedGroup(event.target.value)}><option value="">All topics</option>{groups.map(group => <option key={group}>{group}</option>)}</select></label></div>
+        </div>
+        {(indicatorQuery || selectedGroup) && <div className="filter-summary" role="status">{filteredRows.reduce((sum, { regions }) => sum + regions.length, 0)} matching indicators <button onClick={() => { setIndicatorQuery(""); setSelectedGroup(""); }}>Clear filters</button></div>}
         <div className="indicator-list">
-          {[...new Set(homeRows.map(({ entry, row }) => row.group ?? entry.group))].sort((a, b) => groupRank(a) - groupRank(b)).map((group) => (
+          <div className="indicator-columns" aria-hidden="true"><span>Indicator / source</span><span>Latest</span><span>Change</span><span>Period</span><span>History</span></div>
+          {visibleGroups.map((group) => (
             <section key={group} aria-label={group}>
               <h3>{group}</h3>
-              {homeRows.filter(({ entry, row }) => (row.group ?? entry.group) === group)
+              {filteredRows.filter(({ entry, row }) => (row.group ?? entry.group) === group)
                 .sort((a, b) => a.row.rank - b.row.rank)
-                .flatMap(({ entry, row }) => {
+                .flatMap(({ entry, row, regions }) => {
                 // A series that names home regions (trade by partner) is one row per
                 // region, named for the region; a table whose lines each get a row is one
                 // row per named line; the rest are one row each.
-                const rows = entry.homeRegions ? entry.homeRegions.map((code) => ({ entry, spec: `${entry.key}@${code}`, region: code })) : [{ entry, spec: entry.key, region: "" }];
+                const rows = regions.map(region => ({ spec: region ? `${entry.key}@${region}` : entry.key, region }));
                 return rows.map(({ spec, region }) => {
                 const result = headline.get(spec);
                 const first = row.line ? result?.series.find((line) => line.label === row.line) : result?.series[0];
@@ -897,11 +911,13 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
                 const tableNote = !region && rowTitle && rowTitle !== entry.title ? `${entry.title}, ` : "";
                 // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
                 const measure = measureOfEntry(entry);
+                const natural = latest && measure.kind === "level" ? naturalValue(latest.value, entry.unit) : null;
+                const display = natural?.match(/^(\S+) (.+)$/);
                 const levelChange = latest && measure.kind === "level" ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: measure }) : "";
                 return (
                   <a key={`${spec}|${row.line ?? ""}`} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
                     <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)}</small></span>
-                    <span className="value">{latest ? fmt(latest.value, measure) : "—"}<i>{latest ? measure.suffix : ""}</i></span>
+                    <span className="value" title={latest ? `${fmt(latest.value, measure)} ${entry.unit}` : undefined}>{latest ? display?.[1] ?? fmt(latest.value, measure) : "—"}<i>{latest ? display?.[2] ?? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}</span>
                     <span className="spark">{first && <Sparkline points={first.points} years />}</span>
@@ -912,13 +928,15 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
               {props.curated.filter((entry) => entry.group === group && entry.homeRegions && entry.home !== false && (entry.homeRows ?? []).some((row) => (row.group ?? entry.group) === group)).map((entry) => { const link = allRegionsLink(entry); return <a key={`${entry.key}-all`} className="group-more" href={link.href}>{link.label} ›</a>; })}
             </section>
           ))}
+          {props.catalogStatus === "ok" && visibleGroups.length === 0 && <div className="state"><b>No matching indicators</b><p>Try another term or clear the filters. You can also <a href="#/browse">browse the full catalog</a>.</p></div>}
         </div>
+        <p className="overview-note">Changes compare with the previous observation for rates and with a year earlier for levels. Year-to-date figures cover the year so far. Open a series for its definition and source.</p>
       </section>
 
       <section className="section two-col">
         <div className="card">
           <div className="card-head"><h2>Upcoming NBS Releases</h2><span>China Standard Time</span></div>
-          {props.releaseError ? <div className="state"><p>The NBS release calendar didn't respond. The schedule is also published at stats.gov.cn.</p></div>
+          {props.releasesLoading ? <div className="state" role="status">Loading the release calendar…</div> : props.releaseError ? <div className="state"><p>The NBS release calendar didn't respond. The schedule is also published at stats.gov.cn.</p></div>
             : upcoming.length === 0 ? <div className="state"><p>No further releases scheduled this month. <a href="#/releases">See the calendar</a>.</p></div>
             : <div className="cal">{upcoming.map((release) => {
               const date = new Date(`${release.date.slice(0, 10)}T00:00:00`);
@@ -936,7 +954,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
         </div>
         <div className="card">
           <div className="card-head"><h2>Coverage</h2><span>{props.stats?.officialEnglishCount ? `${props.stats.officialEnglishCount.toLocaleString("en-US")} English titles are NBS's own; the rest are machine translations, marked as such` : "English titles are machine translations; the Chinese is official"}</span></div>
-          <div className="coverage">
+          {!props.stats ? <div className="state">{props.statsStatus === "error" ? <>Catalog coverage is unavailable. <button className="button" onClick={props.onRetryCatalog}>Retry coverage</button></> : "Catalog coverage is loading."} <a href="#/methodology">Read about the sources</a>.</div> : <div className="coverage">
             <div><h3>Included</h3><ul>
               {datasets.map((dataset) => <li key={dataset.code}>{dataset.count.toLocaleString("en-US")} {dataset.geography === "National" ? "national" : dataset.geography === "Province" ? "provincial" : dataset.geography === "City" ? "city" : dataset.geography} {dataset.frequency.toLowerCase()} NBS series{dataset.geography === "Province" ? ", each published for 31 provinces" : dataset.geography === "City" ? ", each published for the surveyed cities" : DATASET_NOTE[dataset.code] ? `: ${DATASET_NOTE[dataset.code]}` : ""}</li>)}
               {props.stats?.storedCount !== undefined && <li>{props.stats.storedCount.toLocaleString("en-US")} stored locally; the rest are fetched on first view, and tables NBS lists but has published no data for are retried monthly</li>}
@@ -949,7 +967,7 @@ function Home(props: { stats: CatalogStats | null; curated: CuratedEntry[]; rele
               <li>Census releases and the ministries' own datasets, which NBS lists separately</li>
               <li>Seasonal adjustment, and any correction for the Lunar New Year moving between January and February</li>
             </ul></div>
-          </div>
+          </div>}
         </div>
       </section>
 
@@ -985,6 +1003,10 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [more, setMore] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [moreError, setMoreError] = useState(false);
+  const searchGeneration = useRef(0);
+  const moreRequest = useRef<AbortController | null>(null);
   const params = (offset: number) => {
     const query = new URLSearchParams({ q: props.route.q, limit: "60", offset: String(offset) });
     if (props.route.freq) query.set("frequency", props.route.freq);
@@ -994,17 +1016,38 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
     return query;
   };
   useEffect(() => {
-    let cancelled = false;
+    const generation = ++searchGeneration.current;
+    const controller = new AbortController();
+    moreRequest.current?.abort();
+    moreRequest.current = null;
+    setMore(false);
+    setMoreError(false);
+    setResponse(null);
     setStatus("loading");
-    const timer = window.setTimeout(() => {
-      json(`/api/search?${params(0)}`).then((body) => { if (cancelled) return; if (isSearchResponse(body)) { setResponse(body); setStatus("ok"); } else setStatus("error"); }).catch(() => { if (!cancelled) setStatus("error"); });
-    }, 160);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [props.route.q, props.route.freq, props.route.cat, props.route.dataset, props.route.geo]);
+    json(`/api/search?${params(0)}`, controller.signal).then((body) => {
+      if (controller.signal.aborted || generation !== searchGeneration.current) return;
+      if (!isSearchResponse(body)) throw new Error("Invalid search response");
+      setResponse(body);
+      setStatus("ok");
+    }).catch(() => { if (!controller.signal.aborted && generation === searchGeneration.current) setStatus("error"); });
+    return () => { controller.abort(); moreRequest.current?.abort(); };
+  }, [props.route.q, props.route.freq, props.route.cat, props.route.dataset, props.route.geo, attempt]);
   const loadMore = () => {
-    if (!response) return;
+    if (!response || moreRequest.current) return;
+    const generation = searchGeneration.current;
+    const controller = new AbortController();
+    moreRequest.current = controller;
     setMore(true);
-    json(`/api/search?${params(response.results.length)}`).then((body) => { if (isSearchResponse(body)) setResponse({ ...body, results: [...response.results, ...body.results] }); }).catch(() => undefined).finally(() => setMore(false));
+    setMoreError(false);
+    json(`/api/search?${params(response.results.length)}`, controller.signal).then((body) => {
+      if (controller.signal.aborted || generation !== searchGeneration.current) return;
+      if (!isSearchResponse(body)) throw new Error("Invalid search response");
+      setResponse(current => current ? { ...body, results: [...current.results, ...body.results.filter(item => !current.results.some(existing => existing.key === item.key))] } : body);
+    }).catch(() => { if (!controller.signal.aborted && generation === searchGeneration.current) setMoreError(true); })
+      .finally(() => {
+        if (moreRequest.current === controller) moreRequest.current = null;
+        if (!controller.signal.aborted && generation === searchGeneration.current) setMore(false);
+      });
   };
   const catEn = props.route.cat ? (categoryEn(props.route.cat) || (() => { const hit = response?.results.find((entry) => entry.categories.includes(props.route.cat)); return hit?.categoriesEn?.[hit.categories.indexOf(props.route.cat)] ?? ""; })()) : "";
   const title = props.route.q ? `Results for “${props.route.q}”` : props.route.cat ? props.route.cat : props.route.dataset ? (props.stats?.datasets.find((dataset) => String(dataset.code) === props.route.dataset)?.name ?? "Dataset") : "All series";
@@ -1026,11 +1069,11 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
         {(props.route.freq || props.route.cat || props.route.dataset || props.route.geo) && <button className="button" onClick={() => props.navigate({ view: "search", q: props.route.q, freq: "", cat: "", dataset: "", geo: "" })}>Clear filters</button>}
       </div>
       <p className="result-count" role="status" aria-live="polite">{status === "loading" ? "Searching…" : status === "error" ? "" : response && response.total > 0 ? `Showing ${response.results.length.toLocaleString("en-US")} of ${response.total.toLocaleString("en-US")} series` : ""}</p>
-      {status === "error" && <div className="state"><b>Search unavailable</b><p>The catalog did not respond. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button></div></div>}
+      {status === "error" && <div className="state"><b>Search unavailable</b><p>The catalog did not respond. Try again in a moment.</p><div className="actions"><button className="button" onClick={() => setAttempt(n => n + 1)}>Try again</button></div></div>}
       {status === "ok" && response && response.results.length === 0 && (
         <div className="state" role="status">
           <b>No series match {props.route.q ? `“${props.route.q}”` : "these filters"}</b>
-          <p>This catalog holds {(props.stats?.seriesCount ?? 0).toLocaleString("en-US")} NBS series: national monthly, quarterly and annual, and the provincial and city tables. Filters narrow it; clearing them searches everything.</p>
+          <p>This catalog holds {props.stats ? `${props.stats.seriesCount.toLocaleString("en-US")} NBS series` : "NBS series"}: national monthly, quarterly and annual, and the provincial and city tables. Filters narrow it; clearing them searches everything.</p>
           <p>Try a Chinese term such as <a href={routeHash({ view: "search", q: "失业率", freq: "", cat: "", dataset: "", geo: "" })}>失业率</a> or <a href={routeHash({ view: "search", q: "居民消费价格", freq: "", cat: "", dataset: "", geo: "" })}>居民消费价格</a>, or <a href="#/browse">browse the categories</a>. English matches common terms (GDP, CPI, PPI, exports, steel) and the headline indicators.</p>
         </div>
       )}
@@ -1054,12 +1097,13 @@ function SearchPage(props: { route: Extract<Route, { view: "search" }>; stats: C
           })}
         </div>
       )}
-      {response && response.results.length < response.total && status === "ok" && <button className="load-more" disabled={more} onClick={loadMore}>{more ? "Loading…" : `Load ${Math.min(60, response.total - response.results.length)} more`}</button>}
+      {moreError && <p className="pagination-error" role="alert">More results could not load. Your current results are still here.</p>}
+      {response && response.results.length < response.total && status === "ok" && <button className="load-more" disabled={more} onClick={loadMore}>{more ? "Loading…" : moreError ? "Retry loading more" : `Load ${Math.min(60, response.total - response.results.length)} more`}</button>}
     </main>
   );
 }
 
-function BrowsePage(props: { stats: CatalogStats | null }) {
+function BrowsePage(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok" | "error"; onRetry: () => void }) {
   // One block per dataset, so a heading in the three-economies table is never
   // mistaken for the nation's. Within a block, headings with the same English
   // name are one card, the Chinese names listed on it.
@@ -1068,6 +1112,8 @@ function BrowsePage(props: { stats: CatalogStats | null }) {
     <main id="main" tabIndex={-1} className="page">
       <div className="breadcrumbs"><a href="#/">Home</a><span aria-hidden="true">›</span><span>Browse</span></div>
       <h1>Browse</h1>
+      <p className="lede">Browse official statistics by geography, frequency, and subject.</p>
+      {!props.stats && <div className="state" role="status">{props.statsStatus === "error" ? <><b>Catalog unavailable</b><p>The catalog did not respond.</p><button className="button" onClick={props.onRetry}>Try again</button></> : "Loading the catalog…"}</div>}
       {datasets.map((dataset) => {
         const cards = new Map<string, { en: string; zh: string[]; count: number }>();
         for (const category of dataset.categories ?? []) {
@@ -2599,9 +2645,13 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
 function App() {
   const [route, setRoute] = useState<Route>(() => parseRoute(currentHash()));
   const [stats, setStats] = useState<CatalogStats | null>(null);
+  const [statsStatus, setStatsStatus] = useState<"loading" | "ok" | "error">("loading");
   const [curated, setCurated] = useState<CuratedEntry[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
   const [releaseError, setReleaseError] = useState("");
+  const [releasesLoading, setReleasesLoading] = useState(true);
+  const [catalogStatus, setCatalogStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
   const [saved, setSaved] = useState<string[]>(() => readList("china-favorites"));
   const [recent, setRecent] = useState<string[]>(() => readList("china-recent"));
   const [draft, setDraft] = useState(route.view === "search" ? route.q : "");
@@ -2609,6 +2659,7 @@ function App() {
   // Titles are English-first with the official Chinese alongside; a Chinese-first UI is a separate project.
   const lang = "en";
   const [toast, setToast] = useState("");
+  const previousView = useRef(route.view);
   const lastSeries = useRef<string[]>(route.view === "series" ? route.keys : []);
 
   const navigate = (next: Route) => {
@@ -2618,14 +2669,32 @@ function App() {
   };
 
   useEffect(() => {
-    json("/api/catalog/stats").then((body) => { if (isStats(body)) setStats(body); }).catch(() => setStats(null));
-    json("/api/catalog").then((body) => { if (Array.isArray(body)) setCurated(body.filter(isCurated)); }).catch(() => setCurated([]));
-    json("/api/releases").then((body) => {
+    const controller = new AbortController();
+    setCatalogStatus("loading");
+    setStatsStatus("loading");
+    setReleasesLoading(true);
+    setReleaseError("");
+    json("/api/catalog/stats", controller.signal).then((body) => {
+      if (controller.signal.aborted) return;
+      if (!isStats(body)) throw new Error("Invalid catalog coverage");
+      setStats(body); setStatsStatus("ok");
+    }).catch(() => { if (!controller.signal.aborted) setStatsStatus("error"); });
+    json("/api/catalog", controller.signal).then((body) => {
+      if (controller.signal.aborted) return;
+      if (!Array.isArray(body)) throw new Error("Invalid catalog");
+      const entries = body.filter(isCurated);
+      if (!entries.length) throw new Error("Empty catalog");
+      setCurated(entries);
+      setCatalogStatus("ok");
+    }).catch(() => { if (!controller.signal.aborted) setCatalogStatus("error"); });
+    json("/api/releases", controller.signal).then((body) => {
+      if (controller.signal.aborted) return;
       const data = obj(body, "data");
       if (!Array.isArray(data)) { setReleaseError("unavailable"); return; }
       setReleases(data.map((item) => ({ id: str(item, "_id"), date: str(item, "fb_time"), title: str(item, "content"), en: str(item, "en"), keys: listOf(item, "keys").filter((key): key is string => typeof key === "string"), categories: listOf(item, "categories").filter((name): name is string => typeof name === "string") })).filter((item) => item.id));
-    }).catch(() => setReleaseError("unavailable"));
-  }, []);
+    }).catch(() => { if (!controller.signal.aborted) setReleaseError("unavailable"); }).finally(() => { if (!controller.signal.aborted) setReleasesLoading(false); });
+    return () => controller.abort();
+  }, [catalogAttempt]);
 
   useEffect(() => {
     const update = () => setRoute(parseRoute(currentHash()));
@@ -2649,7 +2718,10 @@ function App() {
       document.title = viewTitle ? `${viewTitle} - EconStats China Data` : "EconStats China Data";
     }
     const main = document.getElementById("main");
-    if (main && route.view !== "home") main.focus({ preventScroll: true });
+    const editingSearch = document.activeElement?.id === "global-series-search";
+    const editingFilter = previousView.current === route.view && document.activeElement instanceof HTMLSelectElement;
+    if (main && route.view !== "home" && !editingFilter && !(route.view === "search" && editingSearch)) main.focus({ preventScroll: true });
+    previousView.current = route.view;
   }, [routeHash(route)]);
 
   useEffect(() => {
@@ -2660,13 +2732,13 @@ function App() {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable)) return;
       const input = document.getElementById(route.view === "home" ? "home-series-search" : "global-series-search");
       if (input instanceof HTMLInputElement) { event.preventDefault(); input.focus(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [route.view]);
 
   useEffect(() => {
     if (!toast) return;
@@ -2674,15 +2746,11 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  // Typing searches after a pause; focus alone changes nothing.
-  useEffect(() => {
+  const submitSearch = () => {
     if (!draft.trim()) return;
-    const timer = window.setTimeout(() => {
-      const current = route.view === "search" ? route : { view: "search" as const, q: "", freq: "", cat: "", dataset: "", geo: "" };
-      if (current.q !== draft.trim()) navigate({ ...current, q: draft.trim() });
-    }, 220);
-    return () => window.clearTimeout(timer);
-  }, [draft]);
+    const search = route.view === "search" ? route : { view: "search" as const, q: "", freq: "", cat: "", dataset: "", geo: "" };
+    navigate({ ...search, q: draft.trim() });
+  };
 
   const toggleSaved = (key: string) => setSaved((current) => { const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current]; writeList("china-favorites", next); return next; });
   const cycleTheme = () => { const next = theme === "" ? "dark" : theme === "dark" ? "light" : ""; setTheme(next); writePref("china-theme", next); setToast(next === "" ? "Theme follows your system" : next === "dark" ? "Dark theme" : "Light theme"); };
@@ -2695,11 +2763,12 @@ function App() {
       <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); if (main) { main.focus(); main.scrollIntoView(); } }}>Skip to content</a>
       <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
         <a className="brand" href="#/"><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <div className="global-search"><SearchIcon /><input id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); if (route.view === "search") navigate(lastSeries.current.length ? { view: "series", keys: lastSeries.current, show: "", range: "", region: "", from: "", to: "", freq: "", agg: "", lny: "", ma: "" } : { view: "home" }); } if (event.key === "Enter" && draft.trim()) navigate({ view: "search", q: draft.trim(), freq: "", cat: "", dataset: "", geo: "" }); }} placeholder={`Search ${(stats?.seriesCount ?? 66302).toLocaleString("en-US")} series in English or Chinese`} /></div>
+        <form className="global-search" role="search" onSubmit={event => { event.preventDefault(); submitSearch(); }}><SearchIcon /><input type="search" id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); } }} placeholder="Search economic data…" /><button className="search-submit" type="submit">Search</button><kbd aria-hidden="true">/</kbd></form>
         <nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
+          <a href="#/saved" aria-current={current("saved")}>Saved{saved.length > 0 ? ` (${saved.length})` : ""}</a>
         </nav>
         <div className="topbar-tools">
           <button className="icon-button" onClick={cycleTheme} aria-label={`Switch theme, now ${theme === "" ? "following your system" : theme === "dark" ? "dark" : "light"}`}><ThemeIcon /></button>
@@ -2709,10 +2778,10 @@ function App() {
       {/* Home, the theme pages and the provinces are read across the width; the catalog sidebar belongs to the series, search and browse views. */}
       <div className={bare ? "body-grid no-sidebar" : "body-grid"}>
         {!bare && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
-        {route.view === "home" && <Home stats={stats} curated={curated} releases={releases} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "", geo: "" })} />}
+        {route.view === "home" && <Home stats={stats} statsStatus={statsStatus} curated={curated} catalogStatus={catalogStatus} onRetryCatalog={() => setCatalogAttempt(n => n + 1)} releases={releases} releasesLoading={releasesLoading} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "", geo: "" })} />}
         {route.view === "series" && <SeriesPage route={route} curated={curated} saved={saved} releases={releases} lang={lang} onToggleSaved={toggleSaved} navigate={navigate} toast={setToast} />}
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
-        {route.view === "browse" && <BrowsePage stats={stats} />}
+        {route.view === "browse" && <BrowsePage stats={stats} statsStatus={statsStatus} onRetry={() => setCatalogAttempt(n => n + 1)} />}
         {route.view === "releases" && <ReleasesPage route={route} curated={curated} navigate={navigate} />}
         {route.view === "methodology" && <MethodologyPage route={route} curated={curated} />}
         {route.view === "health" && <HealthPage />}
@@ -2722,7 +2791,7 @@ function App() {
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
       </div>
-      <footer>Data from NBS, {publisherList(curated.filter((entry) => entry.source !== "fred" && !entry.agency.includes("National Bureau of Statistics")))}, and the World Bank, BIS, OECD, IMF and US agencies via FRED. Independent project, not affiliated with any statistical agency.</footer>
+      <footer><nav aria-label="About this portal"><a href="#/methodology">Sources &amp; methodology</a><a href="#/health">Data health</a><a href="#/releases">Release calendar</a></nav><p>Official data from Chinese statistical agencies and international sources via FRED. Independent project, not affiliated with any statistical agency.</p></footer>
       {/* The status region is always present so assistive tech announces the text when it changes; a live region inserted with its text already in it is often missed. */}
       <div role="status" aria-live="polite">{toast && <div className="toast">{toast}</div>}</div>
     </div>

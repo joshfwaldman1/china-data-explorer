@@ -96,6 +96,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+### 3 October 2026 — portal discovery and recovery (prepared for review)
+
+Home now has explicit search and starting queries, indicator/topic filters, readable scaled units, named columns, visible reference periods at mobile widths, and headline names that identify the growth or inflation rate actually shown. Browse, Releases, and Saved remain accessible on mobile. Loading coverage and release schedules no longer initially claim zero series or no releases; Home and Browse can recover from failed requests without a page reload.
+
+Search submits on Enter or the Search button, preserving input focus while typing. Retries actually issue another request, pagination errors preserve current results, and cancelled or late responses cannot mix results across queries. The `/` shortcut follows navigation. A failed bulk Home request no longer launches a request for every indicator.
+
+Validation: `bun run typecheck`; all 579 tests pass. Six offline Chrome user-journey regressions cover pending states, overview/catalog recovery, explicit search/retry/keyboard navigation, stale pagination, pagination recovery, individual-place filters, and visible YTD dates/navigation with no horizontal document overflow at 360, 390, 768, 900 and 1280 pixels. Manual local preview checked desktop, mobile and dark mode against captured public observations. No new dependencies or database/seed changes. This round is prepared for PR review, not deployed.
+
+
 
 ### 2 October 2026 — methodology and missing-month repairs (prepared for review)
 
