@@ -287,6 +287,12 @@ export function periodTime(period: string): number {
   return Number.NaN;
 }
 
+/** Inclusive end of the month selected in a date-range control, without spilling into March or May. */
+export function monthEndTime(month: string): number {
+  const match = month.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  return match ? Date.UTC(Number(match[1]), Number(match[2]), 1) - 1 : Number.NaN;
+}
+
 export function periodPretty(period: string): string {
   const quarter = period.match(/^(\d{4})-Q([1-4])$/);
   if (quarter) return `Q${quarter[2]} ${quarter[1]}`;

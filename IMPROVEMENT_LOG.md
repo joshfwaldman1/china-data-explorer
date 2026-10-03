@@ -98,6 +98,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+### 3 October 2026 — chart ranges, exports and revision recovery (prepared for review)
+
+Custom month ranges now end at the actual end of the chosen month, including leap years, and apply consistently to the chart, table, CSV view and shared image. The range controls remain available on the Table tab, the period count and span are visible, and Custom can clear the selection. Empty ranges explain recovery and disable blank image/view exports. End-only custom ranges do not inherit a hidden preset start. Mixed-unit comparisons rebase at the selected start and exported index values carry index units. CSV downloads distinguish the selected view from all loaded periods and include smoothing/aggregation notes; shared images now include smoothing notes too.
+
+Series retries now issue a new request. Revision-history failures show an error and retry instead of claiming no revisions. Empty history is explicitly limited to what this portal has recorded; earlier values are described as observed vintages, not necessarily original publication vintages.
+
+Validation: typecheck and all 587 tests pass (7,468 assertions), including five additional offline browser journeys and a leap-year/month-end unit regression. Browser flows cover series/history retries, exact chart/table/CSV ranges, smoothing, end-only ranges, mixed-unit rebasing and CSV metadata, empty-view recovery, and custom-date controls at 360/768/1280 pixels. Manual 390-pixel CPI preview verified exactly January–February 2026 and no document overflow. The preview required a fresh server build after stash/restore invalidated Bun's hot-reload module state. Upstream release-cadence changes were preserved via regular merges; no data or seed changes. Prepared for PR review, not deployed.
+
+
 ### 3 October 2026 — portal discovery and recovery (prepared for review)
 
 Home now has explicit search and starting queries, indicator/topic filters, readable scaled units, named columns, visible reference periods at mobile widths, and headline names that identify the growth or inflation rate actually shown. Browse, Releases, and Saved remain accessible on mobile. Loading coverage and release schedules no longer initially claim zero series or no releases; Home and Browse can recover from failed requests without a page reload.

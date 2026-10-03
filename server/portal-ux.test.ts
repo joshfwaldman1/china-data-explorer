@@ -184,3 +184,122 @@ test("key indicators filter individual places and retain YTD dates at mobile and
     expect(await page.locator(".indicator-row").count()).toBe(3);
   } finally { await page.close(); }
 }, 60_000);
+
+const chartFixture = {
+  ...series("gdp", "Fixture value", 0), title: "Chart range fixture", source: "cache", updatedAt: "2026-09-01", unit: "Million USD",
+  series: [{ label: "Fixture value", points: [
+    { date: "2020-01", value: 10 }, { date: "2024-01", value: 100 }, { date: "2024-02", value: 200 }, { date: "2024-03", value: 300 }, { date: "2024-04", value: 400 }, { date: "2024-05", value: 500 },
+  ] }],
+};
+async function chartPage(): Promise<Page> {
+  const page = await openPage();
+  await page.route("**/api/series/gdp?*", route => route.fulfill({ json: chartFixture }));
+  await page.route("**/api/dimensions/gdp", route => route.fulfill({ json: { regions: [] } }));
+  await page.route("**/api/arrivals/gdp?*", route => route.fulfill({ json: { arrivals: [] } }));
+  await page.route("**/api/revisions/gdp?*", route => route.fulfill({ json: { revised: [] } }));
+  return page;
+}
+async function readCsvDownload(page: Page, label: string): Promise<string> {
+  await page.locator("summary").filter({ hasText: "Download" }).click();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: label, exact: true }).click();
+  const download = await pending;
+  return Bun.file((await download.path())!).text();
+}
+
+test("a failed series load can be retried without changing its URL", async () => {
+  const page = await chartPage();
+  let attempts = 0;
+  try {
+    await page.route("**/api/series/gdp?*", route => ++attempts === 1 ? route.fulfill({ status: 503, json: { error: "Service unavailable" } }) : route.fulfill({ json: chartFixture }));
+    await page.goto(`${server.url}/#/series/gdp`);
+    await page.getByText("Series unavailable", { exact: true }).waitFor();
+    const url = page.url();
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await page.getByRole("heading", { name: "Chart range fixture", exact: true }).waitFor();
+    expect(attempts).toBe(2);
+    expect(page.url()).toBe(url);
+  } finally { await page.close(); }
+}, 60_000);
+
+test("failed revision history is not reported as no revisions and can recover", async () => {
+  const page = await chartPage();
+  let attempts = 0;
+  try {
+    await page.route("**/api/revisions/gdp?*", route => ++attempts === 1 ? route.fulfill({ status: 503, json: {} }) : route.fulfill({ json: { revised: [{ label: "Fixture value", period: "2024-02", vintages: [{ value: 199, fetchedAt: "2026-08-01" }, { value: 200, fetchedAt: "2026-09-01" }] }] } }));
+    await page.goto(`${server.url}/#/series/gdp`);
+    await page.getByRole("button", { name: "Retry revision history" }).waitFor();
+    expect(await page.locator(".revisions").innerText()).not.toContain("None recorded");
+    await page.getByRole("button", { name: "Retry revision history" }).click();
+    await page.locator(".revisions tbody tr").waitFor();
+    expect(await page.locator(".revisions").innerText()).toContain("199");
+    expect(await page.locator(".revisions").innerText()).toContain("200");
+    expect(attempts).toBe(2);
+  } finally { await page.close(); }
+}, 60_000);
+
+test("chart, table and selected-view CSV share exact month boundaries and smoothing", async () => {
+  const page = await chartPage();
+  try {
+    await page.goto(`${server.url}/#/series/gdp?from=2024-02&to=2024-02&ma=3`);
+    await page.locator(".view-summary", { hasText: "1 period in view" }).waitFor();
+    await page.getByRole("tab", { name: "Table", exact: true }).click();
+    expect(await page.locator("#panel-table tbody tr").count()).toBe(1);
+    expect(await page.locator("#panel-table tbody").innerText()).toContain("Feb 2024");
+    expect(await page.locator("#panel-table tbody").innerText()).toContain("150");
+    const csv = await readCsvDownload(page, "Download view (CSV)");
+    expect(csv).toContain('"2024-02","150"');
+    expect(csv).not.toContain('"2024-03"');
+    expect(csv).toContain("Three-month trailing average");
+    const full = await readCsvDownload(page, "Download all periods (CSV)");
+    expect(full).toContain('"2020-01"');
+    expect(full).toContain('"2024-05"');
+    await page.getByLabel("End month", { exact: true }).fill("2024-04");
+    await page.locator(".view-summary", { hasText: "3 periods in view" }).waitFor();
+    expect(await page.locator("#panel-table tbody").innerText()).not.toContain("May 2024");
+    for (const width of [360, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.getByLabel("Start month", { exact: true }).isVisible()).toBe(true);
+      expect(await page.getByLabel("End month", { exact: true }).isVisible()).toBe(true);
+    }
+    await page.getByRole("button", { name: "Custom", exact: true }).click();
+    await page.locator(".view-summary", { hasText: "6 periods in view" }).waitFor();
+    expect(page.url()).not.toContain("from=");
+  } finally { await page.close(); }
+}, 60_000);
+
+test("empty date ranges explain how to recover and do not offer blank image exports", async () => {
+  const page = await chartPage();
+  try {
+    await page.goto(`${server.url}/#/series/gdp?from=2025-01&to=2025-02`);
+    await page.getByText("No observations in this date range. Choose another range or Max.", { exact: true }).waitFor();
+    await page.locator("summary").filter({ hasText: "Share" }).click();
+    expect(await page.getByRole("menuitem", { name: "Download image", exact: true }).isEnabled()).toBe(false);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Max", exact: true }).click();
+    await page.locator(".view-summary", { hasText: "6 periods in view" }).waitFor();
+    for (const width of [360, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  } finally { await page.close(); }
+}, 60_000);
+
+test("an end-only range and a rebased comparison export the periods and units actually shown", async () => {
+  const page = await chartPage();
+  try {
+    await page.goto(`${server.url}/#/series/gdp?to=2020-01&range=1y`);
+    await page.locator(".view-summary", { hasText: "1 period in view" }).waitFor();
+    expect(await readCsvDownload(page, "Download view (CSV)")).toContain('"2020-01","10"');
+    await page.route("**/api/series/cpi?*", route => route.fulfill({ json: { ...chartFixture, key: "cpi", title: "Second level fixture", unit: "Hundred million yuan" } }));
+    await page.goto(`${server.url}/#/series/gdp,cpi?from=2024-02&to=2024-03`);
+    await page.locator(".view-summary", { hasText: "2 periods in view" }).waitFor();
+    const csv = await readCsvDownload(page, "Download view (CSV)");
+    expect(csv).toContain("# Unit: Index, first shown period = 100");
+    expect(csv).toContain('"2024-02","100","100"');
+    expect(csv).toContain('"2024-03","150","150"');
+    expect(csv).toContain("rebased to 100");
+    expect(csv).not.toContain("# Unit: Million USD");
+  } finally { await page.close(); }
+}, 60_000);

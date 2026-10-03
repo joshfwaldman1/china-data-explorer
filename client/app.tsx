@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
-import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix, longGapsOf, powersOfTen } from "./lib";
+import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, monthEndTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix, longGapsOf, powersOfTen } from "./lib";
 import { isYearEarlierIndex, measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
@@ -1887,12 +1887,15 @@ function SeriesPage(props: {
   const [regions, setRegions] = useState<Region[]>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [error, setError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [tab, setTab] = useState<Tab>("chart");
   const [logScale, setLogScale] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(Boolean(props.route.freq || props.route.show || props.route.lny || props.route.ma));
   useEffect(() => { void warmShareFonts(); }, []);
   const [customDates, setCustomDates] = useState(Boolean(props.route.from || props.route.to));
   const [revised, setRevised] = useState<Revised[] | null>(null);
+  const [revisionError, setRevisionError] = useState(false);
+  const [revisionAttempt, setRevisionAttempt] = useState(0);
   // How the latest period got here: with a release the site watched for, or in a backfill.
   const [arrival, setArrival] = useState<{ period: string; sentence: string; kind: string; release?: { title: string; url: string } } | null>(null);
   const [related, setRelated] = useState<NbsCatalogEntry[]>([]);
@@ -1901,8 +1904,9 @@ function SeriesPage(props: {
   const show: Show = isShow(props.route.show || "default") ? (isShow(props.route.show) ? props.route.show : "default") : "default";
   const years = props.route.range === "max" ? null : Number(props.route.range.replace("y", "")) || 10;
   const windowStart = props.route.from ? periodTime(props.route.from) : Number.NaN;
-  const windowEnd = props.route.to ? periodTime(props.route.to) + 31 * 86400000 : Number.NaN;
+  const windowEnd = monthEndTime(props.route.to);
   const windowed = Number.isFinite(windowStart) || Number.isFinite(windowEnd);
+  const viewYears = windowed ? null : years;
   const keysText = props.route.keys.join(",");
 
   useEffect(() => {
@@ -1953,6 +1957,7 @@ function SeriesPage(props: {
     Promise.all(props.route.keys.map((spec) => fetchSpec(spec)))
       .then(async (bodies) => {
         let parsed = bodies.filter(isSeriesResult);
+        if (parsed.length !== props.route.keys.length) throw new Error("The series response was incomplete. Please try again.");
         // Comparing a rate with a level puts a line at zero next to one in
         // the hundreds of thousands. When no transform was chosen and units
         // disagree, bring the level series to year-over-year so all share %.
@@ -1968,9 +1973,11 @@ function SeriesPage(props: {
       })
       .catch((reason) => { if (cancelled) return; setError(reason instanceof Error ? reason.message : String(reason)); setStatus("error"); });
     return () => { cancelled = true; };
-  }, [keysText, props.route.region, show]);
+  }, [keysText, props.route.region, show, loadAttempt]);
 
   useEffect(() => {
+    setRevised(null);
+    setRevisionError(false);
     if (results.length === 0) return;
     const primary = results[0];
     if (!primary) return;
@@ -1981,12 +1988,12 @@ function SeriesPage(props: {
     json(`/api/revisions/${primary.key}?${query}`).then((body) => {
       if (cancelled) return;
       const list = obj(body, "revised");
-      if (!Array.isArray(list)) { setRevised([]); return; }
+      if (!Array.isArray(list)) throw new Error("Invalid revision history");
       setRevised(list.map((item) => ({ label: str(item, "label"), period: str(item, "period"), vintages: listOf(item, "vintages").map((vintage) => ({ value: num(vintage, "value"), fetchedAt: str(vintage, "fetchedAt") })) })));
-    }).catch(() => { if (!cancelled) setRevised([]); });
+    }).catch(() => { if (!cancelled) setRevisionError(true); });
     return () => { cancelled = true; };
     // The place is part of what is shown: switching partner or province must refetch.
-  }, [results.map((result) => `${result.key}@${result.region?.value ?? ""}`).join(",")]);
+  }, [results.map((result) => `${result.key}@${result.region?.value ?? ""}`).join(","), revisionAttempt]);
 
   useEffect(() => {
     // Siblings in the same NBS category, for a single catalog series: the cheapest way to browse a table.
@@ -2006,7 +2013,7 @@ function SeriesPage(props: {
   const units = [...new Set(results.map((result) => result.unit))];
   const mixed = units.length > 1;
   const lastT = Math.max(0, ...built.tracks.flatMap((track) => track.points.map((point) => point.t)));
-  const rangeStart = years === null ? -Infinity : lastT - years * 365.25 * 86400000;
+  const rangeStart = Number.isFinite(windowStart) ? windowStart : viewYears === null ? -Infinity : lastT - viewYears * 365.25 * 86400000;
   // Frequency: an explicit choice wins; otherwise a compare that mixes
   // monthly and quarterly series is brought to the coarser one, so twelve
   // points a year are never drawn against four on the same axis.
@@ -2037,7 +2044,7 @@ function SeriesPage(props: {
   useEffect(() => { document.title = `${tabTitle || props.route.keys.join(", ")} - EconStats China Data`; }, [tabTitle, routeHash(props.route)]);
 
   if (status === "loading") return <main id="main" tabIndex={-1} className="page"><div className="state" role="status"><span className="loader" aria-hidden="true" />{firstView ? <p>Fetching from NBS for the first time. This takes a couple of seconds. Future views load instantly from the stored copy.</p> : <p>Loading…</p>}</div><div className="skeleton" aria-hidden="true" /></main>;
-  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/Unknown/.test(error) ? "There is no series with this ID. Check the link, or search for the series by name." : /AKTools/.test(error) ? error : /returned no observations/i.test(error) ? "NBS lists this table but has published no data for it, so there is nothing to chart. The other series in its category may have what you need." : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => set({})}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
+  if (status === "error" || !primary) return <main id="main" tabIndex={-1} className="page"><div className="state" role="alert"><b>Series unavailable</b><p>{/Unknown/.test(error) ? "There is no series with this ID. Check the link, or search for the series by name." : /AKTools/.test(error) ? error : /returned no observations/i.test(error) ? "NBS lists this table but has published no data for it, so there is nothing to chart. The other series in its category may have what you need." : /esData|NBS|HTTP 5\d\d|Unable to connect|timed out/i.test(error) ? "NBS didn't respond, and this series has no stored copy yet, so there's nothing to show." : error || "No observations came back."}</p><div className="actions"><button className="button" onClick={() => setLoadAttempt(value => value + 1)}>Try again</button><a className="button" href="#/">Home</a></div></div></main>;
 
   const firstSeries = built.tracks[0];
   const headline = primary.series[0];
@@ -2077,9 +2084,11 @@ function SeriesPage(props: {
   const sourceLinkLabel = meta ? (portalPage === "home" ? "Open data.stats.gov.cn" : `Open the ${NBS_PORTAL_PAGE_NAMES[portalPage] ?? "portal"} on data.stats.gov.cn`) : "Open the source";
   const citation = `${primary.agency}, "${primary.title}${placed ? `: ${placed}` : ""}"${meta?.nameEn ? ` [${meta.nameEn}]` : ""}, series ${primary.key}, retrieved ${fmtDate(new Date().toISOString())} from EconStats China Data, ${window.location.origin}/${seriesHash([primary.key], placed && primary.region ? { region: primary.region.value } : {})}`;
   const tableFrequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";
+  const viewTracks = visibleTracks(tracks, viewYears, windowStart, windowEnd);
+  const hasViewPoints = viewTracks.some(track => track.points.length > 0);
   const tableRows = (() => {
     const rows = new Map<string, { period: string; t: number; cells: (number | null)[] }>();
-    tracks.forEach((track, index) => {
+    viewTracks.forEach((track, index) => {
       for (const point of track.points) {
         const key = canonicalPeriod(point.p, tableFrequency);
         const row = rows.get(key) ?? { period: key, t: periodTime(key), cells: tracks.map(() => null) };
@@ -2100,23 +2109,27 @@ function SeriesPage(props: {
   const yearOnYear = /from year ago|year on year|yoy|同比/i.test(`${unitLabel(primary.unit)} ${headline?.label ?? ""}`);
   const statAgainst = latest && yearOnYear ? (cumulative ? `, on the same months of ${Number(latest.date.slice(0, 4)) - 1}` : ` on ${observationLabel(yearEarlier(latest.date), primary.frequency)}`) : "";
   const statLine = primary.series.length > 1 && headline?.label && headline.label !== primary.title ? `${bareLabel(headline.label)}, ` : "";
+  const processingNotes = [
+    ...built.notes,
+    ...(targetFrequency && converted.length > 0 ? [`${converted.map(track => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data; incomplete final periods omitted.`] : []),
+    ...(smoothing ? ["Three-month trailing average by calendar month; missing months are left out of the average."] : []),
+    ...(rebased ? ["Each series is rebased to 100 at its first nonzero observation in the selected view."] : []),
+  ];
+  const downloadCsv = (selected: boolean) => {
+    const exported = selected ? viewTracks : tracks;
+    const notes = [...processingNotes, selected ? "Selected chart/table period range." : "All loaded periods; frequency and transformations follow the current chart options."];
+    downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(
+      results.map(result => {
+        const english = displayTitle(result, results);
+        return { title: english !== result.title && /[\u3400-\u9fff]/.test(result.title) ? `${english} (${result.title})` : english, unit: unitLabel(rebased ? unit : result.unit), agency: result.agency, region: result.region && result.region.value !== "000000000000" ? regionLabel(result.region) : undefined };
+      }),
+      results.length === 1 && exported.length === 1 ? exported.map(track => ({ ...track, name: results[0] ? displayTitle(results[0], results) : track.name })) : exported,
+      notes)], { type: "text/csv;charset=utf-8" }));
+  };
   const downloadItems = [
-    {
-      label: "Download CSV",
-      // English first with the Chinese alongside, as the page heading reads: a catalog series' raw
-      // title is the bureau's Chinese, and its one line is labelled 全国, which named the CSV column.
-      onSelect: () => downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(
-        results.map((result) => {
-          const english = displayTitle(result, results);
-          return { title: english !== result.title && /[\u3400-\u9fff]/.test(result.title) ? `${english} (${result.title})` : english, unit: unitLabel(result.unit), agency: result.agency, region: result.region && result.region.value !== "000000000000" ? regionLabel(result.region) : undefined };
-        }),
-        results.length === 1 && tracks.length === 1 ? tracks.map((track) => ({ ...track, name: results[0] ? displayTitle(results[0], results) : track.name })) : tracks,
-        built.notes)], { type: "text/csv;charset=utf-8" })),
-    },
-    {
-      label: "Download JSON",
-      onSelect: () => downloadBlob(shareFileName(props.route.keys, "json"), new Blob([JSON.stringify(results, null, 2)], { type: "application/json" })),
-    },
+    { label: "Download view (CSV)", disabled: !hasViewPoints, onSelect: () => downloadCsv(true) },
+    { label: "Download all periods (CSV)", onSelect: () => downloadCsv(false) },
+    { label: "Download series data (JSON)", onSelect: () => downloadBlob(shareFileName(props.route.keys, "json"), new Blob([JSON.stringify(results, null, 2)], { type: "application/json" })) },
   ];
   const lunar = props.route.lny === "1";
   // The legend names the lines; the measure they share is written once in the caption under the chart.
@@ -2131,7 +2144,7 @@ function SeriesPage(props: {
     || measureOf((!result.transform || result.transform === "raw") ? result.unit : (result.metadata?.unit ?? "")).kind === "rate");
   const showSelected: Show = show === "index_growth" && !indexMinus100 ? "yoy" : show;
   // The same axis the chart draws, asked here so the caption and legend say what it says.
-  const pageAxis = valueAxisFor(visibleTracks(shownTracks, years, windowStart, windowEnd), unit, logScale && canLog);
+  const pageAxis = valueAxisFor(visibleTracks(shownTracks, viewYears, windowStart, windowEnd), unit, logScale && canLog);
   const rescaledCaption = rescaledUnitText(unit, pageAxis);
   // A shared image of a discontinued series says so; the page's amber notice does not travel with the picture.
   const endedNotes = results.flatMap((result) => {
@@ -2155,16 +2168,16 @@ function SeriesPage(props: {
     title: seriesViewTitle(results, props.lang),
     unit: unitLabel(unit),
     frequencies: [...new Set(tracks.map((track) => track.frequency))],
-    tracks: visibleTracks(tracks, years, windowStart, windowEnd),
+    tracks: viewTracks,
     gaps: built.gaps,
-    notes: [...endedNotes, ...behindNotes, ...februaryNotes, ...built.notes, ...(targetFrequency && converted.length > 0 ? [`${converted.map((track) => track.name).join(", ")}: ${targetFrequency.toLowerCase()} ${aggregationLabel} of ${converted[0]?.frequency.toLowerCase()} data.`] : [])],
+    notes: [...endedNotes, ...behindNotes, ...februaryNotes, ...processingNotes],
     logScale: logScale && canLog,
     lunar,
     source: [...new Set(results.map((result) => result.agency))].join(", ") + (results.some((result) => result.sourceUrl.includes("eastmoney")) ? " via Eastmoney" : ""),
     url: window.location.href,
     date: fmtDate(new Date().toISOString()),
   });
-  const noImage = tracks.every((track) => track.points.length === 0);
+  const noImage = !hasViewPoints;
   const shareItems = [
     {
       label: "Copy image",
@@ -2268,11 +2281,12 @@ function SeriesPage(props: {
           {results.some((result) => result.frequency === "Monthly") && <label><input type="checkbox" checked={lunar} onChange={(event) => set({ lny: event.target.checked ? "1" : "" })} /> Shade Lunar New Year</label>}
           {results.some((result) => result.frequency === "Monthly") && !targetFrequency && <label><input type="checkbox" checked={smoothing} onChange={(event) => set({ ma: event.target.checked ? "3" : "" })} /> 3-month average</label>}
         </div>}
+        <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => { if (windowed) { set({ from: "", to: "" }); setCustomDates(false); } else setCustomDates(value => !value); }}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" autoFocus={customDates && !windowed} /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
+        <div className="view-summary" role="status">{tableRows.length ? `${tableRows.length.toLocaleString("en-US")} ${tableRows.length === 1 ? "period" : "periods"} in view · ${observationLabel(tableRows.at(-1)?.period ?? "", tableFrequency)} to ${observationLabel(tableRows[0]?.period ?? "", tableFrequency)}` : "No observations in this date range. Choose another range or Max."}</div>
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
             <>
-              <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => setCustomDates((value) => !value)}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" autoFocus={customDates && !windowed} /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
-              <div><SeriesChart tracks={shownTracks} gaps={built.gaps} years={years} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>
+              {hasViewPoints && <div><SeriesChart tracks={shownTracks} gaps={built.gaps} years={viewYears} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>}
               {shownTracks.length > 1 && <div className="chart-legend" aria-label="Legend">{shownTracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{pageAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
@@ -2283,7 +2297,7 @@ function SeriesPage(props: {
           {tab === "table" && (
             <>
               <div className="table-scroll"><table><caption className="visually-hidden">{seriesViewTitle(results, props.lang)}: {unitLabel(unit)}, {tableFrequency.toLowerCase()} data, one row per period, newest first.</caption><thead><tr><th scope="col">Period</th>{tracks.map((track) => <th key={track.id} scope="col">{track.name}</th>)}</tr></thead><tbody>{shownRows.map((row) => <tr key={row.period}><td>{observationLabel(row.period, tableFrequency)}</td>{row.cells.map((cell, index) => <td key={index}>{cell === null ? "—" : fmt(cell, unit)}</td>)}</tr>)}</tbody></table></div>
-              <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods. The CSV download has all of them.` : `${tableRows.length} periods`}</span></div>
+              <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods. Download view (CSV) includes every period in this range.` : `${tableRows.length} ${tableRows.length === 1 ? "period" : "periods"} in view`}</span></div>
             </>
           )}
         </div>
@@ -2320,9 +2334,10 @@ function SeriesPage(props: {
       </section>
 
       <section className="card revisions">
-        <div className="revisions-head"><h2>Revisions</h2><span>{revised === null ? "Loading…" : revised.length === 0 ? "None recorded" : `${revised.length} restated ${revised.length === 1 ? "value" : "values"}`}</span></div>
-        {revised !== null && revised.length === 0 && <p>No stored value for this series has been revised by the source. Revised values are kept alongside the original.</p>}
-        {revised !== null && revised.length > 0 && <div className="table-scroll"><table><caption className="visually-hidden">Revisions to {displayTitle(primary, results)}: each restated period with its current value and the values published before.</caption><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{periodPretty(row.period)}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "Withdrawn" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>}
+        <div className="revisions-head"><h2>Revisions</h2><span>{revisionError ? "Unavailable" : revised === null ? "Loading…" : revised.length === 0 ? "None recorded" : `${revised.length} restated ${revised.length === 1 ? "value" : "values"}`}</span></div>
+        {revisionError && <div className="state" role="alert"><p>Revision history could not load. The chart is still available.</p><button className="button" onClick={() => setRevisionAttempt(value => value + 1)}>Retry revision history</button></div>}
+        {revised !== null && revised.length === 0 && <p>No revisions are recorded in this portal’s stored history. This does not establish that the source never revised earlier figures.</p>}
+        {revised !== null && revised.length > 0 && <div className="table-scroll"><table><caption className="visually-hidden">Revisions to {displayTitle(primary, results)}: each restated period with its current value and earlier values observed by this portal.</caption><thead><tr><th scope="col">Period</th><th scope="col" style={{ textAlign: "left" }}>Series</th><th scope="col">Current</th><th scope="col">Previously</th></tr></thead><tbody>{revised.map((row) => <tr key={`${row.label}${row.period}`}><td>{periodPretty(row.period)}</td><td style={{ textAlign: "left", fontFamily: "var(--sans)" }}>{row.label}</td><td>{row.vintages.at(-1)?.value === null || row.vintages.at(-1) === undefined ? "Withdrawn" : fmt(row.vintages.at(-1)?.value ?? 0, primary.unit)}</td><td>{row.vintages.slice(0, -1).map((vintage) => `${vintage.value === null ? "—" : fmt(vintage.value, primary.unit)} (${fmtDate(vintage.fetchedAt)})`).join(", ")}</td></tr>)}</tbody></table></div>}
       </section>
       <div className="cite"><p>Cite: {citation}</p><button className="button" onClick={() => navigator.clipboard?.writeText(citation).then(() => props.toast("Citation copied"))}>Copy</button></div>
 
@@ -2719,7 +2734,7 @@ function App() {
     }
     const main = document.getElementById("main");
     const editingSearch = document.activeElement?.id === "global-series-search";
-    const editingFilter = previousView.current === route.view && document.activeElement instanceof HTMLSelectElement;
+    const editingFilter = previousView.current === route.view && (document.activeElement instanceof HTMLSelectElement || (document.activeElement instanceof HTMLInputElement && document.activeElement.type === "month"));
     if (main && route.view !== "home" && !editingFilter && !(route.view === "search" && editingSearch)) main.focus({ preventScroll: true });
     previousView.current = route.view;
   }, [routeHash(route)]);

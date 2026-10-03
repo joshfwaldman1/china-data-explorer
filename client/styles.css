@@ -732,3 +732,5 @@ footer p { margin: 0; }
   .hero-tiles .tile small { font-size: 10px; }
   .section-head .more { margin-left: 0; }
 }
+
+.view-summary { padding: 10px var(--s-4); color: var(--muted); font-size: var(--fs-2); line-height: 1.5; border-bottom: 1px solid var(--line); }
