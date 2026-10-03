@@ -23,11 +23,10 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (follow-up to the release rotation) `refreshCatalogForRelease` still
-  calls `storedLatest("nbs_")`, a join over all ~194K stored places, on
-  every attempt; scope it to the release's categories' keys. And a
-  release whose pending count has not moved across a full rotation could
-  stop early instead of running to attempt 66.
+- (follow-up to the release rotation) A release whose pending count has
+  not moved across a full rotation could stop early instead of running to
+  attempt 66. Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
+  in /api/release-checks: its "9995 pending" should finally move.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
@@ -98,6 +97,14 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (release refresh reads only its own keys): every release
+  attempt began with `storedLatest("nbs_")`, a three-table join grouped over
+  every stored catalog place (~194,000), on the HTTP thread, then threw away
+  everything outside the release's categories. It now filters the catalog
+  entries to the release first and reads `latestByRegion` for just those
+  keys (a primary-key seek each). Behaviour unchanged; the release-refresh
+  tests (provincial places, quarterly targets, rotation) pass as before.
 
 - 2026-10-02 (release retries rotate through their tables): /api/release-
   checks showed the 27 Sep industrial profits release on attempt 64 with

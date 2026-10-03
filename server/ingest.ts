@@ -16,7 +16,7 @@
  */
 
 import { CATALOG, aktoolsConfigured, fetchLive, fetchLiveRegion, seriesRegion, seriesRegions, type SeriesResult } from "./data.ts";
-import { db, writeSeries, logFetch, dbStatus, listStoredSeries, recentlyEmptyTargets, retractUnpublished, storedLatest, storedValue } from "./db.ts";
+import { db, writeSeries, logFetch, dbStatus, latestByRegion, listStoredSeries, recentlyEmptyTargets, retractUnpublished, storedLatest, storedValue } from "./db.ts";
 import { NBS_BATCH_SIZE, fetchNbsTableBatch, getNbsCatalogEntry, getNbsDimensions, listNbsCatalogEntries, refreshNbsCatalogSeries, storeNbsPoints, type FetchWindow, type NbsCatalogEntry } from "./nbs-catalog.ts";
 import { comparablePeriod, dueReason } from "./due.ts";
 import type { ReleaseTarget } from "./release-plan.ts";
@@ -384,15 +384,19 @@ export async function refreshCatalogForRelease(
   const pauseMs = options.pauseMs ?? CRAWL_PAUSE_MS;
   const targetFor = (frequency: string) => targets.find((target) => target.frequency === frequency);
 
-  // Stored series, by indicator and place, so a place that is behind is
-  // refreshed even when its neighbours are current.
+  // The release's own entries first, then what the store holds for just
+  // those, by indicator and place, so a place that is behind is refreshed
+  // even when its neighbours are current. The store used to be read whole
+  // (every stored place, ~194,000) on every attempt, on the thread serving HTTP.
+  const inRelease = (options.entries ?? await listNbsCatalogEntries())
+    .filter((entry) => targetFor(entry.frequency) && categories.includes(entry.categories[0] ?? ""));
   const stored = new Map<string, { region: string; lastPeriod: string }>();
-  for (const row of storedLatest("nbs_")) stored.set(`${row.key}@${row.region}`, { region: row.region, lastPeriod: row.lastPeriod ?? "" });
+  for (const row of latestByRegion(inRelease.map((entry) => entry.key))) stored.set(`${row.key}@${row.region}`, { region: row.region, lastPeriod: row.lastPeriod ?? "" });
 
   const wanted: { entry: NbsCatalogEntry; region: { text: string; value: string } }[] = [];
-  for (const entry of options.entries ?? await listNbsCatalogEntries()) {
+  for (const entry of inRelease) {
     const target = targetFor(entry.frequency);
-    if (!target || !categories.includes(entry.categories[0] ?? "")) continue;
+    if (!target) continue;
     const regions = entry.geography === "National" ? [NATIONAL_REGION] : await getNbsDimensions(entry, { offline: true });
     for (const region of regions) {
       const held = stored.get(`${entry.key}@${region.value}`);
