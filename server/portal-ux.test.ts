@@ -175,7 +175,13 @@ test("key indicators filter individual places and retain YTD dates at mobile and
     for (const width of [360, 390, 768, 900, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (width < 1100) await page.getByRole("button", { name: "Open navigation", exact: true }).click();
+      await page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Browse", exact: true }).waitFor();
       for (const name of ["Browse", "Releases", "Saved"]) expect(await page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name, exact: true }).isVisible()).toBe(true);
+      if (width < 1100) {
+        await page.getByRole("button", { name: "Close navigation", exact: true }).click();
+        await page.getByRole("dialog").waitFor({ state: "hidden" });
+      }
       const period = page.locator(".indicator-row", { hasText: "Investment Growth" }).locator(".period");
       expect(await period.isVisible()).toBe(true);
       expect(await period.innerText()).toBe("Jan to Aug 2026");
@@ -202,10 +208,11 @@ async function chartPage(): Promise<Page> {
   return page;
 }
 async function readCsvDownload(page: Page, label: string): Promise<string> {
-  await page.locator("summary").filter({ hasText: "Download" }).click();
+  await page.getByRole("button", { name: "Download", exact: true }).click();
   const pending = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: label, exact: true }).click();
   const download = await pending;
+  await page.getByRole("menu").waitFor({ state: "hidden" });
   return Bun.file((await download.path())!).text();
 }
 
@@ -246,9 +253,9 @@ test("chart, table and selected-view CSV share exact month boundaries and smooth
     await page.goto(`${server.url}/#/series/gdp?from=2024-02&to=2024-02&ma=3`);
     await page.locator(".view-summary", { hasText: "1 period in view" }).waitFor();
     await page.getByRole("tab", { name: "Table", exact: true }).click();
-    expect(await page.locator("#panel-table tbody tr").count()).toBe(1);
-    expect(await page.locator("#panel-table tbody").innerText()).toContain("Feb 2024");
-    expect(await page.locator("#panel-table tbody").innerText()).toContain("150");
+    expect(await page.getByRole("tabpanel", { name: "Table", exact: true }).locator("tbody tr").count()).toBe(1);
+    expect(await page.getByRole("tabpanel", { name: "Table", exact: true }).locator("tbody").innerText()).toContain("Feb 2024");
+    expect(await page.getByRole("tabpanel", { name: "Table", exact: true }).locator("tbody").innerText()).toContain("150");
     const csv = await readCsvDownload(page, "Download view (CSV)");
     expect(csv).toContain('"2024-02","150"');
     expect(csv).not.toContain('"2024-03"');
@@ -258,7 +265,7 @@ test("chart, table and selected-view CSV share exact month boundaries and smooth
     expect(full).toContain('"2024-05"');
     await page.getByLabel("End month", { exact: true }).fill("2024-04");
     await page.locator(".view-summary", { hasText: "3 periods in view" }).waitFor();
-    expect(await page.locator("#panel-table tbody").innerText()).not.toContain("May 2024");
+    expect(await page.getByRole("tabpanel", { name: "Table", exact: true }).locator("tbody").innerText()).not.toContain("May 2024");
     for (const width of [360, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -276,7 +283,7 @@ test("empty date ranges explain how to recover and do not offer blank image expo
   try {
     await page.goto(`${server.url}/#/series/gdp?from=2025-01&to=2025-02`);
     await page.getByText("No observations in this date range. Choose another range or Max.", { exact: true }).waitFor();
-    await page.locator("summary").filter({ hasText: "Share" }).click();
+    await page.getByRole("button", { name: "Share", exact: true }).click();
     expect(await page.getByRole("menuitem", { name: "Download image", exact: true }).isEnabled()).toBe(false);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Max", exact: true }).click();
@@ -372,5 +379,79 @@ test("comparison notes and CSV retain each series' complete catalogue prose and 
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
+  } finally { await page.close(); }
+}, 60_000);
+
+
+test("the series workspace shows the plot in a narrow desktop pane and keeps controls usable", async () => {
+  const page = await chartPage();
+  const period = new Date().toISOString().slice(0, 7);
+  try {
+    await page.route("**/api/series/gdp?*", route => route.fulfill({ json: {
+      ...chartFixture, title: "Surveyed Urban Unemployment Rate", unit: "Percent",
+      series: ["Surveyed urban", "Youth 16-24, ex-students"].map((label, index) => ({ label, points: [{ date: "2025-01", value: 5 + index * 10 }, { date: period, value: 5.3 + index * 10 }] })),
+    } }));
+    await page.setViewportSize({ width: 740, height: 687 });
+    await page.goto(`${server.url}/#/series/gdp`);
+    await page.getByRole("application", { name: "Surveyed Urban Unemployment Rate" }).waitFor();
+    const plot = await page.locator(".chart-wrap").boundingBox();
+    expect(plot!.y).toBeLessThan(400);
+    expect(plot!.y + plot!.height).toBeLessThanOrEqual(687);
+    const chartTab = page.getByRole("tab", { name: "Chart", exact: true });
+    const options = page.getByRole("button", { name: "Options", exact: true });
+    const tabBox = await chartTab.boundingBox();
+    const optionsBox = await options.boundingBox();
+    expect(Math.abs(tabBox!.y + tabBox!.height / 2 - optionsBox!.y - optionsBox!.height / 2)).toBeLessThan(2);
+    await chartTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.getByRole("tabpanel", { name: "Table", exact: true }).waitFor();
+    expect(await page.getByRole("tab", { name: "Table", exact: true }).evaluate(element => element === document.activeElement)).toBe(true);
+    await page.keyboard.press("ArrowLeft");
+    await page.getByRole("tabpanel", { name: "Chart", exact: true }).waitFor();
+    await options.click();
+    await page.getByLabel("Show as").waitFor();
+    await options.click();
+    await page.getByRole("button", { name: "Add series", exact: true }).click();
+    const addSearch = page.getByRole("textbox", { name: "Search for a series to add" });
+    await addSearch.waitFor();
+    expect(await addSearch.evaluate(element => element === document.activeElement)).toBe(true);
+    await addSearch.press("Escape");
+    const download = page.getByRole("button", { name: "Download", exact: true });
+    await download.click();
+    await page.getByRole("menuitem", { name: "Download view (CSV)", exact: true }).waitFor();
+    await page.keyboard.press("ArrowDown");
+    expect(await page.evaluate(() => document.activeElement?.getAttribute("role"))).toBe("menuitem");
+    await page.keyboard.press("Escape");
+    await page.getByRole("menu").waitFor({ state: "hidden" });
+    expect(await download.evaluate(element => element === document.activeElement)).toBe(true);
+    for (const width of [360, 390, 740, 900, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect((await page.locator(".chart-wrap").boundingBox())!.y).toBeLessThan(550);
+    }
+  } finally { await page.close(); }
+}, 60_000);
+
+test("navigation drawer traps focus, closes on Escape, and follows links without covering the destination", async () => {
+  const page = await openPage();
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(server.url);
+    const toggle = page.getByRole("button", { name: "Open navigation", exact: true });
+    await toggle.click();
+    const dialog = page.getByRole("dialog", { name: "Explore China data" });
+    await dialog.waitFor();
+    await page.getByRole("button", { name: "Close navigation", exact: true }).focus();
+    await page.keyboard.press("Shift+Tab");
+    expect(await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))).toBe(true);
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "hidden" });
+    expect(await toggle.evaluate(element => element === document.activeElement)).toBe(true);
+    await toggle.click();
+    await dialog.getByRole("link", { name: "Browse", exact: true }).click();
+    await page.locator(".browse-dataset").waitFor();
+    await dialog.waitFor({ state: "hidden" });
+    expect(page.url()).toContain("#/browse");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { await page.close(); }
 }, 60_000);

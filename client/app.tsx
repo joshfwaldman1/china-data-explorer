@@ -6,11 +6,13 @@ import {
   CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+import { Button, Tabs } from "@mantine/core";
+import "./ui-foundation.css";
 import "./styles.css";
 import { PROVINCE_PLACES } from "../shared/places.ts";
 import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, monthEndTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix, longGapsOf, powersOfTen } from "./lib";
 import { isYearEarlierIndex, measureOf, type Measure } from "../shared/measure";
-import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
+import { ActionMenu, ChartPanelHeader, PageHeader, PortalShell } from "./primitives";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
 
@@ -700,21 +702,14 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 function Sidebar(props: { stats: CatalogStats | null; curated: CuratedEntry[]; route: Route; saved: string[]; recent: string[] }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  // On a phone the catalog is a panel above the page; following a link in it closes it, so the
-  // reader lands on the series rather than under the catalog.
-  useEffect(() => { setMobileOpen(false); }, [routeHash(props.route)]);
   const groups = new Map<string, CuratedEntry[]>();
   for (const entry of props.curated) groups.set(entry.group, [...(groups.get(entry.group) ?? []), entry]);
   const activeKey = props.route.view === "series" ? splitSpec(props.route.keys[0] ?? "").key : "";
   const activeCat = props.route.view === "search" ? props.route.cat : "";
   const activeDataset = props.route.view === "search" ? props.route.dataset : "";
   return (
-    <aside className={`sidebar${mobileOpen ? " mobile-open" : ""}`} aria-label="Catalog">
-      <button className="catalog-toggle" type="button" aria-expanded={mobileOpen} aria-controls="catalog-navigation" onClick={() => setMobileOpen((open) => !open)}>
-        <span>Browse data</span><span aria-hidden="true">{mobileOpen ? "Close" : "Open"}</span>
-      </button>
-      <div className="sidebar-content" id="catalog-navigation">
+    <aside className="catalog-navigation" aria-label="Catalog">
+      <div className="sidebar-content">
       <details open>
         <summary>Headline Indicators</summary>
         <div className="side-list">
@@ -1882,10 +1877,10 @@ function AddSeries(props: { keys: string[]; lang: string; navigate: (route: Rout
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [draft, props.keys.join(","), props.geography]);
   if (!props.onPick && props.keys.length >= 4) return <p className="add-series-note">Four series is the most one chart can carry legibly. Remove one to add another.</p>;
-  if (!open) return <button ref={buttonRef} className="button" onClick={() => setOpen(true)} aria-expanded={false}>{props.label ?? "Add series"}</button>;
+  if (!open) return <Button variant="subtle" ref={buttonRef} onClick={() => setOpen(true)} aria-expanded={false}>{props.label ?? "Add series"}</Button>;
   return (
     <>
-    <button ref={buttonRef} className="button" aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>{props.label ?? "Add series"}</button>
+    <Button variant="subtle" ref={buttonRef} aria-expanded={true} onClick={() => { setOpen(false); setDraft(""); }}>{props.label ?? "Add series"}</Button>
     <div className="add-series" role="search">
       <div className="global-search"><SearchIcon /><input ref={inputRef} aria-label="Search for a series to add" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setDraft(""); } }} placeholder="Search in English or Chinese" /></div>
       <div className="add-series-results" role="listbox" aria-label="Matching series" aria-busy={busy}>
@@ -2244,7 +2239,7 @@ function SeriesPage(props: {
   ];
 
   return (
-    <main id="main" tabIndex={-1} className="page">
+    <main id="main" tabIndex={-1} className="page series-page">
       <div className="breadcrumbs">
         <a href="#/">Home</a><span aria-hidden="true">›</span>
         {meta ? <><a href="#/browse">Categories</a>{meta.categories.slice(0, 2).map((category, index) => <React.Fragment key={category}><span aria-hidden="true">›</span><a href={`#/category/${encodeURIComponent(category)}`}><Zh>{meta.categoriesEn?.[index] || categoryEn(category) || category}</Zh></a></React.Fragment>)}</>
@@ -2260,21 +2255,24 @@ function SeriesPage(props: {
               ? (regionLabel(primary.region) !== primary.region.text ? <p className="lede"><Zh className="gloss">{primary.region.text}</Zh></p> : undefined)
               : <p className="lede">{regionLabel(primary.region)}{regionLabel(primary.region) !== primary.region.text && <> <Zh className="gloss">{primary.region.text}</Zh></>}</p>)
             : undefined}
-        actions={<>
-          <button className="button" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)}><StarIcon filled={saved} />{saved ? "Saved" : "Save"}</button>
-          <ActionMenu label="Download" items={downloadItems} />
-          <ActionMenu label="Share" items={shareItems} />
-        </>}
       />
       <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{adjustment && <span>{adjustment}</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
-      {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
-      {latest && (
-        <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
-          <span className="stat-value">{naturalValue(latest.value, headlineUnit) ?? fmt(latest.value, headlineUnit)}</span><span className="visually-hidden">, </span>
-          <span className="stat-text">{statLine}{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{statPeriod}{statAgainst}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
-        </p>
-      )}
+      <div className="series-summary">
+        {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
+        {latest && (
+          <p className="stat-line"><span className="visually-hidden">Latest observation: </span>
+            <span className="stat-value">{naturalValue(latest.value, headlineUnit) ?? fmt(latest.value, headlineUnit)}</span><span className="visually-hidden">, </span>
+            <span className="stat-text">{statLine}{primary.region && primary.region.value !== "000000000000" ? `${regionLabel(primary.region)}, ` : ""}{statPeriod}{statAgainst}{delta ? `. ${delta}.` : ""}{stale && <span className="stale"> Stored copy from {fmtDate(primary.updatedAt)}; NBS was unreachable today.</span>}</span>
+          </p>
+        )}
+
+        <div className="page-actions">
+          <Button variant="subtle" aria-pressed={saved} onClick={() => props.onToggleSaved(primary.key)} leftSection={<StarIcon filled={saved} />}>{saved ? "Saved" : "Save"}</Button>
+          <ActionMenu label="Download" items={downloadItems} primary />
+          <ActionMenu label="Share" items={shareItems} />
+        </div>
+      </div>
 
       <div className="chip-row">
         {results.length > 1 && results.map((result) => { const ident = result.spec ?? result.key; const track = built.tracks.find((item) => item.id.startsWith(`${ident} `)); const title = displayTitle(result, results); return <span className="chip" key={ident}><i className="swatch" style={{ background: track?.color }} />{title}<button onClick={() => set({ keys: props.route.keys.filter((spec) => spec !== ident) })} aria-label={`Remove ${title} from the chart`}>×</button></span>; })}
@@ -2290,23 +2288,14 @@ function SeriesPage(props: {
       {meta?.repeated && <div className="notice"><div><b>The {periodPretty(meta.repeated.period)} figure repeats {periodPretty(meta.repeated.previous)} exactly.</b>NBS published the same {periodPretty(meta.repeated.previous)} and {periodPretty(meta.repeated.period)} values for {meta.repeated.same} of the {meta.repeated.of} lines in this table. That is likely a publishing error at NBS, so treat {periodPretty(meta.repeated.period)} as not yet published. The site shows what NBS published.</div></div>}
       {stale && <div className="notice"><div><b>Showing data stored {fmtDate(primary.updatedAt)}.</b>NBS was unreachable at today's refresh. The values are the last good copy.</div></div>}
 
-      <section className="card data-card">
+      <Tabs value={tab} onChange={value => { if (value === "chart" || value === "table") setTab(value); }} className="card data-card" id="series-view">
         <ChartPanelHeader
-          views={<div className="segmented" role="tablist" aria-label="View" onKeyDown={(event) => {
-            // Arrow keys move between tabs, as the tablist pattern expects.
-            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-            const next: Tab = tab === "chart" ? "table" : "chart";
-            setTab(next);
-            document.getElementById(`tab-${next}`)?.focus();
-            event.preventDefault();
-          }}>
-            {(["chart", "table"] satisfies Tab[]).map((item) => <button key={item} role="tab" id={`tab-${item}`} tabIndex={tab === item ? 0 : -1} aria-selected={tab === item} aria-controls={`panel-${item}`} onClick={() => setTab(item)}>{item.charAt(0).toUpperCase() + item.slice(1)}</button>)}
-          </div>}
+          views={<Tabs.List aria-label="View"><Tabs.Tab value="chart">Chart</Tabs.Tab><Tabs.Tab value="table">Table</Tabs.Tab></Tabs.List>}
           controls={<>
           {regions.length > 1 && !props.route.keys.some((spec) => spec.includes("@")) && <label>Region<select value={props.route.region || regions[0]?.value} onChange={(event) => set({ region: event.target.value })}>{regions.map((item) => <option key={item.value} value={item.value}>{regionLabel(item) === item.text ? item.text : `${regionLabel(item)} ${item.text}`}</option>)}</select></label>}
           {/* Every place at once: the map and ranking, for a series published by place. */}
           {regions.length > 4 && props.route.keys.length === 1 && <a className="button" href={routeHash({ view: "regions", period: "", key: splitSpec(props.route.keys[0] ?? "").key })}>{curated?.source === "customs" ? (curated.key === "trade_partners" ? "All partners" : "All commodities") : "All places"}</a>}
-          <button className="button" aria-expanded={optionsOpen} aria-controls="chart-options" onClick={() => setOptionsOpen((value) => !value)}>Options</button>
+          <Button variant="subtle" aria-expanded={optionsOpen} aria-controls="chart-options" onClick={() => setOptionsOpen((value) => !value)}>Options</Button>
           <AddSeries keys={props.route.keys} lang={props.lang} navigate={props.navigate} />
           </>}
         />
@@ -2320,14 +2309,16 @@ function SeriesPage(props: {
           {results.some((result) => result.frequency === "Monthly") && <label><input type="checkbox" checked={lunar} onChange={(event) => set({ lny: event.target.checked ? "1" : "" })} /> Shade Lunar New Year</label>}
           {results.some((result) => result.frequency === "Monthly") && !targetFrequency && <label><input type="checkbox" checked={smoothing} onChange={(event) => set({ ma: event.target.checked ? "3" : "" })} /> 3-month average</label>}
         </div>}
+        <div className="chart-window">
         <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => { if (windowed) { set({ from: "", to: "" }); setCustomDates(false); } else setCustomDates(value => !value); }}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" autoFocus={customDates && !windowed} /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
         <div className="view-summary" role="status">{tableRows.length ? `${tableRows.length.toLocaleString("en-US")} ${tableRows.length === 1 ? "period" : "periods"} in view · ${observationLabel(tableRows.at(-1)?.period ?? "", tableFrequency)} to ${observationLabel(tableRows[0]?.period ?? "", tableFrequency)}` : "No observations in this date range. Choose another range or Max."}</div>
+        </div>
         <AdjustmentCaption tracks={shownTracks} />
-        <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        <Tabs.Panel value={tab}>
           {tab === "chart" && (
             <>
-              {hasViewPoints && <div><SeriesChart tracks={shownTracks} gaps={built.gaps} years={viewYears} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>}
               {shownTracks.length > 1 && <div className="chart-legend" aria-label="Legend">{shownTracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{pageAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
+              {hasViewPoints && <div><SeriesChart tracks={shownTracks} gaps={built.gaps} years={viewYears} start={windowStart} end={windowEnd} logScale={logScale && canLog} lunar={lunar} unit={unit} title={results.map((result) => result.title).join(", ")} /></div>}
               {built.notes.map((note) => <p className="chart-caption" key={note}><Zh>{note}</Zh></p>)}
               {targetFrequency && converted.length > 0 && <p className="chart-caption">{converted.map((track) => track.name).join(", ")}: {targetFrequency.toLowerCase()} {aggregationLabel} of {converted[0]?.frequency.toLowerCase()} data; an incomplete final period is omitted.</p>}
               {smoothing && <p className="chart-caption">Each line is the average of its latest three months, by calendar month; a month with no value is left out of the average.</p>}
@@ -2340,8 +2331,8 @@ function SeriesPage(props: {
               <div className="table-foot"><span>{unit}</span><span>{tableRows.length > shownRows.length ? `Showing the latest ${shownRows.length} of ${tableRows.length} periods. Download view (CSV) includes every period in this range.` : `${tableRows.length} ${tableRows.length === 1 ? "period" : "periods"} in view`}</span></div>
             </>
           )}
-        </div>
-      </section>
+        </Tabs.Panel>
+      </Tabs>
 
       <section className="details">
         <div className="card about">
@@ -2733,29 +2724,22 @@ function App() {
   const toggleSaved = (key: string) => setSaved((current) => { const next = current.includes(key) ? current.filter((item) => item !== key) : [key, ...current]; writeList("china-favorites", next); return next; });
   const cycleTheme = () => { const next = theme === "" ? "dark" : theme === "dark" ? "light" : ""; setTheme(next); writePref("china-theme", next); setToast(next === "" ? "Theme follows your system" : next === "dark" ? "Dark theme" : "Light theme"); };
   const current = (view: Route["view"]) => route.view === view ? "page" : undefined;
-  const bare = route.view === "home" || route.view === "theme" || route.view === "regions" || route.view === "province";
-
   return (
-    <div className="app-shell">
-      {/* Routes live in the hash, so a plain #main link would navigate to Home; move focus instead. */}
-      <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); const main = document.getElementById("main"); if (main) { main.focus(); main.scrollIntoView(); } }}>Skip to content</a>
-      <header className={route.view === "home" ? "topbar topbar-home" : "topbar"}>
-        <a className="brand" href="#/"><span><strong>EconStats</strong><small>China Data</small></span></a>
-        <form className="global-search" role="search" onSubmit={event => { event.preventDefault(); submitSearch(); }}><SearchIcon /><input type="search" id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); } }} placeholder="Search economic data…" /><button className="search-submit" type="submit">Search</button><kbd aria-hidden="true">/</kbd></form>
-        <nav className="tab-nav" aria-label="Primary">
+    <PortalShell home={route.view === "home"} route={routeHash(route)} theme={theme}
+      brand={<a className="brand" href="#/"><span><strong>EconStats</strong><small>China Data</small></span></a>}
+      search={<form className="global-search" role="search" onSubmit={event => { event.preventDefault(); submitSearch(); }}><SearchIcon /><input type="search" id="global-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Escape") { setDraft(""); event.currentTarget.blur(); } }} placeholder="Search economic data…" /><button className="search-submit" type="submit">Search</button><kbd aria-hidden="true">/</kbd></form>}
+      navigation={<nav className="tab-nav" aria-label="Primary">
           <a href="#/" aria-current={current("home")}>Home</a>
           <a href="#/browse" aria-current={route.view === "browse" || (route.view === "search" && !route.q) ? "page" : undefined}>Browse</a>
           <a href="#/releases" aria-current={current("releases")}>Releases</a>
           <a href="#/saved" aria-current={current("saved")}>Saved{saved.length > 0 ? ` (${saved.length})` : ""}</a>
-        </nav>
-        <div className="topbar-tools">
+        </nav>}
+      tools={<div className="topbar-tools">
           <button className="icon-button" onClick={cycleTheme} aria-label={`Switch theme, now ${theme === "" ? "following your system" : theme === "dark" ? "dark" : "light"}`}><ThemeIcon /></button>
-        </div>
-      </header>
-      <PageStrip route={route} />
-      {/* Home, the theme pages and the provinces are read across the width; the catalog sidebar belongs to the series, search and browse views. */}
-      <div className={bare ? "body-grid no-sidebar" : "body-grid"}>
-        {!bare && <Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
+        </div>}
+      topics={<PageStrip route={route} />}
+      catalog={<Sidebar stats={stats} curated={curated} route={route} saved={saved} recent={recent} />}
+    >
         {route.view === "home" && <Home stats={stats} statsStatus={statsStatus} curated={curated} catalogStatus={catalogStatus} onRetryCatalog={() => setCatalogAttempt(n => n + 1)} releases={releases} releasesLoading={releasesLoading} releaseError={releaseError} onSearch={(q) => navigate({ view: "search", q, freq: "", cat: "", dataset: "", geo: "" })} />}
         {route.view === "series" && <SeriesPage route={route} curated={curated} saved={saved} releases={releases} lang={lang} onToggleSaved={toggleSaved} navigate={navigate} toast={setToast} />}
         {route.view === "search" && <SearchPage route={route} stats={stats} chartKeys={lastSeries.current} lang={lang} navigate={navigate} />}
@@ -2768,11 +2752,10 @@ function App() {
         {route.view === "regions" && <RegionsPage route={route} lang={lang} navigate={navigate} toast={setToast} />}
         {route.view === "saved" && <KeyListPage title="Saved Series" keys={saved} empty="No saved series" />}
         {route.view === "recent" && <KeyListPage title="Recently Viewed" keys={recent} empty="No recently viewed series" />}
-      </div>
       <footer><nav aria-label="About this portal"><a href="#/methodology">Sources &amp; methodology</a><a href="#/health">Data health</a><a href="#/releases">Release calendar</a></nav><p>Official data from Chinese statistical agencies and international sources via FRED. Independent project, not affiliated with any statistical agency.</p></footer>
       {/* The status region is always present so assistive tech announces the text when it changes; a live region inserted with its text already in it is often missed. */}
       <div role="status" aria-live="polite">{toast && <div className="toast">{toast}</div>}</div>
-    </div>
+    </PortalShell>
   );
 }
 
