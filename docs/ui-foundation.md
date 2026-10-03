@@ -27,6 +27,12 @@ chart actions share a toolbar; legends precede multi-line charts; secondary
 options remain collapsed. Methodology, source notes, adjustment labels, date
 filters and data/export arithmetic are independent of the component library.
 
+Home keeps the title and search side by side from 700px, with four aligned
+headline cards; smaller screens stack search and use two card columns. Each
+card keeps the observation period, publisher, available adjustment label and
+history range visible. Changes name their comparison period. The key-indicator
+list retains source context and explicit year-to-date spans at every width.
+
 The browser suite checks the reported 740 by 687 viewport, plot visibility,
 360/390/740/900/1280px layouts, tab arrow keys, menu focus return, drawer focus
 containment and navigation, plus the existing data, retry and export journeys.

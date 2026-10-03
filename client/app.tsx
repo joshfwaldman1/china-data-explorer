@@ -886,14 +886,16 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
   return (
     <main id="main" tabIndex={-1} className="page home">
       <section className="hero">
-        <h1>China Economic Data</h1>
-        <p className="lede">Explore China's economy. Find a series, compare the evidence, and take the data with you.</p>
-        <div className="coverage-summary">{props.stats ? <span><b>{props.stats.seriesCount.toLocaleString("en-US")}</b> NBS series</span> : <span>Official economic statistics</span>}{props.curated.length > 0 && <span><b>{props.curated.length}</b> curated indicators</span>}<span>English &amp; Chinese search</span></div>
-        <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
-          <div className="global-search"><SearchIcon /><input type="search" id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Search GDP, youth unemployment, 居民消费价格…" /><button className="search-submit" type="submit">Search</button></div>
-        </form>
-        <div className="search-examples"><span>Start with</span>{["GDP", "CPI", "Exports", "Property"].map(q => <button key={q} onClick={() => props.onSearch(q)}>{q}</button>)}</div>
-        <nav className="research-links" aria-label="Research tools"><a href="#/browse">Browse the catalog <span aria-hidden="true">→</span></a><a href="#/saved">Saved series</a><a href="#/methodology">Sources &amp; methodology</a></nav>
+        <div className="hero-heading">
+          <h1>China Economic Data</h1>
+          <div className="coverage-summary">{props.stats ? <span><b>{props.stats.seriesCount.toLocaleString("en-US")}</b> NBS series</span> : <span>Official economic statistics</span>}{props.curated.length > 0 && <span><b>{props.curated.length}</b> curated indicators</span>}</div>
+        </div>
+        <div className="hero-discovery">
+          <form className="hero-search" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) props.onSearch(draft.trim()); }}>
+            <div className="global-search"><SearchIcon /><input type="search" id="home-series-search" aria-label="Search series" aria-keyshortcuts="/" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Search in English or Chinese…" /><button className="search-submit" type="submit">Search</button></div>
+          </form>
+          <div className="search-examples"><span>Popular</span>{["GDP", "CPI", "Exports", "Property"].map(q => <button key={q} onClick={() => props.onSearch(q)}>{q}</button>)}</div>
+        </div>
       </section>
 
       {props.catalogStatus === "error" && <div className="notice" role="alert"><div><b>The indicator catalog could not load.</b>Try again to restore the overview.</div><button className="button" onClick={props.onRetryCatalog}>Retry catalog</button></div>}
@@ -912,11 +914,13 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
             return (
               <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
                 <span className="label">{HERO_LABELS[entry.key] ?? entry.title}</span>
-                <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{latest ? measure.suffix : ""}</span></span>
-                <span className="tile-period">{latest ? observationLabel(latest.date, entry.frequency) : homeLoading ? "Loading…" : "Not available"}</span>
-                {adjustment && <small className="adjustment-label">{adjustment}</small>}
+                <span className="tile-reading">
+                  <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{latest ? measure.suffix : ""}</span></span>
+                  <span className="tile-period">{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : homeLoading ? "Loading…" : "Not available"}</span>
+                </span>
+                <small className="tile-context">{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label} · ` : ""}{shortAgency(entry.agency)}{adjustment && <span className="adjustment-label">{adjustment}</span>}</small>
                 {first && <Sparkline points={first.points} years />}
-                <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
+                <small className="tile-change">{!entry.ended && latest && previous ? deltaText(latest, previous, measure, "long", entry.frequency, isCumulative(entry.unit, first?.label, entry.title)) : ""}</small>
               </a>
             );
           })}
