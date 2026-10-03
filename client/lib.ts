@@ -1,3 +1,4 @@
+import { adjustmentNotes, type SeasonalAdjustment } from "../shared/seasonal-adjustment";
 /**
  * The chart's arithmetic, kept apart from React so it can be tested without
  * a DOM: period labels, number formatting, frequency conversion, rebasing.
@@ -12,6 +13,7 @@ export interface Track {
   points: { t: number; v: number; p: string }[];
   /** True when February holds the combined January-February figure, so a first quarter of two readings is whole. */
   combinedFebruary?: boolean;
+  seasonalAdjustment?: SeasonalAdjustment;
 }
 
 /** A unit, or the structured measure a series carries. Every formatter takes either. */
@@ -535,6 +537,7 @@ export function csvOf(results: CsvSeriesMeta[], tracks: Track[], notes: string[]
     ...(regions.length > 0 ? [`# Region: ${regions.join(" | ")}`] : []),
     `# Unit: ${[...new Set(results.map((result) => result.unit))].join(" | ")}`,
     `# Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}`,
+    ...adjustmentNotes(tracks).map((note) => `# Seasonal adjustment: ${note}`),
     ...notes.map((note) => `# Note: ${note}`),
     `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
   ];

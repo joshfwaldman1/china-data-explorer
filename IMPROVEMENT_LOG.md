@@ -4616,3 +4616,11 @@ Validation: typecheck and all 573 tests passed, including Chrome rendering. The 
 At the owner's request, removed the province tile map, legend, geographic tile coordinates and unused map styles. The regional ranking now uses the full content width; province profiles, period selection, comparisons and CSV remain available. Renamed the series picker to “Rank another series” and kept names sourced directly from the shared province list.
 
 Validation: typecheck clean; all 587 tests passed (7468 assertions). Manually verified the local preview's province ranking, province detail selection, Guangdong/Zhejiang comparison chart and property page navigation. This UI change is in PR #2, not deployed.
+
+## 2026-10-03 — Label source seasonal adjustment on charts
+
+Replaced the series page's incorrect default-to-unadjusted heuristic with explicit adjustment metadata and a documented source registry. Verified SA labels cover NBS PMI (including employment sub-indices and catalog tables), Caixin PMI, the real estate climate index, and the OECD leading/confidence series. Unknown treatment says “Seasonal adjustment not verified”; explicit NSA, SAAR and annual data remain distinct. Source evidence is in `docs/seasonal-adjustment.md`.
+
+Added visible labels to Home, topic charts, series charts/tables, province profiles and regional rankings. Comparisons identify each line when treatment differs. Chart transforms preserve source adjustment; composed topic charts retain their inputs' classifications. CSV includes the status and images reserve an adjustment line, independent of optional notes, with SA/NSA/SAAR in mixed legends.
+
+Validation: typecheck clean; 593 tests passed, 7518 assertions. Six added regressions cover publisher exceptions, English/Chinese labels, unknowns, transformation retention, image layout and a browser journey from Home through Labor and comparison CSV, including 360/768/1280 widths. Manually checked the preview's Labor cards and PMI employment label. A subsequent manual phone check lost browser synchronization; automated responsive checks passed, and the viewport override was reset. One full run hit timing failures in existing catalog-gloss/backup tests; the unchanged serial rerun passed. No test timeouts relaxed, runtime dependencies added, or data/seed changes made. Implementation is in PR #2; not deployed.

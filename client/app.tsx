@@ -1,3 +1,4 @@
+import { seasonalAdjustmentOf, adjustmentLabel, adjustmentNotes, adjustmentSummary, type SeasonalAdjustment } from "../shared/seasonal-adjustment";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -25,13 +26,15 @@ interface NbsCatalogEntry {
   repeated?: { period: string; previous: string; same: number; of: number };
   firstPeriod?: string; lastPeriod?: string;
   nameEnSource?: "nbs-official" | "generated" | "unavailable"; nameEnSourceUrl?: string; nameEnCapturedAt?: string;
+  cid?: string;
   legacyDatabase?: string; legacyIndicatorCode?: string;
   /** Set when the query named a place: the region this result should open at. */
   region?: Region;
 }
-interface Series { label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
+interface Series { seasonalAdjustment?: SeasonalAdjustment; label: string; points: SeriesPoint[]; shareColorWith?: string; dashed?: boolean; }
 interface Region { text: string; value: string; en?: string; }
 interface SeriesResult {
+  seasonalAdjustment?: SeasonalAdjustment;
   key: string; title: string; agency: string; sourceUrl: string; frequency: string; unit: string;
   series: Series[]; metadata?: NbsCatalogEntry; region?: Region; transform?: string;
   source?: string; updatedAt?: string;
@@ -463,8 +466,8 @@ function applyBreaks(result: SeriesResult): { series: Series[]; notes: string[];
     const rule = BREAKS.find((item) => item.key === result.key && item.match.test(one.label));
     if (!rule) { series.push(one); continue; }
     // Both halves are one statistic: same hue, and the earlier basis dashed.
-    series.push({ label: rule.before, points: one.points.filter((point) => point.date < rule.from), shareColorWith: rule.after, dashed: true });
-    series.push({ label: rule.after, points: one.points.filter((point) => point.date > rule.to), dashed: false });
+    series.push({ ...one, seasonalAdjustment: seasonalAdjustmentOf(result, one), label: rule.before, points: one.points.filter((point) => point.date < rule.from), shareColorWith: rule.after, dashed: true });
+    series.push({ ...one, seasonalAdjustment: seasonalAdjustmentOf(result, one), label: rule.after, points: one.points.filter((point) => point.date > rule.to), dashed: false });
     notes.push(rule.note);
     gaps.push({ from: rule.from, to: rule.to });
   }
@@ -508,6 +511,7 @@ function buildTracks(results: SeriesResult[], colors: Map<string, number>): { tr
         // februaryFrom marks a February taken from the year-to-date sibling, which is the combined
         // January-February figure; only such a series has a whole quarter in two monthly readings.
         combinedFebruary: result.metadata?.februaryFrom !== undefined,
+        seasonalAdjustment: seasonalAdjustmentOf(result, one),
       });
     }
   }
@@ -570,6 +574,10 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string; 
   );
 }
 
+function AdjustmentCaption(props: { tracks: Track[] }) {
+  return <div className="adjustment-caption" aria-label="Seasonal adjustment">{adjustmentNotes(props.tracks).map(note => <span key={note}>{note}</span>)}</div>;
+}
+
 /**
  * The chart every series and theme panel draws. `height` is the panel's
  * pixel height (the series page's 460 by default); `compact` is the theme
@@ -611,7 +619,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
       .map((year) => ({ year, x1: Date.UTC(year, 0, 1), x2: Date.UTC(year, 2, 1) })).filter((band) => band.x2 >= min && band.x1 <= max)
     : [];
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
-  const description = `${props.title}. ${shown.length} series, ${props.unit}. Arrow keys step through the points; the Table tab lists the values.`;
+  const description = `${props.title}. ${shown.length} series, ${props.unit}. ${adjustmentNotes(shown).join(". ")}. Arrow keys step through the points; the Table tab lists the values.`;
   // One row per date, every line a column of it. With a data array per line, the
   // chart's keyboard state stepped by index, so on a compare whose lines begin in
   // different months it lit the i-th point of each line: four dots at four dates
@@ -874,6 +882,7 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
                 <span className="label">{HERO_LABELS[entry.key] ?? entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{latest ? measure.suffix : ""}</span></span>
                 <span className="tile-period">{latest ? observationLabel(latest.date, entry.frequency) : homeLoading ? "Loading…" : "Not available"}</span>
+                <small className="adjustment-label">{adjustmentLabel(seasonalAdjustmentOf(result ?? entry, first))}</small>
                 {first && <Sparkline points={first.points} years />}
                 <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
@@ -916,7 +925,7 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
                 const levelChange = latest && measure.kind === "level" ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: measure }) : "";
                 return (
                   <a key={`${spec}|${row.line ?? ""}`} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
-                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)}</small></span>
+                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)} · {adjustmentLabel(seasonalAdjustmentOf(result ?? entry, first))}</small></span>
                     <span className="value" title={latest ? `${fmt(latest.value, measure)} ${entry.unit}` : undefined}>{latest ? display?.[1] ?? fmt(latest.value, measure) : "—"}<i>{latest ? display?.[2] ?? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}</span>
@@ -1249,6 +1258,7 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                     <article key={`${chart.key}|${chart.region ?? ""}|${title}`} className="theme-card">
                       {/* The heading is the link to the series; nothing else on the card says "open". */}
                       <h3 className="theme-card-title"><a href={href}>{title}</a></h3>
+                      {built && <AdjustmentCaption tracks={built.tracks} />}
                       {hasPoints && built && result
                         ? <>
                             <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={logScale} lunar={false} unit={result.unit} title={title} height={250} compact />
@@ -1325,7 +1335,7 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
                   const levelChange = latest && row.measure.kind === "level" ? yearOnYearText(latest, row.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: false, unit: row.measure }) : "";
                   return (
                     <a key={row.key} className="indicator-row" href={seriesHash([row.key], { region: data.region.value })}>
-                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? `, ended ${row.ended}` : ""}</small></span>
+                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? `, ended ${row.ended}` : ""} · {adjustmentLabel(seasonalAdjustmentOf({ ...row, title: row.label }))}</small></span>
                       <span className="value">{latest ? fmt(latest.value, row.measure) : "—"}<i>{latest ? row.measure.suffix : ""}</i></span>
                       <span className="change">{levelChange || deltaText(latest, previous, row.measure, "short")}</span>
                       <span className={`period${row.ended ? " behind" : ""}`}>{row.ended ? `Ended ${row.ended}` : latest ? (isCumulative(row.unit, row.label) ? periodSpan(latest.date, row.frequency) : observationLabel(latest.date, row.frequency)) : row.frequency}</span>
@@ -2227,7 +2237,7 @@ function SeriesPage(props: {
           <ActionMenu label="Share" items={shareItems} />
         </>}
       />
-      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{primary.frequency !== "Annual" && !/seasonal|季调/i.test(`${primary.title} ${primary.unit}`) && <span>Not seasonally adjusted</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
+      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span><span>{adjustmentSummary(tracks)}</span>{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
       {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
@@ -2283,6 +2293,7 @@ function SeriesPage(props: {
         </div>}
         <div className="range-row" role="group" aria-label="Date range">{RANGES.map((item) => <button key={item.label} aria-pressed={!windowed && years === item.years} onClick={() => { setCustomDates(false); set({ range: item.years === null ? "max" : `${item.years}y`, from: "", to: "" }); }}>{item.label}</button>)}<button aria-pressed={customDates || windowed} onClick={() => { if (windowed) { set({ from: "", to: "" }); setCustomDates(false); } else setCustomDates(value => !value); }}>Custom</button>{(customDates || windowed) && <><label className="date-pick">From<input type="month" value={props.route.from} max={props.route.to || undefined} onChange={(event) => set({ from: event.target.value })} aria-label="Start month" autoFocus={customDates && !windowed} /></label><label className="date-pick">To<input type="month" value={props.route.to} min={props.route.from || undefined} onChange={(event) => set({ to: event.target.value })} aria-label="End month" /></label></>}</div>
         <div className="view-summary" role="status">{tableRows.length ? `${tableRows.length.toLocaleString("en-US")} ${tableRows.length === 1 ? "period" : "periods"} in view · ${observationLabel(tableRows.at(-1)?.period ?? "", tableFrequency)} to ${observationLabel(tableRows[0]?.period ?? "", tableFrequency)}` : "No observations in this date range. Choose another range or Max."}</div>
+        <AdjustmentCaption tracks={shownTracks} />
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "chart" && (
             <>
@@ -2480,6 +2491,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   const ranked = [...rows].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   const shownPeriod = rows[0]?.period ?? period;
   const current = rows.find((item) => item.province?.code === selected);
+  const adjustment = seasonalAdjustmentOf({ key, title: data?.title, frequency: data?.frequency, unit }, { label: data?.label ?? undefined });
 
   return (
     <main id="main" tabIndex={-1} className="page">
@@ -2518,11 +2530,13 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
       )}
       {status === "ok" && data && rows.length > 0 && (
         <div className="regional-grid">
+          <p className="adjustment-caption">{adjustmentLabel(adjustment)}</p>
           <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
             {current && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
                 <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{regionLabel(current.region)} <Zh className="gloss">{current.region.text}</Zh></h2></div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, unit)}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>{unitLabel(unit)}, {shownPeriod ? periodText(shownPeriod) : ""}</span></div>
+                <small className="adjustment-label">{adjustmentLabel(adjustment)}</small>
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
                   {current.province && <a className="button" href={routeHash({ view: "province", code: current.region.value })}>Province profile</a>}

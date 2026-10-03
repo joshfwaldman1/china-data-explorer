@@ -303,3 +303,35 @@ test("an end-only range and a rebased comparison export the periods and units ac
     expect(csv).not.toContain("# Unit: Million USD");
   } finally { await page.close(); }
 }, 60_000);
+
+test("seasonal adjustment follows Home, topic cards, comparison tables and downloaded CSV", async () => {
+  const page = await chartPage();
+  const pmi = { ...chartFixture, key: "pmi", title: "Purchasing Managers' Index", unit: "Diffusion index (50 = neutral)", series: [{ label: "Manufacturing PMI", points: chartFixture.series[0]!.points }] };
+  try {
+    await page.route("**/api/catalog", route => route.fulfill({json:[...catalog,{...catalog[0],key:"pmi",title:pmi.title,unit:pmi.unit,frequency:"Monthly"}]}));
+    await page.route("**/api/home", route => route.fulfill({json:{...home,pmi}}));
+    await page.goto(server.url);
+    const tile=page.locator(".hero-tiles .tile").filter({hasText:"Manufacturing PMI"});
+    await tile.locator(".adjustment-label",{hasText:"Seasonally adjusted"}).waitFor();
+    expect(await tile.innerText()).not.toContain("Not seasonally adjusted");
+    await page.route("**/api/theme/labor", route => route.fulfill({json:{name:"labor",title:"Labor fixture",lede:"",sections:[{title:"Employment",charts:[{key:"pmi_manufacturing",title:"PMI employment",result:{...pmi,key:"pmi_manufacturing",series:[{...pmi.series[0],label:"Employment"}]}},{key:"unverified",title:"Unspecified labor series",result:{...pmi,key:"unverified",title:"Unspecified labor series",series:[{...pmi.series[0],label:"Labor series"}]}}]}]}}));
+    await page.goto(`${server.url}/#/labor`);
+    await page.getByRole("heading",{name:"Labor fixture",exact:true}).waitFor();
+    expect(await page.locator(".theme-card").filter({hasText:"PMI employment"}).locator(".adjustment-caption").innerText()).toBe("Seasonally adjusted");
+    expect(await page.locator(".theme-card").filter({hasText:"Unspecified labor series"}).locator(".adjustment-caption").innerText()).toBe("Seasonal adjustment not verified");
+    await page.route("**/api/series/pmi?*", route => route.fulfill({json:pmi}));
+    await page.goto(`${server.url}/#/series/gdp,pmi?ma=3`);
+    await page.locator(".data-card .adjustment-caption",{hasText:"Purchasing Managers' Index: Seasonally adjusted"}).waitFor();
+    expect(await page.locator(".data-card .adjustment-caption").innerText()).toContain("Chart range fixture: Not seasonally adjusted");
+    await page.getByRole("tab",{name:"Table",exact:true}).click();
+    expect(await page.locator(".data-card .adjustment-caption").innerText()).toContain("Purchasing Managers' Index: Seasonally adjusted");
+    const csv=await readCsvDownload(page,"Download view (CSV)");
+    expect(csv).toContain("Seasonally adjusted");
+    expect(csv).toContain("Not seasonally adjusted");
+    for (const width of [360,768,1280]) {
+      await page.setViewportSize({width,height:900});
+      expect(await page.locator(".data-card .adjustment-caption").isVisible()).toBe(true);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+  } finally { await page.close(); }
+},60_000);

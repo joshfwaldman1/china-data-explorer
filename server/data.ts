@@ -1,3 +1,4 @@
+import type { SeasonalAdjustment } from "../shared/seasonal-adjustment";
 /**
  * Server-side data layer for the China Data Explorer.
  *
@@ -32,6 +33,7 @@ export interface SeriesPoint {
   value: number;
 }
 export interface Series {
+  seasonalAdjustment?: SeasonalAdjustment;
   label: string;
   points: SeriesPoint[];
 }

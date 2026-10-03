@@ -714,3 +714,8 @@ footer p { margin: 0; }
 }
 
 .view-summary { padding: 10px var(--s-4); color: var(--muted); font-size: var(--fs-2); line-height: 1.5; border-bottom: 1px solid var(--line); }
+
+/* Adjustment stays next to the figure at every viewport size. */
+.adjustment-caption { display: flex; flex-direction: column; gap: 3px; margin: 8px 20px; color: var(--muted); font-size: var(--fs-2); line-height: 1.5; }
+.theme-card > .adjustment-caption { margin: 0 0 10px; }
+.adjustment-label { display: block; color: var(--muted); }
