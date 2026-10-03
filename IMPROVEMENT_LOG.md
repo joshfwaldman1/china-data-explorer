@@ -23,6 +23,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
+- (found 2026-10-02 evening) Release retries re-fetch whole releases for a
+  few stuck series: the 30 Sep PMI release is on attempt 56+ with "behind
+  none; 27 catalog series pending", and each attempt refreshes the
+  release's catalog tables and logs a row per series. fetch_log grew
+  1,570,103 -> 1,578,490 in 100 minutes on a holiday (~120K/day), all ok
+  rows with nothing changed. Retry only the pending (key, region) targets,
+  not the release's whole set, and/or stop when the same pending set has
+  not moved for N attempts (it waits on the NBS portal; see the 30 Sep
+  "PMI sub-indices" round). Data acquisition and log growth both.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
