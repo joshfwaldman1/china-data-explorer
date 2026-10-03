@@ -242,7 +242,7 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   let cursor = titleTop + titleLines.length * titleLineHeight - 8;
   const subtitle: Text = { text: `${subtitleOf(input.unit, input.frequencies, input.tracks)}${input.logScale ? ", log scale" : ""}`, x: margin, y: cursor + 22, font: subtitleFont, color: LIGHT.muted, align: "left" };
   const adjustment: Text = { text: adjustmentSummary(input.tracks), x: margin, y: subtitle.y + 26, font: subtitleFont, color: LIGHT.muted, align: "left" };
-  cursor = adjustment.y + 12;
+  cursor = (adjustment.text ? adjustment.y : subtitle.y) + 12;
 
   const tracks = input.tracks.filter((track) => track.points.length > 0);
   const legend: ShareLayout["legend"] = [];
@@ -250,7 +250,8 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
     let x = margin, y = cursor + 26;
     for (const track of tracks) {
       const mixedAdjustment = new Set(tracks.map(item => item.seasonalAdjustment ?? "unknown")).size > 1;
-      const text = mixedAdjustment ? `${track.name} (${adjustmentShortLabel(track.seasonalAdjustment)})` : track.name;
+      const adjustmentLabel = adjustmentShortLabel(track.seasonalAdjustment);
+      const text = mixedAdjustment && adjustmentLabel ? `${track.name} (${adjustmentLabel})` : track.name;
       const itemWidth = 34 + measure(text, legendFont) + 32;
       if (x + itemWidth > width - margin && x > margin) { x = margin; y += 26; }
       legend.push({ x, y, color: lightColor(track.color), dash: dashOf(track.dash), text, font: legendFont });

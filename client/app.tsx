@@ -575,7 +575,8 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string; 
 }
 
 function AdjustmentCaption(props: { tracks: Track[] }) {
-  return <div className="adjustment-caption" aria-label="Seasonal adjustment">{adjustmentNotes(props.tracks).map(note => <span key={note}>{note}</span>)}</div>;
+  const notes = adjustmentNotes(props.tracks);
+  return notes.length ? <div className="adjustment-caption" aria-label="Seasonal adjustment">{notes.map(note => <span key={note}>{note}</span>)}</div> : null;
 }
 
 /**
@@ -619,7 +620,7 @@ function SeriesChart(props: { tracks: Track[]; gaps: { from: string; to: string 
       .map((year) => ({ year, x1: Date.UTC(year, 0, 1), x2: Date.UTC(year, 2, 1) })).filter((band) => band.x2 >= min && band.x1 <= max)
     : [];
   const indexBase = /=100|= 100/.test(props.unit) ? 100 : null;
-  const description = `${props.title}. ${shown.length} series, ${props.unit}. ${adjustmentNotes(shown).join(". ")}. Arrow keys step through the points; the Table tab lists the values.`;
+  const description = [`${props.title}.`, `${shown.length} series, ${props.unit}.`, ...adjustmentNotes(shown).map(note => `${note}.`), "Arrow keys step through the points; the Table tab lists the values."].join(" ");
   // One row per date, every line a column of it. With a data array per line, the
   // chart's keyboard state stepped by index, so on a compare whose lines begin in
   // different months it lit the i-th point of each line: four dots at four dates
@@ -877,12 +878,13 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
             const latest = first?.points[first.points.length - 1];
             const measure = measureOfEntry(entry);
             const previous = first?.points[first.points.length - 2];
+            const adjustment = adjustmentLabel(seasonalAdjustmentOf(result ?? entry, first));
             return (
               <a key={entry.key} className="tile" href={seriesHash([entry.key])}>
                 <span className="label">{HERO_LABELS[entry.key] ?? entry.title}</span>
                 <span className="tile-value">{latest ? fmt(latest.value, measure) : "—"}<span className="tile-unit">{latest ? measure.suffix : ""}</span></span>
                 <span className="tile-period">{latest ? observationLabel(latest.date, entry.frequency) : homeLoading ? "Loading…" : "Not available"}</span>
-                <small className="adjustment-label">{adjustmentLabel(seasonalAdjustmentOf(result ?? entry, first))}</small>
+                {adjustment && <small className="adjustment-label">{adjustment}</small>}
                 {first && <Sparkline points={first.points} years />}
                 <small>{regionPrefix(result)}{first && first.label !== entry.title ? `${first.label}, ` : ""}{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}{!entry.ended && latest && previous ? `, ${deltaText(latest, previous, measure, "short")}` : ""}</small>
               </a>
@@ -918,6 +920,7 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
                 const name = region ? regionalTitle(entry.title, result?.region ? regionLabel(result.region) : region, first?.label) : placed ? regionalTitle(rowTitle ?? entry.title, placed) : rowTitle ?? entry.title;
                 // The small print names the table the row comes from when the row is named for its line, else the line.
                 const tableNote = !region && rowTitle && rowTitle !== entry.title ? `${entry.title}, ` : "";
+                const adjustment = adjustmentLabel(seasonalAdjustmentOf(result ?? entry, first));
                 // A level (a flow, a stock, a count) is read against a year earlier; a rate against the period before.
                 const measure = measureOfEntry(entry);
                 const natural = latest && measure.kind === "level" ? naturalValue(latest.value, entry.unit) : null;
@@ -925,7 +928,7 @@ function Home(props: { stats: CatalogStats | null; statsStatus: "loading" | "ok"
                 const levelChange = latest && measure.kind === "level" ? yearOnYearText(latest, first?.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: /\b(net|balance)\b/i.test(`${first?.label ?? ""} ${entry.title}`), unit: measure }) : "";
                 return (
                   <a key={`${spec}|${row.line ?? ""}`} className="indicator-row" href={region ? seriesHash([entry.key], { region }) : seriesHash([entry.key])}>
-                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)} · {adjustmentLabel(seasonalAdjustmentOf(result ?? entry, first))}</small></span>
+                    <span className="name">{name}<small>{region ? `${entry.title}, ` : placed || tableNote ? "" : regionPrefix(result)}{tableNote || (!region && first && first.label !== entry.title ? `${first.label}, ` : "")}{shortAgency(entry.agency)}{staleNote(entry, latest)}{adjustment ? ` · ${adjustment}` : ""}</small></span>
                     <span className="value" title={latest ? `${fmt(latest.value, measure)} ${entry.unit}` : undefined}>{latest ? display?.[1] ?? fmt(latest.value, measure) : "—"}<i>{latest ? display?.[2] ?? measure.suffix : ""}</i></span>
                     <span className="change">{levelChange || deltaText(latest, previous, measure, "short")}</span>
                     <span className={`period${entry.ended || (latest && isBehind(latest.date, entry.frequency)) ? " behind" : ""}`}>{entry.ended ? `Ended ${periodPretty(entry.ended)}` : latest ? (isCumulative(entry.unit, first?.label, entry.title) ? periodSpan(latest.date, entry.frequency, "short") : `${observationLabel(latest.date, entry.frequency)}${isOpenMonth(latest.date, entry.unit) ? " to date" : ""}`) : entry.frequency}</span>
@@ -1333,9 +1336,10 @@ function ProvincePage(props: { route: Extract<Route, { view: "province" }> }) {
                 {section.rows.map((row) => {
                   const latest = row.points.at(-1), previous = row.points.at(-2);
                   const levelChange = latest && row.measure.kind === "level" ? yearOnYearText(latest, row.points.find((point) => point.date === yearEarlier(latest.date)), { absolute: false, unit: row.measure }) : "";
+                  const adjustment = adjustmentLabel(seasonalAdjustmentOf({ ...row, title: row.label }));
                   return (
                     <a key={row.key} className="indicator-row" href={seriesHash([row.key], { region: data.region.value })}>
-                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? `, ended ${row.ended}` : ""} · {adjustmentLabel(seasonalAdjustmentOf({ ...row, title: row.label }))}</small></span>
+                      <span className="name">{row.label}<small>{row.frequency}, {shortAgency(row.agency)}{row.ended ? `, ended ${row.ended}` : ""}{adjustment ? ` · ${adjustment}` : ""}</small></span>
                       <span className="value">{latest ? fmt(latest.value, row.measure) : "—"}<i>{latest ? row.measure.suffix : ""}</i></span>
                       <span className="change">{levelChange || deltaText(latest, previous, row.measure, "short")}</span>
                       <span className={`period${row.ended ? " behind" : ""}`}>{row.ended ? `Ended ${row.ended}` : latest ? (isCumulative(row.unit, row.label) ? periodSpan(latest.date, row.frequency) : observationLabel(latest.date, row.frequency)) : row.frequency}</span>
@@ -2062,6 +2066,7 @@ function SeriesPage(props: {
   const previous = headline?.points[headline.points.length - 2];
   const saved = props.saved.includes(primary.key);
   const meta = primary.metadata;
+  const adjustment = adjustmentSummary(tracks);
   const curated = props.curated.find((entry) => entry.key === primary.key);
   // Other curated series in the same group; a series alone in its group (provincial GDP) gets no Related section.
   const curatedSiblings = curated ? props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4) : [];
@@ -2237,7 +2242,7 @@ function SeriesPage(props: {
           <ActionMenu label="Share" items={shareItems} />
         </>}
       />
-      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span><span>{adjustmentSummary(tracks)}</span>{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
+      <div className="meta-line"><span>{primary.frequency}</span><span>{unitLabel(primary.unit)}</span><span>{primary.agency}</span>{adjustment && <span>{adjustment}</span>}{primary.region && primary.region.value !== "000000000000" && <span>Region: {regionLabel(primary.region)} <Zh>{regionLabel(primary.region) === primary.region.text ? "" : primary.region.text}</Zh></span>}</div>
 
       {/* The stat line carries a hidden prefix, not an aria-label: on a paragraph the label would replace the value for a screen reader. */}
       {latest && (
@@ -2491,7 +2496,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   const ranked = [...rows].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
   const shownPeriod = rows[0]?.period ?? period;
   const current = rows.find((item) => item.province?.code === selected);
-  const adjustment = seasonalAdjustmentOf({ key, title: data?.title, frequency: data?.frequency, unit }, { label: data?.label ?? undefined });
+  const adjustment = adjustmentLabel(seasonalAdjustmentOf({ key, title: data?.title, frequency: data?.frequency, unit }, { label: data?.label ?? undefined }));
 
   return (
     <main id="main" tabIndex={-1} className="page">
@@ -2530,13 +2535,13 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
       )}
       {status === "ok" && data && rows.length > 0 && (
         <div className="regional-grid">
-          <p className="adjustment-caption">{adjustmentLabel(adjustment)}</p>
+          {adjustment && <p className="adjustment-caption">{adjustment}</p>}
           <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
             {current && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
                 <div className="section-head" style={{ marginBottom: 6 }}><h2 style={{ margin: 0 }}>{regionLabel(current.region)} <Zh className="gloss">{current.region.text}</Zh></h2></div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}><span className="latest-value" style={{ fontSize: 32 }}>{fmt(current.value ?? 0, unit)}</span><span className="unit" style={{ color: "var(--muted)", fontSize: 13 }}>{unitLabel(unit)}, {shownPeriod ? periodText(shownPeriod) : ""}</span></div>
-                <small className="adjustment-label">{adjustmentLabel(adjustment)}</small>
+                {adjustment && <small className="adjustment-label">{adjustment}</small>}
                 <Sparkline points={current.points} />
                 <div className="actions" style={{ marginTop: 10 }}>
                   {current.province && <a className="button" href={routeHash({ view: "province", code: current.region.value })}>Province profile</a>}

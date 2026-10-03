@@ -196,4 +196,11 @@ test("shared images reserve adjustment text even when notes are full and label m
   expect(layout.adjustment.y).toBeGreaterThan(layout.subtitle.y);
   expect(layout.adjustment.y).toBeLessThan(layout.plot.y);
   expect(layoutShareImage({...input,tracks:[sa]},measure).adjustment.text).toBe("Seasonally adjusted");
+  const unknown = track("Other",[1,2,3]);
+  const partial = layoutShareImage({...input,tracks:[sa,unknown]},measure);
+  expect(partial.adjustment.text).toBe("");
+  expect(partial.legend.map(item=>item.text)).toEqual(["PMI (SA)","Other"]);
+  const unlabelled = layoutShareImage({...input,tracks:[unknown]},measure);
+  expect(unlabelled.adjustment.text).toBe("");
+  expect(unlabelled.plot.y).toBe(layoutShareImage({...input,tracks:[sa]},measure).plot.y - 26);
 });
