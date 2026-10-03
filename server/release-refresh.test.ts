@@ -173,7 +173,7 @@ test("a place years behind is left to the due-based refresh; one release behind 
   const asked: string[] = [];
   const result = await refreshCatalogForRelease(["工业"], targets, {
     entries: [table], pauseMs: 0,
-    fetchBatch: async (_entries, region) => { asked.push(region.value); return new Map(); },
+    fetchBatch: async (_entries, region) => { asked.push(region?.value ?? ""); return new Map(); },
   });
   expect(asked).toEqual(["440000000000"]);
   expect(result.checked).toBe(1);

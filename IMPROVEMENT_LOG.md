@@ -108,7 +108,10 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   and February are published together, so December precedes February),
   one quarter before a quarterly one. The due-based refresh still covers
   the skipped ones. Tests in release-refresh.test.ts (Guangdong one behind
-  asked, Hainan 2021 not; the cadence bounds).
+  asked, Hainan 2021 not; the cadence bounds). CI went red on the push:
+  the new test had a type error (`region` possibly undefined) because the
+  typecheck ran before the test was written and not after. Fixed in the
+  next commit; gates run in order after the last edit from now on.
 
 - 2026-10-03 (round: measurements, nothing to ship): the first full
   prune sweep is running (cursor 205,000 at 07:16Z, 0 removed so far,
