@@ -164,3 +164,24 @@ test("release attempts take turns through the tables still behind instead of ask
   }
   expect(asked).toEqual(["rotation-table-a", "rotation-table-b", "rotation-table-c", "rotation-table-a"]);
 });
+
+test("a place years behind is left to the due-based refresh; one release behind is chased", async () => {
+  const table = { ...entry("nbs_cadence_boilers", "Monthly", "Province"), cid: "cadence-table" };
+  stored(table.key, "440000000000", "广东省", "2026-07", 1); // one behind: chased
+  stored(table.key, "460000000000", "海南省", "2021-02", 1); // stopped in 2021: not this release's
+  const targets = releaseTargets({ title: "国民经济运行情况", keys: [], categories: ["工业"] }, new Date("2026-09-15T02:00:00Z"));
+  const asked: string[] = [];
+  const result = await refreshCatalogForRelease(["工业"], targets, {
+    entries: [table], pauseMs: 0,
+    fetchBatch: async (_entries, region) => { asked.push(region?.value ?? ""); return new Map(); },
+  });
+  expect(asked).toEqual(["440000000000"]);
+  expect(result.checked).toBe(1);
+});
+
+test("the earliest period still on a release's cadence allows January and February published together", async () => {
+  const { earliestOnCadence } = await import("./ingest.ts");
+  expect(earliestOnCadence({ frequency: "Monthly", period: "2026-08" })).toBe("2026-06");
+  expect(earliestOnCadence({ frequency: "Monthly", period: "2026-02" })).toBe("2025-12");
+  expect(earliestOnCadence({ frequency: "Quarterly", period: "2026-06" })).toBe("2026-03");
+});
