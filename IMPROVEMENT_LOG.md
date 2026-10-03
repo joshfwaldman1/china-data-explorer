@@ -23,8 +23,10 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (follow-up to the release rotation) Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
-  in /api/release-checks: its "9995 pending" should finally move.
+- (release targeting, follow-up) Confirm on the next attempts (~13:14Z
+  3 Oct, profits 66 and PMI 60) that "pending" falls from 9,995 and 27.
+  If places one release behind still never arrive, target by past
+  arrivals (arrivals.ts) as the next step.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
@@ -104,6 +106,29 @@ Aggregate trade now uses Customs’ monthly bulletin table 1B, and its three-mon
 Parser repairs recover legacy fiscal/land-sale headings, January and em-dash FDI headings, and local-bond releases whose debt total omits 元. The NEA Northwest office’s official republication fills May 2026 electricity demand. Archived MOF/MOFCOM/NEA parsed pages now expire after six hours so they can be rechecked. Production and seed data were not changed in this round; the normal refresh after deployment performs the backfill.
 
 Validation: typecheck and all 573 tests passed, including Chrome rendering. The health-report fixture initially exceeded its setup timeout doing 20,000 durable commits; setup now uses one transaction, with the same row count and unchanged two-second report assertion. Captured publisher fixtures and regression tests cover the recovered periods, USD units, complete calendar coverage, restatement precedence, cache expiry and monthly/YTD separation. The older MOF bond archive returned 403 and remains a coverage limitation. Source links and rollout details: `docs/methodology-coverage-2026-10-02.md`.
+
+- 2026-10-03 (release refresh chases only places on its cadence): the 27
+  Sep profits release's 9,995 pending series are mostly places that
+  stopped publishing an indicator long ago. A sample, provincial boiler
+  output: 11 provinces hold 2026-08, while Hainan, Tibet, Qinghai and
+  Ningxia end in 2021-02, Gansu 2024-02, Xinjiang 2025-09. A release now
+  skips a (key, region) whose last period is older than
+  `earliestOnCadence(target)`: two months before a monthly target (January
+  and February are published together, so December precedes February),
+  one quarter before a quarterly one. The due-based refresh still covers
+  the skipped ones. Tests in release-refresh.test.ts (Guangdong one behind
+  asked, Hainan 2021 not; the cadence bounds). CI went red on the push:
+  the new test had a type error (`region` possibly undefined) because the
+  typecheck ran before the test was written and not after. Fixed in the
+  next commit; gates run in order after the last edit from now on.
+
+- 2026-10-03 (round: measurements, nothing to ship): the first full
+  prune sweep is running (cursor 205,000 at 07:16Z, 0 removed so far,
+  ~4 hours to go). The profits release's first rotated attempt (65, 07:13Z)
+  still reads "9995 pending": rotation reached new tables and none of
+  them had August either. Pending counts every target still behind, not
+  only the ones asked, so it falls only when a table advances. The waste
+  is in the targeting, queued above.
 
 - 2026-10-02 (fetch_log prune: a sweep ends at the last id): the new
   `fetchLogPrune` status showed the first sweep "done" at cursor 260,000
