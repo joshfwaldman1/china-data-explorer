@@ -60,7 +60,7 @@ import { provinceProfile, provinceCards } from "./province";
 import { themeData } from "./themes";
 import { BEFORE_RELEASES_RECORDED, arrivalSentence, arrivalsFor, recordReleases, storedReleases } from "./arrivals";
 import { createBackupManager } from "./backup";
-import { upstreamFetch, upstreamStats } from "./upstream";
+import { upstreamFetch, upstreamStats, useBreakerStore, type BreakerState } from "./upstream";
 import { beginIngestProgress, delayUntilDue, finishIngestProgress, getJob, lastRun, markIngestKeyDone, pendingJobs, pruneSettledJobs, recordRun, scheduleJob, settleJob } from "./jobs";
 import { checkPressReleases, recentPressReleases } from "./nbs-releases";
 
@@ -889,6 +889,11 @@ if (ingestEveryHours > 0) {
   }
   if (resumed.length > 0) console.log(`  Release refresh: resumed ${resumed.length} release${resumed.length === 1 ? "" : "s"} from the store`);
   pruneSettledJobs();
+  // A publisher found down before a deploy is still left alone after it.
+  useBreakerStore({
+    load: (host) => getJob<BreakerState>(`breaker:${host}`)?.payload ?? null,
+    save: (host, state) => scheduleJob({ id: `breaker:${host}`, kind: "breaker", payload: state, attempt: 1, nextAt: 0 }),
+  });
   // The fetch log is pruned a slice of ids at a time, on this thread: one
   // 5,000-id slice a minute until a sweep reaches rows younger than the
   // shortest window, then six hours before the next sweep. A 20,000-id slice

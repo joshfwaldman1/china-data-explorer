@@ -43,10 +43,9 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   2026-10-02; the earlier CREATE IF NOT EXISTS + table_info probes stay as
   the baseline. Schema in jobs.ts, arrivals.ts, nbs-releases.ts and
   nbs-catalog.ts (catalog.db, rebuildable) is outside the ledger.
-- (audit 9, follow-up) Breaker state and host stats live in memory and
-  reset at each deploy; persist them (a small table, or `scheduled_jobs`)
-  so a host that was down before a deploy is not hammered after it. Show
-  open breakers on Health.
+- (audit 9, follow-up) Show open breakers on Health (they are on
+  /api/schedule's upstream list now). Host request stats still reset at
+  a deploy; only breaker state is kept.
 - (audit 10, follow-up) The catalog crawl and the concordance audit still
   restart on every boot (app.ts schedulers); the crawl is idle now (0
   outstanding), so this waits. Check the first resumed ingest in the
@@ -94,6 +93,16 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-02 (audit 9 follow-up: breakers survive a deploy): a host's
+  breaker lived in memory, so a deploy forgot that a publisher was down and
+  every series asked it again. `createUpstream` takes a `BreakerStore`
+  (load/save per host; upstream.ts still imports nothing), and app.ts gives
+  it the jobs table at boot (`breaker:<host>` rows holding openUntil and
+  the next cooldown). It saves when a breaker opens and when a tripped one
+  closes, not on every request, and a host first seen after boot reads its
+  saved state. Test in upstream.test.ts: opened in one process, still open
+  in the next with nothing sent, closed and saved after a good trial.
 
 - 2026-10-02 (audit 8: as-of reads, curated series): the store keeps every
   vintage but nothing read them as of a date. `readSeries` takes an

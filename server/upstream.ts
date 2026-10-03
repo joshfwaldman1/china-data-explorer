@@ -100,18 +100,35 @@ export interface UpstreamDeps {
   defaultGapMs: number;
 }
 
+/** A host's breaker as kept across restarts: open until when, and the cooldown its next opening uses. */
+export interface BreakerState { openUntil: string | null; nextCooldownMs: number | null }
+
+/** Where breaker state is kept between processes; the server gives the store's jobs table. */
+export interface BreakerStore {
+  load: (host: string) => BreakerState | null;
+  save: (host: string, state: BreakerState) => void;
+}
+
 export function createUpstream(deps: UpstreamDeps) {
   const gates = new Map<string, HostGate>();
   const stats = new Map<string, UpstreamHostStats>();
   /** The cooldown the next opening of each host's breaker will use. */
   const cooldowns = new Map<string, number>();
+  // Held in memory, a breaker closed at every deploy, and a host that was
+  // down before it was asked again by every series after it.
+  let breakerStore: BreakerStore | null = null;
+  const persist = (host: string, entry: UpstreamHostStats) => {
+    breakerStore?.save(host, { openUntil: entry.openUntil, nextCooldownMs: cooldowns.get(host) ?? null });
+  };
 
   /** Record one answered or failed request against the host's breaker. */
   function noteOutcome(host: string, entry: UpstreamHostStats, down: boolean): void {
     if (!down) {
+      const wasTripped = entry.openUntil !== null || cooldowns.has(host);
       entry.consecutiveDown = 0;
       entry.openUntil = null;
       cooldowns.delete(host);
+      if (wasTripped) persist(host, entry);
       return;
     }
     entry.consecutiveDown += 1;
@@ -121,6 +138,7 @@ export function createUpstream(deps: UpstreamDeps) {
     const cooldown = cooldowns.get(host) ?? BREAKER.firstCooldownMs;
     entry.openUntil = new Date(deps.now() + cooldown).toISOString();
     cooldowns.set(host, Math.min(cooldown * 2, BREAKER.maxCooldownMs));
+    persist(host, entry);
   }
 
   function relayConfig(): Relay | null {
@@ -140,6 +158,11 @@ export function createUpstream(deps: UpstreamDeps) {
     let entry = stats.get(host);
     if (!entry) {
       entry = { host, channel, requests: 0, failures: 0, refused: 0, lastStatus: null, lastError: null, lastAt: null, meanMs: 0, waitedMs: 0, consecutiveDown: 0, openUntil: null, shortCircuited: 0 };
+      const kept = breakerStore?.load(host);
+      if (kept) {
+        entry.openUntil = kept.openUntil;
+        if (kept.nextCooldownMs !== null) cooldowns.set(host, kept.nextCooldownMs);
+      }
       stats.set(host, entry);
     }
     entry.channel = channel;
@@ -235,7 +258,12 @@ export function createUpstream(deps: UpstreamDeps) {
     return [...stats.values()].sort((a, b) => b.requests - a.requests);
   }
 
-  return { upstreamFetch, upstreamStats, channelFor };
+  /** Keep breaker state in `store` from now on; hosts already seen keep their in-memory state. */
+  function useBreakerStore(store: BreakerStore): void {
+    breakerStore = store;
+  }
+
+  return { upstreamFetch, upstreamStats, channelFor, useBreakerStore };
 }
 
 const shared = createUpstream({
@@ -253,3 +281,5 @@ export const upstreamFetch = shared.upstreamFetch;
 export const upstreamStats = shared.upstreamStats;
 /** Which channel a host is fetched through under the current environment. */
 export const upstreamChannel = shared.channelFor;
+/** Where the process-wide gate keeps breaker state between restarts. */
+export const useBreakerStore = shared.useBreakerStore;

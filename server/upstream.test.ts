@@ -154,3 +154,33 @@ test("a request that throws counts towards the breaker like a 5xx", async () => 
   for (let n = 0; n < BREAKER.threshold; n += 1) await expect(upstream.upstreamFetch("https://gone.example/")).rejects.toThrow("socket");
   await expect(upstream.upstreamFetch("https://gone.example/")).rejects.toBeInstanceOf(UpstreamDownError);
 });
+
+test("an open breaker is kept in the store and read back by the next process; a close is saved too", async () => {
+  const kept = new Map<string, { openUntil: string | null; nextCooldownMs: number | null }>();
+  const store = { load: (host: string) => kept.get(host) ?? null, save: (host: string, state: { openUntil: string | null; nextCooldownMs: number | null }) => { kept.set(host, state); } };
+  let clock = 0;
+  let status = 502;
+  const sent: string[] = [];
+  const make = () => {
+    const upstream = createUpstream({
+      now: () => clock, sleep: async (ms) => { clock += ms; },
+      fetchImpl: async (url) => { sent.push(url); return new Response("", { status }); },
+      env: {}, gaps: {}, defaultGapMs: 0,
+    });
+    upstream.useBreakerStore(store);
+    return upstream;
+  };
+  const before = make();
+  for (let n = 0; n < BREAKER.threshold; n += 1) await before.upstreamFetch("https://mof.example/");
+  expect(kept.get("mof.example")?.openUntil).not.toBeNull();
+  expect(kept.get("mof.example")?.nextCooldownMs).toBe(BREAKER.firstCooldownMs * 2);
+  // A deploy: a new process, the same store. Still open, so nothing is sent.
+  const after = make();
+  await expect(after.upstreamFetch("https://mof.example/")).rejects.toBeInstanceOf(UpstreamDownError);
+  expect(sent).toHaveLength(BREAKER.threshold);
+  // Past the cooldown the trial succeeds, and the close is saved.
+  clock += BREAKER.firstCooldownMs;
+  status = 200;
+  await after.upstreamFetch("https://mof.example/");
+  expect(kept.get("mof.example")).toEqual({ openUntil: null, nextCooldownMs: null });
+});
