@@ -1,3 +1,4 @@
+import { adjustmentNotes, type SeasonalAdjustment } from "../shared/seasonal-adjustment";
 /**
  * The chart's arithmetic, kept apart from React so it can be tested without
  * a DOM: period labels, number formatting, frequency conversion, rebasing.
@@ -12,6 +13,7 @@ export interface Track {
   points: { t: number; v: number; p: string }[];
   /** True when February holds the combined January-February figure, so a first quarter of two readings is whole. */
   combinedFebruary?: boolean;
+  seasonalAdjustment?: SeasonalAdjustment;
 }
 
 /** A unit, or the structured measure a series carries. Every formatter takes either. */
@@ -287,6 +289,12 @@ export function periodTime(period: string): number {
   return Number.NaN;
 }
 
+/** Inclusive end of the month selected in a date-range control, without spilling into March or May. */
+export function monthEndTime(month: string): number {
+  const match = month.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  return match ? Date.UTC(Number(match[1]), Number(match[2]), 1) - 1 : Number.NaN;
+}
+
 export function periodPretty(period: string): string {
   const quarter = period.match(/^(\d{4})-Q([1-4])$/);
   if (quarter) return `Q${quarter[2]} ${quarter[1]}`;
@@ -529,7 +537,8 @@ export function csvOf(results: CsvSeriesMeta[], tracks: Track[], notes: string[]
     ...(regions.length > 0 ? [`# Region: ${regions.join(" | ")}`] : []),
     `# Unit: ${[...new Set(results.map((result) => result.unit))].join(" | ")}`,
     `# Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}`,
-    ...notes.map((note) => `# Note: ${note}`),
+    ...adjustmentNotes(tracks).map((note) => `# Seasonal adjustment: ${note}`),
+    ...notes.flatMap((note) => note.split(/\r?\n/).map(line => `# Note: ${line}`)),
     `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
   ];
   const frequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";

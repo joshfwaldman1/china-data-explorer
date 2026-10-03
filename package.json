@@ -35,6 +35,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
+    "@mantine/core": "9.6.3",
+    "@mantine/hooks": "9.6.3",
     "pinyin-pro": "^3.29.3",
     "react": "^19",
     "react-dom": "^19",

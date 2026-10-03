@@ -69,7 +69,8 @@ server/
   fixtures/         captured publisher pages and workbooks the tests parse
   *.test.ts         tests beside the code they cover
 client/
-  app.tsx           the whole UI (React 19, Recharts); lib.ts holds the chart arithmetic
+  app.tsx           the UI (React 19, Recharts); lib.ts holds the chart arithmetic
+  primitives.tsx    Mantine application shell, navigation drawer and action menus
   styles.css
 shared/places.ts    provinces, cities and countries with English names
 catalog/            shipped data: nbs-catalog.json.gz, nbs-regions.json, gloss-en.json,

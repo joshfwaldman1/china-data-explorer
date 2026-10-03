@@ -98,6 +98,24 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+### 3 October 2026 — chart ranges, exports and revision recovery (prepared for review)
+
+Custom month ranges now end at the actual end of the chosen month, including leap years, and apply consistently to the chart, table, CSV view and shared image. The range controls remain available on the Table tab, the period count and span are visible, and Custom can clear the selection. Empty ranges explain recovery and disable blank image/view exports. End-only custom ranges do not inherit a hidden preset start. Mixed-unit comparisons rebase at the selected start and exported index values carry index units. CSV downloads distinguish the selected view from all loaded periods and include smoothing/aggregation notes; shared images now include smoothing notes too.
+
+Series retries now issue a new request. Revision-history failures show an error and retry instead of claiming no revisions. Empty history is explicitly limited to what this portal has recorded; earlier values are described as observed vintages, not necessarily original publication vintages.
+
+Validation: typecheck and all 587 tests pass (7,468 assertions), including five additional offline browser journeys and a leap-year/month-end unit regression. Browser flows cover series/history retries, exact chart/table/CSV ranges, smoothing, end-only ranges, mixed-unit rebasing and CSV metadata, empty-view recovery, and custom-date controls at 360/768/1280 pixels. Manual 390-pixel CPI preview verified exactly January–February 2026 and no document overflow. The preview required a fresh server build after stash/restore invalidated Bun's hot-reload module state. Upstream release-cadence changes were preserved via regular merges; no data or seed changes. Prepared for PR review, not deployed.
+
+
+### 3 October 2026 — portal discovery and recovery (prepared for review)
+
+Home now has explicit search and starting queries, indicator/topic filters, readable scaled units, named columns, visible reference periods at mobile widths, and headline names that identify the growth or inflation rate actually shown. Browse, Releases, and Saved remain accessible on mobile. Loading coverage and release schedules no longer initially claim zero series or no releases; Home and Browse can recover from failed requests without a page reload.
+
+Search submits on Enter or the Search button, preserving input focus while typing. Retries actually issue another request, pagination errors preserve current results, and cancelled or late responses cannot mix results across queries. The `/` shortcut follows navigation. A failed bulk Home request no longer launches a request for every indicator.
+
+Validation: `bun run typecheck`; all 579 tests pass. Six offline Chrome user-journey regressions cover pending states, overview/catalog recovery, explicit search/retry/keyboard navigation, stale pagination, pagination recovery, individual-place filters, and visible YTD dates/navigation with no horizontal document overflow at 360, 390, 768, 900 and 1280 pixels. Manual local preview checked desktop, mobile and dark mode against captured public observations. No new dependencies or database/seed changes. This round is prepared for PR review, not deployed.
+
+
 
 ### 2 October 2026 — methodology and missing-month repairs (prepared for review)
 
@@ -4592,3 +4610,35 @@ Validation: typecheck and all 573 tests passed, including Chrome rendering. The 
   wrapped "143,696 100M yuan" onto two lines while the five-digit figure
   beside it fit; it is 150 pixels and never wraps at desktop width, and
   stacks the unit under the figure on every row alike on a narrow screen.
+
+## 2026-10-03 — Remove the province tile map
+
+At the owner's request, removed the province tile map, legend, geographic tile coordinates and unused map styles. The regional ranking now uses the full content width; province profiles, period selection, comparisons and CSV remain available. Renamed the series picker to “Rank another series” and kept names sourced directly from the shared province list.
+
+Validation: typecheck clean; all 587 tests passed (7468 assertions). Manually verified the local preview's province ranking, province detail selection, Guangdong/Zhejiang comparison chart and property page navigation. This UI change is in PR #2, not deployed.
+
+## 2026-10-03 — Label source seasonal adjustment on charts
+
+Replaced the series page's incorrect default-to-unadjusted heuristic with explicit adjustment metadata and a documented source registry. Verified SA labels cover NBS PMI (including employment sub-indices and catalog tables), Caixin PMI, the real estate climate index, and the OECD leading/confidence series. Unknown treatment says “Seasonal adjustment not verified”; explicit NSA, SAAR and annual data remain distinct. Source evidence is in `docs/seasonal-adjustment.md`.
+
+Added visible labels to Home, topic charts, series charts/tables, province profiles and regional rankings. Comparisons identify each line when treatment differs. Chart transforms preserve source adjustment; composed topic charts retain their inputs' classifications. CSV includes the status and images reserve an adjustment line, independent of optional notes, with SA/NSA/SAAR in mixed legends.
+
+Validation: typecheck clean; 593 tests passed, 7518 assertions. Six added regressions cover publisher exceptions, English/Chinese labels, unknowns, transformation retention, image layout and a browser journey from Home through Labor and comparison CSV, including 360/768/1280 widths. Manually checked the preview's Labor cards and PMI employment label. A subsequent manual phone check lost browser synchronization; automated responsive checks passed, and the viewport override was reset. One full run hit timing failures in existing catalog-gloss/backup tests; the unchanged serial rerun passed. No test timeouts relaxed, runtime dependencies added, or data/seed changes made. Implementation is in PR #2; not deployed.
+
+## 2026-10-03 — Read adjustment from NBS catalogue definitions
+
+Audited the shipped NBS catalogue's definitions and annotations after the owner pointed to it as an adjustment source. GDP quarter-on-quarter growth explicitly defines its seasonal adjustment; non-manufacturing PMI states that all published data are adjusted. The resolver now reads these scoped assertions. Captured six exact catalogue records in a fixture, including unemployment (no adjustment statement), manufacturing PMI (a shared note about a different sub-index), and international tables mixing countries' adjustment methods. No blanket status is inferred from a keyword in shared prose or a missing field.
+
+Removed the owner-disliked “not verified” badges throughout charts, overview rows and exports. Unknown remains an internal classification; a mixed known/unknown comparison identifies only its confirmed tracks and never applies one track's status to the entire chart. Empty captions, trailing separators and unused image-caption spacing are removed.
+
+Validation: typecheck clean; all 594 tests passed (7539 assertions), including captured-catalogue scope checks, comparison/image/CSV behavior and the browser journey through catalogue-labelled cards and downloads. Manually verified the Labor preview: unknown badges absent, PMI employment still labelled SA, annual context retained. No data/seed changes or new dependencies. Reviewable in PR #2; not deployed.
+
+## 2026-10-03 — Preserve notes across the entire NBS catalogue
+
+Audited all 79,836 raw records representing 66,302 joined series. Found 4,009 histories with definitions/annotations in older slices missing from the served head, including 2,782 whose newest slice had no notes at all. The series API now carries all source notes, deduplicated by prose with each original table scope retained. January-February sibling notes stay separately attributed. Joined adjustment status is resolved from all input segments, without silently borrowing one segment's classification.
+
+Notes render for every comparison member, retain original Chinese alongside available translations, and travel in full with CSV/JSON. Multiline CSV prose stays commented. Incomplete English table paths fall back to the complete Chinese path so dates/scope are not erased. Future crawls preserve ancestor/leaf explanations alongside indicator annotations; resume, translation collection and cache revival carry those fields. Existing discarded hierarchy prose requires a future recrawl; none was fabricated here.
+
+The standalone audit rebuilds the entire catalogue in scratch databases and checks a second process's cache reload. It reports zero lost notes, with 41,870 series containing notes and 24,432 having none in the shipped 16 September snapshot. English is absent for definitions on 1,109 raw records and annotations on 822; Chinese remains available. The full snapshot check is also a permanent regression in the regular suite. See `docs/catalogue-notes.md`.
+
+Validation: typecheck clean; **599 tests pass, 0 fail, 7582 assertions**, including full-catalogue preservation, cache/API handling, a browser comparison/CSV flow and responsive 360/768/1280 checks. Manual local GDP/CPI comparison displays both series' notes. Preview restarted on the scratch data. No observation/seed/schema changes or new dependencies; derived catalogue cache format bumped. Implementation remains in PR #2, not deployed.

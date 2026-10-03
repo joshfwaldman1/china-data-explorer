@@ -185,3 +185,22 @@ test("subtitle on a quarterly compare uses quarter labels even for month-dated p
   const quarterly: Track = { id: "q", name: "q", unit: "%", frequency: "Quarterly", color: "var(--chart-1)", dash: "", points: [{ t: Date.UTC(2016, 5, 1), v: 1, p: "2016-06" }, { t: Date.UTC(2026, 5, 1), v: 2, p: "2026-06" }] };
   expect(subtitleOf("Percent", ["Quarterly"], [quarterly])).toBe("Percent, quarterly, Q2 2016 to Q2 2026");
 });
+
+test("shared images reserve adjustment text even when notes are full and label mixed legends", () => {
+  const sa=track("PMI",[49,50,51],{seasonalAdjustment:"sa"});
+  const nsa=track("Trade",[1,2,3],{seasonalAdjustment:"nsa"});
+  const input: ShareInput = {title:"Comparison",unit:"Index",frequencies:["Monthly"],tracks:[sa,nsa],gaps:[],notes:Array(5).fill("A long methodology note repeated to fill the available note space."),logScale:false,lunar:false,source:"Fixture",url:"https://example.org",date:"Oct 3, 2026"};
+  const layout=layoutShareImage(input,measure);
+  expect(layout.adjustment.text).toBe("Seasonal adjustment varies by series");
+  expect(layout.legend.map(item=>item.text)).toEqual(["PMI (SA)","Trade (NSA)"]);
+  expect(layout.adjustment.y).toBeGreaterThan(layout.subtitle.y);
+  expect(layout.adjustment.y).toBeLessThan(layout.plot.y);
+  expect(layoutShareImage({...input,tracks:[sa]},measure).adjustment.text).toBe("Seasonally adjusted");
+  const unknown = track("Other",[1,2,3]);
+  const partial = layoutShareImage({...input,tracks:[sa,unknown]},measure);
+  expect(partial.adjustment.text).toBe("");
+  expect(partial.legend.map(item=>item.text)).toEqual(["PMI (SA)","Other"]);
+  const unlabelled = layoutShareImage({...input,tracks:[unknown]},measure);
+  expect(unlabelled.adjustment.text).toBe("");
+  expect(unlabelled.plot.y).toBe(layoutShareImage({...input,tracks:[sa]},measure).plot.y - 26);
+});

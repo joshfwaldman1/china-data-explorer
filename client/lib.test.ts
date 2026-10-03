@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, fmtDate, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, rebase, regionalCsv, releaseTime, type Track, longGapsOf, powersOfTen } from "./lib.ts";
+import { axisScale, lineUnit, naturalUnit, naturalValue, withoutUnitSuffix,bareLabel, canonicalPeriod, isOpenMonth, convertTrack, csvOf, deltaText, coarsestFrequency, fmtDate, isCumulative, periodSpan, sharedLabelSuffix, withoutSharedSuffix, yearEarlier, fmt, fmtTick, isUpcoming, periodPretty, periodTime, monthEndTime, rebase, regionalCsv, releaseTime, type Track, longGapsOf, powersOfTen } from "./lib.ts";
 
 const monthly = (values: number[], year = 2025): Track => ({
   id: "t", name: "t", unit: "%", frequency: "Monthly", color: "", dash: "",
@@ -414,4 +414,13 @@ test("log axis ticks are the powers of ten around the values, and none for a val
   expect(powersOfTen(33.5, 75734)).toEqual([10, 100, 1000, 10000, 100000]);
   expect(powersOfTen(0.004, 0.9)).toEqual([0.001, 0.01, 0.1, 1]);
   expect(powersOfTen(0, 10)).toEqual([]);
+});
+
+
+test("custom month ends include leap days and never include the next month", () => {
+  expect(new Date(monthEndTime("2024-02")).toISOString()).toBe("2024-02-29T23:59:59.999Z");
+  expect(new Date(monthEndTime("2025-02")).toISOString()).toBe("2025-02-28T23:59:59.999Z");
+  expect(monthEndTime("2026-04")).toBe(Date.UTC(2026, 4, 1) - 1);
+  expect(monthEndTime("2026-12")).toBe(Date.UTC(2027, 0, 1) - 1);
+  expect(Number.isNaN(monthEndTime("2026-13"))).toBe(true);
 });

@@ -1,6 +1,7 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { openPortal } from "./portal.ts";
+import { parseTableNotes, type CatalogTableNote } from "../shared/catalog-notes";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const DEFAULT_OUTPUT = resolve(import.meta.dir, "../catalog/nbs-catalog.json");
@@ -37,6 +38,7 @@ interface CatalogEntry extends IndicatorMetadata {
   frequency: DatasetDefinition["frequency"];
   geography: DatasetDefinition["geography"];
   categories: string[];
+  tableNotes?: CatalogTableNote[];
 }
 
 const DATASETS: DatasetDefinition[] = [
@@ -122,6 +124,7 @@ function parseCatalogEntry(value: unknown): CatalogEntry | null {
     unit: textValue(value, "unit"),
     note: textValue(value, "note"),
     annotation: textValue(value, "annotation"),
+    tableNotes: parseTableNotes(objectValue(value, "tableNotes")),
     precision: typeof precision === "number" ? precision : null,
     key,
     rootId,
@@ -235,8 +238,8 @@ for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset
       frequency: definition.frequency,
       geography: definition.geography,
     });
-    const queue: { node: CatalogNode; categories: string[] }[] = [
-      { node: root, categories: [] },
+    const queue: { node: CatalogNode; categories: string[]; tableNotes: CatalogTableNote[] }[] = [
+      { node: root, categories: [], tableNotes: [] },
     ];
     while (queue.length > 0) {
       const batch = queue.splice(0, concurrency);
@@ -244,10 +247,11 @@ for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset
         const categories = current.node.id === root.id
           ? current.categories
           : [...current.categories, current.node.name];
+        const tableNotes = [...current.tableNotes, ...(current.node.note ? [{ id: current.node.id, name: current.node.name, text: current.node.note }] : [])];
         try {
           if (!current.node.isLeaf) {
             const next = await children(current.node.id, definition.code);
-            for (const node of next) queue.push({ node, categories });
+            for (const node of next) queue.push({ node, categories, tableNotes });
             return;
           }
           const leafIndicators = await indicators(current.node.id);
@@ -263,6 +267,7 @@ for (const definition of DATASETS.filter((dataset) => requestedCodes.has(dataset
               geography: definition.geography,
               categories,
               annotation: indicator.annotation || current.node.note,
+              tableNotes,
             });
           }
         } catch (error) {

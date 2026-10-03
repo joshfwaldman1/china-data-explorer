@@ -12,6 +12,8 @@ import { catalogDb, db, listStoredSeries, logFetch, readSeries, seriesFreshness,
 import { glossTitle, glossTitleDetailed, toPinyin, warmGloss, plainRanges } from "./gloss.ts";
 import { resolveEnglishLabel, warmOfficialEnglish, type EnglishLabelSource } from "./official-english";
 import { upstreamFetch } from "./upstream";
+import { collectCatalogNotes, parseTableNotes, type CatalogNote, type CatalogTableNote } from "../shared/catalog-notes";
+import { seasonalAdjustmentOf } from "../shared/seasonal-adjustment";
 
 const API = "https://data.stats.gov.cn/dg/website/publicrelease/web/external";
 const NATIONAL = { text: "全国", value: "000000000000" };
@@ -185,6 +187,9 @@ export interface NbsCatalogEntry {
   unit: string;
   note: string;
   annotation: string;
+  tableNotes?: CatalogTableNote[];
+  /** Notes for every joined catalogue slice, with source scope preserved. */
+  sourceNotes?: CatalogNote[];
   precision: number | null;
   rootId: string;
   cid: string;
@@ -305,6 +310,7 @@ function parseEntry(value: unknown): NbsCatalogEntry | null {
     unit: stringValue(value, "unit"),
     note: stringValue(value, "note"),
     annotation: stringValue(value, "annotation"),
+    tableNotes: parseTableNotes(objectValue(value, "tableNotes")),
     precision: typeof precisionRaw === "number" ? precisionRaw : null,
     rootId,
     cid,
@@ -321,7 +327,7 @@ const OFFICIAL_FILE = resolve(import.meta.dir, "../catalog/nbs-official-en.json.
 const NOTES_FILE = resolve(import.meta.dir, "../catalog/notes-en.json");
 
 /** A version for the stored catalog: the snapshot and the two label files. */
-const GLOSS_FORMAT = 33; // 33: titles still shared after the table is named take their year range. 32: a duplicate title that opens with its table's name gets the table's vintage, not the name again, and a title-case title keeps its capital after the colon. 31: "labor force", American spelling. 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
+const GLOSS_FORMAT = 34; // 34: retain scoped hierarchy notes and their translations. 33: titles still shared after the table is named take their year range. 32: a duplicate title that opens with its table's name gets the table's vintage, not the name again, and a title-case title keeps its capital after the colon. 31: "labor force", American spelling. 30 (29): a fixed base year reads "2010 = 100", taken from the Chinese name when the gloss has none, and 23 untranslated international and procuratorate titles are translated in the gloss table. 28: a gloss that had to romanise part of the name is not used as the title; the Chinese name leads and the gloss stays for search. 27: a title is prefixed with its table only when it sits under two tables among family heads, so vintage slices never count as tables. 26: fullwidth brackets and run-on commas in official labels are normalised. 25: an official label with no letter in it fails safe to the gloss and zero-width characters are stripped. 24: official NBS English titles with the generated gloss kept beside them for search (23: the token dictionary grew and pinyin stands in for what it cannot render (22: only same-frequency duplicates are qualified, and an acronym keeps its capitals (21: 21: a qualifier the table already carries is not repeated in the title (20: 20: a shared title leads with its table's English name, and keeps the plain gloss when the table has no English name (19: a title shared by several tables says which table it is from (18: year ranges read "(to 2023)" and "(2024-present)", no en dashes (17: the word after any colon reads lowercase, industry prefixes included (16: an index base inside a gloss moves to the end in the site's words (15: suffix-form index titles fold to "PPI: x" and components read lowercase; (14: a row's title unit wins over the table unit; (13: spelled-out index components fold to "PPI: tea"; (12: by-department PPI titles read "PPI: food industry" (11: 增减 titles read "change from a year ago, %"; 10: index component titles use the colon form, PPI: food)
 let versionCache: { at: number; version: string } | undefined;
 const VERSION_TTL_MS = 5_000;
 
@@ -701,6 +707,7 @@ function withProseEnglish(entry: NbsCatalogEntry, table: Record<string, string>)
     unit: rawUnitOf(entry),
     noteEn: table[entry.note.trim()] || undefined,
     annotationEn: table[entry.annotation.trim()] || undefined,
+    tableNotes: entry.tableNotes?.map(note => ({ ...note, textEn: table[note.text.trim()] || note.textEn })),
     datasetEn: table[entry.dataset.trim()] || undefined,
     categoriesEn: categoriesEn.some(Boolean) ? categoriesEn : undefined,
   };
@@ -1997,6 +2004,7 @@ export async function getNbsCatalogSeries(options: {
   const memberEntries = options.entry.family
     ? (await Promise.all(options.entry.family.members.map((key) => getNbsCatalogEntry(key)))).filter((member): member is NbsCatalogEntry => member !== null)
     : [options.entry];
+  const adjustmentEntries = [...memberEntries];
   const parts: { points: SeriesPoint[]; source: NbsSeriesResult["source"] }[] = [];
   for (const member of memberEntries) {
     try { parts.push(await pointsFor(member, region, options.storeOnly ?? false)); }
@@ -2009,6 +2017,7 @@ export async function getNbsCatalogSeries(options: {
   // The combined January-February reading lives in the year-to-date sibling; take its stored
   // February points where this series has none. Stored only: a page view never fetches for it.
   let februaryFrom: string | undefined;
+  let februarySourceNotes: CatalogNote[] = [];
   const siblingName = options.entry.frequency === "Monthly" ? februarySiblingName(options.entry.name) : null;
   if (siblingName) {
     const snapshot = await loadSnapshot();
@@ -2018,7 +2027,12 @@ export async function getNbsCatalogSeries(options: {
         ? sibling.family.members.map((key) => snapshot.entries.find((candidate) => candidate.key === key)).filter((member): member is NbsCatalogEntry => member !== undefined)
         : [sibling];
       const filled = fillFebruary(points, stitchPoints(siblingEntries.map((member) => storedPoints(member, region))));
-      if (filled.filled > 0) { points = filled.points; februaryFrom = sibling.key; }
+      if (filled.filled > 0) {
+        points = filled.points;
+        februaryFrom = sibling.key;
+        februarySourceNotes = collectCatalogNotes(siblingEntries, "february");
+        adjustmentEntries.push(...siblingEntries);
+      }
     }
   }
 
@@ -2057,10 +2071,12 @@ export async function getNbsCatalogSeries(options: {
   // their first year instead of losing it to the limit.
   const transformed = transformPoints(points, transform, options.entry.frequency).slice(-limit);
   const unit = transform === "raw" ? rawUnitOf(options.entry) : transformLabel(transform, `${rawUnitOf(options.entry)} ${options.entry.name}`);
+  const adjustments = new Set(adjustmentEntries.map(entry => seasonalAdjustmentOf({ key: entry.key, frequency: entry.frequency, metadata: entry })));
   return {
     ...rawResult(options.entry, region, transformed),
     unit,
-    metadata: { ...options.entry, ...(februaryFrom ? { februaryFrom } : {}), ...(growthSibling ? { growthSibling } : {}), ...(repeated ? { repeated } : {}) },
+    metadata: { ...options.entry, sourceNotes: [...collectCatalogNotes(memberEntries), ...februarySourceNotes], ...(februaryFrom ? { februaryFrom } : {}), ...(growthSibling ? { growthSibling } : {}), ...(repeated ? { repeated } : {}) },
+    seasonalAdjustment: adjustments.size === 1 ? [...adjustments][0] : "unknown",
     region,
     transform,
     source,

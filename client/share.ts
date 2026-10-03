@@ -43,6 +43,7 @@ export function drawShareImage(context: CanvasRenderingContext2D, layout: ShareL
   // Title block.
   layout.title.lines.forEach((line, index) => text(context, { text: line, x: layout.title.x, y: layout.title.y + index * layout.title.lineHeight, font: layout.title.font, color: layout.title.color, align: "left" }));
   text(context, layout.subtitle);
+  text(context, layout.adjustment);
   for (const item of layout.legend) {
     context.strokeStyle = item.color; context.lineWidth = 3; context.setLineDash(item.dash);
     context.beginPath(); context.moveTo(item.x, item.y - 6); context.lineTo(item.x + 26, item.y - 6); context.stroke();

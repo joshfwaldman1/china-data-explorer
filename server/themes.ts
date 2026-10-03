@@ -1,3 +1,4 @@
+import { seasonalAdjustmentOf } from "../shared/seasonal-adjustment";
 /**
  * Theme pages: one story told with the series the site already holds.
  *
@@ -849,9 +850,11 @@ async function composedSeries(chart: ThemeChart, lines: ThemeLine[]): Promise<Se
     const points = item?.points ?? [];
     return chart.ttm ? trailingTwelveMonths(points) : points;
   });
+  let denominatorAdjustment: ReturnType<typeof seasonalAdjustmentOf> | undefined;
   if (chart.per) {
     const denominator = await storedNational(chart.per, limitOf(chart.per));
     if (!denominator) return null;
+    denominatorAdjustment = seasonalAdjustmentOf(denominator.result);
     const below = chart.ttm ? trailingTwelveMonths(denominator.points) : denominator.points;
     computed = computed.map((points) => percentOf(points, below));
   }
@@ -861,7 +864,12 @@ async function composedSeries(chart: ThemeChart, lines: ThemeLine[]): Promise<Se
   return {
     key: chart.key, title: chart.title ?? first.result.title, agency: first.result.agency, sourceUrl: first.result.sourceUrl,
     frequency: first.result.frequency, unit: chart.unit ?? first.result.unit,
-    series: lines.map((line, index) => ({ label: line.label, points: computed[index] ?? [] })),
+    series: lines.map((line, index) => {
+      const sourceAdjustment = seasonalAdjustmentOf(read[index]?.result ?? {});
+      const allAdjustments = chart.shareOfLines ? read.map(item => seasonalAdjustmentOf(item?.result ?? {})) : [sourceAdjustment];
+      if (denominatorAdjustment) allAdjustments.push(denominatorAdjustment);
+      return { label: line.label, points: computed[index] ?? [], seasonalAdjustment: allAdjustments.every(status => status === sourceAdjustment) ? sourceAdjustment : "unknown" };
+    }),
   };
 }
 

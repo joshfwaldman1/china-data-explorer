@@ -1,3 +1,4 @@
+import { adjustmentSummary, adjustmentShortLabel } from "../shared/seasonal-adjustment";
 /**
  * Share-image layout: a pure function from chart data to canvas geometry.
  *
@@ -59,6 +60,7 @@ export interface ShareLayout {
   background: string;
   title: { lines: string[]; x: number; y: number; lineHeight: number; font: string; color: string };
   subtitle: Text;
+  adjustment: Text;
   legend: { x: number; y: number; color: string; dash: number[]; text: string; font: string }[];
   plot: { x: number; y: number; w: number; h: number };
   yTicks: { y: number; label: string }[];
@@ -239,14 +241,17 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   const titleLineHeight = 42;
   let cursor = titleTop + titleLines.length * titleLineHeight - 8;
   const subtitle: Text = { text: `${subtitleOf(input.unit, input.frequencies, input.tracks)}${input.logScale ? ", log scale" : ""}`, x: margin, y: cursor + 22, font: subtitleFont, color: LIGHT.muted, align: "left" };
-  cursor = subtitle.y + 12;
+  const adjustment: Text = { text: adjustmentSummary(input.tracks), x: margin, y: subtitle.y + 26, font: subtitleFont, color: LIGHT.muted, align: "left" };
+  cursor = (adjustment.text ? adjustment.y : subtitle.y) + 12;
 
   const tracks = input.tracks.filter((track) => track.points.length > 0);
   const legend: ShareLayout["legend"] = [];
   if (tracks.length > 1) {
     let x = margin, y = cursor + 26;
     for (const track of tracks) {
-      const text = track.name;
+      const mixedAdjustment = new Set(tracks.map(item => item.seasonalAdjustment ?? "unknown")).size > 1;
+      const adjustmentLabel = adjustmentShortLabel(track.seasonalAdjustment);
+      const text = mixedAdjustment && adjustmentLabel ? `${track.name} (${adjustmentLabel})` : track.name;
       const itemWidth = 34 + measure(text, legendFont) + 32;
       if (x + itemWidth > width - margin && x > margin) { x = margin; y += 26; }
       legend.push({ x, y, color: lightColor(track.color), dash: dashOf(track.dash), text, font: legendFont });
@@ -346,7 +351,7 @@ export function layoutShareImage(input: ShareInput, measure: Measure): ShareLayo
   return {
     width, height, background: LIGHT.panel,
     title: { lines: titleLines, x: margin, y: titleTop + 26, lineHeight: titleLineHeight, font: titleFont, color: LIGHT.ink },
-    subtitle, legend, plot, yTicks, xTicks, refLines, bands, lines, endLabels, notes: noteTexts,
+    subtitle, adjustment, legend, plot, yTicks, xTicks, refLines, bands, lines, endLabels, notes: noteTexts,
     footer: { mark: { x: margin, y: footerY - 44, size: 24 }, brand, source, url: urlText, date: dateText },
   };
 }

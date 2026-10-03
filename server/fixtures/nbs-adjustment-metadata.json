@@ -1,0 +1,124 @@
+{
+  "source": "National Bureau of Statistics of China",
+  "generatedAt": "2026-09-16T04:10:05.385Z",
+  "entries": [
+    {
+      "id": "88bcaf76058e49b08a45b14a204b2d3d",
+      "name": "国内生产总值环比增长速度 (%)",
+      "shortName": "国内生产总值",
+      "unit": "%",
+      "note": "国内生产总值环比增长速度为经季节调整后与上一季度对比的增长速度，按不变价格计算。",
+      "annotation": "环比增长速度为经季节调整后与上一季度对比的增长速度。",
+      "precision": 1,
+      "key": "nbs_88bcaf76058e49b08a45b14a204b2d3d",
+      "rootId": "a94b8b7365a94874968cabbe392cf679",
+      "cid": "2b0aa179980e41b8b636037ebae01d91",
+      "datasetCode": 2,
+      "dataset": "季度数据",
+      "frequency": "Quarterly",
+      "geography": "National",
+      "categories": [
+        "国民经济核算",
+        "国内生产总值环比增长速度"
+      ]
+    },
+    {
+      "id": "bbe0067c5fbb49eda66f8fd8d60811cf",
+      "name": "从业人员指数 (%)",
+      "shortName": "非制造业采购经理指数",
+      "unit": "%",
+      "note": "从业人员指数是根据在本企业工作并取得劳动报酬的实有人员数量月度环比变化情况编制的扩散指数。",
+      "annotation": "发布数据均为季节调整后数据。",
+      "precision": 1,
+      "key": "nbs_bbe0067c5fbb49eda66f8fd8d60811cf",
+      "rootId": "fc982599aa684be7969d7b90b1bd0e84",
+      "cid": "7a64a6e25aec4a8e9dde044ecd9e2cce",
+      "datasetCode": 1,
+      "dataset": "月度数据",
+      "frequency": "Monthly",
+      "geography": "National",
+      "categories": [
+        "采购经理指数",
+        "非制造业采购经理指数"
+      ]
+    },
+    {
+      "id": "24454731f2fd46f1850da13fe6f39263",
+      "name": "从业人员指数 (%)",
+      "shortName": "制造业采购经理指数(PMI)",
+      "unit": "%",
+      "note": "从业人员指数是根据企业主要生产经营人员数量月度环比变化情况编制的扩散指数。",
+      "annotation": "2017年1月起改进了生产经营活动预期指数的季节调整方法，并对历史数据进行修订。",
+      "precision": 1,
+      "key": "nbs_24454731f2fd46f1850da13fe6f39263",
+      "rootId": "fc982599aa684be7969d7b90b1bd0e84",
+      "cid": "93ffbb1aa85740d3aa2618371508b606",
+      "datasetCode": 1,
+      "dataset": "月度数据",
+      "frequency": "Monthly",
+      "geography": "National",
+      "categories": [
+        "采购经理指数",
+        "制造业采购经理指数"
+      ]
+    },
+    {
+      "id": "3888eac6062945a79c8a27e5f13d4953",
+      "name": "全国城镇调查失业率 (%)",
+      "shortName": "城镇调查失业率",
+      "unit": "%",
+      "note": "城镇调查失业率指根据抽样调查推算的城镇失业人口占就业人口与失业人口之和的百分比。",
+      "annotation": "2023年12月起，失业率年龄分组进行了调整，往月数据包含在校生。",
+      "precision": 1,
+      "key": "nbs_3888eac6062945a79c8a27e5f13d4953",
+      "rootId": "fc982599aa684be7969d7b90b1bd0e84",
+      "cid": "ee3b7046b390415b9b7745e3d16f6052",
+      "datasetCode": 1,
+      "dataset": "月度数据",
+      "frequency": "Monthly",
+      "geography": "National",
+      "categories": [
+        "城镇调查失业率",
+        "城镇调查失业率"
+      ]
+    },
+    {
+      "id": "d97c6e839a794329913ace5e34be8616",
+      "name": "出口额 (亿本币) 当期值 (亿本币)",
+      "shortName": "货物出口额",
+      "unit": "亿本币",
+      "note": "",
+      "annotation": "美国进出口包括货物和服务贸易，为季调数据，数据来源于美国商务部普查局和美国商务部经济分析局。\n日本进出口仅指货物贸易，为非季调数据，数据来源于日本财务省。\n欧元区GDP为当月所在季度数据，欧元区进出口仅指货物贸易，不包括欧元区各成员国相互之间的贸易。数据来源于欧盟统计局。\n月初5个工作日左右更新近13个月进度指标数据，每年5月、11月更新所有历史数据。",
+      "precision": 2,
+      "key": "nbs_d97c6e839a794329913ace5e34be8616",
+      "rootId": "0f2a950d12a347cfa02393487bf99f00",
+      "cid": "5b2118c470874511b7475e39f2988086",
+      "datasetCode": 12,
+      "dataset": "三大经济体月度数据",
+      "frequency": "Monthly",
+      "geography": "International",
+      "categories": [
+        "进出口"
+      ]
+    },
+    {
+      "id": "8e2bb81ca3d7490c8f1ab1f70d91294f",
+      "name": "国内生产总值增长速度 (环比) (%)",
+      "shortName": "国内生产总值",
+      "unit": "%",
+      "note": "",
+      "annotation": "美国GDP为当月所在季度数据，经季节调整，折年率计算。数据来源于美国商务部经济分析局。\n日本GDP为当月所在季度数据，数据来源于日本内阁府。\n欧元区GDP为当月所在季度数据，欧元区进出口仅指货物贸易，不包括欧元区各成员国相互之间的贸易。数据来源于欧盟统计局。\n月初5个工作日左右更新近13个月进度指标数据，每年5月、11月更新所有历史数据。",
+      "precision": 1,
+      "key": "nbs_8e2bb81ca3d7490c8f1ab1f70d91294f",
+      "rootId": "0f2a950d12a347cfa02393487bf99f00",
+      "cid": "c2127e3426954149866fc7edc324d3cc",
+      "datasetCode": 12,
+      "dataset": "三大经济体月度数据",
+      "frequency": "Monthly",
+      "geography": "International",
+      "categories": [
+        "国民经济核算"
+      ]
+    }
+  ]
+}
