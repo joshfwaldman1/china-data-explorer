@@ -14,6 +14,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { resolve } from "node:path";
 import { readCatalogSnapshot } from "../server/catalog-file.ts";
+import { parseTableNotes } from "../shared/catalog-notes";
 
 const NOTES_PATH = resolve(import.meta.dir, "../catalog/notes-en.json");
 const BATCH = 40;
@@ -60,6 +61,7 @@ if (!Array.isArray(entries)) throw new Error("catalog snapshot missing");
 const strings = new Set<string>();
 for (const entry of entries) {
   for (const field of ["note", "annotation", "dataset"]) { const text = stringAt(entry, field); if (text) strings.add(text); }
+  for (const note of parseTableNotes(entry?.tableNotes)) { strings.add(note.text); strings.add(note.name); }
   const categories = typeof entry === "object" && entry !== null ? Reflect.get(entry, "categories") : undefined;
   if (Array.isArray(categories)) for (const category of categories) if (typeof category === "string" && category.trim()) strings.add(category.trim());
 }

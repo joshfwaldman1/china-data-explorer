@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { startOfflineServer, TEST_CATALOG } from "./test-server";
 import adjustmentCatalog from "./fixtures/nbs-adjustment-metadata.json";
+import { collectCatalogNotes } from "../shared/catalog-notes";
 
 const scratch = mkdtempSync(join(tmpdir(), "china-portal-ux-"));
 const env = { ...process.env, CHINA_DB_PATH: join(scratch, "test.db"), CHINA_CATALOG_DB_PATH: join(scratch, "catalog.db"), NBS_CATALOG_PATH: join(scratch, "catalog.json"), CHINA_SEED: "off", NBS_QUERY_EXPANSION: "off", CATALOG_CRAWL: "off", CHINA_LIVE_FALLBACK: "0", INGEST_EVERY_HOURS: "0", PORT: "0", NODE_ENV: "test" };
@@ -345,3 +346,31 @@ test("seasonal adjustment follows Home, topic cards, comparison tables and downl
     }
   } finally { await page.close(); }
 },60_000);
+
+test("comparison notes and CSV retain each series' complete catalogue prose and older slice scope", async () => {
+  const page = await chartPage();
+  const older = { ...TEST_CATALOG.entries[0]!, key: "nbs_notes_older", categories: ["Old table (-2023)"], note: "早期定义", noteEn: "Earlier definition", annotation: "旧口径\n原注第二行" };
+  const current = { ...TEST_CATALOG.entries[0]!, key: "nbs_notes_current", nameEn: "Current series", categories: ["New table (2024-)"], note: "", annotation: "", family: { head: "nbs_notes_current", members: [older.key, "nbs_notes_current"], span: "to present" }, sourceNotes: collectCatalogNotes([older]) };
+  const second = { ...TEST_CATALOG.entries[0]!, key: "nbs_notes_second", nameEn: "Second series", note: "另一指标定义", annotation: "Second series scope caveat" };
+  try {
+    for (const metadata of [current, second]) await page.route(`**/api/series/${metadata.key}?*`, route => route.fulfill({ json: { ...chartFixture, key: metadata.key, title: metadata.nameEn, metadata } }));
+    await page.goto(`${server.url}/#/series/${current.key},${second.key}`);
+    await page.getByRole("heading", { name: "NBS definition", exact: true }).first().waitFor();
+    const notes = page.locator(".series-notes");
+    expect(await notes.count()).toBe(2);
+    expect(await notes.nth(0).innerText()).toContain("Earlier definition");
+    expect(await notes.nth(0).innerText()).toContain("早期定义");
+    expect(await notes.nth(0).innerText()).toContain("原注第二行");
+    expect(await notes.nth(1).innerText()).toContain("另一指标定义");
+    expect(await notes.nth(1).innerText()).toContain("Second series scope caveat");
+    await notes.nth(0).locator("summary").first().click();
+    expect(await notes.nth(0).getByRole("link", { name: "Old table (-2023)", exact: true }).first().isVisible()).toBe(true);
+    const csv = await readCsvDownload(page, "Download view (CSV)");
+    for (const text of ["Earlier definition", "早期定义", "原注第二行", "另一指标定义", "Second series scope caveat", "Old table (-2023)"]) expect(csv).toContain(text);
+    expect(csv).toContain("# Note: 原注第二行");
+    for (const width of [360, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  } finally { await page.close(); }
+}, 60_000);

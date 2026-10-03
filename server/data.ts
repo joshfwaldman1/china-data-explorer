@@ -38,6 +38,7 @@ export interface Series {
   points: SeriesPoint[];
 }
 export interface SeriesResult {
+  seasonalAdjustment?: SeasonalAdjustment;
   key: string;
   title: string;
   agency: string;

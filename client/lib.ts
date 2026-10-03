@@ -538,7 +538,7 @@ export function csvOf(results: CsvSeriesMeta[], tracks: Track[], notes: string[]
     `# Unit: ${[...new Set(results.map((result) => result.unit))].join(" | ")}`,
     `# Source: ${[...new Set(results.map((result) => result.agency))].join(", ")}`,
     ...adjustmentNotes(tracks).map((note) => `# Seasonal adjustment: ${note}`),
-    ...notes.map((note) => `# Note: ${note}`),
+    ...notes.flatMap((note) => note.split(/\r?\n/).map(line => `# Note: ${line}`)),
     `# Retrieved: ${new Date().toISOString().slice(0, 10)} via EconStats China Data`,
   ];
   const frequency = new Set(tracks.map((track) => track.frequency)).size === 1 ? (tracks[0]?.frequency ?? "Monthly") : "Mixed";

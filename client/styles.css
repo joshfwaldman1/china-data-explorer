@@ -455,6 +455,12 @@ footer { min-height: 36px; display: flex; align-items: center; justify-content: 
 
 /* Series page: about + details cards, revisions block below */
 .details .about p { max-width: 68ch; line-height: 1.55; }
+.series-notes + .series-notes { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
+.catalog-note { margin: 16px 0; }
+.catalog-note h4 { margin: 0 0 6px; font-size: var(--fs-2); color: var(--muted); }
+.catalog-note p { white-space: pre-line; overflow-wrap: anywhere; }
+.catalog-note details { font-size: var(--fs-2); overflow-wrap: anywhere; }
+.catalog-note summary { cursor: pointer; }
 .details .muted { color: var(--muted); }
 .revisions { margin-top: var(--s-4); padding: var(--s-4); }
 .revisions-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }

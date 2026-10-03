@@ -34,6 +34,8 @@ The shipped NBS catalogue (captured 16 September 2026) has indicator definitions
 
 The resolver therefore recognizes direct assertions about the named indicator or all published data. It does not scan arbitrary methodology prose for the phrase “seasonally adjusted,” and it does not classify all other NBS series as NSA.
 
+All catalogue series preserve available source definitions/annotations, including older joined segments, using the pipeline and exhaustive audit in `catalogue-notes.md`. Adjustment is resolved per source segment; a joined history receives a single status only when its inputs agree. Conflicting or missing classifications remain unresolved.
+
 Composed topic charts retain each input's classification. Ratios/shares with inconsistent input classifications are unknown, rather than inheriting the first input's status. Frequency conversion, moving averages and rebasing preserve the original adjustment classification.
 
 The registry is deliberately limited to the evidence above. Extending it requires the actual source definition for the exact series, not a guess based on another series from the same agency.

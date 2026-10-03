@@ -8,6 +8,9 @@ import { test, expect } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { auditCatalogNotes } from "./catalog-notes-audit";
+import { readCatalogSnapshot } from "./catalog-file";
+import type { NbsCatalogEntry } from "./nbs-catalog";
 
 const scratch = mkdtempSync(join(tmpdir(), "china-search-"));
 process.env.CHINA_DB_PATH = join(scratch, "store.db");
@@ -16,6 +19,15 @@ process.env.NBS_QUERY_EXPANSION = "off"; // deterministic: no model calls
 process.env.CHINA_SEED = "off";
 
 const { searchNbsCatalog, nbsCatalogStats, stitchPoints, rawUnitOf, isCurrent, defaultNbsTransform, queryVariants, tableQualifiedTitle, normalizeQuery, februarySiblingName, fillFebruary, dropLeadingPlaceholders, periodsBetween, transformPoints, shiftPeriod, growthSiblingNames, titleStem } = await import("./nbs-catalog.ts");
+
+test("every shipped catalogue definition and annotation survives loading and family joins", async () => {
+  const raw = await readCatalogSnapshot() as { entries: NbsCatalogEntry[] };
+  const { listNbsCatalogEntries } = await import("./nbs-catalog");
+  const audit = auditCatalogNotes(raw.entries, await listNbsCatalogEntries());
+  expect(audit.loadedEntries).toBe(raw.entries.length);
+  expect(audit.series).toBeGreaterThan(60_000);
+  expect(audit.failures).toEqual([]);
+}, 30_000);
 
 test("the catalog loads and counts", async () => {
   const stats = await nbsCatalogStats();

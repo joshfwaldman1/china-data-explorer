@@ -1,4 +1,5 @@
 import { seasonalAdjustmentOf, adjustmentLabel, adjustmentNotes, adjustmentSummary, type SeasonalAdjustment } from "../shared/seasonal-adjustment";
+import { catalogNotesOf, catalogNotesForExport, type CatalogNote, type CatalogTableNote } from "../shared/catalog-notes";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -20,6 +21,7 @@ interface NbsCatalogEntry {
   key: string; id: string; name: string; nameEn?: string; shortName: string; unit: string; note: string;
   annotation: string; datasetCode: number; dataset: string; frequency: string; geography: string; categories: string[];
   noteEn?: string; annotationEn?: string; datasetEn?: string; categoriesEn?: string[];
+  sourceNotes?: CatalogNote[]; tableNotes?: CatalogTableNote[];
   family?: { head: string; members: string[]; span: string };
   februaryFrom?: string;
   growthSibling?: { key: string; name: string };
@@ -577,6 +579,39 @@ function ChartTip(props: { active?: boolean; payload?: unknown[]; unit: string; 
 function AdjustmentCaption(props: { tracks: Track[] }) {
   const notes = adjustmentNotes(props.tracks);
   return notes.length ? <div className="adjustment-caption" aria-label="Seasonal adjustment">{notes.map(note => <span key={note}>{note}</span>)}</div> : null;
+}
+
+function SeriesNotes(props: { results: SeriesResult[]; curated: CuratedEntry[] }) {
+  return <>{props.results.map(result => {
+    const meta = result.metadata;
+    const sourceNotes = catalogNotesOf(meta);
+    const curated = props.curated.find(entry => entry.key === result.key);
+    const definition = ABOUT[result.key];
+    const notes = [...new Set([
+      ...(READING[result.key] ?? []), ...applyBreaks(result).notes,
+      ...(curated?.endedNote ? [curated.endedNote] : []),
+      ...(meta?.februaryFrom ? ["NBS publishes January and February together. The February point is the combined figure, taken from the year-to-date series of the same table; there is no January point."] : []),
+      ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces, nominally ${meta.family.span}; they are joined here into one series, and the Range below is what they hold. Where two pieces overlap, the newer one is used. Source notes retain their original table scope.`] : []),
+    ])];
+    return <section className="series-notes" key={result.spec ?? result.key} aria-label={`Notes for ${displayTitle(result, props.results)}`}>
+      {props.results.length > 1 && <h3>{displayTitle(result, props.results)}</h3>}
+      {definition && <p>{definition}</p>}
+      {sourceNotes.map((note, index) => <div className="catalog-note" key={index}>
+        <h4>{note.kind === "definition" ? "NBS definition" : note.kind === "table" ? "NBS table note" : "NBS note"}</h4>
+        <p><Zh>{note.textEn || note.text}</Zh>{note.textEn && <Zh className="gloss block">{note.text}</Zh>}</p>
+        {(meta?.family || note.kind === "table" || note.sources.some(source => source.role === "february")) && <details>
+          <summary>Source table{note.sources.length > 1 ? "s" : ""}</summary>
+          <ul>{note.sources.map(source => <li key={`${source.key}|${source.table}|${source.role}`}>
+            <a href={seriesHash([source.key], { region: result.region?.value })}><Zh>{source.tableEn || source.table || source.key}</Zh></a>
+            {source.role === "february" && " — January-February source"}
+          </li>)}</ul>
+        </details>}
+      </div>)}
+      {notes.length > 0 && <ul>{notes.map(note => <li key={note}><Zh>{note}</Zh></li>)}</ul>}
+      {meta?.growthSibling && <p>NBS publishes a growth rate for this table, <a href={seriesHash([meta.growthSibling.key], { region: result.region?.value })}><Zh>{meta.growthSibling.name}</Zh></a>, computed on a scope held comparable with the year before. These levels are on the current scope, so a year-over-year change worked out from them will differ from the published rate.</p>}
+      {!definition && !sourceNotes.length && !notes.length && <p className="muted">No source notes are available in the catalogue for this series.</p>}
+    </section>;
+  })}</>;
 }
 
 /**
@@ -2070,17 +2105,6 @@ function SeriesPage(props: {
   const curated = props.curated.find((entry) => entry.key === primary.key);
   // Other curated series in the same group; a series alone in its group (provincial GDP) gets no Related section.
   const curatedSiblings = curated ? props.curated.filter((entry) => entry.group === curated.group && entry.key !== curated.key).slice(0, 4) : [];
-  const definition = meta?.noteEn || meta?.note || ABOUT[primary.key] || "";
-  const definitionZh = meta?.noteEn && meta.note ? meta.note : "";
-  const readingNotes = [
-    ...(READING[primary.key] ?? (meta?.annotation ? [meta.annotationEn || meta.annotation] : built.notes)),
-    ...(curated?.endedNote ? [curated.endedNote] : []),
-    ...(meta?.februaryFrom ? ["NBS publishes January and February together. The February point is the combined figure, taken from the year-to-date series of the same table; there is no January point."] : []),
-    // The pieces' nominal span is what NBS names them by; the Range row states what they hold, which
-    // can start later (a 2003 piece with data from 2007) or leave years uncovered between pieces.
-    ...(meta?.family ? [`NBS publishes this table in ${meta.family.members.length} year-range pieces, nominally ${meta.family.span}; they are joined here into one series, and the Range below is what the pieces hold. Where two pieces overlap, the newer one is used.`] : []),
-  ];
-  const readingNotesZh = meta?.annotationEn && meta.annotation ? meta.annotation : "";
   const nextRelease = props.releases.filter((release) => release.keys.includes(primary.key) && isUpcoming(release.date)).sort((a, b) => a.date.localeCompare(b.date))[0];
   const stale = primary.source === "stale";
   const zhFirst = props.lang === "zh" || !meta?.nameEn;
@@ -2132,7 +2156,7 @@ function SeriesPage(props: {
   ];
   const downloadCsv = (selected: boolean) => {
     const exported = selected ? viewTracks : tracks;
-    const notes = [...processingNotes, selected ? "Selected chart/table period range." : "All loaded periods; frequency and transformations follow the current chart options."];
+    const notes = [...processingNotes, ...results.flatMap(result => catalogNotesForExport(displayTitle(result, results), result.metadata)), selected ? "Selected chart/table period range." : "All loaded periods; frequency and transformations follow the current chart options."];
     downloadBlob(shareFileName(props.route.keys, "csv"), new Blob([csvOf(
       results.map(result => {
         const english = displayTitle(result, results);
@@ -2322,10 +2346,7 @@ function SeriesPage(props: {
       <section className="details">
         <div className="card about">
           <h2>Notes</h2>
-          {definition ? <p><Zh>{definition}</Zh>{definitionZh && <Zh className="gloss block">{definitionZh}</Zh>}</p> : readingNotes.length === 0 ? <p className="muted">No note written for this series yet.</p> : null}
-          {readingNotes.length > 0 && (definition ? <ul>{readingNotes.map((note) => <li key={note}><Zh>{note}</Zh></li>)}</ul> : readingNotes.map((note) => <p key={note}><Zh>{note}</Zh></p>))}
-          {meta?.growthSibling && <p>NBS publishes a growth rate for this table, <a href={seriesHash([meta.growthSibling.key], { region: primary.region?.value })}><Zh>{meta.growthSibling.name}</Zh></a>, computed on a scope held comparable with the year before. These levels are on the current scope, so a year-over-year change worked out from them will differ from the published rate.</p>}
-          {readingNotesZh && <p><Zh className="gloss block">{readingNotesZh}</Zh></p>}
+          <SeriesNotes results={results} curated={props.curated} />
         </div>
         <div className="card">
           <h2>Series Details</h2>
