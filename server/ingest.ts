@@ -370,6 +370,20 @@ export async function fillRegionalSeries(key: string, limit = 40): Promise<{ fet
  * January, April, July and October does — so the caller passes a target per
  * frequency rather than one target and one frequency.
  */
+/**
+ * The oldest period a series can hold and still be one release behind the
+ * target: two months for a monthly target (the bureau publishes January and
+ * February together for many series, so December is the period before a
+ * February), one quarter for a quarterly one. In the quarter-end month form
+ * comparablePeriod gives.
+ */
+export function earliestOnCadence(target: ReleaseTarget): string {
+  const [year = 0, month = 1] = target.period.split("-").map(Number);
+  const back = target.frequency === "Quarterly" ? 3 : 2;
+  const at = new Date(Date.UTC(year, month - 1 - back, 1));
+  return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export async function refreshCatalogForRelease(
   categories: string[],
   targets: ReleaseTarget[],
@@ -402,6 +416,12 @@ export async function refreshCatalogForRelease(
       const held = stored.get(`${entry.key}@${region.value}`);
       if (!held) continue; // never stored: the crawl's job, not the release's
       if (comparablePeriod(held.lastPeriod) >= target.period) continue;
+      // A place far behind is not on this release's cadence: it stopped
+      // publishing the indicator (boiler output in Hainan, Tibet, Qinghai and
+      // Ningxia ends in 2021) or is published on another schedule. Chasing it
+      // was most of the 27 September profits release's 9,995 pending series,
+      // asked at every one of 66 attempts. The due-based refresh still covers it.
+      if (comparablePeriod(held.lastPeriod) < earliestOnCadence(target)) continue;
       wanted.push({ entry, region });
     }
   }
