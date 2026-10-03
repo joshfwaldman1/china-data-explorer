@@ -185,16 +185,20 @@ test("the report stays cheap on a log the size production actually keeps", () =>
   // before the deploy rather than after.
   const bulk = 20_000;
   const start = Date.now() - 40 * 86_400_000;
-  for (let index = 0; index < bulk; index += 1) {
-    // Mostly successful runs, as a real log is, with a recurring failure in it.
-    const at = new Date(start + index * 60_000).toISOString();
-    logFetch({
-      key: index % 50 === 0 ? `noisy_source_${index % 200}` : "cpi",
-      startedAt: at, finishedAt: at,
-      status: index % 50 === 0 ? "error" : "ok",
-      points: 1, changed: 0, message: index % 50 === 0 ? "a failure worth reporting" : "",
-    });
-  }
+  // Fixture setup is one transaction; the measured report query is unchanged.
+  // Per-row durable commits made setup exceed the timeout on macOS.
+  db().transaction(() => {
+    for (let index = 0; index < bulk; index += 1) {
+      // Mostly successful runs, as a real log is, with a recurring failure in it.
+      const at = new Date(start + index * 60_000).toISOString();
+      logFetch({
+        key: index % 50 === 0 ? `noisy_source_${index % 200}` : "cpi",
+        startedAt: at, finishedAt: at,
+        status: index % 50 === 0 ? "error" : "ok",
+        points: 1, changed: 0, message: index % 50 === 0 ? "a failure worth reporting" : "",
+      });
+    }
+  })();
   const began = Date.now();
   const report = healthReport([agreeing]);
   const took = Date.now() - began;

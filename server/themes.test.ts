@@ -142,13 +142,13 @@ test("the share aged 65 and over is worked out from the bureau's counts, year by
   expect(chart.result?.series[0]?.points).toEqual([{ date: "2024", value: 15.64 }, { date: "2025", value: 15.92 }]);
 });
 
-test("the three-month trade average gives January and February the combined two-month rate and skips a short window", async () => {
+test("the three-month trade average uses separate monthly rates and never fills missing months with YTD growth", async () => {
   const stamp = new Date().toISOString();
   writeSeries({
     key: "trade", title: "Merchandise Trade", agency: "General Administration of Customs", unit: "Percent change from year ago", frequency: "Monthly", sourceUrl: "http://english.customs.gov.cn/",
     series: [
-      { label: "Exports (YoY %)", points: [{ date: "2025-11", value: 5.9 }, { date: "2025-12", value: 6.6 }, { date: "2026-02", value: 39.6 }, { date: "2026-03", value: 2.5 }, { date: "2026-04", value: 14.1 }] },
-      { label: "Imports (YoY %)", points: [{ date: "2025-11", value: 1.9 }, { date: "2025-12", value: 5.7 }, { date: "2026-02", value: 13.8 }, { date: "2026-03", value: 27.8 }, { date: "2026-04", value: 25.3 }] },
+      { label: "Exports (YoY %)", points: [{ date: "2025-11", value: 5.9 }, { date: "2025-12", value: 6.6 }, { date: "2026-01", value: 10 }, { date: "2026-02", value: 39.6 }, { date: "2026-03", value: 2.5 }, { date: "2026-04", value: 14.1 }] },
+      { label: "Imports (YoY %)", points: [{ date: "2025-11", value: 1.9 }, { date: "2025-12", value: 5.7 }, { date: "2026-01", value: 26.9 }, { date: "2026-02", value: 14.7 }, { date: "2026-03", value: 27.8 }, { date: "2026-04", value: 25.3 }] },
       { label: "Exports, year to date (YoY %)", points: [{ date: "2026-02", value: 21.8 }, { date: "2026-03", value: 15.2 }] },
       { label: "Imports, year to date (YoY %)", points: [{ date: "2026-02", value: 18.6 }, { date: "2026-03", value: 21.9 }] },
     ],
@@ -157,11 +157,13 @@ test("the three-month trade average gives January and February the combined two-
   const chart = data!.sections.flatMap((section) => section.charts).find((item) => item.derive === "trade_3m")!;
   const exports = chart.result?.series.find((line) => line.label.startsWith("Exports"))?.points ?? [];
   const at = (date: string) => exports.find((point) => point.date === date)?.value;
-  // January and February 2026 are both 21.8, the combined rate: January averages 5.9, 6.6 and 21.8, February 6.6, 21.8 and 21.8.
-  expect(at("2026-01")).toBe(11.4);
-  expect(at("2026-02")).toBe(16.7);
-  expect(at("2026-03")).toBe(15.4);
-  expect(at("2026-04")).toBe(12.8);
+  // Published monthly rates, even when a different YTD rate exists for February.
+  expect(at("2026-01")).toBe(7.5);
+  expect(at("2026-02")).toBe(18.7);
+  expect(at("2026-03")).toBe(17.4);
+  expect(at("2026-04")).toBe(18.7);
   // November 2025 has no September and October behind it here, so no point.
   expect(at("2025-11")).toBeUndefined();
+  const imports = chart.result?.series.find(line => line.label.startsWith("Imports"))?.points ?? [];
+  expect(imports.find(point => point.date === "2026-02")?.value).toBe(15.8);
 });

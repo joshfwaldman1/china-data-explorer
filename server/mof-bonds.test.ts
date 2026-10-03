@@ -72,3 +72,35 @@ test("the department's listing page as published in September 2026 lists the mon
   expect(releases[0]).toEqual({ title: "2026年7月地方政府债券发行和债务余额情况", url: "https://zwgls.mof.gov.cn/tjsj/202609/t20260909_3997013.htm", publishedAt: "2026-09-09", period: "2026-07" });
   expect(releases.map((release) => release.period)).toEqual(["2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01", "2025-12", "2025-11", "2025-10"]);
 });
+
+test("March's abbreviated debt unit is accepted only when the yuan-denominated components corroborate it", async () => {
+  const html = await fixture("bonds-2026-03.html");
+  const figures = parseBondRelease(html);
+  expect(figures?.level).toEqual({ bondIssuance: 10843, bondGeneral: 3115, bondSpecial: 7728, bondNew: 3853, bondRefinancing: 6990, bondRate: 2.14, debtBalance: 572587, debtGeneral: 177973, debtSpecial: 394614 });
+  const bad = parseBondRelease(html.replace("572587", "572500"));
+  expect(bad?.level.debtBalance).toBeUndefined();
+  expect(bad?.level.bondIssuance).toBe(10843);
+});
+
+test("February 2025 remains readable from the relocated department release", async () => {
+  const figures = parseBondRelease(await fixture("bonds-2025-02.html"));
+  expect(figures?.level.bondIssuance).toBe(13057);
+  expect(figures?.level.debtBalance).toBe(492859);
+});
+
+test("a missing monthly field does not fall through to the cumulative section", () => {
+  const figures = parseBondRelease("（一）当月发行情况。全国发行新增债券50亿元。（二）累计发行情况。合计，全国发行地方政府债券500亿元，其中一般债券200亿元、专项债券300亿元。");
+  expect(figures?.level.bondNew).toBe(50);
+  expect(figures?.level.bondIssuance).toBeUndefined();
+});
+
+test("current department figures survive an unavailable older archive", async () => {
+  const html = await fixture("bonds-2026-03.html");
+  const read = async (url: string) => {
+    if (url.includes("yss.mof")) throw new Error("HTTP 403");
+    if (url.endsWith("/index.htm")) return '<a href="./march.htm">2026年3月地方政府债券发行和债务余额情况</a>';
+    return url.endsWith("march.htm") ? html : "";
+  };
+  const result = await fetchMof("lgb_issuance", { kind: "mof", table: "bonds", group: "Finance", title: "Bonds", agency: "MOF", frequency: "Monthly", unit: "亿元", measure: "level", items: ["bondIssuance"] }, 24, read);
+  expect(result.series[0]?.points).toEqual([{ date: "2026-03", value: 10843 }]);
+});

@@ -21,7 +21,8 @@ test("every series of a publisher off the NBS calendar names its release day", (
   expect(days.get("fiscal_revenue")).toBe(25);
   expect(days.get("land_sale_revenue")).toBe(25);
   expect(days.get("fdi_actual_use")).toBe(22);
-  expect(days.get("trade")).toBe(14);
+  expect(days.get("trade")).toBe(20);
+  expect(days.get("trade_values")).toBe(20);
   expect(days.get("trade_partners")).toBe(14);
   // NBS series are on the bureau's calendar and carry none.
   expect(days.has("cpi")).toBe(false);

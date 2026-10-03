@@ -21,6 +21,7 @@
 
 import type { SeriesPoint, SeriesResult } from "./data";
 import { upstreamFetch } from "./upstream";
+import { ReleaseCache } from "./release-cache";
 
 const SITE = "https://www.nea.gov.cn";
 /** The 新闻发布 category's datasource, as the listing page names it. */
@@ -173,8 +174,15 @@ async function get(url: string): Promise<string> {
   return response.text();
 }
 
-/** Parsed pages by URL: a release never changes once published, so a process reads each once. */
-const parsed = new Map<string, NeaFigures | null>();
+/** Revisit the same URL periodically in case the publisher corrects it. */
+const parsed = new ReleaseCache<NeaFigures | null>();
+
+// The central feed omits this release; NEA's Northwest office republishes it.
+// Keep the source URL here, and read the figures from the publisher each time.
+const SUPPLEMENTAL_RELEASES = [{
+  title: "2026年5月份全社会用电量同比增长6.9%", period: "2026-05", publishedAt: "2026-06-26",
+  url: "https://xbj.nea.gov.cn/dtyw/hyxx/202606/t20260626_303637.html",
+}];
 
 /**
  * The series of one key over the newest `limit` releases: the levels or the
@@ -182,16 +190,18 @@ const parsed = new Map<string, NeaFigures | null>();
  */
 export async function fetchNea(key: string, cfg: NeaIndicator, limit: number, read: (url: string) => Promise<string> = get): Promise<SeriesResult> {
   const releases = demandReleases(JSON.parse(await read(FEED))).slice(0, Math.max(1, limit));
+  const supplements = SUPPLEMENTAL_RELEASES.filter(release => releases.length > 0 && release.publishedAt >= releases.at(-1)!.publishedAt);
   const figures: NeaFigures[] = [];
   const pause = read === get ? PAUSE_MS : 0; // pacing is for the site, not for a test's fixtures
   let fetched = 0;
-  for (const release of releases) {
-    let item = parsed.get(release.url);
+  for (const release of [...releases, ...supplements]) {
+    if ("period" in release && figures.some(item => item.period === release.period)) continue;
+    let item = read === get ? parsed.get(release.url) : undefined;
     if (item === undefined) {
       if (fetched > 0 && pause > 0) await Bun.sleep(pause);
       fetched += 1;
       item = parseNeaRelease(await read(release.url), release.publishedAt);
-      parsed.set(release.url, item);
+      if (read === get) parsed.set(release.url, item);
     }
     if (item) figures.push(item);
   }

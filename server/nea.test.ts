@@ -103,3 +103,13 @@ test("February 2022's release names the month in a clause before the subject; it
   expect(figures?.yearToDate?.totalGrowth).toBe(5.8);
   expect(figures?.yearToDate?.secondary).toBe(8413);
 });
+
+test("an official regional republication fills the central feed's May gap", async () => {
+  const feed = await fixture("xwfb-feed.json");
+  const html = await fixture("release-2026-05-republished.html");
+  expect(parseNeaRelease(html, "2026-06-26")?.month?.total).toBe(8671);
+  const read = async (url: string) => url.endsWith(".json") ? feed : url.includes("xbj.nea.gov.cn") ? html : "";
+  const result = await fetchNea("electricity_demand", { kind: "nea", group: "Energy", title: "Demand", agency: "NEA", frequency: "Monthly", unit: "亿千瓦时", measure: "level" }, 8, read);
+  expect(result.series.find(line => line.label === "All users, month")?.points).toEqual([{ date: "2026-05", value: 8671 }]);
+  expect(result.series.find(line => line.label === "All users, year to date")?.points).toEqual([{ date: "2026-05", value: 42018 }]);
+});

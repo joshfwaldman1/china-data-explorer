@@ -18,6 +18,7 @@
 
 import type { SeriesPoint, SeriesResult } from "./data";
 import { upstreamFetch } from "./upstream";
+import { ReleaseCache } from "./release-cache";
 
 const DATA_CENTRE = "https://data.mofcom.gov.cn/datamofcom/front/lywz/direct/query";
 const SITE = "https://www.mofcom.gov.cn";
@@ -77,9 +78,11 @@ export interface FdiRelease { title: string; url: string; period: string }
 /** "2026年1-7月全国吸收外资4383.3亿元人民币" -> 2026-07; "2025年全国吸收外资…" -> 2025-12. */
 export function periodOfTitle(title: string): string | null {
   const year = title.match(/(\d{4})年/)?.[1];
-  if (!year || !/全国吸收外资/.test(title)) return null;
-  const range = title.match(/年\s*1\s*[-－~～至]\s*(\d{1,2})\s*月/);
-  if (range?.[1]) return `${year}-${range[1].padStart(2, "0")}`;
+  if (!year || !/全国吸收外资/.test(title.replace(/\s+/g, ""))) return null;
+  // January is published separately. Later releases use several dash glyphs.
+  const range = title.match(/年\s*1\s*[-－~～至–—]\s*(\d{1,2})\s*月/);
+  if (range?.[1]) return Number(range[1]) >= 1 && Number(range[1]) <= 12 ? `${year}-${range[1].padStart(2, "0")}` : null;
+  if (/年\s*1\s*月/.test(title)) return `${year}-01`;
   if (/上半年/.test(title)) return `${year}-06`;
   if (/一季度/.test(title)) return `${year}-03`;
   if (/^\d{4}年全国吸收外资/.test(title.trim())) return `${year}-12`;
@@ -141,8 +144,8 @@ export function listPageUrl(pageNo: number): string {
   return `${LIST_API}?${new URLSearchParams({ ...LIST_UNIT, paramJson: JSON.stringify({ pageNo, pageSize: 20 }) }).toString()}`;
 }
 
-/** Parsed releases by URL: a release never changes, so a process reads each once. */
-const parsed = new Map<string, FdiFigures | null>();
+/** Re-read archived URLs after the cache expires, including previously unparsed pages. */
+const parsed = new ReleaseCache<FdiFigures | null>();
 
 /** Labels per measure, in order. */
 export function mofcomLabels(cfg: MofcomIndicator): string[] {
@@ -186,12 +189,12 @@ export async function fetchMofcom(key: string, cfg: MofcomIndicator, limit: numb
     }
     let fetched = 0;
     for (const release of releases.slice(0, limit)) {
-      let figures = parsed.get(release.url);
+      let figures = readers === live ? parsed.get(release.url) : undefined;
       if (figures === undefined) {
         if (fetched > 0 && pause > 0) await Bun.sleep(pause);
         fetched += 1;
         figures = parseFdiRelease(await readers.page(release.url));
-        parsed.set(release.url, figures);
+        if (readers === live) parsed.set(release.url, figures);
       }
       if (!figures) continue;
       if (cfg.measure === "enterprises") put("New foreign-invested enterprises, year to date (ministry release)", release.period, figures.enterprises);

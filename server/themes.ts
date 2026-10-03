@@ -239,8 +239,8 @@ const ENERGY: Theme = {
         { title: "Thermal and hydro generation, month", key: "electricity_by_source", labels: ["Thermal, month (亿千瓦时)", "Hydro, month (亿千瓦时)"], years: 8 },
         { title: "Wind, solar and nuclear generation, month", key: "electricity_by_source", labels: ["Wind, month (亿千瓦时)", "Solar, month (亿千瓦时)", "Nuclear, month (亿千瓦时)"], years: 8, note: "Above-threshold industrial generators only (规上工业). Most distributed solar, rooftop included, is outside it." },
         { title: "Thermal, wind and solar generation, growth on a year earlier", key: "electricity_by_source_growth", labels: ["Thermal (YoY %)", "Wind (YoY %)", "Solar (YoY %)"], years: 8, note: "The bureau's rates, on a comparable set of enterprises. They run below growth worked out from the levels, most for solar (Aug 2026: 10.3% against 30%)." },
-        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 5, note: "The administration gives no December figure. Its annual release comes in January. No release was published for May 2026." },
-        { title: "Electricity consumption by user, growth on a year earlier", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 5, note: "The administration gives no December figure. Its annual release comes in January. No release was published for May 2026." },
+        { title: "Electricity consumption, month", key: "electricity_demand", labels: ["All users, month"], years: 5, note: "The administration gives no December figure. Its annual release comes in January. May 2026 comes from the administration’s Northwest office republication, which is absent from the central feed." },
+        { title: "Electricity consumption by user, growth on a year earlier", key: "electricity_demand_growth", labels: ["All users, month (YoY %)", "Secondary industry, month (YoY %)", "Households, month (YoY %)"], years: 5, note: "The administration gives no December figure. Its annual release comes in January. May 2026 comes from the administration’s Northwest office republication, which is absent from the central feed." },
       ],
     },
     {
@@ -615,10 +615,10 @@ export const THEMES: Record<string, Theme> = {
       {
         title: "Totals and where growth comes from",
         charts: [
-          { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank. For 2026 Customs published February on its own and no January." },
-          { title: "Exports and imports, growth on a year earlier, month", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 8, note: "Customs' own rates in USD terms. January and February were published only as a combined figure for 2020 to 2025. February 2026's 39.6% reflects the late Lunar New Year." },
-          { title: "Exports and imports, growth on a year earlier, three-month average", key: "trade", derive: "trade_3m", years: 8, note: "Customs' rates in US dollar terms, averaged over the latest three months. January and February both take the combined two-month rate, as Customs publishes it." },
-          { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 8, note: "Customs published only a combined January and February for 2020 to 2025. Those months are left blank." },
+          { title: "Exports and imports, value per month", key: "trade_values", labels: ["Exports", "Imports"], years: 8, note: "Customs monthly bulletin, in US dollars, including separately published January and February. Later bulletins can revise earlier levels. Not seasonally adjusted." },
+          { title: "Exports and imports, growth on a year earlier, month", key: "trade", labels: ["Exports (YoY %)", "Imports (YoY %)"], years: 8, note: "Customs monthly bulletin’s published year-over-year rates in US dollars. January and February are separate months; Lunar New Year timing affects both. Not seasonally adjusted." },
+          { title: "Exports and imports, growth on a year earlier, three-month average", key: "trade", derive: "trade_3m", years: 8, note: "Arithmetic mean of three consecutive published monthly year-over-year rates in US dollars. A missing month leaves a gap. This smooths Lunar New Year effects but is not seasonal adjustment." },
+          { title: "Trade balance, month", key: "trade_values", labels: ["Balance"], years: 8, note: "Monthly surplus in US dollars, as published in the Customs monthly bulletin. Rounded exports less imports may differ slightly from the published balance." },
           { title: "Contributions to quarterly GDP growth, by expenditure", key: "gdp_contributions", years: 8, note: "Shares of the quarter's growth. The three sum to 100." },
         ],
       },
@@ -740,19 +740,15 @@ function share65(): SeriesResult | null {
 
 /**
  * Customs' export and import growth rates averaged over three months, the
- * form these rates are usually read in: one month carries the Lunar New Year
- * and the combined January-February release. January and February both take
- * the combined two-month rate, which Customs publishes as the February year
- * to date; a month with no rate leaves the window short and the point is
- * skipped rather than averaged over fewer months.
+ * monthly bulletin supplies January and February separately. A missing
+ * calendar month leaves the window short, so no average is published.
  */
 function trade3m(): SeriesResult | null {
   const trade = readSeries("trade", 400);
   if (!trade) return null;
   const line = (label: string) => new Map((trade.series.find((item) => item.label === label)?.points ?? []).map((point) => [point.date, point.value]));
-  const smooth = (month: Map<string, number>, ytd: Map<string, number>) => {
+  const smooth = (month: Map<string, number>) => {
     const rates = new Map(month);
-    for (const [date, value] of ytd) if (date.endsWith("-02")) { rates.set(`${date.slice(0, 4)}-01`, value); rates.set(date, value); }
     const dates = [...rates.keys()].sort();
     const points: { date: string; value: number }[] = [];
     for (const date of dates) {
@@ -765,8 +761,8 @@ function trade3m(): SeriesResult | null {
     }
     return points;
   };
-  const exports = smooth(line("Exports (YoY %)"), line("Exports, year to date (YoY %)"));
-  const imports = smooth(line("Imports (YoY %)"), line("Imports, year to date (YoY %)"));
+  const exports = smooth(line("Exports (YoY %)"));
+  const imports = smooth(line("Imports (YoY %)"));
   if (exports.length === 0 && imports.length === 0) return null;
   return {
     key: "trade", title: "Exports and imports, growth on a year earlier, three-month average", agency: trade.agency, sourceUrl: trade.sourceUrl,

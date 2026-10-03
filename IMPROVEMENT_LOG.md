@@ -98,6 +98,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+
+### 2 October 2026 — methodology and missing-month repairs (prepared for review)
+
+Aggregate trade now uses Customs’ monthly bulletin table 1B, and its three-month average uses actual separate monthly rates instead of replacing January and February with YTD growth. A paced live check returned 104 consecutive monthly growth observations, January 2018–August 2026. Newer bulletins’ restated levels take precedence; published growth rates remain separate from calculations on revised levels.
+
+Parser repairs recover legacy fiscal/land-sale headings, January and em-dash FDI headings, and local-bond releases whose debt total omits 元. The NEA Northwest office’s official republication fills May 2026 electricity demand. Archived MOF/MOFCOM/NEA parsed pages now expire after six hours so they can be rechecked. Production and seed data were not changed in this round; the normal refresh after deployment performs the backfill.
+
+Validation: typecheck and all 573 tests passed, including Chrome rendering. The health-report fixture initially exceeded its setup timeout doing 20,000 durable commits; setup now uses one transaction, with the same row count and unchanged two-second report assertion. Captured publisher fixtures and regression tests cover the recovered periods, USD units, complete calendar coverage, restatement precedence, cache expiry and monthly/YTD separation. The older MOF bond archive returned 403 and remains a coverage limitation. Source links and rollout details: `docs/methodology-coverage-2026-10-02.md`.
+
 - 2026-10-03 (release refresh chases only places on its cadence): the 27
   Sep profits release's 9,995 pending series are mostly places that
   stopped publishing an indicator long ago. A sample, provincial boiler
