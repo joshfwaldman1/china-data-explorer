@@ -63,11 +63,11 @@ export const SOURCE_METHODOLOGY: Record<string, SourceMethodology> = {
   customs: {
     title: "Customs' own trade release",
     publisher: "General Administration of Customs of China",
-    reads: "The monthly statistics tables on customs.gov.cn: the totals table, and the tables by trading partner and by commodity, in both US dollars and yuan.",
-    how: "The release's own HTML tables are parsed. The administration has changed the by-country header layout twice since 2023, so three layouts are recognised and each has a fixture.",
-    revisions: "Customs revises the previous months inside each release. The site stores each reading, so a revised month arrives as a new vintage.",
+    reads: "The USD monthly bulletin’s summary table 1B for aggregate trade; preliminary release tables for trade by partner and commodity, in US dollars or yuan.",
+    how: "The publisher’s HTML tables are parsed. For aggregate trade, the latest available bulletin for each reference year supplies published monthly and year-to-date growth. Newer bulletins’ restated levels take precedence over older ones. Rates are not recalculated from levels of different vintages.",
+    revisions: "Customs warns that verification can change earlier figures and that the latest release is more accurate. The site rechecks bulletin pages after a six-hour cache expires and retains changed readings in its revision history. A fetch date records when this site observed a value, not when Customs first published it.",
     caveats: [
-      "January and February are published as a combined total; the separate months are not derived.",
+      "The aggregate monthly bulletin publishes January and February separately. Preliminary partner and commodity tables may combine them; missing monthly observations are not inferred.",
       "Figures in yuan and in US dollars are different series, not a conversion, because the administration compiles both.",
     ],
   },
@@ -129,7 +129,7 @@ export const SOURCE_METHODOLOGY: Record<string, SourceMethodology> = {
   nea: {
     title: "The energy administration's electricity note",
     publisher: "National Energy Administration",
-    reads: "The monthly note on electricity consumption for the whole of society, with the month and the year to date, by user group.",
+    reads: "The monthly note on electricity consumption for the whole of society, with the month and the year to date, by user group. May 2026 is read from the official Northwest office republication because it is missing from the central feed.",
     how: "The note's prose is parsed. It is prose, not a table, and its wording changes: the range has been written with four different dashes and the total with a clause between the subject and its figure.",
     revisions: "The administration does not mark revisions; a later note simply states a different figure.",
     caveats: [
@@ -234,6 +234,10 @@ export function methodologyFor(key: string, entry?: CatalogEntry): KeyMethodolog
   }
   if (source === "nbs" && config.frequency === "Monthly") {
     caveats.push("No January figure: the bureau publishes January and February together.");
+  }
+  if (config.kind === "customs" && config.publication === "monthly-bulletin") {
+    caveats.push("Uses the monthly bulletin, which arrives later than the preliminary trade release. Separate January and February observations are published by Customs. Figures are not seasonally adjusted.");
+    caveats.push("Levels use the newest restatement available in the bulletins read. Growth uses the latest published rate for that reference year, so it need not equal growth calculated from subsequently revised levels.");
   }
   const names = pairsFor(key);
   const check: KeyMethodology["check"] =

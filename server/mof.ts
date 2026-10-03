@@ -18,6 +18,7 @@
 
 import type { SeriesPoint, SeriesResult } from "./data";
 import { upstreamFetch } from "./upstream";
+import { ReleaseCache } from "./release-cache";
 
 // https: the plain-http listing answers 502 on every try (30 September 2026), which is where the
 // repeated "MOF -> HTTP 502" failures came from; the https site and its release pages answer.
@@ -25,6 +26,7 @@ const SITE = "https://gks.mof.gov.cn";
 const LISTING = `${SITE}/tongjishuju/`;
 /** The Debt Management Department's statistics listing: the monthly 地方政府债券发行和债务余额情况 releases (from 2026; the budget department's page holds the years before). */
 const BONDS_LISTING = "https://zwgls.mof.gov.cn/tjsj/";
+const BONDS_ARCHIVE = "https://yss.mof.gov.cn/zhuantilanmu/dfzgl/sjtj/";
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const PAUSE_MS = 1000;
 const ATTEMPTS = 4;
@@ -95,8 +97,9 @@ export function periodOfTitle(title: string): string | null {
   const year = title.match(/(\d{4})年/)?.[1];
   if (!year) return null;
   // "2026年8月地方政府债券发行和债务余额情况" -> 2026-08.
-  const bondMonth = title.match(/(\d{4})年\s*(\d{1,2})\s*月地方政府债券/);
-  if (bondMonth?.[2]) return `${bondMonth[1]}-${bondMonth[2].padStart(2, "0")}`;
+  // Older fiscal headings say "4月" even though the release's values are YTD.
+  const month = title.match(/(\d{4})年\s*(\d{1,2})\s*月(?:地方政府债券发行和债务余额情况|财政收支情况)/);
+  if (month?.[2]) return Number(month[2]) >= 1 && Number(month[2]) <= 12 ? `${month[1]}-${month[2].padStart(2, "0")}` : null;
   // The dash varies by release: "1-7月" in August 2026, "1—8月" (an em dash) in
   // September; a set without the em dash skipped the newest release outright.
   const range = title.match(/年\s*1\s*[-－~～至–—]\s*(\d{1,2})\s*月/);
@@ -152,23 +155,31 @@ export function parseBondListing(html: string, base = BONDS_LISTING): MofRelease
 export function parseBondRelease(html: string): MofFigures | null {
   const text = html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/\s+/g, "");
-  const number = (pattern: RegExp): number | undefined => {
-    const found = pattern.exec(text);
+  const number = (pattern: RegExp, body = text): number | undefined => {
+    const found = pattern.exec(body);
     const value = found?.[1] !== undefined ? Number(found[1]) : NaN;
     return Number.isFinite(value) ? value : undefined;
   };
   const level: MofFigures["level"] = {};
+  // Never fall through to a similarly worded YTD figure if a monthly field is absent.
+  const monthlyText = text.split(/（二）|\(二\)/)[0] ?? text;
   // 2025: "合计，全国发行地方政府债券8619亿元，其中…"; 2026: "全国发行地方政府债券合计7383亿元，其中…".
-  const total = /(?:合计，全国发行地方政府债券|全国发行地方政府债券合计)([\d.]+)亿元，其中一般债券([\d.]+)亿元、专项债券([\d.]+)亿元/.exec(text);
+  const total = /(?:合计，全国发行地方政府债券|全国发行地方政府债券合计)([\d.]+)亿元，其中一般债券([\d.]+)亿元、专项债券([\d.]+)亿元/.exec(monthlyText);
   if (total) { level.bondIssuance = Number(total[1]); level.bondGeneral = Number(total[2]); level.bondSpecial = Number(total[3]); }
-  level.bondNew = number(/全国发行新增(?:地方政府)?债券([\d.]+)亿元/);
-  level.bondRefinancing = number(/全国发行再融资债券([\d.]+)亿元/);
-  level.bondRate = number(/地方政府债券平均发行利率([\d.]+)%/);
+  level.bondNew = number(/全国发行新增(?:地方政府)?债券([\d.]+)亿元/, monthlyText);
+  level.bondRefinancing = number(/全国发行再融资债券([\d.]+)亿元/, monthlyText);
+  level.bondRate = number(/地方政府债券平均发行利率([\d.]+)%/, monthlyText);
   level.debtBalance = number(/全国地方政府债务余额([\d.]+)亿元/);
-  const split = /债务余额[\d.]+亿元。其中，一般债务([\d.]+)亿元，专项债务([\d.]+)亿元/.exec(text);
+  const split = /债务余额[\d.]+亿(?:元)?。其中，一般债务([\d.]+)亿元，专项债务([\d.]+)亿元/.exec(text);
   if (split) { level.debtGeneral = Number(split[1]); level.debtSpecial = Number(split[2]); }
+  // March 2026 omits 元 after the total. Accept that wording only when the
+  // explicitly yuan-denominated components corroborate its scale and total.
+  if (level.debtBalance === undefined && level.debtGeneral !== undefined && level.debtSpecial !== undefined) {
+    const abbreviated = number(/全国地方政府债务余额([\d.]+)亿。/);
+    if (abbreviated !== undefined && Math.abs(abbreviated - level.debtGeneral - level.debtSpecial) <= 1) level.debtBalance = abbreviated;
+  }
   for (const key of Object.keys(level) as MofItem[]) if (level[key] === undefined) delete level[key];
-  return level.bondIssuance !== undefined && level.debtBalance !== undefined ? { level, growth: {} } : null;
+  return Object.keys(level).length > 0 ? { level, growth: {} } : null;
 }
 
 export interface MofFigures { level: Partial<Record<MofItem, number>>; growth: Partial<Record<MofItem, number>> }
@@ -201,8 +212,8 @@ async function get(url: string): Promise<string> {
   throw new Error(last || "MOF -> no answer");
 }
 
-/** Parsed releases by URL: a release never changes, so a process reads each once. */
-const parsed = new Map<string, MofFigures | null>();
+/** Do not assume archived pages are immutable; keep only a short-lived copy. */
+const parsed = new ReleaseCache<MofFigures | null>();
 
 /**
  * The series of one key over the newest `limit` releases. Listing pages are
@@ -214,22 +225,38 @@ export async function fetchMof(key: string, cfg: MofIndicator, limit: number, re
   const bonds = cfg.table === "bonds";
   const listing = bonds ? BONDS_LISTING : LISTING;
   const releases: MofRelease[] = [];
-  for (let page = 0; page < 12 && releases.length < limit; page += 1) {
-    const url = `${listing}${page === 0 ? "index.htm" : `index_${page}.htm`}`;
-    if (page > 0 && pause > 0) await Bun.sleep(pause);
-    const found = bonds ? parseBondListing(await read(url), listing) : parseListing(await read(url), listing);
-    if (found.length === 0) break;
-    releases.push(...found);
+  const seen = new Set<string>();
+  let listingReads = 0;
+  for (const source of bonds ? [listing, BONDS_ARCHIVE] : [listing]) {
+    for (let page = 0; page < 12 && releases.length < limit; page += 1) {
+      const url = `${source}${page === 0 ? "index.htm" : `index_${page}.htm`}`;
+      if (listingReads++ > 0 && pause > 0) await Bun.sleep(pause);
+      let html: string;
+      try { html = await read(url); }
+      catch (error) {
+        if (source !== BONDS_ARCHIVE || releases.length === 0) throw error;
+        console.warn(`MOF: older bond archive unavailable; keeping current department releases: ${error}`);
+        break;
+      }
+      const found = bonds ? parseBondListing(html, source) : parseListing(html, source);
+      if (found.length === 0) break;
+      for (const release of found) {
+        if (seen.has(release.period)) continue;
+        seen.add(release.period);
+        releases.push(release);
+      }
+    }
   }
+  releases.sort((a, b) => b.period.localeCompare(a.period));
   const lines = new Map<string, Map<string, number>>();
   let fetched = 0;
   for (const release of releases.slice(0, limit)) {
-    let figures = parsed.get(release.url);
+    let figures = read === get ? parsed.get(release.url) : undefined;
     if (figures === undefined) {
       if (fetched > 0 && pause > 0) await Bun.sleep(pause);
       fetched += 1;
       figures = bonds ? parseBondRelease(await read(release.url)) : parseFiscalRelease(await read(release.url));
-      parsed.set(release.url, figures);
+      if (read === get) parsed.set(release.url, figures);
     }
     if (!figures) continue;
     for (const item of cfg.items) {

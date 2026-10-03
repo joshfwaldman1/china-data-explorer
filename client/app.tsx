@@ -282,7 +282,7 @@ const ABOUT: Record<string, string> = {
   retail_sales: "Retail sales of consumer goods, nominal, on a year earlier. Includes goods sold to households and to institutions. Catering is included. Most services are not. January and February are published together. The February point carries the combined figure and there is no January point.",
   money_supply: "M1 (cash plus demand deposits) and M2 (M1 plus savings and time deposits) on a year earlier. The People's Bank of China. M1 was redefined in January 2025 to include personal demand deposits.",
   new_loans: "New yuan-denominated loans extended by financial institutions in the month. The People's Bank of China. Strongly seasonal: January is always the largest month.",
-  trade: "Merchandise exports and imports in US dollar terms on a year earlier. The General Administration of Customs. Lunar New Year timing shifts January and February.",
+  trade: "Merchandise exports and imports in US dollar terms on a year earlier, as published in the General Administration of Customs monthly bulletin. January and February are separate observations. Later releases can revise history; Lunar New Year timing affects both months.",
   forex_reserves: "Official foreign exchange reserves held by the PBOC, in US dollars. Valuation effects from currency and bond prices move the total even with no intervention.",
   gold_reserves: "Official gold reserves held by the People's Bank of China, valued in US dollars at market prices, so the series moves with the gold price as well as with purchases. The bank reports holdings in troy ounces. This is the dollar value from the same monthly release.",
   real_estate: "The national real estate climate index, which the National Bureau of Statistics compiles from investment, sales, construction and financing indicators. 100 is neutral. Below 95 is weak.",
@@ -2579,7 +2579,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
               <ul style={{ margin: 0, paddingLeft: 18 }}>
                 {gdp && <li>NBS publishes provincial GDP growth as 本期累计, cumulative for the year. Provincial figures are compiled by provincial bureaus and have historically summed to more than the national total, so treat the ranking as indicative.</li>}
                 {gdp && <li>Growth in small western provinces moves on a low base, so a high rate there is not comparable in weight to Guangdong or Jiangsu.</li>}
-                {trade && <li>Customs' preliminary release, in US dollars, for the month; the following release can revise it. The balance is exports less imports as published.</li>}
+                {trade && <li>Customs’ monthly bulletin, in US dollars, for the month. It arrives later than the preliminary release and can revise earlier figures. The balance is the published surplus.</li>}
                 {trade && total && <li>The Total row is the whole month across every partner and is shown above the ranking rather than in it.</li>}
                 {!gdp && !trade && <li>Provincial and city figures are compiled by local bureaus to the national definition. A level series is published on each year's own reporting scope, so a place's history is not always a like-for-like run.</li>}
                 {!gdp && !trade && data.stored !== undefined && data.stored < data.values.length && <li>{data.stored} of {data.values.length} places are stored so far. The crawl fills the rest in over the following days.</li>}

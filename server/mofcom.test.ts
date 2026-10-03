@@ -58,3 +58,11 @@ test("the adapter joins the two paths: the enterprise count from both, the renmi
   const usd = await fetchMofcom("fdi_actual_use_usd", { ...base, measure: "usd" }, 240, readers);
   expect(usd.series[0]?.points.at(-1)).toEqual({ date: "2023-07", value: 1118 });
 });
+
+test("January and an em-dash range identify the FDI releases previously skipped", async () => {
+  expect(periodOfTitle("2026年1月全国吸收外资920.1亿元人民币")).toBe("2026-01");
+  expect(periodOfTitle("2024年1—9月全国吸收外资6406亿元人民币")).toBe("2024-09");
+  expect(periodOfTitle("2024年1—13月全国吸收外资")).toBeNull();
+  expect(parseFdiRelease(await fixture("release-2026-01.html"))?.cny).toBe(920.1);
+  expect(parseFdiRelease(await fixture("release-2024-09.html"))?.cny).toBe(6406);
+});

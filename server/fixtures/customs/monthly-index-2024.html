@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>News - Newsroom - GACC</title>
+    <link href="/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+    <meta name="viewport" content="width=device-width" />
+    <link href="../../Content/CSS/Site.css" rel="stylesheet" />
+
+    <script src="../../Scripts/jquery-1.8.2.min.js"></script>
+
+    <script src="../../Scripts/Global.js"></script>
+
+
+
+    <!--[if lt IE 7]>
+    <script src="/Scripts/ie7.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div class="g-top">
+        <div class="g-top-lks"><a href="/">Home</a><span>|</span><a href="http://www.customs.gov.cn"
+                target="_blank">中文站</a></div>
+    </div>
+    <div class="g-m">
+
+        <div class="g-hdr">
+            <div class="g-hdr-l g-hdr-logo"><a href="/home/index"><img src="/Images/Image/logo.png" alt="logo" /></a>
+            </div>
+            <div class="g-hdr-r">
+                <div class="g-hdr-tos">
+                    <div class="sb">
+                        <form id="formFTS" method="post" action="/search/search">
+                            <input id="iptFTS" class="ipt-txt" type="text" name="keyword" value="" /><input
+                                class="ipt-sbt" id="iptbtn" type="button" value="" />
+                        </form>
+                    </div>
+                    <div class="rsz"><img id="rszSmall" src="/Images/Image/g-hdr-tos-rsz-s.gif" alt="" /><img
+                            id="rszLarge" src="/Images/Image/g-hdr-tos-rsz-l.gif" alt="" /></div>
+                </div>
+                <div class="g-hdr-ttl">
+                </div>
+                <div class="clr"></div>
+            </div>
+            <div class="clr"></div>
+        </div>
+        <div class="g-nav">
+            <div class="g-nav-pf"><img src="/Images/Image/gacc.png" alt="g-nav-pf"></div>
+            <ul>
+
+                <li class="g-nav-itm home"><a href="/index/home"><img class="home" src="/Images/Image/home.gif"
+                            alt="home" /></a></li>
+                <li class="g-nav-itm">
+                    <a href="/about/mission">About GACC<img class="ab" src="/Images/Image/g-nav-ab.gif"
+                            alt="arrow-down" /></a>
+                    <div class="sub">
+                        <ul>
+                            <li><a href="/about/mission">• Mission</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/about/principalofficials">• Leadership</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/about/organizationalstructure">• Organizational Structure</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/about/rankregime">• Rank Regime</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/about/annualreports">• Annual Reports</a></li>
+                            <li class="sub-end"></li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="g-nav-itm">
+                    <a href="/Legislation/Laws">Legislation<img class="ab" src="/Images/Image/g-nav-ab.gif"
+                            alt="arrow-down" /></a>
+                    <div class="sub">
+                        <ul>
+                            <li><a href="/Legislation/Laws">• Laws &amp; Regulations</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/Legislation/Order">• Customs Decrees</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/Legislation/Announcement">• Customs Announcements</a></li>
+                            <li class="sub-end"></li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="g-nav-itm">
+                    <a href="/newsroom/news">Newsroom<img class="ab" src="/Images/Image/g-nav-ab.gif"
+                            alt="arrow-down" /></a>
+                    <div class="sub">
+                        <ul>
+                            <li><a href="/newsroom/news">• News</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/newsroom/Special">• Special Features</a></li>
+                            <li class="sub-end"></li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="g-nav-itm"><a href="/Reform/html/index.html">Customs Reform</a></li>
+                <li class="g-nav-itm">
+                    <a href="/service/index">Service Center<img class="ab" src="/Images/Image/g-nav-ab.gif"
+                            alt="arrow-down" /></a>
+                    <div class="sub">
+                        <ul>
+                            <li><a href="/service/guide">• Service Guide</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/service/formalities">• General Formalities</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/service/query">• Clearance Status</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/service/characteristic">• Service Navigation</a></li>
+                            <li class="sub-end"></li>
+                            <li><a href="http://ldcorigin.customs.gov.cn" target="_blank">• LDCs'Certification of
+                                    Origin</a></li>
+                            <li class="sub-end"></li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="g-nav-itm">
+                    <a href="/statics/report/preliminary.html" target="_blank">Statistics<img class="ab"
+                            src="/Images/Image/g-nav-ab.gif" alt="arrow-down"></a>
+                    <div class="sub">
+                        <ul>
+                            <li><a href="/statics/report/preliminary.html" target="_blank">• Preliminary Release</a>
+                            </li>
+                            <li class="sub-spl"></li>
+                            <li><a href="http:/statics/report/trade.html" target="_blank">• Trade Indices</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/statics/report/monthly.html" target="_blank">• Monthly Bulletin</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/Statistics/Statistics?ColumnId=3">• Quarterly Release</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/Statistics/Statistics?ColumnId=4">• Release Calendar</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/Statistics/Statistics?ColumnId=5">• Explainatory Notes</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="/Statistics/Statistics?ColumnId=6">• Coverage of Major Imports &amp;
+                                    Exports</a></li>
+                            <li class="sub-spl"></li>
+                            <li><a href="http://stats.customs.gov.cn/indexEn" target="_blank">• Interactive Tables</a>
+                            </li>
+                            <li class="sub-end"></li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+            <div class="clr"></div>
+        </div>
+
+
+
+        <div class="g-pth"><a href="/">Home</a> &gt; <a href="/statics/report/preliminary.html">Statistics</a> &gt; <a
+                class="g-pth-cur">Monthly Bulletin</a></div>
+        <div class="nr-n-container">
+            <div class="nr-n-banner"></div>
+            <div class="nr-n-left nr-n-nav">
+                <div class="nr-n-nav-title"><img src="/Images/Image/logo-tiny.gif" alt="logo-tiny" />Statistics</div>
+                <ul>
+                    <li><a href="/statics/report/preliminary.html" target="_blank">Preliminary Release</a></li>
+                    <li><a href="/statics/report/trade.html">Trade Indices</a></li>
+                    <li class="preliactive"><a href="/statics/report/monthly.html" target="_blank">Monthly Bulletin</a>
+                    </li>
+                    <li><a href="/statistics/Statistics?ColumnId=3">Quarterly Release</a></li>
+                    <li><a href="/statistics/Statistics?ColumnId=4">Release Calendar</a></li>
+                    <li><a href="/statistics/Statistics?ColumnId=5">Explainatory Notes</a></li>
+                    <li><a href="/statistics/Statistics?ColumnId=6">Coverage of Major Imports & Exports</a></li>
+                    <li><a href="http://stats.customs.gov.cn/indexEn" target="_blank">Interactive Tables</a></li>
+                </ul>
+            </div>
+            <div class="nr-n-right nr-n-content Statistics">
+                <div class="nr-n-content-title">Statistics</div>
+                <div class="nr-n-content-title-bdr"><span></span></div>
+                <div class="nr-n-content-detail ">
+                    <div>Latest monthly statistics may differ from those previously released because of data
+                        verification after dissemination. The latest release is of more accuracy.</div>
+                    <div class="m-report-title">
+                        <img src="/Images/Image/ico_year.png"> <span>Year</span><select id="monthlysel">
+							<option value="2026">2026</option>
+                            <option value="2025">2025</option>
+                            <option value="2024" selected="selected">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                            <option value="2019">2019</option>
+                            <option value="2018">2018</option>
+                        </select>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Month</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>（1）Summary of Imports and Exports (In USD) A： Annually</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/633c7e64-ca7d-4c26-86de-f14b018b2906.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/11747825-e4d2-4db9-b9d7-0d3d762a3a2f.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/c40c6bd0-dd94-4f66-9fe3-a648d597de6c.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/3ee9b399-c7fa-46fa-b644-49e8d8aab19d.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/19f4acab-b579-46e7-ae8b-9776a011e50f.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d5bf22d4-34cd-4cb1-9d06-5909a79a61ad.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/700c2093-7d88-4656-9966-ad620a93e503.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a30111c5-f060-412e-a678-36622cb021ba.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/f3928b0a-a719-45cd-921e-92d633458263.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/029a5d7e-e712-40fa-9cf6-f340d025b60c.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（1）Summary of Imports and Exports (In USD) B：Monthly</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/26576786-d33f-4e7a-8631-232e29a05543.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/f06bbf77-dc8d-4ed7-a0af-98f384c6666b.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ad5dcd76-c1dc-46fe-b38b-83072c33001b.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/2c2b4dd4-c8da-4b35-bb56-afa464632953.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/f395b649-df3a-46bd-a75f-5c1c435246b3.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/704d5d54-45b6-419b-ae15-a25bd281c0e3.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/6440cca3-ea59-4ce5-a8f2-0e4ecab36d07.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/4f65aa0e-a8ec-45c4-82de-5fd17eee5458.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/587b547a-d836-4ebb-9fb0-481874eb36d2.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/b0374bf4-d2a1-4eb2-99cf-0e54574ef707.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（2）Imports and Exports by Country （Region） of Origin/Destination</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/8def42ad-8590-4326-aea6-0340bb093e80.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/563698a2-664d-4c0b-8104-bdf28bea3121.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ebb04d2a-e600-4826-8bc0-02a6d0f83577.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/31c888ef-1742-47d3-bbdf-45f22540809b.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/4436f2c6-ec2b-43e9-8f72-eb8ca089d8c2.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5fd80a58-71ac-4f10-b269-b130679b1cfe.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/51ac053d-af45-4210-90e4-c927557724c1.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/af3e2a81-ff48-4b15-a922-3ed8d078a3fd.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/f61fdaf8-1cbf-4210-a42e-2f3009347e73.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a5b4fa86-46e4-4195-a0c0-5c45ade1cb38.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（3）Composition of Imports and Exports by Section and Division</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/3b4648cf-99af-4c05-aaf5-81d3f3b1e9aa.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ce615500-0a54-4340-a3ca-039584f5333f.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/0250a373-e64c-4fb5-a790-164c73984745.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d515f757-b12d-4f0e-a164-a3070790b04b.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5dd511e7-d7f6-41c6-8c03-4310672caffb.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/f6256e93-e0b2-4e05-9582-cd2a67796122.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/16d035a8-3f82-4171-afb6-2cba2981af6f.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/2f079997-eb24-49ee-9cd5-89a73c2b0bd6.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/7247d2e8-ab9e-44f4-8835-b8cd2a9dd2a4.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/b5389af2-cebd-4570-8b5a-546e6948e2d7.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（4）Imports and Exports by HS Section and Division</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/fff85f0c-0b74-4444-8ba5-c9f4e0ab6a43.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/8a8d9d07-4f70-4303-908b-b01e54b62732.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6099c990-e002-4ec7-aa91-d5b5bf39b926.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e37cf6aa-edcd-4830-8218-4b01e240e84f.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/26275522-12f1-4ab7-afa8-bbb326141d74.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/25ebe08d-8447-42e7-afb4-dcdfb71d870d.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/642fbc41-3cda-4ec2-8186-1684f0dd573d.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/dc9a48d1-ed91-4e19-a2f4-27d1f6450e4c.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/7f56368f-adb6-457f-b360-4e0bf6ea8ca0.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/3cc3021a-b12c-4b41-b04d-b364c7d694ce.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（5）Imports and Exports by Customs Regime</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/872932c9-6dc4-4545-8d46-6cf3e7fe69ce.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a0b37558-0b53-46e5-a01d-b357704b2bce.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/79705c22-01e1-4efa-96b1-bc8368dd208d.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e2e354ac-3339-4915-ad0d-42eb1578cbc6.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ee1be136-6c55-434e-a95a-6ab421666302.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/632e0734-93b3-48c7-a314-5f161b118458.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/b4a3b787-9c62-4671-aefd-68ca6d083b12.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/539f4857-69ff-4157-bd53-6ff9a530ac3d.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/127d2dd0-5d27-45ae-87e5-e780d62c361a.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/2ce23437-6f14-42a4-b49a-f70414061c15.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（6）Exports by Type Enterprise and by Customs Regime</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/fcd21b93-db25-47b2-8efa-4733ecd0d444.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/3bf52e39-edb2-4b34-8a46-5533ef7cee4f.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6083966c-6b53-4540-b566-9c3d2225043b.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/4b3ba8a1-fd1a-4bd4-98fa-90ace164b00c.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6c8645bc-5f37-4ad2-8790-5257a382b6cb.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/68c27a45-f442-48db-9ef9-0b428815af48.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/2da79a3f-144f-4ca3-b731-2261e7c647ff.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/3b00e310-19c0-41f0-a7b2-4fdcee5b0d74.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/89fb67d2-bf09-484e-9f32-4ce003439dfc.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/166dacf6-b7d5-4b45-969f-286b2f02b1f9.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（7）Imports by Type Enterprise and by Customs Regime</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/0a704654-0b2c-4559-b327-9464bfb290e4.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d3d327a7-341d-4e23-a5be-f584aabed464.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/1cb99f5b-a0a0-4be3-82e7-7ce12c446859.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/46ec4df1-3511-410a-9cdb-2902013ec3b6.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/29e1b001-4d25-43aa-9783-2a940bbb2447.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e305c7c6-24de-4fcc-b5bb-80b198061df0.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/121a3470-3bdc-433c-82cb-e853de1903b6.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/435bd61c-4cca-4051-8458-382cad4d6235.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/a55b6f66-6918-42e9-bcb9-f0371238fd9a.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d912a188-4ac2-4f5d-abe2-7a6ac180c201.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（8）Imports and Exports by Location of Importers/Exporters</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/9cc5a088-2233-4928-92fe-d9cb055b2e7a.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/177fbd32-77c0-4214-966f-d8f4dd4139d8.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/2ff93b9f-604d-42a7-8218-421233336eb3.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/796d1140-98e3-432d-a7ee-39d5bfa078d6.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e61cdb19-7726-4584-97e6-48b5139a8e01.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/9b4fccdd-fc84-4a63-ad3d-b01b28b21015.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/684c4124-0d09-42a5-9382-108d224a71de.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/dc742be0-6de6-402b-b7c1-7ab2bb8ad483.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/a8a44f9b-7b11-4a91-ae6e-faf8340c42b4.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/9b70f08d-9026-4c91-84d3-153c78600a1f.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（9）Imports and Exports by Location of Domestic Consumers/Producers</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/d850a6e5-69de-4fdd-ace8-f53aa57a41c7.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/8130ecfa-3016-474f-b07d-4d72eab39637.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/12c4d92d-8c0c-4c1e-b662-d68c06cf89c9.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/15d7503b-bff0-45cd-bb16-dd6e33c98d62.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5b1e08bd-b1e0-4f78-a9b3-eb5641c46fad.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/19d22b95-3710-4c13-82f9-6f5198bf99e3.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/dfaacc32-bbcd-4f9d-b622-e9f25f984acd.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a8e7283e-bbc1-47cb-84a1-04492e62acfc.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/2ef8e1d4-dced-4d29-9792-13eabea90765.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/63e202cb-e169-45be-ac59-24f2c06b529b.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（10）Imports and Exports by Customs Districts</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/0aa921f5-f4f2-4fa5-8af4-d14057274ab1.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/29eb6933-b877-43fc-b3a7-d555a7fdcf18.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/2144e4bd-12fc-4476-893b-50776b9c275f.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/40a0c797-6f03-4833-9e57-458e192a9a4d.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/2c25b33b-1595-4bee-88d1-5fe4f9267095.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5c60f857-fdc2-4b73-a591-67f2b496f4ba.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/6a83e56a-fef8-4ec8-9ae1-477c5ddc5904.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ded33e47-cb74-462e-98b4-aa4f937306c5.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/0d0a753e-cef5-43ad-bdcc-a718c1595a9e.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/bed0dd87-83a2-4d4b-b67e-c155c11ee253.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（11）Imports and Exports by Specific Areas</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/16c39e08-a8e5-4e39-9ecc-ff66be5fdcf4.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6171b4d3-6fac-4a54-b07b-67f63a5fe957.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/cedc4638-56a7-4529-bb35-8750a0e4d5ae.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/26315597-cc5f-4518-8df5-6ceffaba7b7d.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d9ceaf33-de2b-4d20-a50f-12fa9f4a18e9.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d712ee24-428a-4b8c-971e-e7bd7a9fb917.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/8b38ddc9-3b76-4462-a500-3cb6fabd1d1f.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/4ab7bdeb-3425-4514-870f-2ee3889e6d6c.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/d2df4de4-7d66-403d-a826-7411c8484946.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/45786e80-54da-44ac-82f2-21a0b476be63.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（12）Imports and Exports by Foreign-Invested Enterprises</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/51c70331-ef3a-4b9c-9e77-f1890a1cb76a.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/52463ab4-7820-4098-822d-35f706bfe500.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5c2c7655-fd36-42af-92f1-3fa06b4695b1.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/92fa37ad-6707-4b37-b9d7-a9325b2c2e68.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/3ed081ad-ff4d-4ddb-954d-5a2bece30e8d.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/79b63adf-514a-4556-bbf9-c55f87e6673a.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/da98437b-1478-427f-a697-736a11fa8cdf.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/1a1c91f9-cdd1-418f-992d-41973fd5b055.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/cb14f7a4-905c-4e50-ab03-124819115c6c.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ce9c0e6f-a708-4a8e-8c4b-ad728d19c53d.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（13）Major Export Commodities in Quantity and Value</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/01bc0f8b-3281-4e56-9e27-883f28a13da0.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/8509f015-9a46-4e37-bc52-258f572f43b7.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a5766052-0039-4fc8-84f8-12dcfc06c4f6.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/cb453e95-5e54-4482-a27e-f3e0d4367469.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e9d48f02-7f6d-4e5c-b3f7-feed952a2807.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/685c1415-0cfe-4813-9473-893c672cdf45.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/918c8cda-0cd1-49e3-bec0-dfbb532c9482.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/63b4ae58-3313-4fe9-a8cc-a403a5c2244e.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/bce532d1-f542-49db-854a-3e72766da15b.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/0422513d-3184-40e0-a0f4-fec49e8f5d77.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（14）Major Import Commodities in Quantity and Value</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/9d881f39-b241-4c6a-98fb-998804075dba.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/7e92d073-2f97-44ba-831e-544768817e6a.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/b16e111d-b122-48bb-8fed-90df30847001.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/68c63cae-499c-4778-b70f-7274565da7db.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/61decf8c-80f4-4baf-a74c-b1661fe45beb.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6999d3e6-b8ed-4c4d-bd16-a90f4154819a.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/1f29afc4-09ab-49a2-84cf-cc5013edc9d1.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e55bd98f-8787-41ad-8848-4ff36339f9fe.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/09fd8502-a552-4294-ad84-ee703f0430e5.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/f0701344-a675-4206-adf0-eeb625630dee.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（15）Exports by Selected Countries (Regions) and by HS Divisions</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/4d6e5f1f-4239-4e38-95f6-fb36bb8b83b5.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6f8ae01f-0c2e-4e7f-bda2-cb6d6b624711.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/e382ed30-c695-448e-8453-93e8f976ffd9.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/05919d1b-5fb3-4325-a7d0-b1b9cab4c36b.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/03fefb61-aad6-493c-89e6-caa3ff6eb99f.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/28d7c3c5-d380-42bb-b6f6-7fbf50402dbc.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/e396bcb9-9db7-492d-802c-69cb6eaa1bd7.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ab9b8541-dcc4-4af4-82f4-9540c74af47e.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/4dc586b9-b353-4a00-a303-bb57355f9ed9.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/7e3d455f-0c02-4821-bf96-d556fde0071e.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（16）Imports by Selected Countries (Regions) and by HS Divisions</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/6cf8b71a-6ae0-4c3a-a3db-02d9e966944c.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d937d043-bd50-4975-9e5b-ac590ce8c929.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6ade2644-95a4-4225-bac1-55267f1036fe.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/f721cb73-df61-4b93-97fd-497855e68163.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/04a2c9cc-5809-4adb-a18c-2e468156dff1.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5ae8d25a-7961-4b58-9549-97bfcec65a90.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/4d4d2f19-982c-44a0-9d11-0b3c018ac262.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/1c274022-c205-4c72-93f1-10b9f6bae133.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/b3f6ab98-63b8-44fe-84ad-2bb3a25152e5.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6e777d16-f3d8-44e3-95f9-5ff2904041d2.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（17）Exports of Selected Commodities by Major Customs Regimes</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/04dad4b9-ece9-4769-8052-55af4256cdb0.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/6707a298-96fc-4c7a-a983-922e5e5838d2.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a6cd83e6-ee3f-40d4-ab81-f77c8e4157b8.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/1127d141-da88-4031-bbca-a24100d793d4.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/da5605c4-e397-4306-b74e-13845b2cdc68.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/d1dcf737-171b-4885-a1dc-806494f209c4.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/70ab1495-1b69-4e9d-8652-c44b8dbf0f99.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/b7671073-3d74-4115-bafe-d5dd2c4f5b5b.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/cfc4700c-5f87-4286-9c2b-e2d65e55d4dd.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ccd001ba-ff0f-437b-8a94-690b280d451c.html>
+                                        Dec.</a></td>
+                            </tr>
+                            <tr>
+                                <td>（18）Imports of Selected Commodities by Major Customs Regimes</td>
+                                <td><a
+                                        href=http://english.customs.gov.cn/Statics/98003a28-c03b-409c-abc6-9fbe9e236c74.html>
+                                        Jan.</a><a
+                                        href=http://english.customs.gov.cn/Statics/3eedfc48-7274-42eb-a686-344157415adc.html>
+                                        Feb.</a><a
+                                        href=http://english.customs.gov.cn/Statics/ab9d7dfc-e2f1-4bdc-a6dd-355bf63d776b.html>
+                                        Mar.</a><a
+                                        href=http://english.customs.gov.cn/Statics/250d96ce-3505-4691-a73a-6a6289b406b7.html>
+                                        Apr.</a><a
+                                        href=http://english.customs.gov.cn/Statics/5021debf-4f2e-410a-84b8-faee5b4b1be4.html>
+                                        May.</a><a
+                                        href=http://english.customs.gov.cn/Statics/9c12223a-5a8b-4eea-b503-063352a5702d.html>
+                                        Jun.</a></br><a
+                                        href=http://english.customs.gov.cn/Statics/3add89ab-b441-4629-a708-d280abe554f7.html>
+                                        Jul.</a><a
+                                        href=http://english.customs.gov.cn/Statics/a772b85a-6773-4ba3-a393-b38f0bd67f44.html>
+                                        Aug.</a><span>Sep.</span><span>Oct.</span><a
+                                        href=http://english.customs.gov.cn/Statics/e76d44fc-8b11-429f-aa25-6b5d04307719.html>
+                                        Nov.</a><a
+                                        href=http://english.customs.gov.cn/Statics/8978245f-8741-403b-9658-a8169953a71f.html>
+                                        Dec.</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </div>
+            </div>
+            <div class="clr"></div>
+        </div>
+
+
+        <div class="g-ftr">
+            <div class="g-ftr-top"></div>
+            <div class="g-ftr-cnt">
+                <div class="g-ftr-l">
+                    <p class="g-ftr-title">About GACC</p>
+                    <p><a href="/about/mission">Mission</a></p>
+                    <p><a href="/about/principalOfficials">Leadership</a></p>
+                    <p><a href="/about/organizationalstructure">Organizational Structure</a></p>
+                    <p><a href="/about/rankregime">Rank Regime</a></p>
+                    <p><a href="/about/annualReports">Annual Reports </a></p>
+                </div>
+                <div class="g-ftr-splt"></div>
+                <div class="g-ftr-c">
+                    <p class="g-ftr-title">Quick Links</p>
+                    <p><a href="/Legislation/Laws">Legislation</a></p>
+                    <p><a href="/newsroom/news">News</a></p>
+                    <p><a href="/newsroom/statistics">China Customs Statistics</a></p>
+                    <p><a href="/OnlineInterview">Online Interview</a></p>
+                    <p><a href="/service/guide">Service Guide</a></p>
+                    <p><a href="/service/query">Clearance Status</a></p>
+                    <p><a href="/service/characteristic">Service Navigation</a></p>
+                </div>
+                <div class="g-ftr-splt"></div>
+                <div class="g-ftr-r">
+                    <p class="ft-title">Friendly Links</p>
+                    <p><a href="http://www.china.org.cn">China.org.cn</a></p>
+                    <p><a href="http://www.e-to-china.com">ETCN</a></p>
+                </div>
+                <div class="clr"></div>
+            </div>
+            <div class="g-ftr-btm"></div>
+        </div>
+    </div>
+    <div class="g-btm">
+        <p><a href="/statement.html">STATEMENT</a></p>
+        <p>General Administration of Customs of the People's Republic of China
+        <p>Address: No.6. Jianguomennei Avenue, Dongcheng District, Beijing, China &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            Postcode: 100730
+    </div>
+    <div class="g-btm-edg"></div>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("#monthlysel").change(function () {
+                if ($("#monthlysel").val() == "2018") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2018.html")
+                }
+                if ($("#monthlysel").val() == "2020") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2020.html")
+                }
+                if ($("#monthlysel").val() == "2021") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2021.html")
+                }
+                if ($("#monthlysel").val() == "2019") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2019.html")
+                }
+                if ($("#monthlysel").val() == "2022") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2022.html")
+                }
+                if ($("#monthlysel").val() == "2023") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2023.html")
+                }
+                if ($("#monthlysel").val() == "2024") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2024.html")
+                }
+                if ($("#monthlysel").val() == "2025") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly2025.html")
+                }
+				if ($("#monthlysel").val() == "2026") {
+                    location.replace("http://english.customs.gov.cn/statics/report/monthly.html")
+                }
+            });
+            var controller = 'newsroom'.toLowerCase();
+            var index = 0;
+            switch (controller) {
+                case "home":
+                    index = 0;
+                    break;
+                case "about":
+                    index = 1;
+                    break;
+                case "legislation":
+                    index = 2;
+                    break;
+                case "newsroom":
+                    index = 3;
+                    break;
+                case "onlineinterview":
+                    index = 4;
+                    break;
+                case "service":
+                    index = 5;
+                    break;
+                default:
+                    break;
+            }
+            setFocusNav(index);
+        });
+    </script>
+    <script src="/Scripts/statistic.js"></script>
+
+
+</body>
+
+</html>

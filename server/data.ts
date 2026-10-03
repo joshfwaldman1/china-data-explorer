@@ -1268,20 +1268,19 @@ export const CATALOG: Record<string, Indicator> = {
     kind: "customs", group: "Trade & External",
     title: "Merchandise Trade (Exports / Imports)", agency: "General Administration of Customs",
     frequency: "Monthly", unit: "Percent change from year ago",
-    // Customs' own growth rates from its monthly totals table, out with the
-    // preliminary release; the month's first print, in USD terms. NBS carries
-    // the same rates two weeks later, revised; the mirror copies the first print.
-    table: "totals", measure: "growth",
+    // Published monthly-bulletin rates, including January and February.
+    // The bulletin follows the preliminary release and carries revisions.
+    table: "totals", measure: "growth", publication: "monthly-bulletin",
     regions: [{ text: "Total", value: "total", en: "Total" }],
-    releaseDay: 14,
+    releaseDay: 20,
   },
   trade_values: {
     kind: "customs", group: "Trade & External",
     title: "Merchandise Exports and Imports, Value", agency: "General Administration of Customs",
     frequency: "Monthly", unit: "Hundred million USD (亿美元)",
-    table: "totals", measure: "levels",
+    table: "totals", measure: "levels", publication: "monthly-bulletin",
     regions: [{ text: "Total", value: "total", en: "Total" }],
-    releaseDay: 14,
+    releaseDay: 20,
   },
   trade_mirror: {
     kind: "eastmoney", group: "Trade & External", home: false,

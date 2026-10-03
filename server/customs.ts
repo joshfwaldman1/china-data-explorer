@@ -21,6 +21,7 @@
 
 import type { NbsRegion, SeriesPoint, SeriesResult } from "./data";
 import { upstreamFetch } from "./upstream";
+import { fetchCustomsMonthly } from "./customs-monthly";
 
 const CUSTOMS_BASE = "http://english.customs.gov.cn";
 const LISTING_COLUMN = 1; // the preliminary release
@@ -419,6 +420,8 @@ export interface CustomsIndicator {
   regions: NbsRegion[];
   /** For the totals table: the levels (100 million) or Customs' own growth rates. */
   measure?: "levels" | "growth";
+  /** The aggregate USD bulletin carries separate January/February months and revisions. */
+  publication?: "monthly-bulletin";
   /** The denomination of the table read; Customs publishes each in both. USD when omitted. */
   currency?: CustomsCurrency;
   /** Day of the month by which the previous month's tables are out (server/due.ts). */
@@ -458,6 +461,7 @@ export function layoutBroken(failedMonths: string[], parsedMonths: string[], new
 }
 
 export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, region: NbsRegion, limit: number, options: { oldestStored?: string | null } = {}): Promise<SeriesResult> {
+  if (cfg.table === "totals" && cfg.publication === "monthly-bulletin") return fetchCustomsMonthly(key, cfg, limit);
   const months = monthsToFetch(limit, options.oldestStored ?? null);
   const points: Record<string, SeriesPoint[]> = {};
   const push = (label: string, date: string, value: number | null) => {

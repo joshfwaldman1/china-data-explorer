@@ -92,3 +92,13 @@ test("the September 2026 listing names the January-August release first, and the
   expect(figures?.level.revenue).toBe(156633);
   expect(figures?.growth.revenue).toBe(5.7);
 });
+
+test("a legacy single-month fiscal title still supplies cumulative revenue and land sales", async () => {
+  const releases = parseListing(await fixture("listing-index-2024.htm"));
+  expect(releases.some(r => r.period === "2024-04")).toBe(true);
+  expect(periodOfTitle("2024年4月财政收支情况")).toBe("2024-04");
+  expect(periodOfTitle("2024年13月财政收支情况")).toBeNull();
+  const figures = parseFiscalRelease(await fixture("release-2024-04.html"));
+  expect(figures?.level.revenue).toBe(80926);
+  expect(figures?.level.landSales).toBe(10536);
+});

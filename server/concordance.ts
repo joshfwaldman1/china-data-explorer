@@ -260,29 +260,24 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     name: "Exports (YoY %)", kind: "value",
     left: { key: "trade", label: "Exports (YoY %)" }, // Customs' own monthly totals table
     right: { key: "trade_mirror", label: "Exports (YoY %)" }, // the Eastmoney mirror of the same release
-    // Customs' table holds each month's first print; the mirror carries the
-    // revision Customs makes a month later (July 2026 imports: 27.5 first,
-    // 27.6 revised). A tenth or two is that; more is a different statistic.
+    // Keep the narrow alert tolerance; revision timing is context for investigation,
+    // not a reason to suppress discrepancies by widening it.
     tolerance: 0.25,
-    note: "Customs' first print against the mirror, which carries the later revision; revised months differ by 0.1-0.2 pp. Both in USD terms.",
+    note: "Customs’ monthly bulletin against the mirror, both in USD terms. Different refresh times and revision vintages can cause differences; investigate those before treating them as parsing errors.",
   },
   {
     name: "Imports (YoY %)", kind: "value",
     left: { key: "trade", label: "Imports (YoY %)" },
     right: { key: "trade_mirror", label: "Imports (YoY %)" },
     tolerance: 0.25,
-    note: "As the exports pair: first print against the revision.",
+    note: "As the exports pair: monthly bulletin against a separately refreshed mirror; revision vintages can differ.",
   },
   {
     name: "Exports (YoY %): Customs vs NBS", kind: "value",
     left: { key: "trade", label: "Exports (YoY %)" },
     right: { key: "nbs_788f44b0f310403fbd308b77d6f83890" }, // 出口总值同比增长 (%), NBS's revised table
-    // Customs revises the previous month with each release; its table holds
-    // each month's first print and NBS's table the revision, so revised months
-    // differ by a tenth or two (June 2026: 26.9 against 27.0). More is a
-    // different statistic.
     tolerance: 0.25,
-    note: "Customs' first print against NBS's revised table; revised months differ by 0.1-0.2 pp.",
+    note: "Customs’ monthly bulletin against NBS’s trade table. Revision vintages and update timing can differ.",
   },
   {
     name: "Manufacturing PMI", kind: "value",
@@ -597,7 +592,7 @@ export const NO_PAIR: Record<string, string> = {
   tsf_stock: "As tsf_flow.",
   tsf_stock_growth: "As tsf_flow; the growth printed beside the stock is the bank's, not a computed rate.",
   new_loans: "New yuan loans of financial institutions (the mirror of PBOC's release) and TSF's RMB loans to the real economy are different aggregates.",
-  trade_values: "Customs' totals table is its only source on the site; trade_partners' Total row is the same table by another path but a different release cut.",
+  trade_values: "Aggregate levels use Customs’ monthly bulletin. The partner table’s Total row comes from the preliminary release and can differ after revisions; it is not a same-vintage identity.",
   balance_of_payments: "Nothing else on the site measures the balance of payments; Customs' goods balance is on a different basis.",
   fdi_actual_use: "The renminbi figure is published only in the ministry's release; the enterprise count beside it is paired under fdi_new_enterprises.",
   fdi_growth: "The rates printed in the ministry's release; no second reading.",
@@ -620,7 +615,7 @@ export const NO_PAIR: Record<string, string> = {
   fiscal_growth: "The rates printed in the ministry's release; the levels they describe are paired through tax revenue.",
   forex_loans: "Foreign-currency loans outstanding (the mirror of PBOC's release) and TSF's foreign-currency loan flow are different measures.",
   commodity_prices: "The ministry's domestic commodity price index; NBS's international price indices (dataset 13) measure world prices.",
-  trade_partners: "Customs' by-country table is its only source; the Total row agrees with trade_values by construction.",
+  trade_partners: "Customs’ preliminary by-country table is the source; aggregate trade_values uses the later monthly bulletin and can differ after revisions.",
   major_exports: "Customs' commodity table is its only source.",
   major_imports: "As major_exports.",
   trade_partners_cny: "The CNY denomination of trade_partners; the two differ by the month's rate.",
