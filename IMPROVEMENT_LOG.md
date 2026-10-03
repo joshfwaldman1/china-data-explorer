@@ -96,6 +96,17 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-02 (prune progress visible; breakers seen working live): the
+  fetch log prune keeps its cursor in scheduled_jobs, but nothing showed
+  it, and by arithmetic the first sweep should have reached the 14-day
+  boundary hours ago with no "sweep done" line in the 500-line Railway
+  log window. /api/status now has `fetchLogPrune` (state, updatedAt,
+  cursor, removed, startedAt). Also seen live tonight: the finance
+  ministry's two hosts (gks.mof.gov.cn, zwgls.mof.gov.cn) were "treated as
+  down until 2026-10-03" by the breaker, so their nine series failed at the
+  gate instead of asking a 502ing host; Health lists them as intermittent
+  (each holds its latest month), and the headline reads clean.
+
 - 2026-10-02 (round: health and the queue, nothing to ship): the live
   health report is clean (55/55 cross-checks agree; no failing,
   intermittent or behind sources; no unreviewed single-point lines; press
