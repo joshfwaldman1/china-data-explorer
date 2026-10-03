@@ -54,15 +54,16 @@ test("superseded rows past their window go; the newest of each kind and anything
   expect(sweep()).toBe(0);
 });
 
-test("a slice looks only at its own ids, and a sweep ends at the first row younger than the shortest window", () => {
+test("a slice looks only at its own ids, and a sweep runs to the last id even past young rows", () => {
   const firstId = db().query<{ id: number }, []>("SELECT MAX(id) + 1 AS id FROM fetch_log").get()?.id ?? 1;
-  for (let day = 100; day > 20; day -= 1) log("prune_slice", "", "empty", day);
-  log("prune_slice", "", "empty", 5); // young: the sweep stops here
-  // The first ten of the eighty old rows are all superseded and past the window.
+  for (let day = 100; day > 80; day -= 1) log("prune_slice", "", "empty", day);
+  for (let day = 0; day < 10; day += 1) log("prune_young", "", "empty", 1); // a young stretch mid-log
+  for (let day = 80; day > 20; day -= 1) log("prune_slice", "", "empty", day); // older rows after it, as in production
+  // The first ten of the old rows are superseded and past the window.
   expect(pruneFetchLog(firstId, 10, now)).toEqual({ removed: 10, nextId: firstId + 10, wrapped: false });
   let cursor = firstId + 10, removed = 0;
-  for (;;) { const slice = pruneFetchLog(cursor, 20, now); removed += slice.removed; cursor = slice.nextId; if (slice.wrapped) break; }
-  expect(removed).toBe(80 - 10); // every old row: the young one supersedes the last of them
+  for (;;) { const slice = pruneFetchLog(cursor, 10, now); removed += slice.removed; cursor = slice.nextId; if (slice.wrapped) break; }
+  expect(removed).toBe(80 - 10 - 1); // every old row but the newest, the ones after the young stretch too
   expect(cursor).toBe(db().query<{ id: number }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? -1);
 });
 

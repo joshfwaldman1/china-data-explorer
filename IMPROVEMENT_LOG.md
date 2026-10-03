@@ -96,6 +96,18 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-02 (fetch_log prune: a sweep ends at the last id): the new
+  `fetchLogPrune` status showed the first sweep "done" at cursor 260,000
+  with 0 removed, an hour after it started. It stopped at the first slice
+  whose rows were all under fourteen days old, on the assumption that ids
+  rise with time; across this log they do not, so four fifths of it was
+  never looked at, and the next sweep would have stopped in the same place.
+  A young slice is now skipped (no delete, cursor advances) and a sweep
+  ends only past MAX(id). Test rewritten with a young stretch mid-log and
+  older rows after it. So the "nothing prunable" reading so far covers the
+  first 260K ids only; the next sweep (after the six-hour rest from 00:35Z)
+  is the first over the whole log.
+
 - 2026-10-02 (prune progress visible; breakers seen working live): the
   fetch log prune keeps its cursor in scheduled_jobs, but nothing showed
   it, and by arithmetic the first sweep should have reached the 14-day
