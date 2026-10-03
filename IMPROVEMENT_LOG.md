@@ -4610,3 +4610,9 @@ Validation: typecheck and all 573 tests passed, including Chrome rendering. The 
   wrapped "143,696 100M yuan" onto two lines while the five-digit figure
   beside it fit; it is 150 pixels and never wraps at desktop width, and
   stacks the unit under the figure on every row alike on a narrow screen.
+
+## 2026-10-03 — Remove the province tile map
+
+At the owner's request, removed the province tile map, legend, geographic tile coordinates and unused map styles. The regional ranking now uses the full content width; province profiles, period selection, comparisons and CSV remain available. Renamed the series picker to “Rank another series” and kept names sourced directly from the shared province list.
+
+Validation: typecheck clean; all 587 tests passed (7468 assertions). Manually verified the local preview's province ranking, province detail selection, Guangdong/Zhejiang comparison chart and property page navigation. This UI change is in PR #2, not deployed.

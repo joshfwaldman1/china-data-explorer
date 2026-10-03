@@ -56,7 +56,7 @@ function regionPrefix(result: SeriesResult | undefined): string {
 function regionLabel(region: Region): string {
   if (region.en) return region.en;
   if (region.value === "000000000000" || region.text === "全国") return "China, national";
-  return PROVINCES.find((province) => province.code === region.value)?.en ?? region.text;
+  return PROVINCE_PLACES.find((province) => province.code === region.value)?.en ?? region.text;
 }
 /** Names that take "the" in a sentence: "Exports to the United States", "Imports from the European Union". */
 const THE = new Set(["United States", "European Union", "United Kingdom", "Netherlands", "Philippines", "United Arab Emirates", "Czech Republic", "Bahamas", "Maldives"]);
@@ -2348,55 +2348,7 @@ function SeriesPage(props: {
 }
 
 // ── Regions ───────────────────────────────────────────────────────────────────
-//
-// A tile cartogram: equal-area tiles arranged roughly by geography, so the
-// municipalities stay readable beside the large provinces and the map does not
-// imply a precision the data does not have. Positions follow the design mock
-// on an eight-column grid.
-
-interface Province { code: string; abbr: string; en: string; zh: string; col: number; row: number; }
-
-// Only the grid position lives here; the names come from the shared place list
-// so the map, the region picker and the downloads all say the same thing.
-const TILES: { code: string; col: number; row: number }[] = [
-  { code: "230000000000", col: 8, row: 1 },
-  { code: "650000000000", col: 1, row: 2 },
-  { code: "150000000000", col: 5, row: 2 },
-  { code: "220000000000", col: 8, row: 2 },
-  { code: "620000000000", col: 3, row: 3 },
-  { code: "640000000000", col: 4, row: 3 },
-  { code: "110000000000", col: 6, row: 3 },
-  { code: "120000000000", col: 7, row: 3 },
-  { code: "210000000000", col: 8, row: 3 },
-  { code: "630000000000", col: 2, row: 4 },
-  { code: "610000000000", col: 4, row: 4 },
-  { code: "140000000000", col: 5, row: 4 },
-  { code: "130000000000", col: 6, row: 4 },
-  { code: "370000000000", col: 7, row: 4 },
-  { code: "540000000000", col: 1, row: 5 },
-  { code: "510000000000", col: 3, row: 5 },
-  { code: "410000000000", col: 5, row: 5 },
-  { code: "320000000000", col: 7, row: 5 },
-  { code: "310000000000", col: 8, row: 5 },
-  { code: "500000000000", col: 3, row: 6 },
-  { code: "420000000000", col: 5, row: 6 },
-  { code: "340000000000", col: 6, row: 6 },
-  { code: "330000000000", col: 8, row: 6 },
-  { code: "530000000000", col: 2, row: 7 },
-  { code: "520000000000", col: 3, row: 7 },
-  { code: "430000000000", col: 5, row: 7 },
-  { code: "360000000000", col: 6, row: 7 },
-  { code: "350000000000", col: 7, row: 7 },
-  { code: "450000000000", col: 4, row: 8 },
-  { code: "440000000000", col: 5, row: 8 },
-  { code: "460000000000", col: 4, row: 9 },
-];
-const PROVINCES: Province[] = TILES.map((tile) => {
-  const place = PROVINCE_PLACES.find((item) => item.code === tile.code);
-  return { code: tile.code, abbr: place?.abbr ?? "", en: place?.en ?? tile.code, zh: place?.zh ?? "", col: tile.col, row: tile.row };
-});
-
-// Paper to the brand red: the map reads as one ink getting heavier, not a second hue.
+// Paper to the brand red for ranking bars.
 const RAMP = ["#f4f2ec", "#e5d2cc", "#d1a69c", "#b8776a", "#9a4034", "#6c1f18"];
 
 interface RegionalValue { region: Region; value: number | null; period: string | null; points: SeriesPoint[]; }
@@ -2425,7 +2377,7 @@ interface ProvinceCard {
 }
 
 /**
- * One card per province under the map, largest economy first: growth,
+ * One card per province below the ranking, largest economy first: growth,
  * industrial output, size, residents, the three sectors and the largest
  * industries, each card opening on the province's profile. A field the
  * store lacks is a dash, never a stand-in.
@@ -2478,7 +2430,7 @@ function ProvinceCards() {
 function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: string; navigate: (route: Route) => void; toast: (text: string) => void }) {
   const [data, setData] = useState<RegionalResponse | null>(null);
   // Provincial GDP is the page's own series; any other regional series in the
-  // catalog can be mapped by naming it in the URL.
+  // catalog can be ranked by naming it in the URL.
   const key = props.route.key || "provincial_gdp";
   const gdp = key === "provincial_gdp";
   // The period lives in the URL, so a view of Q1 2020 can be shared and bookmarked.
@@ -2501,7 +2453,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
     return () => { cancelled = true; };
   }, [key, period, label, attempt]);
   // A link to a quarter the store lacks (a stale bookmark, a typo) falls back to the latest quarter and says so,
-  // rather than drawing an empty map under that quarter's heading.
+  // rather than showing an empty ranking under that quarter's heading.
   useEffect(() => {
     if (status !== "ok" || !period || !data || data.values.some((item) => item.value !== null)) return;
     props.toast(`Nothing published for ${periodText(period)}; showing the latest period`);
@@ -2512,17 +2464,12 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
   // A cumulative series (provincial GDP is year to date) names the months its figure covers, "Q1 to Q2 2026", not the quarter it is dated.
   const cumulative = isCumulative(unit, data?.label ?? undefined, data?.title);
   const periodText = (value: string) => cumulative ? periodSpan(value, data?.frequency ?? "Quarterly") : periodPretty(value);
-  // Trade by partner and by commodity rank rather than map, and their copy names
-  // the publisher; the "Total" row of the partner table is the whole month, shown apart.
+  // Trade rankings name the publisher; the "Total" row of the partner table is the whole month, shown apart.
   const trade = data?.geography === "Partner" || data?.geography === "Commodity";
   const what = data?.geography === "Partner" ? "partner" : data?.geography === "Commodity" ? "commodity" : data?.geography === "International" ? "country" : data?.geography === "City" ? "city" : "province";
-  const allRows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCES.find((province) => province.code === item.region.value) })).filter((item) => item.value !== null);
+  const allRows = (data?.values ?? []).map((item) => ({ ...item, province: PROVINCE_PLACES.find((province) => province.code === item.region.value) })).filter((item) => item.value !== null);
   const total = trade ? allRows.find((item) => item.region.value === "total") : undefined;
   const rows = total ? allRows.filter((item) => item !== total) : allRows;
-  // The tile map is a map of the provinces; a city series has no tiles, so it
-  // gets the ranking alone rather than a map with most of the country missing.
-  const mapped = rows.filter((item) => item.province);
-  const hasMap = mapped.length >= rows.length / 2 && mapped.length > 4;
   const values = rows.map((item) => item.value ?? 0);
   const breaks = breaksFor(values);
   const max = Math.max(0, ...values);
@@ -2547,8 +2494,8 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
         <div className="actions">
           {(data?.labels?.length ?? 0) > 1 && <label className="button" style={{ gap: 8 }}>Rank by<select aria-label="Line to rank by" value={data?.label ?? ""} onChange={(event) => setLabel(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.labels ?? []).map((name) => <option key={name} value={name}>{name}</option>)}</select></label>}
           <label className="button" style={{ gap: 8 }}>Period<select value={period || shownPeriod || ""} onChange={(event) => setPeriod(event.target.value)} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }}>{(data?.periods ?? []).map((item) => <option key={item} value={item}>{periodText(item)}</option>)}</select></label>
-          {/* Any series published by province can be mapped, not only GDP. */}
-          <AddSeries keys={[]} lang={props.lang} navigate={props.navigate} label="Map another series" geography={data?.geography === "City" ? "City" : "Province"}
+          {/* Any series published by province can be ranked, not only GDP. */}
+          <AddSeries keys={[]} lang={props.lang} navigate={props.navigate} label="Rank another series" geography={data?.geography === "City" ? "City" : "Province"}
             onPick={(entry) => props.navigate({ view: "regions", period: "", key: entry.key })} />
           {rows.length > 0 && <button className="button" onClick={() => downloadBlob(
             `econstats-china-${key}-${shownPeriod || "latest"}.csv`,
@@ -2570,31 +2517,7 @@ function RegionsPage(props: { route: Extract<Route, { view: "regions" }>; lang: 
         </div>
       )}
       {status === "ok" && data && rows.length > 0 && (
-        <div className={hasMap ? "regional-grid" : "regional-grid one-column"}>
-          {hasMap && (
-            <section className="card" aria-label="Map of provinces">
-              <div className="card-head"><h2>Tile map</h2><span>{shownPeriod ? periodText(shownPeriod) : ""}, approximate geography</span></div>
-              <div className="tile-map" role="group" aria-label="Provinces; select one to see its series">
-                {mapped.map((item) => {
-                  const province = item.province;
-                  if (!province) return null;
-                  const step = stepFor(item.value ?? 0, breaks);
-                  return (
-                    <button key={province.code} className={`ptile ${step >= 3 ? "dark" : "light"}`} style={{ gridColumn: province.col, gridRow: province.row, background: RAMP[step] }} aria-pressed={selected === province.code} aria-label={`${province.en}, ${fmt(item.value ?? 0, unit)}`} onClick={() => setSelected(selected === province.code ? "" : province.code)}>
-                      <span>{province.abbr}</span><b>{fmt(item.value ?? 0, unit)}</b>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="ramp" aria-hidden="true">
-                <span>{unitLabel(unit)}</span>
-                <div>
-                  <div className="steps">{RAMP.map((color) => <i key={color} style={{ background: color }} />)}</div>
-                  <div className="ticks">{breaks.map((edge) => <span key={edge} style={{ marginLeft: 0 }}>{edge.toFixed(1)}</span>)}</div>
-                </div>
-              </div>
-            </section>
-          )}
+        <div className="regional-grid">
           <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
             {current && (
               <section className="card" style={{ padding: 16 }} aria-live="polite">
