@@ -23,8 +23,15 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (follow-up to the release rotation) Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
-  in /api/release-checks: its "9995 pending" should finally move.
+- (release targeting) A release refresh targets every stored monthly
+  entry in the release's categories, provincial ones included. The 27 Sep
+  industrial profits release had 9,995 such targets and none arrived in 65
+  attempts (attempt 65 on 3 Oct, after rotation, reached new tables and
+  still found none): the bureau does not load those tables with this
+  release. Each attempt costs ~400 requests and ~2,700 fetch_log rows.
+  Target only (key, region) pairs that arrived with the same release
+  before: arrivals.ts already knows when each period first appeared and
+  which release it came with. Leave the rest to the due-based refresh.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
   COUNT(*) over fetch_log on every /api/status; read it from a counter.
@@ -95,6 +102,14 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
   Found 2026-09-30.
 
 ## Log
+
+- 2026-10-03 (round: measurements, nothing to ship): the first full
+  prune sweep is running (cursor 205,000 at 07:16Z, 0 removed so far,
+  ~4 hours to go). The profits release's first rotated attempt (65, 07:13Z)
+  still reads "9995 pending": rotation reached new tables and none of
+  them had August either. Pending counts every target still behind, not
+  only the ones asked, so it falls only when a table advances. The waste
+  is in the targeting, queued above.
 
 - 2026-10-02 (fetch_log prune: a sweep ends at the last id): the new
   `fetchLogPrune` status showed the first sweep "done" at cursor 260,000
