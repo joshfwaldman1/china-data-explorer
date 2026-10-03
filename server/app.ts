@@ -581,7 +581,11 @@ const routes = {
       // How much of the catalog is regional, and whether the places those
       // tables cover have been collected: a table with no region list is a
       // table the site cannot fetch.
-      return Response.json({ ...status, regions: await regionCoverage() });
+      // Where the fetch log's prune has got to: its cursor, what it has
+      // removed, and whether it is sweeping ("pending") or resting ("done").
+      const prune = getJob<{ cursor: number; removed: number; startedAt: string }>("progress:fetch-log-prune");
+      const fetchLogPrune = prune ? { state: prune.state, updatedAt: prune.updatedAt, ...prune.payload } : null;
+      return Response.json({ ...status, fetchLogPrune, regions: await regionCoverage() });
     },
     // When each period of a series arrived, and with which release. A period
     // first seen long after it closed came from a backfill, and says so

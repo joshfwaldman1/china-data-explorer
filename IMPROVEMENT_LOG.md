@@ -23,9 +23,7 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 2026-07 vintages 4 -> 0 -> 4 from the 10 Sep glitch). Suggested order:
 3, 1, 2, 5, then the owner's 4 and 6, then 7, 9, 10, 8, 11, 14, 13, 12.
 
-- (follow-up to the release rotation) A release whose pending count has
-  not moved across a full rotation could stop early instead of running to
-  attempt 66. Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
+- (follow-up to the release rotation) Check the 27 Sep profits release's attempt 65 (~07:00Z 3 Oct)
   in /api/release-checks: its "9995 pending" should finally move.
 - (audit 1, follow-up) Per-(key, region) `fetch_state` updated in place, so
   the crawl's daily empty re-asks stop appending at all. Also: dbStatus runs
@@ -106,6 +104,43 @@ Aggregate trade now uses Customs’ monthly bulletin table 1B, and its three-mon
 Parser repairs recover legacy fiscal/land-sale headings, January and em-dash FDI headings, and local-bond releases whose debt total omits 元. The NEA Northwest office’s official republication fills May 2026 electricity demand. Archived MOF/MOFCOM/NEA parsed pages now expire after six hours so they can be rechecked. Production and seed data were not changed in this round; the normal refresh after deployment performs the backfill.
 
 Validation: typecheck and all 573 tests passed, including Chrome rendering. The health-report fixture initially exceeded its setup timeout doing 20,000 durable commits; setup now uses one transaction, with the same row count and unchanged two-second report assertion. Captured publisher fixtures and regression tests cover the recovered periods, USD units, complete calendar coverage, restatement precedence, cache expiry and monthly/YTD separation. The older MOF bond archive returned 403 and remains a coverage limitation. Source links and rollout details: `docs/methodology-coverage-2026-10-02.md`.
+
+- 2026-10-02 (fetch_log prune: a sweep ends at the last id): the new
+  `fetchLogPrune` status showed the first sweep "done" at cursor 260,000
+  with 0 removed, an hour after it started. It stopped at the first slice
+  whose rows were all under fourteen days old, on the assumption that ids
+  rise with time; across this log they do not, so four fifths of it was
+  never looked at, and the next sweep would have stopped in the same place.
+  A young slice is now skipped (no delete, cursor advances) and a sweep
+  ends only past MAX(id). Test rewritten with a young stretch mid-log and
+  older rows after it. So the "nothing prunable" reading so far covers the
+  first 260K ids only; the next sweep (after the six-hour rest from 00:35Z)
+  is the first over the whole log.
+
+- 2026-10-02 (prune progress visible; breakers seen working live): the
+  fetch log prune keeps its cursor in scheduled_jobs, but nothing showed
+  it, and by arithmetic the first sweep should have reached the 14-day
+  boundary hours ago with no "sweep done" line in the 500-line Railway
+  log window. /api/status now has `fetchLogPrune` (state, updatedAt,
+  cursor, removed, startedAt). Also seen live tonight: the finance
+  ministry's two hosts (gks.mof.gov.cn, zwgls.mof.gov.cn) were "treated as
+  down until 2026-10-03" by the breaker, so their nine series failed at the
+  gate instead of asking a 502ing host; Health lists them as intermittent
+  (each holds its latest month), and the headline reads clean.
+
+- 2026-10-02 (round: health and the queue, nothing to ship): the live
+  health report is clean (55/55 cross-checks agree; no failing,
+  intermittent or behind sources; no unreviewed single-point lines; press
+  releases agree, none refused). Dropped on inspection: stopping a release
+  early when a full rotation advances nothing. The bureau takes up to three
+  working days to load a release, so a quiet lap is normal early on, and
+  the retry schedule already ends at attempt 66, just past that window;
+  the saving would be the tail only. Waiting on measurements before the
+  next structural step: the first full fetch_log prune sweep (its total
+  decides whether `fetch_state` is worth building) and the profits
+  release's attempt 65 (does rotation move "9995 pending"). The rest of
+  the database/acquisition queue is owner's calls (alerting, off-GitHub
+  backups, CHINA_SEED=off, Railway "wait for CI").
 
 - 2026-10-02 (release refresh reads only its own keys): every release
   attempt began with `storedLatest("nbs_")`, a three-table join grouped over

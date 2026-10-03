@@ -1194,20 +1194,24 @@ export const FETCH_LOG_RETENTION_DAYS = { empty: 14, ok: 31, error: 45 } as cons
 export function pruneFetchLog(fromId: number, span = 5_000, now = Date.now()): { removed: number; nextId: number; wrapped: boolean } {
   const before = (days: number) => new Date(now - days * 86_400_000).toISOString();
   const restart = () => db().query<{ id: number | null }, []>("SELECT MIN(id) AS id FROM fetch_log").get()?.id ?? 0;
-  // Ids rise with time, so once a whole slice is younger than the shortest
-  // window nothing from there on can be deleted yet: the sweep is done. The
-  // whole slice, not its first row, so one row logged out of order cannot
-  // end every sweep early. A slice with no rows (ids freed by earlier
-  // prunes) skips to the next row that exists.
+  // A sweep ends at the last id, not at the first young slice: ids do not
+  // rise with time across the whole log (on 2 October the first sweep met a
+  // slice younger than fourteen days at id 260,000 and stopped there, with
+  // four fifths of the log unseen). A young slice is skipped cheaply, and a
+  // run of ids freed by earlier prunes jumps to the next row that exists.
+  const last = db().query<{ id: number | null }, []>("SELECT MAX(id) AS id FROM fetch_log").get()?.id ?? 0;
+  const next = fromId + span;
+  const advance = (removed: number) => next > last ? { removed, nextId: restart(), wrapped: true } : { removed, nextId: next, wrapped: false };
+  if (fromId > last) return { removed: 0, nextId: restart(), wrapped: true };
   const slice = db().query<{ oldest: string | null }, { $from: number; $to: number }>(
     "SELECT MIN(finished_at) AS oldest FROM fetch_log WHERE id >= $from AND id < $to",
-  ).get({ $from: fromId, $to: fromId + span });
+  ).get({ $from: fromId, $to: next });
   if (!slice?.oldest) {
-    const next = db().query<{ id: number }, { $from: number }>("SELECT id FROM fetch_log WHERE id >= $from ORDER BY id LIMIT 1").get({ $from: fromId + span });
-    return next ? { removed: 0, nextId: next.id, wrapped: false } : { removed: 0, nextId: restart(), wrapped: true };
+    const following = db().query<{ id: number }, { $from: number }>("SELECT id FROM fetch_log WHERE id >= $from ORDER BY id LIMIT 1").get({ $from: next });
+    return following ? { removed: 0, nextId: following.id, wrapped: false } : { removed: 0, nextId: restart(), wrapped: true };
   }
   const shortest = before(Math.min(...Object.values(FETCH_LOG_RETENTION_DAYS)));
-  if (slice.oldest >= shortest) return { removed: 0, nextId: restart(), wrapped: true };
+  if (slice.oldest >= shortest) return advance(0);
   const removed = db().query<never, Record<string, string | number>>(`
     DELETE FROM fetch_log WHERE id IN (
       SELECT f.id FROM fetch_log f
@@ -1221,7 +1225,7 @@ export function pruneFetchLog(fromId: number, span = 5_000, now = Date.now()): {
     $from: fromId, $to: fromId + span,
     $empty: before(FETCH_LOG_RETENTION_DAYS.empty), $ok: before(FETCH_LOG_RETENTION_DAYS.ok), $error: before(FETCH_LOG_RETENTION_DAYS.error),
   }).changes;
-  return { removed, nextId: fromId + span, wrapped: false };
+  return advance(removed);
 }
 
 /** The oldest failure the log still holds, so "nothing failing" can be read as "none since". */
