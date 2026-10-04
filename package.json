@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
+    "@observablehq/plot": "^0.6.17",
     "pinyin-pro": "^3.29.3",
     "react": "^19",
     "react-dom": "^19",

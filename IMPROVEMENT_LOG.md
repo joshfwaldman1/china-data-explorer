@@ -98,6 +98,19 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-03 (owner: Datawrapper-style charts, "go with whichever is
+  best"): Observable Plot (ISC, Bostock) chosen over Recharts restyling and
+  visx for the theme cards: its defaults are already close to Datawrapper's.
+  `client/plot-chart.tsx` draws a card's tracks with end-of-line labels
+  instead of a legend (up to four lines; more keep the legend), horizontal
+  gridlines only, the unit above the value axis, a pointer tooltip, the
+  same long-gap breaks, log axis and natural-unit axis as the Recharts
+  card. Labels are spread apart on the chart's own y scale
+  (`spreadLabels`, tested). Behind `?charts=plot` on theme pages only;
+  the default is unchanged and series pages stay on Recharts. Cost: +78 KB
+  gzipped on the page bundle (307 -> 385 KB); if Plot becomes the default,
+  load it only on theme pages.
+
 - 2026-10-03 (owner: "that warning is pretty confused"): the GDP page's
   notes said constant-price series are "chain-linked by base period" and,
   two lines later, that the 不变价 level series "is at prior-year prices",

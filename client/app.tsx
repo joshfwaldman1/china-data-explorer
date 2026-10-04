@@ -9,6 +9,7 @@ import { PROVINCE_PLACES } from "../shared/places.ts";
 import { axisScale, lineUnit, naturalValue, withoutUnitSuffix, type AxisScale, FREQUENCY_RANK, coarsestFrequency, convertTrack, movingAverage, csvOf, deltaText, fmt, fmtDate, fmtTick, ordinal, canonicalPeriod, isAggregation, isRate, isTargetFrequency, observationLabel, periodPretty, periodTime, rebase, regionalCsv, type Aggregation, type SeriesPoint, type TargetFrequency, type Track, isUpcoming, yearEarlier, yearOnYearText, isCumulative, isOpenMonth, periodSpan, bareLabel, withoutSharedSuffix, longGapsOf, powersOfTen } from "./lib";
 import { isYearEarlierIndex, measureOf, type Measure } from "../shared/measure";
 import { ActionMenu, ChartPanelHeader, PageHeader } from "./primitives";
+import { DIRECT_LABEL_LIMIT, PlotChart } from "./plot-chart";
 import { niceTicks, visibleTracks, type ShareInput } from "./export";
 import { canCopyImage, copyImage, downloadBlob, renderShareImage, shareFileName, warmShareFonts } from "./share";
 
@@ -1162,6 +1163,9 @@ interface ThemeData { name: string; title: string; lede: string; sections: { tit
  * by a test, so this page only draws what it is handed.
  */
 function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
+  // ?charts=plot draws the cards with Observable Plot (client/plot-chart.tsx), for comparison
+  // before either becomes the default.
+  const plotCharts = typeof location !== "undefined" && new URLSearchParams(location.search).get("charts") === "plot";
   const [data, setData] = useState<ThemeData | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "error" | "unknown">("loading");
   useEffect(() => {
@@ -1205,8 +1209,10 @@ function ThemePage(props: { route: Extract<Route, { view: "theme" }> }) {
                       <h3 className="theme-card-title"><a href={href}>{title}</a></h3>
                       {hasPoints && built && result
                         ? <>
-                            <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={logScale} lunar={false} unit={result.unit} title={title} height={250} compact />
-                            {built.tracks.length > 1 && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{cardAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
+                            {plotCharts
+                              ? <PlotChart tracks={built.tracks.map((track) => ({ ...track, name: cardAxis ? withoutUnitSuffix(track.name) : track.name }))} gaps={built.gaps} years={chart.years ?? 10} logScale={logScale} unit={result.unit} title={title} height={250} axis={cardAxis} />
+                              : <SeriesChart tracks={built.tracks} gaps={built.gaps} years={chart.years ?? 10} logScale={logScale} lunar={false} unit={result.unit} title={title} height={250} compact />}
+                            {built.tracks.length > 1 && (!plotCharts || built.tracks.length > DIRECT_LABEL_LIMIT) && <div className="chart-legend" aria-label="Legend">{built.tracks.map((track) => <span key={track.id}><i className={track.dash ? "dashed" : ""} style={{ color: track.color }} />{cardAxis ? withoutUnitSuffix(track.name) : track.name}</span>)}</div>}
                           </>
                         : <div className="state small"><b>Nothing stored yet</b></div>}
                       {/* Under a rescaled axis the published unit is said as such, in its own sentence, so it
