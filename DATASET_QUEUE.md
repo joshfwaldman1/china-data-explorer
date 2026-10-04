@@ -6,6 +6,71 @@ on 21 September 2026 (twice: the morning list ran out by the evening, and
 the four items below came from probing the shipped catalog snapshot for
 what the site does not carry).
 
+## New sources, probed 3 October 2026 (ranked)
+
+Two read-only probes from a US residential IP, one request at a time per
+host. Nothing below served a challenge unless it says so. Endpoints are as
+the probes found them; capture a fixture before trusting any of them.
+
+1. **MOA wholesale price 200 index and pork carcass prices** (pfsc.agri.cn).
+   `POST /price_portal/pi-info-day/getPortalPiInfoDay` (90 days: agricultural,
+   grain and oil, 菜篮子 indices; 115.36 / 114.04 / 115.58 on 30 Sep),
+   `.../getPortalPiInfoMonth` (36 months), `.../getPiDataPigCarcassDays`
+   (by region and province). **Rolling windows: every day not stored is lost,
+   so wire this first.** Per-market prices sit behind a verification code;
+   skip them.
+2. **Auto production, sales, NEV, exports (CAAM, via MIIT)**: unparks CAAM.
+   MIIT lists them through the same CMS API mofcom.ts uses
+   (`/api-gateway/jpaas-publish-server/front/page/build/unit`, pageId
+   `5cd5434387a446b781bd53dacabb5249`); articles are prose, month and year to
+   date. Verified: August 2026 sales 271.2万辆 (−5.1%), exports 101.0万辆
+   (+65.3%).
+3. **ChinaBond yield curves** (yield.chinabond.com.cn). POST with
+   `X-Requested-With: XMLHttpRequest`. `/cbweb-mn/yc/queryYz?...&ycDefIds=<id>`
+   gives a tenor's daily history (verified: 10y government, 5,150 points from
+   March 2006, 1.6822 on 30 Sep); `/yc/queryTree` lists 153 curves (policy
+   bank, local government, enterprise AAA/AA, 城投, bank NCD). Government
+   curve id `2c9081e50a2f9606010a3068cae70001`. Credit spreads are new.
+4. **MOFCOM ODI and overseas contracted projects.** History:
+   `data.mofcom.gov.cn/datamofcom/front/tzhz/fordirinvest/dateQuery` (ODI,
+   2003-02 to 2025-12), `.../forEngineerStac/dateQuery` (projects, 2000-12
+   on), `.../forLaborCooper/dateQuery` (labour, 2012 on). 2026 onward from
+   the release text at hzs.mofcom.gov.cn/tjsj/ (fixed template; ODI Jan–Aug
+   7,784.7亿元, −0.6%).
+5. **Telecom (MIIT 通信业经济运行)**: 5G and mobile users, broadband and
+   gigabit users, IoT connections, data traffic, DOU. Monthly prose.
+6. **Port throughput by port (MOT)**: ~100 ports, cargo, foreign-trade cargo,
+   containers. XLSX attachments under mot.gov.cn/shuju/tongjishuju/
+   gangkoutuntuliang/. NBS has national totals only.
+7. **SHFE futures and warehouse stocks.** `shfe.com.cn/data/tradedata/future/
+   monthdata/YYYYMMmonthvarietystatistics.dat` (JSON), daily `kxYYYYMMDD.dat`
+   back to 2010, weekly stocks `.../stockdata/weeklystock_YYYYMMDD/ZH/all.html`.
+   Copper, aluminium, zinc, rebar, crude, gold. Paths in `/images/api.js`.
+8. **Shanghai Gold Exchange**: benchmark `sge.com.cn/sjzx/shanghaiAuAuto?
+   start_date=&end_date=` (one-month windows; 907.5 yuan/g on 30 Sep), silver
+   `shanghaiAgAuto`, daily contracts `quotation_daily_new`.
+9. **CAAC monthly key indicators**: ~45 lines incl. load factor (88.8% Aug),
+   domestic/international passengers, airport throughput. One text PDF a
+   month from caac.gov.cn/XXGK/XXGK/TJSJ/TJSJ_1/; listing shows 10 releases,
+   back history unconfirmed.
+10. **Services trade, monthly year to date (MOFCOM)**: release list
+    `data.mofcom.gov.cn/datamofcom/front/swsj/list` (POST cid=zxtj); annual
+    history `fwmy/overyears` from 1999.
+11. **Express parcel volume** (State Post Bureau release, mirrored on MOT).
+12. **Road and water freight by province (MOT XLSX).**
+
+Then: ChinaBond bond indices (501, daily from 2002); MOA weekly livestock
+and feed prices (xmsyj.moa.gov.cn/jcyj/, prose); CZCE daily and warehouse
+files (`czce.com.cn/cn/DFSStaticFiles/Future/YYYY/YYYYMMDD/FutureDataDaily.txt`;
+the site pages challenge with 412, the files do not); CFFEX XML and monthly
+zip; CCFI container freight index (MOT); MIIT software revenue; MOFCOM
+service outsourcing; MOFCOM goods trade by enterprise type (check Customs
+first). Blocked or costly: Dalian exchange (412 challenge on everything);
+NFRA bank and insurance tables (published as images, would need OCR);
+ChinaClear (holiday maintenance until 6 Oct, retry); China Electricity
+Council (timed out). Rough size: ~1,000 series beyond today's, more with
+every port, province and contract month.
+
 ## Queue
 
 1. **What the copy audit left** (26 September 2026). Axis scales in
