@@ -254,9 +254,13 @@ export const BEFORE_RELEASES_RECORDED =
 export function arrivalSentence(arrival: Arrival): string {
   const when = arrival.firstSeen.slice(0, 10);
   if (arrival.kind === "backfill") return BEFORE_RELEASES_RECORDED;
-  const named = arrival.release ? ` with the release "${arrival.release.title}"` : "";
+  // When this site first held the figure, which is not the publisher's release
+  // date unless a release is named; "First seen" read as one.
+  const reached = `This figure reached the site on ${when}.`;
+  const named = arrival.release ? ` It came with the release "${arrival.release.title}".` : "";
   if (arrival.kind === "revision" && arrival.lastRevised) {
-    return `First seen ${when}${named}; restated ${arrival.vintages - 1} time${arrival.vintages === 2 ? "" : "s"}, most recently ${arrival.lastRevised.slice(0, 10)}.`;
+    const times = arrival.vintages - 1;
+    return `${reached}${named} It has been revised ${times} time${times === 1 ? "" : "s"} since, most recently on ${arrival.lastRevised.slice(0, 10)}.`;
   }
-  return `First seen ${when}${named}, and unchanged since.`;
+  return `${reached}${named} It has not been revised since.`;
 }

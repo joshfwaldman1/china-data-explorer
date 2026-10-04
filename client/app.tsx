@@ -245,7 +245,7 @@ const UNIT_EN: Record<string, string> = {
 };
 /** Two sentences each, written for a reader rather than a catalog. */
 const ABOUT: Record<string, string> = {
-  gdp: "Real GDP growth on a year earlier from the National Bureau of Statistics' quarterly national accounts. Constant-price series are chain-linked by base period. Quarterly values are not seasonally adjusted.",
+  gdp: "Real GDP growth compared with the same quarter a year earlier, as published by the National Bureau of Statistics. Not seasonally adjusted.",
   provincial_industry: "Growth in the value added of large industrial firms, by province, for the month and the year to date. NBS publishes it for the 31 provinces a few days after the national figure, around the 20th.",
   provincial_cpi: "A province's consumer price index against a year earlier from the National Bureau of Statistics' provincial monthly table. The bureau republishes the table every five years. The earlier ones are stitched behind the current one.",
   provincial_gdp: "Guangdong's real GDP growth as reported by the provincial bureau. NBS publishes it as a cumulative year-to-date index against the same period a year earlier, so the Q2 figure is first-half growth.",
@@ -325,7 +325,7 @@ const READING: Record<string, string[]> = {
     "Figures are not seasonally adjusted. Lunar New Year shifts between January and February and distorts both months.",
   ],
   cpi: ["Food is roughly a fifth of the basket. Pork alone can swing the headline by a few tenths.", "Core CPI (excluding food and energy) is published alongside and is usually the steadier read."],
-  gdp: ["The 不变价 (constant-price) level series is at prior-year prices, so arithmetic year-over-year on it is not the headline growth rate. Use the growth series NBS publishes.", "Quarterly GDP is revised after the annual figure and again after economic censuses. The store keeps every vintage."],
+  gdp: ["The bureau revises quarterly GDP once the annual figure is out and again after each economic census. This site keeps every version."],
   provincial_gdp: ["Provincial GDP figures have historically summed to more than the national total, so treat the ranking of provinces as indicative.", "The series is cumulative year-to-date: Q4 equals the full year."],
   trade: ["Customs reports in US dollars and in yuan. The two growth rates diverge when the exchange rate moves.", "Front-loading ahead of tariff changes shows up as spikes that reverse within a quarter."],
   pmi: ["Diffusion indices measure breadth, not magnitude: 49 with a large firm base can coincide with rising output.", "The official PMI leans to large state firms. The Caixin PMI leans to smaller private exporters."],
@@ -2263,7 +2263,7 @@ function SeriesPage(props: {
             <dt>Frequency</dt><dd>{primary.frequency}</dd>
             <dt>Unit</dt><dd>{unitLabel(primary.unit)}</dd>
             <dt>Range</dt><dd>{headline && headline.points.length > 0 ? `${observationLabel(headline.points[0]?.date ?? "", primary.frequency)} to ${observationLabel(headline.points[headline.points.length - 1]?.date ?? "", primary.frequency)}` : "—"}</dd>
-            <dt>Updated</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
+            <dt>Last checked</dt><dd>{primary.source === "live" ? "Just now" : fmtDate(primary.updatedAt) || "—"}</dd>
             <dt>Next release</dt><dd>{nextRelease ? `${fmtDate(nextRelease.date.slice(0, 10))}, ${nextRelease.date.slice(11, 16)} CST, ${nextRelease.en}${curated?.refreshBlocked ? `; not refreshed on this deployment, which does not run ${curated.refreshBlocked}` : ""}` : /National Bureau of Statistics/.test(primary.agency) ? "Not in the NBS calendar for this month or next" : curated?.releaseDay ? `Published by ${primary.agency} by about the ${ordinal(curated.releaseDay)} of the following month; its calendar for this period is not on its site yet` : `Not in the NBS calendar; published by ${primary.agency}`}</dd>
             <dt>Series ID</dt><dd><code className="series-id">{primary.key}</code></dd>
             {meta?.nameEn && <><dt>English title</dt><dd>{meta.nameEnSource === "nbs-official" && meta.nameEnSourceUrl

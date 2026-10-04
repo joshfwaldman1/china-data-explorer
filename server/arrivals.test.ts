@@ -82,7 +82,7 @@ test("a period stored twice is a revision, and both sightings are kept", () => {
   expect(july?.vintages).toBe(2);
   expect(july?.firstSeen.slice(0, 10)).toBe("2026-08-15");
   expect(july?.lastRevised?.slice(0, 10)).toBe("2026-09-15");
-  expect(arrivalSentence(july!)).toContain("restated 1 time");
+  expect(arrivalSentence(july!)).toContain("revised 1 time since");
 });
 
 test("the release window is per frequency, and a figure cannot arrive long before its period ends", () => {

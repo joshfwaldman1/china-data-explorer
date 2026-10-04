@@ -98,6 +98,18 @@ the live site (fetch_log 1,561,825 rows since 09-07; money_supply M1/M2
 
 ## Log
 
+- 2026-10-03 (owner: "that warning is pretty confused"): the GDP page's
+  notes said constant-price series are "chain-linked by base period" and,
+  two lines later, that the 不变价 level series "is at prior-year prices",
+  a warning about computing growth from a level table the page does not
+  show. Both removed; the remaining notes say what the series is and that
+  revisions are kept. Series pages also said "How it arrived: First seen
+  2026-09-15, and unchanged since", which read like a release date but is
+  when this site first stored the figure, and "Updated" for the last
+  fetch, which read like new data. Now "This figure reached the site on
+  ... It came with the release ... It has not been revised since." and
+  "Last checked". arrivals.test.ts updated.
+
 - 2026-10-03 (release refresh chases only places on its cadence): the 27
   Sep profits release's 9,995 pending series are mostly places that
   stopped publishing an indicator long ago. A sample, provincial boiler
