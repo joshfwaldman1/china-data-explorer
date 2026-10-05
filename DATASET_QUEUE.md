@@ -59,6 +59,14 @@ the probes found them; capture a fixture before trusting any of them.
 11. **Express parcel volume** (State Post Bureau release, mirrored on MOT).
 12. **Road and water freight by province (MOT XLSX).**
 
+MOT's listings page back with `index_1.html`, `index_2.html`...; page 3
+reaches January 2020 and page 5 is a 404, so items 6 and 12 have about five
+years of monthly XLSX; older months only from NBS or yearbooks. Rail beyond
+NBS's national figure is unavailable from here (nra.gov.cn does not connect;
+MOT's copy of the rail release is filled by script). CAAC's statistics list
+(379 items) is also filled by script; the JSON behind it is not yet found,
+so item 9's back history depends on finding it.
+
 Then: ChinaBond bond indices (501, daily from 2002); MOA weekly livestock
 and feed prices (xmsyj.moa.gov.cn/jcyj/, prose); CZCE daily and warehouse
 files (`czce.com.cn/cn/DFSStaticFiles/Future/YYYY/YYYYMMDD/FutureDataDaily.txt`;
