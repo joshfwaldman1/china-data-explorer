@@ -33,14 +33,14 @@ test("a clean report says so in one line, and names the number of checks", () =>
   expect(report.checks.findings).toEqual([]);
   // The headline is a pure reading of a report, so it is stated against one
   // rather than against whatever the shared test store happens to hold.
-  const line = healthHeadline({ ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] }, singlePoint: [] });
+  const line = healthHeadline({ ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] }, singlePoint: [], held: [] });
   expect(line).toContain("All 2 cross-checks agree");
   expect(line).toContain("nothing overdue");
 });
 
 test("the headline names each kind of wrong, and only the kinds present", () => {
-  // Stated with no single-point lines, since the shared test store holds whatever other files wrote.
-  const base = { ...healthReport([agreeing]), singlePoint: [] };
+  // Stated with no single-point lines or held figures, since the shared test store holds whatever other files wrote.
+  const base = { ...healthReport([agreeing]), singlePoint: [], held: [] };
   const withFinding = healthHeadline({ ...base, checks: { ...base.checks, findings: [{ name: "x", kind: "value", disagreements: [] }] }, sources: { ...base.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] } });
   expect(withFinding).toBe("1 cross-check disagreeing.");
   const withBoth = healthHeadline({
@@ -161,7 +161,7 @@ test("a reviewed single-point line is listed with its reason and no longer keeps
   expect(line?.label).toBe("Quantity (Ton)");
   expect(line?.reviewed).toBe("Customs changed this quantity from tons to 10,000 tons in March 2026, so the line split in two.");
   // Only reviewed lines: the banner clears. One unreviewed line beside it: it counts one.
-  const clean = { ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] } };
+  const clean = { ...report, sources: { ...report.sources, failing: [] }, behind: { publisher: [], blocked: [], ended: [] }, held: [] };
   expect(healthHeadline({ ...clean, singlePoint: [line!] })).toContain("All 1 cross-check");
   expect(healthHeadline({ ...clean, singlePoint: [line!, { ...line!, label: "A stray line", reviewed: undefined }] })).toBe("1 line with a single point.");
 });
@@ -255,7 +255,7 @@ test("a source that has fetched cleanly since its last failure is recovered, not
   expect(tsf?.recoveredAt).toBe(recoveredAt);
   // Recovered means not failing: it is in one list and not the other, and not in the headline.
   expect(report.sources.failing.some((source) => source.key === "tsf_flow")).toBe(false);
-  expect(healthHeadline({ ...report, sources: { ...report.sources, failing: report.sources.failing.filter((s) => s.key === "tsf_flow") }, behind: { publisher: [], blocked: [], ended: [] }, singlePoint: [] })).toContain("All 1 cross-check");
+  expect(healthHeadline({ ...report, sources: { ...report.sources, failing: report.sources.failing.filter((s) => s.key === "tsf_flow") }, behind: { publisher: [], blocked: [], ended: [] }, singlePoint: [], held: [] })).toContain("All 1 cross-check");
   // A source whose last event is a failure is still failing, however many successes preceded it.
   const lgb = report.sources.failing.find((source) => source.key === "lgb_rate");
   expect(lgb).toBeDefined();
