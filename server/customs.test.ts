@@ -6,7 +6,7 @@
 
 import { test, expect } from "bun:test";
 import { resolve } from "node:path";
-import { commodityTableIsCumulativeOnly, currencyOfTable, findTable, layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, partnerTableHasNoMonth, slugOf, tableOfCurrency } from "./customs.ts";
+import { commodityTableIsCumulativeOnly, currencyOfTable, findTable, layoutBroken, monthOfTitle, parseByCountry, parseCommodities, parseListing, partnerTableHasNoMonth, slugOf, tableIsImageOnly, tableOfCurrency } from "./customs.ts";
 
 const fixture = (name: string) => Bun.file(resolve(import.meta.dir, "fixtures/customs", name)).text();
 
@@ -211,4 +211,20 @@ test("the January-February commodity table carries the two months together and n
   // The partner table's January-February release is told the same way.
   expect(partnerTableHasNoMonth(await fixture("by-country-2025-02-usd.html"))).toBe(true);
   expect(partnerTableHasNoMonth(await fixture("by-country-2026-08-usd.html"))).toBe(false);
+});
+
+test("January-February 2020 puts the unit cell after six empty cells, and still parses", async () => {
+  const html = await fixture("major-exports-2020-02-usd.html");
+  const rows = parseCommodities(html);
+  expect(rows.length).toBeGreaterThan(20);
+  // A two-month release: no single-month figure, only the year to date.
+  expect(commodityTableIsCumulativeOnly(html)).toBe(true);
+  const grain = rows.find((row) => row.name === "Grain");
+  expect(grain?.ytdValue).toBe(225.8);
+});
+
+test("mid-2018 tables are screenshots with no HTML table, and are recognised as such", async () => {
+  expect(tableIsImageOnly(await fixture("by-country-2018-10-usd-image.html"))).toBe(true);
+  expect(tableIsImageOnly(await fixture("by-country-2026-08-usd.html"))).toBe(false);
+  expect(tableIsImageOnly(await fixture("major-exports-2020-02-usd.html"))).toBe(false);
 });

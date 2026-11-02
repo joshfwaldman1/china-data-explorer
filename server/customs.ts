@@ -132,8 +132,28 @@ const HEADER_CELL = /^(?:Import\s+|Export\s+)?Commodity\b/i;
 /** A year-to-date column label: "1-to-8", "1- to-2". */
 const CUMULATIVE_CELL = /^1-?\s*to-?\s*\d{1,2}$/i;
 
+/**
+ * The unit cell, wherever it sits in its row. Most tables put it first, but
+ * January-February 2020 right-aligns it under the last two columns, after six
+ * empty cells, and a lookup that read only the first cell found nothing there
+ * and refused the month as `unexpected unit line ""`.
+ */
 function unitLine(rows: string[][]): string {
-  return rows.find((row) => UNIT_CELL.test(row[0] ?? ""))?.[0] ?? "";
+  for (const row of rows) {
+    const cell = row.find((text) => UNIT_CELL.test(text));
+    if (cell !== undefined) return cell;
+  }
+  return "";
+}
+
+/**
+ * True when the page has no table at all. From June to December 2018 the
+ * English site published each table as a screenshot (`<img src='\Excel\18-10-4-USD.png'/>`)
+ * with no HTML table behind it, so there is nothing to parse. Those months
+ * are absent from the archive in machine-readable form, not misparsed.
+ */
+export function tableIsImageOnly(html: string): boolean {
+  return !/<table[\s>]/i.test(html) && /<div class="atcl-cnt">\s*<img/i.test(html);
 }
 
 function partnerTableIsCumulativeOnly(rows: string[][]): boolean {
@@ -474,6 +494,8 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
   // January-February release), so that a value the store holds for them can
   // be retracted: the parser used to read the two-month total as February's.
   const unpublishedMonths: string[] = [];
+  // Months published only as an image of the table (June to December 2018).
+  const imageOnlyMonths: string[] = [];
   let parsed = 0;
   for (const month of months) {
     const entry = await findTable(cfg.table, month, { currency: cfg.currency ?? "USD" });
@@ -482,6 +504,9 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
     if (!entry) { missing += 1; if (missing >= 3) break; continue; }
     missing = 0;
     const html = await tableOfCurrency(entry, cfg.currency ?? "USD");
+    // A screenshot instead of a table (mid-2018) has no figures to read.
+    // It is neither a parse failure nor the end of the archive.
+    if (tableIsImageOnly(html)) { imageOnlyMonths.push(month); continue; }
     try {
     parsed += 1;
     parsedMonths.push(month);
@@ -518,6 +543,9 @@ export async function fetchCustomsRegion(key: string, cfg: CustomsIndicator, reg
       failed.push(`${month} (${entry.href}): ${error instanceof Error ? error.message : String(error)}`);
       console.warn(`  Customs ${cfg.table} ${month}: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+  if (imageOnlyMonths.length > 0) {
+    console.log(`  Customs ${cfg.table}: ${imageOnlyMonths.length} month${imageOnlyMonths.length === 1 ? "" : "s"} published only as an image (${imageOnlyMonths.at(-1)}..${imageOnlyMonths[0]}), skipped`);
   }
   if (failed.length > 0) {
     const failedMonths = failed.map((line) => line.slice(0, 7));
