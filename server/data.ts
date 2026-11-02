@@ -1236,7 +1236,10 @@ export const CATALOG: Record<string, Indicator> = {
     frequency: "Monthly", unit: "Percent change from year ago, computed from the bank's month-end levels",
     // The bank prints levels only in this table; the rate here is computed from
     // them to one decimal, and the audit holds it against the rate the bank
-    // publishes in its release (money_supply, via the mirror).
+    // publishes in its release (money_supply, via the mirror). M1 has no rate
+    // for 2025: its January 2025 redefinition leaves no comparable 2024 level
+    // in this table (MONEY_DEFINITION_BREAKS, pboc.ts); money_supply carries
+    // the bank's own rate for those months.
     table: "money_growth", instruments: MONEY_ROWS,
     releaseDay: 15,
   },

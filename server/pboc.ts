@@ -44,6 +44,16 @@ const TABLES: Record<PbocTable, { section: string; title: RegExp; pairs?: boolea
 export const MONEY_ROWS: { match: RegExp; label: string }[] = [
   { match: /M2/, label: "M2" }, { match: /M1/, label: "M1" }, { match: /M0/, label: "M0" },
 ];
+/**
+ * The first month each money line is on a definition the year before it is
+ * not. The bank widened M1 from January 2025 data (adding households' demand
+ * deposits and non-bank payment institutions' reserve funds), and the 2024
+ * table keeps the old one, so a 2025 level over its 2024 level is not growth:
+ * it read +62% for January 2025 where the bank printed 0.4%. Growth is not
+ * computed for a month whose year-earlier month sits before its line's break.
+ */
+export const MONEY_DEFINITION_BREAKS: Record<string, string> = { M1: "2025-01" };
+
 export const RESERVE_ROWS: { match: RegExp; label: string }[] = [
   { match: /Foreign currency reserves/i, label: "Foreign currency reserves" },
   { match: /^4\.\s*黄金|Gold/i, label: "Gold" },
@@ -239,6 +249,23 @@ export function decodePage(bytes: ArrayBuffer): string {
   return new TextDecoder(charset && /utf-?8/.test(charset) ? "utf-8" : "gbk").decode(bytes);
 }
 
+/**
+ * Growth on a year earlier from one money line's month-end levels, to one
+ * decimal as the bank prints it. A month whose year-earlier level is on the
+ * line's old definition gets no rate rather than a wrong one.
+ */
+export function moneyGrowth(label: string, levels: Map<string, number>): Map<string, number> {
+  const growth = new Map<string, number>();
+  const definitionBreak = MONEY_DEFINITION_BREAKS[label];
+  for (const [period, value] of levels) {
+    const earlierPeriod = `${Number(period.slice(0, 4)) - 1}${period.slice(4)}`;
+    if (definitionBreak && period >= definitionBreak && earlierPeriod < definitionBreak) continue;
+    const earlier = levels.get(earlierPeriod);
+    if (earlier && earlier !== 0) growth.set(period, Math.round(((value / earlier) - 1) * 1000) / 10);
+  }
+  return growth;
+}
+
 async function get(url: string): Promise<ArrayBuffer> {
   const response = await upstreamFetch(url, { headers: { "User-Agent": USER_AGENT }, timeoutMs: 45_000, redirect: "follow" });
   if (!response.ok) throw new Error(`PBOC -> HTTP ${response.status}`);
@@ -289,15 +316,7 @@ export async function fetchPboc(key: string, cfg: PbocIndicator, limit: number, 
   }
   if (readYears === 0) throw new Error(failures[0] ?? "PBOC: no year could be read");
   if (cfg.table === "money_growth") {
-    // Growth on a year earlier from the bank's levels, to one decimal as the bank prints it.
-    for (const [label, line] of lines) {
-      const growth = new Map<string, number>();
-      for (const [period, value] of line) {
-        const earlier = line.get(`${Number(period.slice(0, 4)) - 1}${period.slice(4)}`);
-        if (earlier && earlier !== 0) growth.set(period, Math.round(((value / earlier) - 1) * 1000) / 10);
-      }
-      lines.set(label, growth);
-    }
+    for (const [label, line] of lines) lines.set(label, moneyGrowth(label, line));
   }
   if (cfg.table === "flow") {
     for (const row of flows) for (const instrument of cfg.instruments) put(instrument.label, row.period, row.values[instrument.label] ?? null);

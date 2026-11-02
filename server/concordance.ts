@@ -318,6 +318,15 @@ export const CONCORDANCE_PAIRS: ConcordancePair[] = [
     note: "A rate computed from month-end levels against the one the bank prints; rounding to one decimal on both sides.",
   },
   {
+    // Without this pair the computed M1 line went unaudited, and its 2025 rates,
+    // taken across the bank's January 2025 redefinition, read +62% for 0.4%.
+    name: "M1 (YoY %): computed from the bank's levels vs published", kind: "value",
+    left: { key: "money_stock_growth", label: "M1" },
+    right: { key: "money_supply", label: "M1 (YoY %)" }, // the mirror of the bank's release
+    tolerance: 0.15,
+    note: "As the M2 pair; no computed rate exists for 2025, the year M1 was redefined.",
+  },
+  {
     name: "FX reserves (100M USD)", kind: "value",
     left: { key: "official_reserves", label: "Foreign currency reserves" }, // the bank's 官方储备资产 table
     right: { key: "forex_reserves", label: "FX reserves (100M USD)" }, // the mirror of the bank's release

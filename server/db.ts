@@ -207,6 +207,42 @@ export function retractMisreadFebruaries(database: Database, now = new Date()): 
 }
 
 /**
+ * The computed M1 growth for January to December 2025 divided a level on the
+ * bank's widened 2025 definition by a 2024 level on the old one, and stored
+ * +62% to +80% where the bank printed 0.4% to 7.2%. The adapter no longer
+ * computes those months (MONEY_DEFINITION_BREAKS, pboc.ts), and the ingest
+ * writes only what it reads, so the stored figures are retracted here as null
+ * revisions, once; the trail keeps what was shown. The periods are written out
+ * rather than imported so this migration says forever what it did.
+ */
+export const M1_ACROSS_DEFINITION_BREAK = {
+  key: "money_stock_growth", label: "M1",
+  periods: ["2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12"],
+} as const;
+
+export function retractM1AcrossDefinitionBreak(database: Database, now = new Date()): number {
+  const { key, label, periods } = M1_ACROSS_DEFINITION_BREAK;
+  const latest = database.query<{ region: string; period: string }, [string, string]>(`
+    SELECT o.region, o.period FROM observations o
+    WHERE o.key = ? AND o.label = ?
+      AND o.period IN (${periods.map((period) => `'${period}'`).join(", ")})
+      AND o.value IS NOT NULL
+      AND o.fetched_at = (SELECT MAX(fetched_at) FROM observations WHERE key = o.key AND region = o.region AND label = o.label AND period = o.period)
+  `).all(key, label);
+  if (latest.length === 0) return 0;
+  const retract = database.prepare("INSERT OR IGNORE INTO observations (key, region, label, period, value, fetched_at) VALUES (?, ?, ?, ?, NULL, ?)");
+  const at = now.toISOString();
+  database.transaction(() => {
+    let written = 0;
+    for (const row of latest) written += retract.run(key, row.region, label, row.period, at).changes;
+    // A retraction is a row like any other; the running count moves with it.
+    if (written > 0) database.query("INSERT INTO store_stats (id, observations) VALUES (1, $count) ON CONFLICT (id) DO UPDATE SET observations = observations + $count").run({ $count: written });
+  })();
+  console.log(`  Store: retracted ${latest.length} computed M1 growth figures across the January 2025 redefinition`);
+  return latest.length;
+}
+
+/**
  * April 2025's major exports table was published without its quantity-unit
  * column (customs.ts, parseCommodities), and the parser, reading the unit
  * from the quantity cell, stored each commodity's quantity as a line named
@@ -446,6 +482,7 @@ export const MIGRATIONS: Migration[] = [
   // both are no-ops on a store they have already repaired.
   { name: "2026-09-23 retract misread February partner figures", run: (database) => { retractMisreadFebruaries(database); } },
   { name: "2026-09-25 remove commodity quantity lines named for a misread number", run: (database) => { removeMisparsedQuantityLines(database); } },
+  { name: "2026-11-02 retract computed M1 growth across the January 2025 redefinition", run: (database) => { retractM1AcrossDefinitionBreak(database); } },
   {
     // The series row's unit, title, frequency and agency are overwritten in
     // place at each write, so a publisher changing a unit (万 to 亿) or
